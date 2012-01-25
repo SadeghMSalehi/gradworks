@@ -22,13 +22,14 @@ def individualDownload(ul, bookIdList, pdflinks, reallyRun):
 				os.system(cmd)
 				cnt += 1
 
-def collectionDownload(fout, html, bookIdList, hrefs, run):
+def collectionDownload(fout, html, hrefOrder, hrefs, run):
 	beg = html.find("documentPdfDownloadUrls")
 	end = html.find("]", beg + 10)
-
+	"remove previous pdfs"
+	if run:
+		os.system("rm ???.pdf")
+	"test how to find pdf links"
 	if beg > 0:
-		if run:
-			os.system("rm ???.pdf")
 		pdfUrls = html[beg:end+1]
 		pdfLinks = re.findall(",*\"(.[a-zA-Z0-9/\-]*\.pdf)\"", pdfUrls)
 		print pdfLinks
@@ -42,44 +43,43 @@ def collectionDownload(fout, html, bookIdList, hrefs, run):
 			if run:
 				os.system(cmd)
 				pass
-		if run:
-			joinCMD = "ls ???.pdf | sort | xargs pdfjam --outfile \"%s\"" % fout
-			print joinCMD
-			os.system(joinCMD)
 	else:
 		downloaded = {}
 		cnt = 1
-		print hrefs
-		for i,dataCode in enumerate(bookIdList):
+		print hrefOrder
+		for i,dataCode in enumerate(hrefOrder):
 			if dataCode not in downloaded:
 				downloaded[dataCode] = True
-				fname = str(cnt) if cnt > 9 else "0" + str(cnt)
-				fname = fname + ".pdf"
+				fname = "%03d.pdf" % cnt
 				cmd = "wget --user-agent=\"%s\" \"%s\" -O \"%s\"" % (__USERAGENT, hrefs[dataCode], fname)
-				print hrefs[dataCode]
 				if run:
 					os.system(cmd)
 					cnt += 1
+	"aggregate pdfs"
+	if run:
+		joinCMD = "ls ???.pdf | sort | xargs pdfjam --outfile \"%s\"" % fout
+		print joinCMD
+		os.system(joinCMD)
+
 
 
 def main(opts, arg):
 	d = pq(filename=opts.html)
-	ul = d("ul.manifest")
+	ul = d("ul.primitiveManifest")
 
-	pdflinks = {}
-	bookIdList = []
+	hrefs  = {}
+	hrefOrder = []
 	"href extraction"
 	for li in ul("li"):
 		href = pq(li)("a.pdf-resource-sprite").attr.href
 		if href is not None:
-			bookId = href.split("/")[2]
 			bookHref = "http://www.springerlink.com/%s" % (href[1:])
-			if bookId not in pdflinks:
-				bookIdList.append(bookId)
-			pdflinks[bookId] = bookHref
+			if href not in hrefs:
+				hrefOrder.append(href)
+			hrefs[href] = bookHref
 	"title extract"
 	if opts.aggregate:
-		collectionDownload(opts.fout, d.html(), bookIdList, pdflinks, opts.run)
+		collectionDownload(opts.fout, d.html(), hrefOrder, hrefs, opts.run)
 	else:
 		individualDownload(ul, bookIdList, pdflinks, opts.run)
 

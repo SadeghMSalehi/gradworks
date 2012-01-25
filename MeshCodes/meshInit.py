@@ -168,6 +168,27 @@ def writeITKTransform(fname,m3x3,t,o):
 	f = open(fname, "w")
 	f.write(header + typeheader + params + fixedParams)
 	f.close()
+
+def normalHistogram(opts,argv):
+	poly = nv.readVTK(argv[0])
+	normfilt = vtk.vtkPolyDataNormals()
+	normfilt.ConsistencyOn()
+	normfilt.AutoOrientNormalsOn()
+	normfilt.ComputeCellNormalsOn()
+	normfilt.SetInput(poly)
+	normfilt.SetFeatureAngle(90)
+	normfilt.Update()
+	poly = normfilt.GetOutput()
+	nv.writeVTK("nrom.vtk", poly)
+	normals = poly.GetCellData().GetArray("Normals", vtk.mutable(0))
+	normMap = vtk.vtkUnstructuredGrid()
+	normMap.SetPoints(vtk.vtkPoints())
+	normPts = normMap.GetPoints()
+	for i in range(0, normals.GetNumberOfTuples()):
+		norm = [0,0,0]
+		normals.GetTuple(i, norm)
+		normPts.InsertNextPoint(norm)
+	nv.writeVTK(argv[1], normMap)
 	
 def main(opts, argv):
 	if (opts.concomp):
@@ -177,10 +198,15 @@ def main(opts, argv):
 	elif opts.rotate:
 		rotate(opts,argv)
 	elif opts.command != "":
-		eval(opts.command)(opts,argv)
+		funcCommand = eval(opts.command)
+		if funcCommand is not None:
+			funcCommand(opts,argv)
+		else:
+			print opts.command + " is not a command"
 
 if __name__ == "__main__":
 	parser = OptionParser(usage="%prog [options] arg1 args2")
+	parser.add_option("-o", "--output", dest="output", help="output file", default="")
 	parser.add_option("-c", "--concomp", dest="concomp", help="connected component", action="store_true", default=False)
 	parser.add_option("-p", "--principalAxes", dest="principalAxes", help="Principal Axes", action="store_true", default=False)
 	parser.add_option("-r", "--rotate", dest="rotate", help="Rotate", action="store_true", default=False)
