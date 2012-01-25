@@ -1,0 +1,10 @@
+Download springer books at school internet
+
+1) download index.html on the page where your book is showing
+2) python springer.py -a -r -o "Title.pdf" 
+
+xargs
+pdfjam
+sort
+
+command is used to aggregate downloaded content
