@@ -5,7 +5,7 @@ from PySide.QtGui import *
 from PySide import QtOpenGL
 
 from visImageWindow import *
-from VisWidgets import *
+from QProcessing import QProcessing
 
 class CircleTest(QProcessing):
 	def setup(self):

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'visImageWindow.ui'
 #
-# Created: Thu Jan 26 00:54:53 2012
+# Created: Thu Jan 26 01:36:01 2012
 #      by: pyside-uic 0.2.11 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
