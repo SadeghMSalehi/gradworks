@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'visImageWindow.ui'
 #
-# Created: Wed Jan 25 19:09:56 2012
+# Created: Thu Jan 26 00:54:53 2012
 #      by: pyside-uic 0.2.11 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -17,7 +17,7 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtGui.QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName("gridLayout")
-        self.widget = QImageViewer(self.centralwidget)
+        self.widget = QProcessingWidget(self.centralwidget)
         self.widget.setObjectName("widget")
         self.gridLayout.addWidget(self.widget, 0, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
@@ -47,4 +47,4 @@ class Ui_MainWindow(object):
         self.action_Open.setText(QtGui.QApplication.translate("MainWindow", "&Open", None, QtGui.QApplication.UnicodeUTF8))
         self.action_Close.setText(QtGui.QApplication.translate("MainWindow", "&Close", None, QtGui.QApplication.UnicodeUTF8))
 
-from VisWidgets import QImageViewer
+from VisWidgets import QProcessingWidget
