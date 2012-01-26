@@ -1,0 +1,126 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0300 
+header_name {.h} 
+code_name {.cxx}
+class RegionGrowingTrackingUI {open : RegionGrowingTrackingUIBase
+} {
+  Function {MakeWindow()} {open
+  } {
+    Fl_Window m_WinRGTrac {
+      label {Region Growing-based WM Tracking} open selected
+      xywh {520 397 410 450} type Double box PLASTIC_DOWN_BOX resizable
+      code0 {\#include "RegionGrowingTrackingUIBase.h"}
+      code1 {\#include <FL/Fl_File_Chooser.H>} visible
+    } {
+      Fl_Group {} {
+        label {Input Images} open
+        xywh {15 25 385 195} box PLASTIC_DOWN_BOX labeltype EMBOSSED_LABEL align 5
+      } {
+        Fl_File_Input m_inputDTI {
+          label {Vector Image:}
+          xywh {122 33 200 30} labelsize 12 textsize 12
+        }
+        Fl_File_Input m_inputF1 {
+          label {Feature1 Image:}
+          xywh {123 71 200 28} labelsize 12 textsize 12
+        }
+        Fl_Button {} {
+          label {Browse..}
+          callback {m_inputDTI->value(fl_file_chooser("Choose DTI Image", "*.{nrrd,gipl.gz,nii.gz}", "", 0));}
+          xywh {331 37 65 25} labelsize 10
+          code0 {\#include <FL/Fl_Native_File_Chooser.H>}
+        }
+        Fl_Button {} {
+          label {Browse..}
+          callback {m_inputF1->value(fl_file_chooser("Choosean image", "*.{nrrd,gipl.gz,nii.gz}", "", 0));}
+          xywh {331 75 65 25} labelsize 10
+        }
+        Fl_Text_Display m_dtiVectorInfo {
+          xywh {120 181 200 29} labelsize 10 textsize 10 deactivate
+          code0 {m_dtiVectorInfo->buffer(new Fl_Text_Buffer());}
+        }
+        Fl_Button {} {
+          label {Export..}
+          xywh {331 180 65 25} labelsize 10 deactivate
+        }
+        Fl_File_Input m_inputF2 {
+          label {Feature2 Image:}
+          xywh {123 109 200 28} labelsize 12 textsize 12
+        }
+        Fl_Button {} {
+          label {Browse..}
+          callback {m_inputF2->value(fl_file_chooser("Choose an image", "*.{nrrd,gipl.gz,nii.gz}", "", 0));}
+          xywh {331 111 65 25} labelsize 10
+        }
+      }
+      Fl_Group {} {
+        label Parameters open
+        xywh {15 251 380 154} box PLASTIC_DOWN_BOX labeltype EMBOSSED_LABEL align 5
+      } {
+        Fl_Value_Input m_angleMinThreshold {
+          label {Angle Search From:}
+          xywh {145 259 40 20} labelsize 12 maximum 10 step 0.1 value 2 textsize 12
+        }
+        Fl_Value_Input m_initialStd {
+          label {Initial STD:}
+          xywh {95 378 100 20} labelsize 12 step 0.001 value 0.05 textsize 12 deactivate
+        }
+        Fl_Value_Input m_cutoffStd {
+          label {STD Cut-Off:}
+          xywh {280 378 100 20} labelsize 12 maximum 10 step 0.1 value 3 textsize 12 deactivate
+        }
+        Fl_Value_Input m_angleMaxThreshold {
+          label {To:}
+          xywh {210 259 40 20} labelsize 12 maximum 90 step 0.1 value 10 textsize 12
+        }
+        Fl_Value_Input m_f1MinThreshold {
+          label {Feature1 Threshold:}
+          xywh {145 286 40 20} labelsize 12 minimum -10 maximum 10 step 0.01 value 0.45 textsize 12
+        }
+        Fl_Value_Input m_f1MaxThreshold {
+          label {To:}
+          xywh {210 286 40 20} labelsize 12 maximum 10 step 0.1 value 1 textsize 12
+        }
+        Fl_Check_Button m_useIncrementalLabel {
+          label {Use Incremental Label}
+          xywh {240 350 25 25} down_box DOWN_BOX value 1 labelsize 11
+        }
+        Fl_Value_Input m_maxNumberOfVoxels {
+          label {Max \# of Voxels:}
+          xywh {130 355 105 20} labelsize 12 maximum 1e+11 step 1000 value 100000 textsize 12
+        }
+        Fl_Value_Input m_f2MinThreshold {
+          label {Feature2 Threshold:}
+          xywh {145 314 40 20} labelsize 12 minimum -10 maximum 10 step 0.01 value 0.45 textsize 12
+        }
+        Fl_Value_Input m_f2MaxThreshold {
+          label {To:}
+          xywh {210 314 40 20} labelsize 12 maximum 10 step 0.1 value 1 textsize 12
+        }
+        Fl_Value_Input m_f1Delta {
+          label {Delta:}
+          xywh {295 286 40 20} labelsize 12 maximum 10 step 0.1 value 1 textsize 12
+        }
+        Fl_Value_Input m_f2Delta {
+          label {Delta:}
+          xywh {296 314 40 20} labelsize 12 maximum 10 step 0.1 value 1 textsize 12
+        }
+      }
+      Fl_Button {} {
+        label {&Apply}
+        callback {this->OnApplyAction();}
+        xywh {175 415 80 25} box PLASTIC_UP_BOX shortcut 0x80061 color 180 labelfont 1 labelsize 12
+      }
+      Fl_Button {} {
+        label Close
+        callback {this->OnCloseAction();}
+        xywh {275 415 80 25} box PLASTIC_UP_BOX shortcut 0xff1b color 180 labelsize 12
+      }
+      Fl_Button {} {
+        label {&Ok}
+        callback {this->OnOkAction();}
+        xywh {80 415 80 25} box PLASTIC_UP_BOX shortcut 0x8006f color 180 labelfont 1 labelsize 12
+      }
+    }
+  }
+} 

@@ -5,7 +5,7 @@ from PySide.QtGui import *
 from PySide import QtOpenGL
 
 from visImageWindow import *
-from QProcessing import QProcessing
+from QProcessing import *
 
 class CircleTest(QProcessing):
 	def setup(self):
@@ -21,6 +21,7 @@ class CircleTest(QProcessing):
 		s.background(255)
 		s.frameNo += 1
 		s.translate(s.width()/2.,s.height()/2.)
+		"""
 		for diameter in range(0,256,9):
 			delta = abs((s.frameNo % 128) - diameter/2.)
 			alpha = 255 - (delta*delta/4.) - diameter
@@ -28,6 +29,20 @@ class CircleTest(QProcessing):
 				s.strokeWeight(3)
 				s.stroke(0,diameter/2.,127,alpha)
 				s.ellipse(-diameter/2.,-diameter/2.,diameter,diameter)
+		s.stroke(0)
+		s.line(30, 20, 85, 20);
+		s.stroke(126);
+		s.line(85, 20, 85, 75);
+		s.stroke(255);
+		s.line(85, 75, 30, 75);
+		"""
+		s.ellipseMode(CENTER)
+		s.arc(50, 55, 50, 50, 0, PI/2);
+		s.noFill();
+		s.arc(50, 55, 60, 60, PI/2, PI);
+		s.arc(50, 55, 70, 70, PI, TWO_PI-PI/2);
+		s.arc(50, 55, 80, 80, TWO_PI-PI/2, TWO_PI);
+
 
 class VisImageWindow(QMainWindow, Ui_MainWindow):
 	def __init__(self, parent=None):

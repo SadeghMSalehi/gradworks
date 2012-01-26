@@ -3,10 +3,10 @@
 """PySide port of the opengl/samplebuffers example from Qt v4.x"""
 
 import sys
-import math
 from PySide.QtOpenGL import *
 from PySide.QtCore import *
 from PySide.QtGui import *
+from math import *
 
 try:
 	from OpenGL.GL import *
@@ -54,14 +54,19 @@ class QProcessingWidget(QWidget):
 		self.update()
 
 
+PI = pi
+TWO_PI = 2*pi
+CORNER = 0
+CENTER = 1
+MITER = 2
+BEVEL = 3
+ROUND = 4
+
 
 """
 Actual Processing class
 """
 class QProcessing(QObject):
-	CORNER = 0
-	CENTER = 1
-
 	def __init__(self,widget):
 		self.W = widget
 		self._smooth = 0
@@ -72,7 +77,7 @@ class QProcessing(QObject):
 		self._translateX = 0
 		self._translateY = 0
 		self._timerId = 1
-		self._ellipseMode = self.CORNER
+		self._ellipseMode = CORNER
 		self.P = QPainter(self._pixmap)
 		self.P.setRenderHint(QPainter.Antialiasing,self._smooth)
 		self.P.setRenderHint(QPainter.TextAntialiasing,self._smooth)
@@ -118,13 +123,13 @@ class QProcessing(QObject):
 		self.P.setRenderHint(QPainter.TextAntialiasing,self._smooth)
 
 	def ellipseMode(self,mode):
-		if mode == self.CENTER:
+		if mode == CENTER:
 			self._ellipseMode = mode
 		else:
-			self._ellipseMode = self.CORNER
+			self._ellipseMode = CORNER
 	
 	def ellipse(self,x,y,w,h):
-		if self._ellipseMode == self.CENTER:
+		if self._ellipseMode == CENTER:
 			self.P.drawEllipse(QPoint(x,y),w,h)
 		else:
 			self.P.drawEllipse(x,y,w,h)
@@ -139,6 +144,9 @@ class QProcessing(QObject):
 		elif len(args) >= 4:
 			newPen.setColor(QColor.fromRgb(args[0],args[1],args[2],args[3]))
 		p.setPen(newPen)
+
+	def strokeJoin(self,w):
+		pass
 
 	def strokeWeight(self,w):
 		newPen = QPen()
@@ -159,3 +167,29 @@ class QProcessing(QObject):
  	def noLoop(self):
 		self.W.killTimer(self._timerId)
 
+	def line(self,*p):
+		if (len(p) == 4):
+			self.P.drawLine(p[0],p[1],p[2],p[3])
+		elif len(p) == 6:
+			pass
+	
+	def point(self,*p):
+		if (len(p) == 2):
+			self.P.drawPoint(p[0],p[1])
+
+	def arc(self,*p):
+		if (len(p) == 6):
+			s = (p[4]-pi/2)*180*16./pi
+			e = (p[5]-p[4])*180*16./pi
+			w = p[2]
+			h = p[3]
+			if (self._ellipseMode == CENTER):
+				x = p[0]-w/2
+				y = p[1]-h/2
+			else:
+				x = p[0]
+				y = p[1]
+		self.P.drawArc(x,y,w,h,s,e)
+
+	def noFill(self):
+		pass
