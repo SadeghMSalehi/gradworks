@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'visImageWindow.ui'
 #
-# Created: Thu Jan 26 01:36:01 2012
+# Created: Thu Jan 26 02:05:34 2012
 #      by: pyside-uic 0.2.11 running on PySide 1.1.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -47,4 +47,4 @@ class Ui_MainWindow(object):
         self.action_Open.setText(QtGui.QApplication.translate("MainWindow", "&Open", None, QtGui.QApplication.UnicodeUTF8))
         self.action_Close.setText(QtGui.QApplication.translate("MainWindow", "&Close", None, QtGui.QApplication.UnicodeUTF8))
 
-from VisWidgets import QProcessingWidget
+from QProcessing import QProcessingWidget
