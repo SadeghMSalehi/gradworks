@@ -4,3 +4,4 @@ Springer: download springer books
 courses: course related works
 MeshCodes: vtk-related python codes
 VisCodes: Codes for visualization contest
+itksnap-addon: RegionGrowing following major eigenvector of tensor image
