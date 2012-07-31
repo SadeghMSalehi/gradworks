@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project>
+	<configuration id="cdt.managedbuild.config.gnu.cygwin.exe.debug.539360469" name="Debug">
+		<extension point="org.eclipse.cdt.core.LanguageSettingsProvider">
+			<provider copy-of="extension" id="org.eclipse.cdt.ui.UserLanguageSettingsProvider"/>
+			<provider-reference id="org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider" ref="shared-provider"/>
+		</extension>
+	</configuration>
+	<configuration id="cdt.managedbuild.config.gnu.cygwin.exe.release.742913670" name="Release">
+		<extension point="org.eclipse.cdt.core.LanguageSettingsProvider">
+			<provider copy-of="extension" id="org.eclipse.cdt.ui.UserLanguageSettingsProvider"/>
+			<provider-reference id="org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider" ref="shared-provider"/>
+		</extension>
+	</configuration>
+	<configuration id="cdt.managedbuild.config.gnu.cygwin.exe.debug.462856679" name="MacDebug">
+		<extension point="org.eclipse.cdt.core.LanguageSettingsProvider">
+			<provider class="org.eclipse.cdt.managedbuilder.language.settings.providers.GCCBuildCommandParser" id="org.eclipse.cdt.managedbuilder.core.GCCBuildCommandParser" keep-relative-paths="false" name="CDT GCC Build Output Parser" parameter="(gcc)|([gc]\+\+)|(clang)" prefer-non-shared="true" store-entries-with-project="true">
+				<language id="org.eclipse.cdt.core.g++">
+					<resource project-relative-path="src/OptiCode.cpp">
+						<entry kind="includePath" name="/MathCode/include">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="macro" name="MACOSX" value=""/>
+						<entry kind="macro" name="__MACH__" value=""/>
+					</resource>
+					<resource project-relative-path="src/MatrixCode.cpp">
+						<entry kind="includePath" name="/MathCode/include">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="macro" name="MACOSX" value=""/>
+						<entry kind="macro" name="__MACH__" value=""/>
+					</resource>
+					<resource project-relative-path="src/main.cpp">
+						<entry kind="includePath" name="/MathCode/include">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="macro" name="MACOSX" value=""/>
+						<entry kind="macro" name="__MACH__" value=""/>
+					</resource>
+					<resource project-relative-path="src/Clock.cpp">
+						<entry kind="includePath" name="/MathCode/include">
+							<flag value="VALUE_WORKSPACE_PATH|RESOLVED"/>
+						</entry>
+						<entry kind="macro" name="MACOSX" value=""/>
+						<entry kind="macro" name="__MACH__" value=""/>
+					</resource>
+				</language>
+			</provider>
+			<provider-reference id="org.eclipse.cdt.managedbuilder.core.GCCBuiltinSpecsDetector" ref="shared-provider"/>
+			<provider-reference id="org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider" ref="shared-provider"/>
+		</extension>
+	</configuration>
+</project>
