@@ -12,11 +12,11 @@ public:
     MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
-    void newMenu(void);
-    void quitMenu(void);
+    public slots:
+    	void sayHello(void);
 
 private:
-    Ui::mainwindowClass ui;
+    Ui::MainWindowClass ui;
 };
 
 #endif // MAINWINDOW_H
