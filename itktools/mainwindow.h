@@ -14,6 +14,8 @@ public:
 
     public slots:
     	void sayHello(void);
+    	void on_action_Open_triggered(bool checked);
+    	void exit(void);
 
 private:
     Ui::MainWindowClass ui;
