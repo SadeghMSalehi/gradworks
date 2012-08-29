@@ -5,8 +5,15 @@
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkNumericTraits.h"
+#include "itkNrrdImageIOFactory.h"
+#include "itkNiftiImageIOFactory.h"
 #include "iostream"
 
+
+void initReaders() {
+	itk::ObjectFactoryBase::RegisterFactory(itk::NrrdImageIOFactory::New());
+	itk::ObjectFactoryBase::RegisterFactory(itk::NiftiImageIOFactory::New());
+}
 
 template<class T> typename T::Pointer NewImageT(int sx, int sy, int sz, typename T::PixelType fillValue) {
 	typename T::Pointer newImage = T::New();
@@ -76,13 +83,14 @@ template<class T> bool DumpImageT(typename T::Pointer src, typename T::Pointer d
 }
 
 template<class T> typename T::Pointer ReadImageT(const char* filename, int& ret) {
+	initReaders();
 	typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
 	reader->SetFileName(filename);
 
-  std::cout << "Reading " << filename;
-  std::cout.flush();
+	std::cout << "Reading " << filename;
+	std::cout.flush();
 	reader->Update();
-  std::cout << " done." << std::endl;
+	std::cout << " done." << std::endl;
 	return reader->GetOutput();
 }
 
