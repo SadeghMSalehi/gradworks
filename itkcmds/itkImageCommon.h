@@ -2,6 +2,7 @@
 #define __ITK_IMAGE_COMMON_H__
 
 #include "itkImage.h"
+#include "itkImageIOBase.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkNumericTraits.h"
@@ -9,107 +10,158 @@
 #include "itkNiftiImageIOFactory.h"
 #include "iostream"
 
+namespace itkcmds {
 
-void initReaders() {
-	itk::ObjectFactoryBase::RegisterFactory(itk::NrrdImageIOFactory::New());
-	itk::ObjectFactoryBase::RegisterFactory(itk::NiftiImageIOFactory::New());
-}
+	template <typename T>
+	class itkImageIO {
+	private:
+		itk::ImageIOBase::IOPixelType _pixelType;
+		itk::ImageIOBase::IOComponentType _componentType;
 
-template<class T> typename T::Pointer NewImageT(int sx, int sy, int sz, typename T::PixelType fillValue) {
-	typename T::Pointer newImage = T::New();
-	typename T::SizeType size;
-	size[0] = sx;
-	size[1] = sy;
-	size[2] = sz;
+	public:
+		typedef typename T::Pointer ImagePointer;
+		typedef typename T::PixelType ImagePixel;
+		typedef typename T::SizeType ImageSize;
+		typedef typename T::RegionType ImageRegion;
+		typedef typename T::IndexType ImageIndex;
 
-	typename T::RegionType region;
-	region.SetSize(size);
-	
-	typename T::IndexType index;
-	index.Fill(0);
+		itkImageIO() {
+			itk::ObjectFactoryBase::RegisterFactory(itk::NrrdImageIOFactory::New());
+			itk::ObjectFactoryBase::RegisterFactory(itk::NiftiImageIOFactory::New());
+		}
 
-	region.SetIndex(index);
-	
-	newImage->SetLargestPossibleRegion(region);
-	newImage->SetBufferedRegion(region);
-	newImage->SetRequestedRegion(region);
+		~itkImageIO() {
+		}
 
-	
-	double spacing[3] = {1, 1, 1};
-	double origin[3] = { 0, 0, 0 };
-	newImage->SetOrigin(origin);
-	newImage->SetSpacing(spacing);
+		void ReadImageInfo(const char* filename) {
+			typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
+			reader->SetFileName(filename);
+			GetImageInfo(reader);
+		}
 
-	newImage->Allocate();
-	newImage->FillBuffer(fillValue);
+		void GetImageInfo(typename itk::ImageFileReader<T>::Pointer reader) {
+			reader->UpdateOutputInformation();
+			cout << "UpdateOutputInformation()" << endl;
 
-	return newImage;
-}
+			typename itk::ImageIOBase::Pointer imageIO = reader->GetImageIO();
+			_pixelType = imageIO->GetPixelType();
+			_componentType = imageIO->GetComponentType();
+		}
 
-template<class T> typename T::Pointer NewImageT(int sx, int sy, int sz) {
-  return NewImageT<T>(sx, sy, sz, static_cast<typename T::PixelType>(0));
-}
+		const char* GetPixelTypeString(typename itk::ImageIOBase::IOPixelType px) {
+			static const char* pixelTypes[] = { "Unknown Pixel Type", "Scalar", "RGB", "RGBA",
+				"Offset", "Vector", "Point", "Covariant Vector", "Symmetric Second Rank Tensor", 
+				"Diffusion Tensor 3D", "Complex", "Fixed Array", "Matrix" };
+			return pixelTypes[px];
+		}
 
-template<class T> void CopyHeaderT(typename T::Pointer src, typename T::Pointer dst) {
-	dst->SetSpacing(src->GetSpacing());
-	dst->SetOrigin(src->GetOrigin());
-	dst->SetDirection(src->GetDirection());
-	return;
-}
+		const char* GetComponentTypeString(typename itk::ImageIOBase::IOComponentType cx) {
+			static const char* componentTypes[] = { "Unknown Component Type", "UCHAR", "CHAR", 
+				"USHORT", "SHORT", "UINT", "INT", "ULONG", "LONG", "FLOAT", "DOUBLE" };
+			return componentTypes[cx];
+		}
 
-template<class T> typename T::Pointer NewImageT(typename T::Pointer srcImg) {
-	typename T::RegionType srcRegion = srcImg->GetRequestedRegion();
-	typename T::SizeType srcSize = srcRegion.GetSize();
-  typename T::Pointer newImg =  NewImageT<T>(srcSize[0], srcSize[1], srcSize[2], static_cast<typename T::PixelType>(0));
-	CopyHeaderT<T>(srcImg, newImg);
-	return newImg;
-}
+		ImagePointer NewImageT(int sx, int sy, int sz, ImagePixel fillValue) {
+			ImagePointer newImage = T::New();
+			ImageSize size;
+			size[0] = sx;
+			size[1] = sy;
+			size[2] = sz;
 
-template<class T> bool DumpImageT(typename T::Pointer src, typename T::Pointer dst) {
-  typename T::RegionType srcRegion = src->GetLargestPossibleRegion();
-  typename T::RegionType dstRegion = dst->GetLargestPossibleRegion();
+			ImageRegion region;
+			region.SetSize(size);
 
-  if (srcRegion != dstRegion) {
-    return false;
-  }
+			ImageIndex index;
+			index.Fill(0);
 
-  itk::ImageRegionConstIterator<T> srcIter(src, srcRegion);
-  itk::ImageRegionIterator<T> dstIter(dst, dstRegion);
+			region.SetIndex(index);
 
-  for (; !srcIter.IsAtEnd() && !dstIter.IsAtEnd(); ++srcIter, ++dstIter) {
-    dstIter.Set(srcIter.Get());
-  }
-  return true;
-}
+			newImage->SetLargestPossibleRegion(region);
+			newImage->SetBufferedRegion(region);
+			newImage->SetRequestedRegion(region);
 
-template<class T> typename T::Pointer ReadImageT(const char* filename, int& ret) {
-	initReaders();
-	typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
-	reader->SetFileName(filename);
+			double spacing[3] = { 1, 1, 1 };
+			double origin[3] = { 0, 0, 0 };
+			newImage->SetOrigin(origin);
+			newImage->SetSpacing(spacing);
 
-	std::cout << "Reading " << filename;
-	std::cout.flush();
-	reader->Update();
-	std::cout << " done." << std::endl;
-	return reader->GetOutput();
-}
+			newImage->Allocate();
+			newImage->FillBuffer(fillValue);
 
-template<class T> int WriteImageT(const char* filename, typename T::Pointer image, bool compression) {
-	typename itk::ImageFileWriter<T>::Pointer writer = itk::ImageFileWriter<T>::New();
-	writer->SetFileName(filename);
-  if (compression) {
-    writer->UseCompressionOn();
-  }
-	writer->SetInput(image);
-  std::cout << "Writing " << filename;
-  std::cout.flush();
-	writer->Write();
-  std::cout << " done." << std::endl;
-	return 0;
-}
+			return newImage;
+		}
 
-template<class T> int WriteImageT(const char* filename, typename T::Pointer image) {
-  WriteImageT<T>(filename, image, true);
-	return 0;
+		ImagePointer NewImageT(int sx, int sy, int sz) {
+			return NewImageT(sx, sy, sz, static_cast<typename T::PixelType>(0));
+		}
+
+		void CopyHeaderT(ImagePointer src, ImagePointer dst) {
+			dst->SetSpacing(src->GetSpacing());
+			dst->SetOrigin(src->GetOrigin());
+			dst->SetDirection(src->GetDirection());
+			return;
+		}
+
+		ImagePointer NewImageT(ImagePointer srcImg) {
+			typename T::RegionType srcRegion = srcImg->GetRequestedRegion();
+			typename T::SizeType srcSize = srcRegion.GetSize();
+			typename T::Pointer newImg = NewImageT<T>(srcSize[0], srcSize[1], srcSize[2], static_cast<typename T::PixelType>(0));
+			CopyHeaderT<T>(srcImg, newImg);
+			return newImg;
+		}
+
+		bool DumpImageT(ImagePointer src, ImagePointer dst) {
+			typename T::RegionType srcRegion = src->GetLargestPossibleRegion();
+			typename T::RegionType dstRegion = dst->GetLargestPossibleRegion();
+
+			if (srcRegion != dstRegion) {
+				return false;
+			}
+
+			itk::ImageRegionConstIterator<T> srcIter(src, srcRegion);
+			itk::ImageRegionIterator<T> dstIter(dst, dstRegion);
+
+			for (; !srcIter.IsAtEnd() && !dstIter.IsAtEnd(); ++srcIter, ++dstIter) {
+				dstIter.Set(srcIter.Get());
+			}
+			return true;
+		}
+
+		ImagePointer ReadImageT(const char* filename) {
+			cout << "Reading " << filename << endl;
+			typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
+			reader->SetDebug(true);
+			::itk::Object::SetGlobalWarningDisplay(true);
+			reader->SetFileName(filename);
+			cout << "Update() ... " << endl;
+			reader->Update();
+			cout << "ImageInfo() ..." << endl;
+			GetImageInfo(reader);
+
+			std::cout << " [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
+			std::cout << " done." << std::endl;
+
+			return reader->GetOutput();
+		}
+
+		int WriteImageT(const char* filename, ImagePointer image, bool compression) {
+			typename itk::ImageFileWriter<T>::Pointer writer = itk::ImageFileWriter<T>::New();
+			writer->SetFileName(filename);
+			if (compression) {
+				writer->UseCompressionOn();
+			}
+			writer->SetInput(image);
+			std::cout << "Writing " << filename;
+			std::cout.flush();
+			writer->Write();
+			std::cout << " done." << std::endl;
+			return 0;
+		}
+
+		int WriteImageT(const char* filename, typename T::Pointer image) {
+			WriteImageT<T>(filename, image, true);
+			return 0;
+		}
+	};
 }
 #endif
