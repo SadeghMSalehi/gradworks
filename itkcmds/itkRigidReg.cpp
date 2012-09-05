@@ -61,7 +61,7 @@ int main(int, char *[] )
 	// Each component is now connected to the instance of the registration method.
 	registration->SetMetric(        metric        );
 	registration->SetOptimizer(     optimizer     );
-	registration->SetTransform(     transform     );
+	registration->SetTransform(static_cast<RegistrationType::TransformPointer>(transform));
 	registration->SetInterpolator(  interpolator  );
 
 	// Get the two images
