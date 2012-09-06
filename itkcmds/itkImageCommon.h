@@ -46,8 +46,6 @@ namespace itkcmds {
         
 		void GetImageInfo(typename itk::ImageFileReader<T>::Pointer reader) {
 			reader->UpdateOutputInformation();
-			cout << "UpdateOutputInformation()" << endl;
-            
 			typename itk::ImageIOBase::Pointer imageIO = reader->GetImageIO();
 			_pixelType = imageIO->GetPixelType();
 			_componentType = imageIO->GetComponentType();
