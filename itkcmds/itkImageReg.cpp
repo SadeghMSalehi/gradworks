@@ -8,7 +8,6 @@
 #include "itkImageCommon.h"
 #include "itkExceptionObject.h"
 #include "itkAffineTransform.h"
-#include "itkMeanSquaresImageToImageMetric.h"
 #include "itkLinearInterpolateImageFunction.h"
 #include "itkRegularStepGradientDescentOptimizer.h"
 #include "itkImageRegistrationMethod.h"
@@ -17,21 +16,89 @@
 #include "itkMath.h"
 #include "itkTimer.h"
 #include "iostream"
-
+#include "vector"
+#include "itkMyMetric.h"
+#include "itkMyFRPROptimizer.h"
+#include "MyFunction.h"
 #include "MatrixCode.h"
+#include "itkCommand.h"
+#include "itkSingleValuedNonLinearOptimizer.h"
+#include "itkRealTimeClock.h"
+
 
 using namespace std;
+using namespace itk;
 
 typedef itk::ExceptionObject itkException;
 typedef itk::Image<double, 3> ImageType;
 typedef itk::AffineTransform<double, 3> TransformType;
-typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
-typedef itk::MeanSquaresImageToImageMetric<ImageType, ImageType> MetricType;
+typedef itk::MyFRPROptimizer OptimizerType;
+typedef itk::MyMetric<ImageType, ImageType> MetricType;
 typedef itk::LinearInterpolateImageFunction<ImageType, double> InterpolatorType;
 typedef itk::ImageRegistrationMethod<ImageType, ImageType> RegistrationType;
 typedef itk::ResampleImageFilter<ImageType, ImageType> ResamplerType;
 
 #define angle2rad(a) (a*itk::Math::pi/180.0)
+
+
+class OptimizationReporter : public itk::Command {
+public:
+    typedef OptimizationReporter Self;
+    typedef itk::Command Superclass;
+    typedef itk::SmartPointer<Self> Pointer;
+
+    itkTypeMacro(OptimizationReporter, itk::Command);
+    itkNewMacro(OptimizationReporter);
+
+    typedef itk::MyFRPROptimizer OptimizerType;
+
+private:
+
+    OptimizationReporter() {
+        _updateInterval = 1;
+        _numOfIterations = 0;
+        _clock = itk::RealTimeClock::New();
+    }
+
+    ~OptimizationReporter() {
+    }
+
+    itk::RealTimeClock::Pointer _clock;
+    itk::RealTimeClock::TimeStampType _lastTime;
+    int _numOfIterations;
+    int _updateInterval;
+
+public:
+
+    void Execute(itk::Object* caller, const itk::EventObject& event) {
+        Execute((const Object*) caller, event);
+    }
+
+    void Execute(const itk::Object* object, const EventObject& event) {
+        if (object == NULL) {
+            cout << "Null sender is not processed..." << endl;
+            return;
+        }
+
+        if (typeid(event) == typeid(itk::IterationEvent)) {
+            const OptimizerType* opt = dynamic_cast<const OptimizerType*>(object);
+            if (++ _numOfIterations % _updateInterval == 0) {
+                itk::RealTimeClock::TimeStampType t = _clock->GetTimeInSeconds();
+                cout << _numOfIterations << "\t" << opt->GetValue() << "\t" << opt->GetCurrentPosition() << "\t" << (t - _lastTime) << " secs" << endl;
+                _lastTime = t;
+            }
+        } else if (typeid(event) == typeid(StartEvent)) {
+            cout << "Optimization has started ..." << endl;
+            _lastTime = _clock->GetTimeInSeconds();
+        } else if (typeid(event) == typeid(EndEvent)) {
+            cout << "Optimization has finisehd ..." << endl;
+        }
+    }
+
+    void Update() {
+        this->Execute((const Object*) NULL, IterationEvent());
+    }
+};
 
 void createMat4FromMat(const ImageType::DirectionType &mat,
 		MathCode::Mat4& matOut) {
@@ -43,7 +110,7 @@ void createMat4FromMat(const ImageType::DirectionType &mat,
 }
 
 void createMat4FromVec(const ImageType::SpacingType &spacing,
-		MathCode::Mat4& matOut, bool inverse = false) {
+		MathCode::Mat4& matOut, bool inverse =  false) {
 	for (int i = 0; i < 3; i++) {
 		matOut[i][i] = spacing[i];
 		if (inverse) {
@@ -159,7 +226,7 @@ void computeMSE(ImageType::Pointer src, ImageType::Pointer dst) {
 	cout << "Mean Squared Error: " << mse << "; # pixels: " << nCount << endl;
 }
 
-int main(int argc, char* argv[]) {
+int main_test_sampling(int argc, char* argv[]) {
 	itkcmds::itkImageIO<ImageType> imageIO;
 	ImageType::Pointer srcImg = imageIO.ReadImageT(argv[1]);
 	ImageType::Pointer dstImg = imageIO.ReadImageT(argv[2]);
@@ -182,13 +249,17 @@ int main(int argc, char* argv[]) {
 	ImageType::Pointer movingImg2 = resampleImageRaw(srcImg, srcImg, transform);
 	timer.stop();
 	cout << "Elapsed Time: " << timer.getElapsedTimeInMilliSec() << endl;
+    
+    return 0;
 }
 
-int main__(int argc, char* argv[]) {
+int main_metric_eval(int argc, char* argv[]) {
 	itkcmds::itkImageIO<ImageType> imageIO;
 	ImageType::Pointer srcImg = imageIO.ReadImageT(argv[1]);
 	ImageType::Pointer dstImg = imageIO.ReadImageT(argv[2]);
 
+    Timer timer;
+    timer.start();
 	TransformType::Pointer transform = TransformType::New();
 	InterpolatorType::Pointer interpolator = InterpolatorType::New();
 	MetricType::Pointer metric = MetricType::New();
@@ -208,13 +279,24 @@ int main__(int argc, char* argv[]) {
 		cout << ex << endl;
 	}
 
+    timer.stop();
+    cout << "Initialization: " << timer.getElapsedTimeInMilliSec() << " ms" << endl;
+
 	transform->Rotate(0, 1, 8 * itk::Math::pi / 180.);
 
 	MetricType::ParametersType params = transform->GetParameters();
 	MetricType::DerivativeType derivOut;
 
+    timer.start();
 	double m = metric->GetValue(params);
+    timer.stop();
+    cout << "GetValue(): " << timer.getElapsedTimeInMilliSec() << " ms" << endl;
+
+    timer.start();
 	metric->GetDerivative(params, derivOut);
+    timer.stop();
+    cout << "GetDerivative(): " << timer.getElapsedTimeInMilliSec() << " ms" << endl;
+
 
 	cout << "Number of Pixels: " << metric->GetNumberOfPixelsCounted() << endl;
 	cout << "Initial Params: " << params << endl;
@@ -224,23 +306,172 @@ int main__(int argc, char* argv[]) {
 	return 0;
 }
 
-int run(int argc, char* argv[]) {
+int run_optimization(ImageType::Pointer src, ImageType::Pointer dst) {
+    TransformType::Pointer affine = TransformType::New();
+    TransformType::ParametersType params = affine->GetParameters();
 
+    cout << "Affine parameter: " << params << endl;
+    Timer timer;
+    timer.start();
+
+    InterpolatorType::Pointer interpolator = InterpolatorType::New();
+    MetricType::Pointer metric = MetricType::New();
+    metric->SetMovingImage(src);
+    metric->SetFixedImage(dst);
+    metric->UseAllPixelsOn();
+    metric->SetInterpolator(interpolator);
+    metric->SetFixedImageRegion(src->GetBufferedRegion());
+    metric->SetTransform(affine);
+    metric->Initialize();
+    timer.stop();
+    cout << "Metric Initialization Done: " << timer.getElapsedTimeInMilliSec() << " ms" << endl;
+
+    OptimizationReporter::Pointer optiView = OptimizationReporter::New();
+
+    MyFunction::Pointer myFun = MyFunction::New();
+
+    OptimizerType::Pointer optimizer = OptimizerType::New();
+    optimizer->SetCostFunction(static_cast<OptimizerType::CostFunctionType::Pointer>(metric));
+    optimizer->SetInitialPosition(params);
+    optimizer->AddObserver(StartEvent(), optiView);
+    optimizer->AddObserver(IterationEvent(), optiView);
+    optimizer->AddObserver(EndEvent(), optiView);
+
+    cout << "Ready to optimize ..." << endl;
+    optimizer->StartOptimization();
+    cout << "Optimization finished ..." << endl;
+
+    
+    cout << "Current Cost: " << optimizer->GetCurrentCost() << endl;
+    cout << "Current Parameter: " << optimizer->GetCurrentPosition() << endl;
+    cout << "Current Iteration: " << optimizer->GetCurrentIteration() << endl;
+
+    return 0;
+}
+
+class MetaMetrics : public SingleValuedCostFunction {
+public:
+public:
+    /** Standard class typedefs. */
+    typedef MetaMetrics   Self;
+    typedef SingleValuedCostFunction               Superclass;
+    typedef SmartPointer< Self >       Pointer;
+    typedef SmartPointer< const Self > ConstPointer;
+
+    /** Run-time type information (and related methods). */
+    itkTypeMacro(MetaMetrics, SingleValuedCostFunction);
+
+    /**  MeasureType typedef.
+     *  It defines a type used to return the cost function value. */
+    typedef double MeasureType;
+
+    /**  ParametersType typedef.
+     *  It defines a position in the optimization search space. */
+    typedef Superclass::ParametersType      ParametersType;
+    typedef Superclass::ParametersValueType ParametersValueType;
+
+    /** DerivativeType typedef.
+     *  It defines a type used to return the cost function derivative.  */
+    typedef Array< ParametersValueType > DerivativeType;
+
+    /** Return the number of parameters required to compute
+     *  this cost function.
+     *  This method MUST be overloaded by derived classes. */
+    virtual unsigned int GetNumberOfParameters(void) const  {
+        return 0;
+    }
+
+    /** This method returns the value of the cost function corresponding
+     * to the specified parameters.    */
+    virtual MeasureType GetValue(const ParametersType & parameters) const {
+        MeasureType value = 0;
+
+        return value;
+    }
+
+    /** This method returns the derivative of the cost function corresponding
+     * to the specified parameters.   */
+    virtual void GetDerivative(const ParametersType & parameters,
+                               DerivativeType & derivative) const {
+
+    }
+
+    /** This method returns the value and derivative of the cost function corresponding
+     * to the specified parameters    */
+    virtual void GetValueAndDerivative(const ParametersType & parameters,
+                                       MeasureType & value,
+                                       DerivativeType & derivative) const
+    {
+        value = this->GetValue(parameters);
+        this->GetDerivative(parameters, derivative);
+    }
+
+protected:
+    MetaMetrics() {}
+    virtual ~MetaMetrics() {}
+private:
+    MetaMetrics(const Self &); //purposely not implemented
+    void operator=(const Self &);           //purposely not implemented
+};
+
+class MultipleRegionRegistration {
+private:
+    typedef vector<ImageType::Pointer> ImageVector;
+    typedef vector<MetricType::Pointer> MetricVector;
+    ImageType::Pointer _fixedImage;
+    ImageVector _movingImages;
+    MetricVector _metrics;
+    itkcmds::itkImageIO<ImageType> _imageIO;
+    OptimizerType::Pointer _optimizer;
+
+public:
+    void loadImages(int argc, char* argv[]) {
+        ImageType::Pointer fixed = _imageIO.ReadImageT(argv[1]);
+        for (int i = 2; i < argc; i++) {
+            ImageType::Pointer moving = _imageIO.ReadImageT(argv[i]);
+            _movingImages.push_back(moving);
+        }
+    }
+
+    void setupMetrics() {
+        InterpolatorType::Pointer interpolator = InterpolatorType::New();
+        for (ImageVector::size_type i = 0; i < _movingImages.size(); i++) {
+            MetricType::Pointer metric = MetricType::New();
+            TransformType::Pointer transform = TransformType::New();
+            metric->SetFixedImage(_fixedImage);
+            metric->SetMovingImage(_movingImages[i]);
+            metric->SetFixedImageRegion(_fixedImage->GetBufferedRegion());
+            metric->UseAllPixelsOn();
+            metric->SetInterpolator(interpolator);
+            metric->SetTransform(transform);
+            metric->Initialize();
+        }
+    }
+    void setupOptimizer();
+    void setupInitialParameters();
+    void startOptimization();
+};
+
+int run_multiple_optimization(int argc, char* argv[]) {
+    return 0;
+}
+
+
+int run_registration(int argc, char* argv[]) {
 	MetricType::Pointer metric = MetricType::New();
 	TransformType::Pointer transform = TransformType::New();
 	OptimizerType::Pointer optimizer = OptimizerType::New();
 	InterpolatorType::Pointer interpolator = InterpolatorType::New();
 	RegistrationType::Pointer registration = RegistrationType::New();
 
+    
+    itk::MyFRPROptimizer::Pointer frprOptimizer = itk::MyFRPROptimizer::New();
 	metric->SetUseAllPixels(true);
-
-	optimizer->SetDebug(true);
-	optimizer->SetGlobalWarningDisplay(true);
 
 	registration->SetGlobalWarningDisplay(true);
 	registration->SetDebug(true);
 	registration->SetMetric(metric);
-	registration->SetOptimizer(optimizer);
+	registration->SetOptimizer(frprOptimizer);
 	registration->SetTransform(
 			static_cast<RegistrationType::TransformPointer>(transform));
 	registration->SetInterpolator(interpolator);
@@ -259,10 +490,11 @@ int run(int argc, char* argv[]) {
 	RegistrationType::ParametersType initialParams(txParam);
 	registration->SetInitialTransformParameters(txParam);
 
+    /*
 	optimizer->SetMaximumStepLength(4.0);
 	optimizer->SetMinimumStepLength(0.01);
-	optimizer->SetNumberOfIterations(200);
-
+     */
+    
 	try {
 		registration->Update();
 		std::cout << "Registration updated ..." << std::endl;
@@ -274,4 +506,32 @@ int run(int argc, char* argv[]) {
 	}
 
 	return 0;
+}
+
+int main(int argc, char* argv[]) {
+    itkcmds::itkImageIO<ImageType> imageIO;
+    ImageType::Pointer src = imageIO.ReadImageT(argv[1]);
+    ImageType::Pointer dst = imageIO.ReadImageT(argv[2]);
+
+    cout << "Run FRPR Optimization ..." << endl;
+    run_optimization(src, dst);
+    return 0;
+}
+
+int main_function_opti(int argc, char* argv[]) {
+    MyFunction::Pointer myfun = MyFunction::New();
+
+    itk::MyFRPROptimizer::Pointer opti = itk::MyFRPROptimizer::New();
+    MyFunction::ParametersType param;
+    param.SetSize(2);
+    param[0] = 10;
+    param[1] = 5;
+
+    opti->SetCostFunction(myfun);
+    opti->SetInitialPosition(param);
+    opti->StartOptimization();
+    cout << "Number of Iterations: " << opti->GetCurrentIteration() << endl;
+    cout << "Solution: " << opti->GetCurrentPosition() << endl;
+
+    return 0;
 }

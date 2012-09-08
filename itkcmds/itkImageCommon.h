@@ -131,13 +131,12 @@ namespace itkcmds {
 		}
         
 		ImagePointer ReadImageT(const char* filename) {
-			cout << "Reading " << filename << endl;
+			cout << "Reading " << filename << flush;
 			typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
 			reader->SetFileName(filename);
 			reader->Update();
 			GetImageInfo(reader);
-            
-			std::cout << " [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
+            std::cout << " [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
 			std::cout << " done." << std::endl;
             
 			return reader->GetOutput();

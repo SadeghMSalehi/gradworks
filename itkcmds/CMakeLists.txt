@@ -10,7 +10,7 @@ itk_module_use(${itkModules})
 add_executable(itkinfo itkinfo.cpp)
 target_link_libraries(itkinfo ${itkcmds_LIBRARIES})
 
-add_executable(itkImageReg itkImageReg.cpp itkTimer.h itkTimer.cpp MatrixCode.cpp)
+add_executable(itkImageReg itkImageCommon.h itkImageReg.cpp itkTimer.h itkTimer.cpp MatrixCode.cpp itkMyMetric.h itkMyMetric.hxx itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp)
 target_link_libraries(itkImageReg ${itkcmds_LIBRARIES})
 
 add_executable(itkTransform itkTransform.cpp)
