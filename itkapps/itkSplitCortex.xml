@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>Surface Model</category>
+  <title>Splitting the neocortex of mouse brain into two hemisphere</title>
+  <description/>
+  <version>0.1</version>
+  <documentation-url/>
+  <license/>
+  <acknowledgements/>
+  <parameters>
+    <label>Input</label>
+    <description>Input mesh and image for value extraction</description>
+    <image>
+      <name>imageName</name>
+      <label>Image</label>
+      <channel>input</channel>
+      <index>0</index>
+      <description>Image which its value is extracted</description>
+    </image>
+    <double-vector>
+      <name>initialOrigin</name>
+      <label>Initial origin of the plane</label>
+      <channel>input</channel>
+      <index>2</index>
+      <description>the initial origin of the plane to separate hemispheres</description>
+    </double-vector>
+  </parameters>
+  <parameters>
+    <label>Output</label>
+    <description>Separated output labels</description>
+    <image>
+      <name>outImageName</name>
+      <label>Image</label>
+      <channel>output</channel>
+      <index>1</index>
+      <description>Image which will contain the separated hemispheres</description>
+    </image>
+  </parameters>
+</executable>

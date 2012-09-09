@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>Image Segmentation</category>
+  <title>PCNN Segmentation</title>
+  <description/>
+  <version>0.1</version>
+  <documentation-url/>
+  <license/>
+  <acknowledgements/>
+  <parameters>
+    <label>Input</label>
+    <description>Input mesh and image for value extraction</description>
+    <image>
+      <name>inputImage</name>
+      <label>Input Image</label>
+      <channel>input</channel>
+      <index>0</index>
+      <description>input image to segment</description>
+    </image>
+		<image>
+			<name>outputImage</name>
+			<label>Output Image</label>
+			<channel>output</channel>
+			<index>1</index>
+			<description>output image to write</description>
+		</image>
+  </parameters>
+</executable>

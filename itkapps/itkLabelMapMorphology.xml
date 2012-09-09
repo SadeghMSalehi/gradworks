@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>Surface Model</category>
+  <title>Splitting the neocortex of mouse brain into two hemisphere</title>
+  <description/>
+  <version>0.1</version>
+  <documentation-url/>
+  <license/>
+  <acknowledgements/>
+  <parameters>
+    <label>Input</label>
+    <description>Input mesh and image for value extraction</description>
+    <image>
+      <name>inputImage</name>
+      <label>Image</label>
+      <channel>input</channel>
+      <index>0</index>
+      <description>Image Input</description>
+    </image>
+		<image>
+			<name>outputImage</name>
+			<label>Output Image</label>
+			<channel>output</channel>
+			<index>1</index>
+			<description>Image Output</description>
+		</image>
+		<string-enumeration>
+			<name>oper</name>
+			<label>Morphology Operation</label>
+			<channel>input</channel>
+			<description>Choose morphological operation (dilate,erode,close,open)</description>
+				<element>dilate</element>
+				<element>erode</element>
+				<element>close</element>
+				<element>open</element>
+		</string-enumeration>
+		<double>
+			<name>size</name>
+			<label>Mask Size</label>
+			<description>Mask size</description>
+		</double>
+		<integer>
+			<name>iter</name>
+			<label>Number of iterations</label>
+			<description>number of iterations</description>
+		</integer>
+  </parameters>
+</executable>

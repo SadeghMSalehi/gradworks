@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>Surface Model</category>
+  <title>Deform a mesh with HField or DisplacementField</title>
+  <description/>
+  <version>0.1</version>
+  <documentation-url/>
+  <license/>
+  <acknowledgements/>
+  <parameters>
+		<label>Input</label>	
+		<description>Input parameters</description>
+		<image>
+			<name>inputDeformation</name>
+			<description>Input Deformation Field File (either H-Field or Displacement Field)</description>
+			<flag>d</flag>
+		</image>
+		<file>
+			<name>inputMesh</name>
+			<description>Input mesh to deform</description>
+			<flag>i</flag>
+			<longflag>inputMesh</longflag>
+		</file>
+		<file>
+			<name>outputMesh</name>
+			<description>Deformed output mesh</description>
+			<flag>o</flag>
+			<longflag>outputMesh</longflag>
+		</file>
+		<double>
+			<name>inputScale</name>
+			<description>scale of input mesh</description>
+			<default>1.0</default>
+			<longflag>inputScale</longflag>
+		</double>
+		<double>
+			<name>refScale</name>
+			<description>Reference scale</description>
+			<longflag>refScale</longflag>
+			<default>1.0</default>
+		</double>
+		<double>
+			<name>outputScale</name>
+			<description>Output scale</description>
+			<default>1.0</default>
+			<longflag>outputScale</longflag>
+		</double>
+		<boolean>
+			<name>HField</name>
+			<description>Use the deformationa as HField</description>
+			<default>false</default>
+			<longflag>HField</longflag>
+		</boolean>
+		<boolean>
+			<name>SPHARM</name>
+			<description>input mesh is SPHARM mesh</description>
+			<default>false</default>
+			<longflag>SPHARM</longflag>
+		</boolean>
+		<file>
+			<name>processedInputName</name>
+			<description>Mesh processed from image to physical coordinate</description>
+			<longflag>processedInput</longflag>
+		</file>
+		<file>
+			<name>referenceLabelImageName</name>
+			<description>Referenced label image used to create SPHARM</description>
+			<longflag>labelImage</longflag>
+		</file>
+		<boolean>
+			<name>printPoints</name>
+			<description>Show point pairs before &amp; after the deformation</description>
+			<longflag>printPoints</longflag>
+			<default>false</default>
+		</boolean>
+		<file>
+			<name>saveDisplacementFieldName</name>
+			<longflag>saveDisplacementField</longflag>
+			<description>Name of new displacement field converted from hfield</description>
+		</file>
+		<file>
+			<name>outputWithIndex</name>
+			<longflag>outputWithIndex</longflag>
+			<description>used to save output mesh in index mm space</description>
+		</file>
+		<integer>
+			<name>smoothingIterations</name>
+			<longflag>smoothingIterations</longflag>
+			<description>Number of iterations for output smoothing</description>
+			<default>-1</default>
+		</integer>
+	</parameters>
+  </executable>

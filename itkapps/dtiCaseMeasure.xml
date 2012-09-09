@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<executable>
+	<category>Command Line Utility</category>
+	<title>DTI measurement computation</title>
+	<description>Compute FA, RA, Linear Case, Planar Case, Sphere Case</description>
+	<version>1.0</version>
+	<contributor>Joohwi Lee</contributor>
+
+	<parameters>
+		<label>IO</label>
+		<description>Lambda values</description>
+		<image type="scalar">
+			<name>inputLambda1</name>
+			<description>image that store the first eigen-value</description>
+			<label>Input Lambda 1</label>
+			<index>0</index>
+		</image>
+		<image type="scalar">
+			<name>inputLambda2</name>
+			<description>image that store the second eigen-value</description>
+			<label>Input Lambda 2</label>
+			<index>1</index>
+		</image>
+		<image type="scalar">
+			<name>inputLambda3</name>
+			<description>image that store the third eigen-value</description>
+			<label>Input Lambda 3</label>
+			<index>2</index>
+		</image>
+
+		<image type="scalar">
+			<name>outputCL</name>
+			<description>Linear Case</description>
+			<longflag>outputCL</longflag>
+			<flag>l</flag>
+		</image>
+		<image type="scalar">
+			<name>outputCP</name>
+			<description>Planar Case</description>
+			<longflag>outputCP</longflag>
+			<flag>p</flag>
+		</image>
+		<image type="scalar">
+			<name>outputCS</name>
+			<description>Sphere Case</description>
+			<longflag>outputCS</longflag>
+			<flag>s</flag>
+		</image>
+		<image type="scalar">
+			<name>outputFA</name>
+			<description>Fractional anisotropy</description>
+			<longflag>outputFA</longflag>
+			<flag>f</flag>
+		</image>
+		<image type="scalar">
+			<name>outputRA</name>
+			<description>Relative anistropy</description>
+			<longflag>outputRA</longflag>
+			<flag>r</flag>
+		</image>
+	</parameters>
+</executable>
