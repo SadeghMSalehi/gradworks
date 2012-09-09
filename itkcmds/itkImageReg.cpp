@@ -351,12 +351,22 @@ int run_optimization(ImageType::Pointer src, ImageType::Pointer dst) {
 
 class MetaMetrics : public SingleValuedCostFunction {
 public:
+    typedef vector<MetricType::Pointer> MetricArrayType;
+    typedef vector<int> IntArrayType;
+
+private:
+    MetricArrayType _metrics;
+    IntArrayType _metricParamterIndex;
+
 public:
     /** Standard class typedefs. */
     typedef MetaMetrics   Self;
     typedef SingleValuedCostFunction               Superclass;
     typedef SmartPointer< Self >       Pointer;
     typedef SmartPointer< const Self > ConstPointer;
+
+    /** Method for creation through the object factory. */
+    itkNewMacro(Self);
 
     /** Run-time type information (and related methods). */
     itkTypeMacro(MetaMetrics, SingleValuedCostFunction);
@@ -374,18 +384,40 @@ public:
      *  It defines a type used to return the cost function derivative.  */
     typedef Array< ParametersValueType > DerivativeType;
 
+    /** Metric Vector typedef.
+     *  It defines a type used to store multiple number of metrics. */
+    void AddMetric(MetricType::Pointer metric) {
+        _metrics.push_back(metric);
+        _metricParamterIndex.push_back(metric->GetNumberOfParameters());
+    }
+
+
     /** Return the number of parameters required to compute
      *  this cost function.
      *  This method MUST be overloaded by derived classes. */
     virtual unsigned int GetNumberOfParameters(void) const  {
-        return 0;
+        int nParams = 0;
+        for (MetricArrayType::size_type i = 0 ; i < _metrics.size(); i++) {
+            nParams += _metrics[i]->GetNumberOfParameters();
+        }
+        return nParams;
     }
 
     /** This method returns the value of the cost function corresponding
      * to the specified parameters.    */
     virtual MeasureType GetValue(const ParametersType & parameters) const {
         MeasureType value = 0;
-
+        int nOffset = 0;
+        for (MetricArrayType::size_type i = 0; i < _metrics.size(); i++) {
+            int nParam = _metrics[i]->GetNumberOfParameters();
+            MetricType::ParametersType param;
+            param.SetSize(nParam);
+            for (int j = 0; j < nParam; j++) {
+                param[j] = parameters[nOffset + j];
+            }
+            value += _metrics[i]->GetValue(param);
+            nOffset += nParam;
+        }
         return value;
     }
 
@@ -393,7 +425,22 @@ public:
      * to the specified parameters.   */
     virtual void GetDerivative(const ParametersType & parameters,
                                DerivativeType & derivative) const {
-
+        derivative.SetSize(this->GetNumberOfParameters());
+        int nOffset = 0;
+        for (MetricArrayType::size_type i = 0; i < _metrics.size(); i++) {
+            int nParam = _metrics[i]->GetNumberOfParameters();
+            MetricType::ParametersType param;
+            param.SetSize(nParam);
+            for (int j = 0; j < nParam; j++) {
+                param[j] = parameters[nOffset + j];
+            }
+            MetricType::DerivativeType deriv;
+            _metrics[i]->GetDerivative(param, deriv);
+            for (int j = 0; j < nParam; j++) {
+                derivative[nOffset + j] = deriv[j];
+            }
+            nOffset += nParam;
+        }
     }
 
     /** This method returns the value and derivative of the cost function corresponding
@@ -406,6 +453,7 @@ public:
         this->GetDerivative(parameters, derivative);
     }
 
+
 protected:
     MetaMetrics() {}
     virtual ~MetaMetrics() {}
@@ -417,12 +465,13 @@ private:
 class MultipleRegionRegistration {
 private:
     typedef vector<ImageType::Pointer> ImageVector;
-    typedef vector<MetricType::Pointer> MetricVector;
+    MetaMetrics::Pointer _metric;
+    MetaMetrics::ParametersType _currentParams;
     ImageType::Pointer _fixedImage;
     ImageVector _movingImages;
-    MetricVector _metrics;
     itkcmds::itkImageIO<ImageType> _imageIO;
     OptimizerType::Pointer _optimizer;
+    OptimizationReporter::Pointer _reporter;
 
 public:
     void loadImages(int argc, char* argv[]) {
@@ -431,12 +480,17 @@ public:
             ImageType::Pointer moving = _imageIO.ReadImageT(argv[i]);
             _movingImages.push_back(moving);
         }
+        _reporter = OptimizationReporter::New();
     }
 
-    void setupMetrics() {
-        InterpolatorType::Pointer interpolator = InterpolatorType::New();
+    void initialize() {
+        _metric = MetaMetrics::New();
+        MetaMetrics::ParametersType initialParams;
+        initialParams.SetSize(_metric->GetNumberOfParameters());
+        int nOffset = 0;
         for (ImageVector::size_type i = 0; i < _movingImages.size(); i++) {
             MetricType::Pointer metric = MetricType::New();
+            InterpolatorType::Pointer interpolator = InterpolatorType::New();
             TransformType::Pointer transform = TransformType::New();
             metric->SetFixedImage(_fixedImage);
             metric->SetMovingImage(_movingImages[i]);
@@ -445,17 +499,36 @@ public:
             metric->SetInterpolator(interpolator);
             metric->SetTransform(transform);
             metric->Initialize();
+            _metric->AddMetric(metric);
+            int nParam = transform->GetNumberOfParameters();
+            TransformType::ParametersType subParam = transform->GetParameters();
+            for (int i = 0; i < nParam; i++) {
+                initialParams[nOffset + i] = subParam[i];
+            }
         }
+        _optimizer->SetCostFunction(_metric);
+        _optimizer->SetInitialPosition(initialParams);
+        _optimizer->AddObserver(StartEvent(), _reporter);
+        _optimizer->AddObserver(IterationEvent(), _reporter);
+        _optimizer->AddObserver(EndEvent(), _reporter);
     }
-    void setupOptimizer();
-    void setupInitialParameters();
-    void startOptimization();
+
+    void startOptimization() {
+        _optimizer->StartOptimization();
+    }
 };
 
 int run_multiple_optimization(int argc, char* argv[]) {
+    MultipleRegionRegistration registration;
+    registration.loadImages(argc, argv);
+    registration.initialize();
+    registration.startOptimization();
     return 0;
 }
 
+int main(int argc, char* argv[]) {
+    run_multiple_optimization(argc, argv);
+}
 
 int run_registration(int argc, char* argv[]) {
 	MetricType::Pointer metric = MetricType::New();
@@ -508,7 +581,7 @@ int run_registration(int argc, char* argv[]) {
 	return 0;
 }
 
-int main(int argc, char* argv[]) {
+int main_single_frpr_optimization(int argc, char* argv[]) {
     itkcmds::itkImageIO<ImageType> imageIO;
     ImageType::Pointer src = imageIO.ReadImageT(argv[1]);
     ImageType::Pointer dst = imageIO.ReadImageT(argv[2]);
