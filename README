@@ -5,4 +5,7 @@ courses: course related works
 MeshCodes: vtk-related python codes
 MathCode: Code for numerical computation
 VisCodes: Codes for visualization contest
+
 itksnap-addon: RegionGrowing following major eigenvector of tensor image
+itkcmds: itk registration code
+itkapps: itk image utilities
