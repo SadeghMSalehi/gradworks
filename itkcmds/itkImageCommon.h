@@ -138,7 +138,6 @@ namespace itkcmds {
 			GetImageInfo(reader);
             std::cout << " [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
 			std::cout << " done." << std::endl;
-            
 			return reader->GetOutput();
 		}
         
