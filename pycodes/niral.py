@@ -1,8 +1,13 @@
 "NIRAL lab python utility package"
 
-from vtkIOPython import *
-from vtkCommonPython import *
-from vtkFilteringPython import *
+try:
+  from vtkIOPython import *
+  from vtkCommonPython import *
+  from vtkFilteringPython import *
+except:
+  from vtk.vtkIOPython import *
+  from vtk.vtkCommonPython import *
+  from vtk.vtkFilteringPython import *
 import os, os.path 
 import fnmatch 
 import json
