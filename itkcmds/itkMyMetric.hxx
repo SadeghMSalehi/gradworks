@@ -127,7 +127,8 @@ namespace itk
 
         itkDebugMacro("Ratio of voxels mapping into moving image buffer: "
                       << this->m_NumberOfPixelsCounted << " / "
-                      << this->m_NumberOfFixedImageSamples
+                      << this->m_NumberOfFixedImageSamples << " / "
+                      << parameters
                       << std::endl);
 
         if( this->m_NumberOfPixelsCounted <
@@ -135,7 +136,8 @@ namespace itk
         {
             itkExceptionMacro("Too many samples map outside moving image buffer: "
                               << this->m_NumberOfPixelsCounted << " / "
-                              << this->m_NumberOfFixedImageSamples
+                              << this->m_NumberOfFixedImageSamples << " / "
+                              << parameters
                               << std::endl);
         }
 

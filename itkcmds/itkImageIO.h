@@ -38,17 +38,18 @@ namespace itkcmds {
 		~itkImageIO() {
 		}
         
-		void ReadImageInfo(const char* filename) {
+		typename itk::ImageIOBase::Pointer ReadImageInfo(const char* filename) {
 			typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
 			reader->SetFileName(filename);
-			GetImageInfo(reader);
+			return GetImageInfo(reader);
 		}
         
-		void GetImageInfo(typename itk::ImageFileReader<T>::Pointer reader) {
+		typename itk::ImageIOBase::Pointer GetImageInfo(typename itk::ImageFileReader<T>::Pointer reader) {
 			reader->UpdateOutputInformation();
 			typename itk::ImageIOBase::Pointer imageIO = reader->GetImageIO();
 			_pixelType = imageIO->GetPixelType();
 			_componentType = imageIO->GetComponentType();
+            return imageIO;
 		}
         
 		const char* GetPixelTypeString(typename itk::ImageIOBase::IOPixelType px) {

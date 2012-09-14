@@ -1,4 +1,4 @@
-#include "itkImageCommon.h"
+#include "itkImageIO.h"
 #include "itkExceptionObject.h"
 #include "itkSimilarity3DTransform.h"
 #include "itkAffineTransform.h"
@@ -41,7 +41,7 @@ private:
     ImageVector _movingImages;
     itkcmds::itkImageIO<ImageType> _imageIO;
     OptimizerType::Pointer _optimizer;
-    OptimizationReporter::Pointer _reporter;
+    OptimizationReporter<OptimizerType>::Pointer _reporter;
 
 public:
     void loadImages(int argc, char* argv[]) {
@@ -50,7 +50,7 @@ public:
             ImageType::Pointer moving = _imageIO.ReadImageT(argv[i]);
             _movingImages.push_back(moving);
         }
-        _reporter = OptimizationReporter::New();
+        _reporter = OptimizationReporter<OptimizerType>::New();
     }
 
     void initialize() {
@@ -88,7 +88,7 @@ public:
     }
 
     MetaMetricType::ParametersType getCurrentParameter() {
-        _optimizer->GetCurrentPosition();
+        return _optimizer->GetCurrentPosition();
     }
 };
 
@@ -147,7 +147,7 @@ int mainCrop(int argc, char* argv[]) {
     computeMSE(fixed, moving);
     cout << "Initial value: " << metric->GetValue(initialParam) << endl;
 
-    OptimizationReporter::Pointer reporter = OptimizationReporter::New();
+    OptimizationReporter<OptimizerType>::Pointer reporter = OptimizationReporter<OptimizerType>::New();
 
     OptimizerType::Pointer optimizer = OptimizerType::New();
     optimizer->SetCostFunction(metric);

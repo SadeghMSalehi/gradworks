@@ -65,6 +65,7 @@ namespace itk
                 ( *xi )[i] /= len;
             }
         }
+        //cout << "Xi = " << *xi << endl;
     }
 
     void
@@ -152,7 +153,9 @@ namespace itk
 
             double fret;
             fret = fp;
+            cout << "Temp Coordinate: " << tempCoord << endl;
             this->LineOptimize(&p, xi, &fret, tempCoord);
+            cout << "Line Optimization: " << tempCoord << endl;
 
             if ( 2.0 * vcl_abs(fret - fp) <=
                 this->GetValueTolerance() * ( vcl_abs(fret) + vcl_abs(fp) + FRPR_TINY ) )
@@ -196,14 +199,15 @@ namespace itk
                 }
             }
             
-            if ( gg == 0 )
+            if ( abs(gg) < 1e-5 )
             {
                 this->SetCurrentPosition(p);
                 this->InvokeEvent( EndEvent() );
                 return;
             }
-            
+
             gam = dgg / gg;
+            cout << "DGG: " << dgg << ", GG: " << gg << ", gam: " << gam << endl;
             for ( i = 0; i < this->GetSpaceDimension(); i++ )
             {
                 g[i] = -xi[i];
