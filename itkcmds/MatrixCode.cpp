@@ -10,79 +10,92 @@
 
 namespace MathCode {
 
-float abs(float n) {
-    return n > 0 ? n : -n;
-}
-int round(float n) {
-    return (int) (n > 0 ? (n + .5) : (n - .5));
-}
-float sqrt(float s) {
-    return ::sqrt(s);
-}
-float cos(float x) {
-    return ::cos(x);
-}
-float sin(float x) {
-    return ::sin(x);
-}
-Vec2 max(Vec2* a, int n) {
-    Vec2 o = a[0];
-    for (int i = 0; i < n; i++) {
-        o._V[0] = o._V[0] < a[i]._V[0] ? a[i]._V[0] : o._V[0];
-        o._V[1] = o._V[1] < a[i]._V[1] ? a[i]._V[1] : o._V[1];
+    float abs(float n) {
+        return n > 0 ? n : -n;
     }
-    return o;
-}
-
-Vec3 max(Vec3* a, int n) {
-    Vec3 o = a[0];
-    for (int i = 0; i < n; i++) {
-        o._V[0] = o._V[0] < a[i]._V[0] ? a[i]._V[0] : o._V[0];
-        o._V[1] = o._V[1] < a[i]._V[1] ? a[i]._V[1] : o._V[1];
-        o._V[2] = o._V[2] < a[i]._V[2] ? a[i]._V[2] : o._V[2];
+    int round(float n) {
+        return (int) (n > 0 ? (n + .5) : (n - .5));
     }
-    return o;
-}
-
-Vec4 max(Vec4* a, int n) {
-    Vec4 o = a[0];
-    for (int i = 0; i < n; i++) {
-        o._V[0] = o._V[0] < a[i]._V[0] ? a[i]._V[0] : o._V[0];
-        o._V[1] = o._V[1] < a[i]._V[1] ? a[i]._V[1] : o._V[1];
-        o._V[2] = o._V[2] < a[i]._V[2] ? a[i]._V[2] : o._V[2];
-        o._V[3] = o._V[3] < a[i]._V[3] ? a[i]._V[3] : o._V[3];
+    float sqrt(float s) {
+        return ::sqrt(s);
     }
-    return o;
-}
-
-Vec2 min(Vec2* a, int n) {
-    Vec2 o = a[0];
-    for (int i = 0; i < n; i++) {
-        o._V[0] = o._V[0] > a[i]._V[0] ? a[i]._V[0] : o._V[0];
-        o._V[1] = o._V[1] > a[i]._V[1] ? a[i]._V[1] : o._V[1];
+    float cos(float x) {
+        return ::cos(x);
     }
-    return o;
-}
-
-Vec3 min(Vec3* a, int n) {
-    Vec3 o = a[0];
-    for (int i = 0; i < n; i++) {
-        o._V[0] = o._V[0] > a[i]._V[0] ? a[i]._V[0] : o._V[0];
-        o._V[1] = o._V[1] > a[i]._V[1] ? a[i]._V[1] : o._V[1];
-        o._V[2] = o._V[2] > a[i]._V[2] ? a[i]._V[2] : o._V[2];
+    float sin(float x) {
+        return ::sin(x);
     }
-    return o;
-}
-
-Vec4 min(Vec4* a, int n) {
-    Vec4 o = a[0];
-    for (int i = 0; i < n; i++) {
-        o._V[0] = o._V[0] > a[i]._V[0] ? a[i]._V[0] : o._V[0];
-        o._V[1] = o._V[1] > a[i]._V[1] ? a[i]._V[1] : o._V[1];
-        o._V[2] = o._V[2] > a[i]._V[2] ? a[i]._V[2] : o._V[2];
-        o._V[3] = o._V[3] > a[i]._V[3] ? a[i]._V[3] : o._V[3];
+    Vec2 max(Vec2* a, int n) {
+        Vec2 o = a[0];
+        for (int i = 0; i < n; i++) {
+            o._V[0] = o._V[0] < a[i]._V[0] ? a[i]._V[0] : o._V[0];
+            o._V[1] = o._V[1] < a[i]._V[1] ? a[i]._V[1] : o._V[1];
+        }
+        return o;
     }
-    return o;
-}
 
+    Vec3 max(Vec3* a, int n) {
+        Vec3 o = a[0];
+        for (int i = 0; i < n; i++) {
+            o._V[0] = o._V[0] < a[i]._V[0] ? a[i]._V[0] : o._V[0];
+            o._V[1] = o._V[1] < a[i]._V[1] ? a[i]._V[1] : o._V[1];
+            o._V[2] = o._V[2] < a[i]._V[2] ? a[i]._V[2] : o._V[2];
+        }
+        return o;
+    }
+
+    Vec4 max(Vec4* a, int n) {
+        Vec4 o = a[0];
+        for (int i = 0; i < n; i++) {
+            o._V[0] = o._V[0] < a[i]._V[0] ? a[i]._V[0] : o._V[0];
+            o._V[1] = o._V[1] < a[i]._V[1] ? a[i]._V[1] : o._V[1];
+            o._V[2] = o._V[2] < a[i]._V[2] ? a[i]._V[2] : o._V[2];
+            o._V[3] = o._V[3] < a[i]._V[3] ? a[i]._V[3] : o._V[3];
+        }
+        return o;
+    }
+
+    Vec2 min(Vec2* a, int n) {
+        Vec2 o = a[0];
+        for (int i = 0; i < n; i++) {
+            o._V[0] = o._V[0] > a[i]._V[0] ? a[i]._V[0] : o._V[0];
+            o._V[1] = o._V[1] > a[i]._V[1] ? a[i]._V[1] : o._V[1];
+        }
+        return o;
+    }
+
+    Vec3 min(Vec3* a, int n) {
+        Vec3 o = a[0];
+        for (int i = 0; i < n; i++) {
+            o._V[0] = o._V[0] > a[i]._V[0] ? a[i]._V[0] : o._V[0];
+            o._V[1] = o._V[1] > a[i]._V[1] ? a[i]._V[1] : o._V[1];
+            o._V[2] = o._V[2] > a[i]._V[2] ? a[i]._V[2] : o._V[2];
+        }
+        return o;
+    }
+
+    Vec4 min(Vec4* a, int n) {
+        Vec4 o = a[0];
+        for (int i = 0; i < n; i++) {
+            o._V[0] = o._V[0] > a[i]._V[0] ? a[i]._V[0] : o._V[0];
+            o._V[1] = o._V[1] > a[i]._V[1] ? a[i]._V[1] : o._V[1];
+            o._V[2] = o._V[2] > a[i]._V[2] ? a[i]._V[2] : o._V[2];
+            o._V[3] = o._V[3] > a[i]._V[3] ? a[i]._V[3] : o._V[3];
+        }
+        return o;
+    }
+    
+    inline void translate(Mat4& m, Vec3& t) {
+        m[0][0] = t[0];
+        m[0][1] = t[1];
+        m[0][2] = t[2];
+        m[0][3] = 1;
+    }
+
+    inline void translate(Mat4& m, Vec4& t) {
+        m[0][0] = t[0];
+        m[0][1] = t[1];
+        m[0][2] = t[2];
+        m[0][3] = t[3];
+    }
 }
