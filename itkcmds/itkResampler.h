@@ -9,37 +9,20 @@
 #ifndef itkcmds_itkResampler_h
 #define itkcmds_itkResampler_h
 
-#include "itkImageIO.h"
-#include "itkExceptionObject.h"
-#include "itkAffineTransform.h"
-#include "itkLinearInterpolateImageFunction.h"
-#include "itkRegularStepGradientDescentOptimizer.h"
-#include "itkImageRegistrationMethod.h"
-#include "itkResampleImageFilter.h"
-#include "itkContinuousIndex.h"
-#include "itkCropImageFilter.h"
-#include "itkCastImageFilter.h"
-#include "itkLabelGeometryImageFilter.h"
-#include "itkMath.h"
-#include "itkTimer.h"
 #include "iostream"
 #include "fstream"
 #include "vector"
-#include "itkMyMetric.h"
-#include "itkMyFRPROptimizer.h"
-#include "MyFunction.h"
-#include "MatrixCode.h"
-#include "itkCommand.h"
-#include "itkSingleValuedNonLinearOptimizer.h"
-#include "itkRealTimeClock.h"
-#include "itksys/hash_map.hxx"
-#include "itkOptimizationReporter.h"
-#include "itkExtractImageFilter.h"
+#include "itkImageIO.h"
+#include "itkExceptionObject.h"
+#include "itkMath.h"
+#include "itkTimer.h"
+#include "itkMathCode.h"
+#include "itkAffineTransform.h"
+#include "itkLinearInterpolateImageFunction.h"
 #include "itkVersorRigid3DTransform.h"
 #include "itkNearestNeighborInterpolateImageFunction.h"
 #include "itkSimilarity3DTransform.h"
 #include "itkImageRegionIteratorWithIndex.h"
-#include "itkMathCode.h"
 
 template <class TImage, class TTransform>
 class itkResampler {
@@ -104,10 +87,8 @@ public:
         IteratorType iter(_outImg, _outImg->GetBufferedRegion());
         for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
             typename TImage::IndexType outIdx = iter.GetIndex();
-            // typename TImage::IndexType srcIdx;
             typename InterpolatorType::ContinuousIndexType srcIdx;
             mathCode.template transformContinousIndex<typename InterpolatorType::ContinuousIndexType>(imageTransformInverse, outIdx, srcIdx);
-
             if (interpolator->IsInsideBuffer(srcIdx)) {
                 typename TImage::PixelType pixel = interpolator->EvaluateAtContinuousIndex(srcIdx);
                 iter.Set(pixel);
