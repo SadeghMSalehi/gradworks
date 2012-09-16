@@ -8,6 +8,8 @@
 #include "itkNumericTraits.h"
 #include "itkNrrdImageIOFactory.h"
 #include "itkNiftiImageIOFactory.h"
+#include "itkImageRegionConstIteratorWithIndex.h"
+#include "itkMath.h"
 #include "iostream"
 
 using namespace std;
@@ -161,5 +163,70 @@ namespace itkcmds {
 			return 0;
 		}
 	};
+
+    template<class T, unsigned int N>
+    class PointStatistics {
+    private:
+        T _minPoint;
+        T _maxPoint;
+        T _avgPoint;
+        T _sumPoint;
+        int n;
+    public:
+        PointStatistics() {
+            for (int i = 0; i < N; i++) {
+                _sumPoint[i] = 0;
+                _minPoint[i] = 1e23;
+                _maxPoint[i] = -1e23;
+                _avgPoint[i] = 0;
+            }
+            n = 0;
+        }
+        ~PointStatistics() {}
+        int GetNumberOfPoints() const {
+            return n;
+        }
+        T GetBoundsMinimum() const {
+            return _minPoint;
+        }
+
+        T GetBoundsMaximum() const {
+            return _maxPoint;
+        }
+
+        T GetBoundsCenter() const {
+            return _avgPoint;
+        }
+
+        T GetSumOfPoints() {
+            return _sumPoint;
+        }
+
+        void AddPoint(T p) {
+            ++n;
+            for (int i = 0; i < N; i++) {
+                _minPoint[i] = _minPoint[i] < p[i] ? _minPoint[i] : p[i];
+                _maxPoint[i] = _maxPoint[i] > p[i] ? _maxPoint[i] : p[i];
+                _sumPoint[i] += p[i];
+                _avgPoint[i] = (_sumPoint[i] / n);
+            }
+        }
+    };
+
+    template<class T, unsigned int n>
+    std::ostream& operator<<(std::ostream& out, const PointStatistics<T,n>& s) {
+        out << "Center: " << s.GetBoundsCenter() << "; Min: " << s.GetBoundsMinimum() << "; Max: " << s.GetBoundsMaximum() << ";";
+    }
+
+    template<class T, class S>
+    void ComputeLabelIndexes(typename T::Pointer label, typename S::FixedImageIndexContainer& container) {
+        itk::ImageRegionConstIteratorWithIndex<T> labelIter(label, label->GetBufferedRegion());
+        for (labelIter.GoToBegin(); !labelIter.IsAtEnd(); ++labelIter) {
+            typename T::PixelType label = labelIter.Get();
+            if (label > 0) {
+                container.push_back(labelIter.GetIndex());
+            }
+        }
+    }
 }
 #endif
