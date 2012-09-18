@@ -12,7 +12,7 @@ using namespace itk;
 
 
 #define forD(v) for (int v = 0; v < numDimensions; v++)
-void printImageInformation(ImageIOBase::Pointer imageBase) {
+static void printImageInformation(ImageIOBase::Pointer imageBase) {
     cout << imageBase->GetNumberOfComponents() << "\t";
     int numDimensions = imageBase->GetNumberOfDimensions();
     cout << numDimensions << "\t";
@@ -27,6 +27,7 @@ void printImageInformation(ImageIOBase::Pointer imageBase) {
     cout << imageBase->GetPixelTypeAsString(imageBase->GetPixelType());
     cout << "\t";
     cout << imageBase->GetComponentTypeAsString(imageBase->GetComponentType());
+    // cout << "[" << imageBase->GetComponentType() << "]";
     cout << "\t";
     forD(i) {
         if (i > 0) {
@@ -46,21 +47,23 @@ void printImageInformation(ImageIOBase::Pointer imageBase) {
         }
         cout << imageBase->GetDimensions(i);
     }
+    cout << "\t";
+    forD(i) {
+        if (i > 0) {
+            cout << " ";
+        }
+        cout << (imageBase->GetDimensions(i)*imageBase->GetSpacing(i));
+    }
     cout << "\n";
     return;
 }
 
-int main(int argc, char* argv[]) {
-	if (argc < 1) {
-		cout << "usage: itkinfo filename" << endl;
-		return 0;
-	}
-
-    cout << "FileName\t#components\t#dimensions\torigin\tspacing\tpixel\tcomponent\tdirection\tsize" << endl;
+int mainImageInfo(int argc, const char* argv[]) {
+    cout << "FileName\t#components\t#dimensions\torigin\tspacing\tpixel\tcomponent\tdirection\tsize\tFOV" << endl;
     for (int i = 1; i < argc; i++) {
         itkImageIO<IntImage> io;
-        ImageIOBase::Pointer imageBase = io.ReadImageInfo(argv[1]);
-        cout << argv[1] << "\t";
+        ImageIOBase::Pointer imageBase = io.ReadImageInfo(argv[i]);
+        cout << argv[i] << "\t";
         printImageInformation(imageBase);
     }
 	return 0;
