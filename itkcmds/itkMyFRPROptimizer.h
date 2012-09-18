@@ -18,10 +18,9 @@
 #ifndef __itkMyFRPROptimizer_h
 #define __itkMyFRPROptimizer_h
 
-#include "itkPowellOptimizer.h"
+#include "itkMyPowellOptimizer.h"
 
-namespace itk
-{
+namespace itk {
 /** \class MyFRPROptimizer
  * \brief Implements Fletch-Reeves & Polak-Ribiere optimization using dBrent
  * line search.
@@ -46,72 +45,79 @@ namespace itk
  * \ingroup ITKOptimizers
  */
 
-class ITK_EXPORT MyFRPROptimizer:
-  public PowellOptimizer
-{
+class ITK_EXPORT MyFRPROptimizer: public MyPowellOptimizer {
 public:
-  /** Standard "Self" typedef. */
-  typedef MyFRPROptimizer              Self;
-  typedef PowellOptimizer            Superclass;
-  typedef SmartPointer< Self >       Pointer;
-  typedef SmartPointer< const Self > ConstPointer;
+	/** Standard "Self" typedef. */
+	typedef MyFRPROptimizer Self;
+	typedef MyPowellOptimizer Superclass;
+	typedef SmartPointer<Self> Pointer;
+	typedef SmartPointer<const Self> ConstPointer;
 
-  typedef SingleValuedNonLinearOptimizer::ParametersType ParametersType;
+	typedef SingleValuedNonLinearOptimizer::ParametersType ParametersType;
 
-  /** Method for creation through the object factory. */
-  itkNewMacro(Self);
+	/** Method for creation through the object factory. */
+	itkNewMacro(Self)
+	;
 
-  /** Run-time type information (and related methods). */
-  itkTypeMacro(MyFRPROptimizer, PowellOptimizer);
+	/** Run-time type information (and related methods). */
+	itkTypeMacro(MyFRPROptimizer, MyPowellOptimizer)
+	;
 
-  /** Type of the Cost Function   */
-  typedef  SingleValuedCostFunction  CostFunctionType;
-  typedef  CostFunctionType::Pointer CostFunctionPointer;
+	/** Type of the Cost Function   */
+	typedef SingleValuedCostFunction CostFunctionType;
+	typedef CostFunctionType::Pointer CostFunctionPointer;
 
-  /** Convert gradient to a unit length vector */
-  itkSetMacro(UseUnitLengthGradient, bool);
-  itkGetConstMacro(UseUnitLengthGradient, bool);
+	/** Convert gradient to a unit length vector */
+	itkSetMacro(UseUnitLengthGradient, bool);
+    itkGetConstMacro(UseUnitLengthGradient, bool);
 
-  /** Start optimization. */
-  void StartOptimization();
+    itkSetMacro(UseScaledGradient, bool);
+    itkGetConstMacro(UseScaledGradient, bool);
 
-  /** Set it to the Fletch-Reeves optimizer */
-  void SetToFletchReeves();
+    itkSetMacro(GradientScales, ScalesType);
+    itkGetConstMacro(GradientScales, ScalesType);
 
-  /** Set it to the Fletch-Reeves optimizer */
-  void SetToPolakRibiere();
+	/** Start optimization. */
+	void StartOptimization();
+
+	/** Set it to the Fletch-Reeves optimizer */
+	void SetToFletchReeves();
+
+	/** Set it to the Fletch-Reeves optimizer */
+	void SetToPolakRibiere();
 
 protected:
-  MyFRPROptimizer();
-  virtual ~MyFRPROptimizer();
+	MyFRPROptimizer();
+	virtual ~MyFRPROptimizer();
 
-  void PrintSelf(std::ostream & os, Indent indent) const;
+	void PrintSelf(std::ostream & os, Indent indent) const;
 
-  /** Get the value of the n-dimensional cost function at this scalar step
-   * distance along the current line direction from the current line origin.
-   * Line origin and distances are set via SetLine */
-  virtual void GetValueAndDerivative(ParametersType & p, double *val,
-                                     ParametersType *xi);
+	/** Get the value of the n-dimensional cost function at this scalar step
+	 * distance along the current line direction from the current line origin.
+	 * Line origin and distances are set via SetLine */
+	virtual void GetValueAndDerivative(ParametersType & p, double *val,
+			ParametersType *xi);
 
-  virtual void   LineOptimize(ParametersType *p, ParametersType & xi,
-                              double *val);
+	virtual void LineOptimize(ParametersType *p, ParametersType & xi,
+			double *val);
 
-  virtual void   LineOptimize(ParametersType *p, ParametersType & xi,
-                              double *val,
-                              ParametersType & tempCoord);
+	virtual void LineOptimize(ParametersType *p, ParametersType & xi,
+			double *val, ParametersType & tempCoord);
 
 private:
-  MyFRPROptimizer(const MyFRPROptimizer &); // not implemented
+	MyFRPROptimizer(const MyFRPROptimizer &); // not implemented
 
-  typedef enum {
-    FletchReeves,
-    PolakRibiere
-    }               OptimizationType;
+	typedef enum {
+		FletchReeves, PolakRibiere
+	} OptimizationType;
 
-  OptimizationType m_OptimizationType;
+	OptimizationType m_OptimizationType;
 
-  bool m_UseUnitLengthGradient;
-}; // end of class
-} // end of namespace itk
+	bool m_UseUnitLengthGradient;
+    bool m_UseScaledGradient;
+    ScalesType m_GradientScales;
+};
+// end of class
+}// end of namespace itk
 
 #endif

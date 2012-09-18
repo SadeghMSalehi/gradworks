@@ -23,236 +23,207 @@
 
 using namespace std;
 
-namespace itk
-{
-    const double FRPR_TINY = 1e-20;
+namespace itk {
+const double FRPR_TINY = 1e-20;
 
-    MyFRPROptimizer
-    ::MyFRPROptimizer()
-    {
-        m_UseUnitLengthGradient = false;
-        m_OptimizationType = PolakRibiere;
-    }
+MyFRPROptimizer::MyFRPROptimizer() {
+	m_UseUnitLengthGradient = false;
+	m_UseScaledGradient = false;
+	m_OptimizationType = PolakRibiere;
 
-    MyFRPROptimizer
-    ::~MyFRPROptimizer()
-    {}
+	m_GradientScales.SetSize(this->GetSpaceDimension());
+	m_GradientScales.Fill(1);
+}
 
-    void
-    MyFRPROptimizer
-    ::GetValueAndDerivative(ParametersType & p, double *val,
-                            ParametersType *xi)
-    {
-        this->m_CostFunction->GetValueAndDerivative(p, *val, *xi);
-        if ( this->GetMaximize() )
-        {
-            ( *val ) = -( *val );
-            for ( unsigned int i = 0; i < this->GetSpaceDimension(); i++ )
-            {
-                ( *xi )[i] = -( *xi )[i];
-            }
-        }
-        if ( this->GetUseUnitLengthGradient() )
-        {
-            double len = ( *xi )[0] * ( *xi )[0];
-            for ( unsigned int i = 1; i < this->GetSpaceDimension(); i++ )
-            {
-                len += ( *xi )[i] * ( *xi )[i];
-            }
-            len = vcl_sqrt( len / this->GetSpaceDimension() );
-            for ( unsigned int i = 0; i < this->GetSpaceDimension(); i++ )
-            {
-                ( *xi )[i] /= len;
-            }
-        }
-        //cout << "Xi = " << *xi << endl;
-    }
+MyFRPROptimizer::~MyFRPROptimizer() {
+}
 
-    void
-    MyFRPROptimizer
-    ::LineOptimize(ParametersType *p, ParametersType & xi, double *val)
-    {
-        ParametersType tempCoord( this->GetSpaceDimension() );
+void MyFRPROptimizer::GetValueAndDerivative(ParametersType & p, double *val,
+		ParametersType *xi) {
+	this->m_CostFunction->GetValueAndDerivative(p, *val, *xi);
+	if (this->GetMaximize()) {
+		(*val) = -(*val);
+		for (unsigned int i = 0; i < this->GetSpaceDimension(); i++) {
+			(*xi)[i] = -(*xi)[i];
+		}
+	}
+	if (this->GetUseScaledGradient()) {
+		ScalesType gradientScales = this->GetGradientScales();
+		for (unsigned int i = 0; i < this->GetSpaceDimension(); i++) {
+			(*xi)[i] = gradientScales[i] * (*xi)[i];
+		}
+	}
 
-        this->LineOptimize(p, xi, val, tempCoord);
-    }
+	if (this->GetUseUnitLengthGradient()) {
+		double len = (*xi)[0] * (*xi)[0];
+		for (unsigned int i = 1; i < this->GetSpaceDimension(); i++) {
+			len += (*xi)[i] * (*xi)[i];
+		}
+		len = vcl_sqrt( len / this->GetSpaceDimension() );
+		for (unsigned int i = 0; i < this->GetSpaceDimension(); i++) {
+			(*xi)[i] /= len;
+		}
+	}
+	cout << "Xi = " << *xi << endl;
+}
 
-    void
-    MyFRPROptimizer
-    ::LineOptimize(ParametersType *p, ParametersType & xi, double *val,
-                   ParametersType & tempCoord)
-    {
-        this->SetLine(*p, xi);
+void MyFRPROptimizer::LineOptimize(ParametersType *p, ParametersType & xi,
+		double *val) {
+	ParametersType tempCoord(this->GetSpaceDimension());
 
-        double ax = 0.0;
-        double fa = ( *val );
-        double xx = this->GetStepLength();
-        double fx;
-        double bx;
-        double fb;
+	this->LineOptimize(p, xi, val, tempCoord);
+}
 
-        this->LineBracket(&ax, &xx, &bx, &fa, &fx, &fb, tempCoord);
-        this->SetCurrentLinePoint(xx, fx);
+void MyFRPROptimizer::LineOptimize(ParametersType *p, ParametersType & xi,
+		double *val, ParametersType & tempCoord) {
+	this->SetLine(*p, xi);
 
-        double extX = 0;
-        double extVal = 0;
+	double ax = 0.0;
+	double fa = (*val);
+	double xx = this->GetStepLength();
+	double fx;
+	double bx;
+	double fb;
 
-        this->BracketedLineOptimize(ax, xx, bx, fa, fx, fb, &extX, &extVal,
-                                    tempCoord);
-        this->SetCurrentLinePoint(extX, extVal);
+	try {
+		this->LineBracket(&ax, &xx, &bx, &fa, &fx, &fb, tempCoord);
+	} catch (itk::ExceptionObject& ex) {
+		cout << ex << endl;
+	}
+	this->SetCurrentLinePoint(xx, fx);
 
-        ( *p ) = this->GetCurrentPosition();
-        ( *val ) = extVal;
-    }
+	double extX = 0;
+	double extVal = 0;
 
-    void
-    MyFRPROptimizer
-    ::StartOptimization()
-    {
-        unsigned int i;
-        if ( m_CostFunction.IsNull() )
-        {
-            return;
-        }
+	this->BracketedLineOptimize(ax, xx, bx, fa, fx, fb, &extX, &extVal,
+			tempCoord);
+	this->SetCurrentLinePoint(extX, extVal);
 
+	(*p) = this->GetCurrentPosition();
+	(*val) = extVal;
+}
 
-        this->InvokeEvent( StartEvent() );
-        this->SetStop(false);
+void MyFRPROptimizer::StartOptimization() {
+	unsigned int i;
+	if (m_CostFunction.IsNull()) {
+		return;
+	}
 
-        this->SetSpaceDimension( m_CostFunction->GetNumberOfParameters() );
+	this->InvokeEvent(StartEvent());
+	this->SetStop(false);
+	this->SetSpaceDimension(m_CostFunction->GetNumberOfParameters());
 
-        MyFRPROptimizer::ParametersType tempCoord( this->GetSpaceDimension() );
+	MyFRPROptimizer::ParametersType tempCoord(this->GetSpaceDimension());
 
-        double                        gg, gam, dgg;
-        MyFRPROptimizer::ParametersType g( this->GetSpaceDimension() );
-        MyFRPROptimizer::ParametersType h( this->GetSpaceDimension() );
-        MyFRPROptimizer::ParametersType xi( this->GetSpaceDimension() );
+	double gg, gam, dgg;
+	MyFRPROptimizer::ParametersType g(this->GetSpaceDimension());
+	MyFRPROptimizer::ParametersType h(this->GetSpaceDimension());
+	MyFRPROptimizer::ParametersType xi(this->GetSpaceDimension());
 
-        MyFRPROptimizer::ParametersType p( this->GetSpaceDimension() );
-        p = this->GetInitialPosition();
-        this->SetCurrentPosition(p);
+	MyFRPROptimizer::ParametersType p(this->GetSpaceDimension());
+	p = this->GetInitialPosition();
+	this->SetCurrentPosition(p);
 
-        double fp;
-        this->GetValueAndDerivative(p, &fp, &xi);
+	double fp;
+	this->GetValueAndDerivative(p, &fp, &xi);
 
-        for ( i = 0; i < this->GetSpaceDimension(); i++ )
-        {
-            g[i] = -xi[i];
-            xi[i] = g[i];
-            h[i] = g[i];
-        }
+	cout << "Gradient: " << xi << endl;
 
-        unsigned int limitCount = 0;
+	for (i = 0; i < this->GetSpaceDimension(); i++) {
+		g[i] = -xi[i];
+		xi[i] = g[i];
+		h[i] = g[i];
+	}
 
-        for ( unsigned int currentIteration = 0;
-             currentIteration <= this->GetMaximumIteration();
-             currentIteration++ )
-        {
-            cout << "Current Iteration: " << currentIteration << endl;
-            this->SetCurrentIteration(currentIteration);
+	unsigned int limitCount = 0;
 
-            double fret;
-            fret = fp;
-            cout << "Temp Coordinate: " << tempCoord << endl;
-            this->LineOptimize(&p, xi, &fret, tempCoord);
-            cout << "Line Optimization: " << tempCoord << endl;
+	for (unsigned int currentIteration = 0;
+			currentIteration <= this->GetMaximumIteration();
+			currentIteration++) {
+		this->SetCurrentIteration(currentIteration);
 
-            if ( 2.0 * vcl_abs(fret - fp) <=
-                this->GetValueTolerance() * ( vcl_abs(fret) + vcl_abs(fp) + FRPR_TINY ) )
-            {
-                if ( limitCount <  this->GetSpaceDimension() )
-                {
-                    this->GetValueAndDerivative(p, &fp, &xi);
-                    xi[limitCount] = 1;
-                    limitCount++;
-                }
-                else
-                {
-                    this->SetCurrentPosition(p);
-                    this->InvokeEvent( EndEvent() );
-                    return;
-                }
-            }
-            else
-            {
-                limitCount = 0;
-                this->GetValueAndDerivative(p, &fp, &xi);
-            }
+		double fret;
+		fret = fp;
 
-            gg = 0.0;
-            dgg = 0.0;
+		this->LineOptimize(&p, xi, &fret, tempCoord);
 
-            if ( m_OptimizationType == PolakRibiere )
-            {
-                for ( i = 0; i < this->GetSpaceDimension(); i++ )
-                {
-                    gg += g[i] * g[i];
-                    dgg += ( xi[i] + g[i] ) * xi[i];
-                }
-            }
-            if ( m_OptimizationType == FletchReeves )
-            {
-                for ( i = 0; i < this->GetSpaceDimension(); i++ )
-                {
-                    gg += g[i] * g[i];
-                    dgg += xi[i] * xi[i];
-                }
-            }
-            
-            if ( abs(gg) < 1e-5 )
-            {
-                this->SetCurrentPosition(p);
-                this->InvokeEvent( EndEvent() );
-                return;
-            }
+        double delta = 2.0 * vcl_abs(fret - fp);
+        double tolerance = this->GetValueTolerance() * (vcl_abs(fret) + vcl_abs(fp) + FRPR_TINY);
 
-            gam = dgg / gg;
-            cout << "DGG: " << dgg << ", GG: " << gg << ", gam: " << gam << endl;
-            for ( i = 0; i < this->GetSpaceDimension(); i++ )
-            {
-                g[i] = -xi[i];
-                xi[i] = g[i] + gam * h[i];
-                h[i] = xi[i];
-            }
-            
-            this->SetCurrentPosition(p);
-            this->InvokeEvent( IterationEvent() );
-        }
-        
-        this->InvokeEvent( EndEvent() );
-    }
-    
-    /**
-     *
-     */
-    void
-    MyFRPROptimizer
-    ::SetToPolakRibiere()
-    {
-        m_OptimizationType = PolakRibiere;
-    }
-    
-    /**
-     *
-     */
-    void
-    MyFRPROptimizer
-    ::SetToFletchReeves()
-    {
-        m_OptimizationType = FletchReeves;
-    }
-    
-    /**
-     *
-     */
-    void
-    MyFRPROptimizer
-    ::PrintSelf(std::ostream & os, Indent indent) const
-    {
-        Superclass::PrintSelf(os, indent);
-        os << indent << "Optimization Type = " << m_OptimizationType << std::endl;
-        os << indent << "0=FletchReeves, 1=PolakRibiere" << std::endl;
-        os << indent << "Use unit length gradient = " << m_UseUnitLengthGradient << std::endl;
-    }
+        cout << "Line Optimization: " << tempCoord << "; delta: " << delta << "; tolerance: " << tolerance << endl;
+		if (delta <= tolerance) {
+			if (limitCount < this->GetSpaceDimension()) {
+				this->GetValueAndDerivative(p, &fp, &xi);
+				xi[limitCount] = 1;
+				limitCount++;
+			} else {
+				this->SetCurrentPosition(p);
+				this->InvokeEvent( EndEvent() );
+				return;
+			}
+		} else {
+			limitCount = 0;
+			this->GetValueAndDerivative(p, &fp, &xi);
+		}
+
+		gg = 0.0;
+		dgg = 0.0;
+
+		if (m_OptimizationType == PolakRibiere) {
+			for (i = 0; i < this->GetSpaceDimension(); i++) {
+				gg += g[i] * g[i];
+				dgg += (xi[i] + g[i]) * xi[i];
+			}
+		}
+		if (m_OptimizationType == FletchReeves) {
+			for (i = 0; i < this->GetSpaceDimension(); i++) {
+				gg += g[i] * g[i];
+				dgg += xi[i] * xi[i];
+			}
+		}
+
+		if (abs(gg) < 1e-5) {
+			this->SetCurrentPosition(p);
+			this->InvokeEvent(EndEvent());
+			return;
+		}
+
+		gam = dgg / gg;
+		// cout << "DGG: " << dgg << ", GG: " << gg << ", gam: " << gam << endl;
+		for (i = 0; i < this->GetSpaceDimension(); i++) {
+			g[i] = -xi[i];
+			xi[i] = g[i] + gam * h[i];
+			h[i] = xi[i];
+		}
+		this->SetCurrentPosition(p);
+		this->InvokeEvent(IterationEvent());
+	}
+	this->InvokeEvent(EndEvent());
+}
+
+/**
+ *
+ */
+void MyFRPROptimizer::SetToPolakRibiere() {
+	m_OptimizationType = PolakRibiere;
+}
+
+/**
+ *
+ */
+void MyFRPROptimizer::SetToFletchReeves() {
+	m_OptimizationType = FletchReeves;
+}
+
+/**
+ *
+ */
+void MyFRPROptimizer::PrintSelf(std::ostream & os, Indent indent) const {
+	Superclass::PrintSelf(os, indent);
+	os << indent << "Optimization Type = " << m_OptimizationType << std::endl;
+	os << indent << "0=FletchReeves, 1=PolakRibiere" << std::endl;
+	os << indent << "Use unit length gradient = " << m_UseUnitLengthGradient
+			<< std::endl;
+}
 } // end of namespace itk
 #endif

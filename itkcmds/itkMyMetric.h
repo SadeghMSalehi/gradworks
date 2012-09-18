@@ -18,125 +18,148 @@
 #ifndef __itkMyMetric_h
 #define __itkMyMetric_h
 
-#include "itkImageToImageMetric.h"
+#include "itkMyMetricBase.h"
 #include "itkPoint.h"
 #include "itkIndex.h"
+#include "itkContinuousIndex.h"
 
+namespace itk {
 
-namespace itk
-{
+    /**
+     * \class MyMetric
+     * \brief TODO
+     * \ingroup ITKRegistrationCommon
+     *
+     * \wiki
+     * \wikiexample{Metrics/MyMetric,Compute the mean squares metric between two images}
+     * \endwiki
+     */
+    template<class TFixedImage, class TMovingImage>
+    class ITK_EXPORT MyMetric: public MyMetricBase<TFixedImage, TMovingImage> {
+    public:
 
-/**
- * \class MyMetric
- * \brief TODO
- * \ingroup ITKRegistrationCommon
- *
- * \wiki
- * \wikiexample{Metrics/MyMetric,Compute the mean squares metric between two images}
- * \endwiki
- */
-template< class TFixedImage, class TMovingImage >
-class ITK_EXPORT MyMetric:
-  public ImageToImageMetric< TFixedImage, TMovingImage >
-{
-public:
+        /** Standard class typedefs. */
+        typedef MyMetric Self;
+        typedef MyMetricBase<TFixedImage, TMovingImage> Superclass;
+        typedef SmartPointer<Self> Pointer;
+        typedef SmartPointer<const Self> ConstPointer;
 
-  /** Standard class typedefs. */
-  typedef MyMetric                   Self;
-  typedef ImageToImageMetric< TFixedImage, TMovingImage > Superclass;
-  typedef SmartPointer< Self >                            Pointer;
-  typedef SmartPointer< const Self >                      ConstPointer;
+        /** Method for creation through the object factory. */
+        itkNewMacro(Self)
+        ;
 
-  /** Method for creation through the object factory. */
-  itkNewMacro(Self);
+        /** Run-time type information (and related methods). */
+        itkTypeMacro(MyMetric, MyMetricBase)
+        ;
 
-  /** Run-time type information (and related methods). */
-  itkTypeMacro(MyMetric, ImageToImageMetric);
+        /** Types inherited from Superclass. */
+        typedef typename Superclass::TransformType TransformType;
+        typedef typename Superclass::TransformPointer TransformPointer;
+        typedef typename Superclass::TransformJacobianType TransformJacobianType;
+        typedef typename Superclass::InterpolatorType InterpolatorType;
+        typedef typename Superclass::MeasureType MeasureType;
+        typedef typename Superclass::DerivativeType DerivativeType;
+        typedef typename Superclass::ParametersType ParametersType;
+        typedef typename Superclass::FixedImageType FixedImageType;
+        typedef typename Superclass::MovingImageType MovingImageType;
+        typedef typename Superclass::MovingImagePointType MovingImagePointType;
+        typedef typename Superclass::FixedImageConstPointer FixedImageConstPointer;
+        typedef typename Superclass::MovingImageConstPointer MovingImageConstPointer;
+        typedef typename Superclass::CoordinateRepresentationType CoordinateRepresentationType;
+        typedef typename Superclass::FixedImageSampleContainer FixedImageSampleContainer;
+        typedef typename Superclass::ImageDerivativesType ImageDerivativesType;
+        typedef typename Superclass::WeightsValueType WeightsValueType;
+        typedef typename Superclass::IndexValueType IndexValueType;
 
-  /** Types inherited from Superclass. */
-  typedef typename Superclass::TransformType                TransformType;
-  typedef typename Superclass::TransformPointer             TransformPointer;
-  typedef typename Superclass::TransformJacobianType        TransformJacobianType;
-  typedef typename Superclass::InterpolatorType             InterpolatorType;
-  typedef typename Superclass::MeasureType                  MeasureType;
-  typedef typename Superclass::DerivativeType               DerivativeType;
-  typedef typename Superclass::ParametersType               ParametersType;
-  typedef typename Superclass::FixedImageType               FixedImageType;
-  typedef typename Superclass::MovingImageType              MovingImageType;
-  typedef typename Superclass::MovingImagePointType         MovingImagePointType;
-  typedef typename Superclass::FixedImageConstPointer       FixedImageConstPointer;
-  typedef typename Superclass::MovingImageConstPointer      MovingImageConstPointer;
-  typedef typename Superclass::CoordinateRepresentationType CoordinateRepresentationType;
-  typedef typename Superclass::FixedImageSampleContainer    FixedImageSampleContainer;
-  typedef typename Superclass::ImageDerivativesType         ImageDerivativesType;
-  typedef typename Superclass::WeightsValueType             WeightsValueType;
-  typedef typename Superclass::IndexValueType               IndexValueType;
+        // Needed for evaluation of Jacobian.
+        typedef typename Superclass::FixedImagePointType FixedImagePointType;
 
-  // Needed for evaluation of Jacobian.
-  typedef typename Superclass::FixedImagePointType FixedImagePointType;
+        /** The moving image dimension. */
+        itkStaticConstMacro(MovingImageDimension, unsigned int,
+                            MovingImageType::ImageDimension);
 
-  /** The moving image dimension. */
-  itkStaticConstMacro(MovingImageDimension, unsigned int,
-                      MovingImageType::ImageDimension);
+        itkSetMacro(FixedParameters, ParametersType);
+        itkGetConstMacro(FixedParameters, ParametersType);
 
-  /**
-   *  Initialize the Metric by
-   *  (1) making sure that all the components are present and plugged
-   *      together correctly,
-   *  (2) uniformly select NumberOfSpatialSamples within
-   *      the FixedImageRegion, and
-   *  (3) allocate memory for pdf data structures. */
-  virtual void Initialize(void)
-  throw ( ExceptionObject );
+		/**
+		 *  Initialize the Metric by
+		 *  (1) making sure that all the components are present and plugged
+		 *      together correctly,
+		 *  (2) uniformly select NumberOfSpatialSamples within
+		 *      the FixedImageRegion, and
+		 *  (3) allocate memory for pdf data structures. */
+		virtual void Initialize(void)
+		throw ( ExceptionObject );
 
-  /**  Get the value. */
-  MeasureType GetValue(const ParametersType & parameters) const;
+		/**  Get the value. */
+		MeasureType GetValue(const ParametersType & parameters) const;
 
-  /** Get the derivatives of the match measure. */
-  void GetDerivative(const ParametersType & parameters,
-                     DerivativeType & Derivative) const;
+		/** Get the derivatives of the match measure. */
+		void GetDerivative(const ParametersType & parameters,
+                           DerivativeType & Derivative) const;
 
-  /**  Get the value and derivatives for single valued optimizers. */
-  void GetValueAndDerivative(const ParametersType & parameters,
-                             MeasureType & Value,
-                             DerivativeType & Derivative) const;
+		/**  Get the value and derivatives for single valued optimizers. */
+		void GetValueAndDerivative(const ParametersType & parameters,
+                                   MeasureType & Value,
+                                   DerivativeType & Derivative) const;
 
-protected:
+		void ComputeCenterOfRotation() {
+			if (this->m_FixedImageSamples.size() > 0) {
+				typename TFixedImage::PointType avgPoint;
+				int nSamples = this->m_FixedImageSamples.size();
+				typename TransformType::ParametersType centerOfRotation = this->m_Transform->GetFixedParameters();
+                for (int j = 0; j < nSamples; j++) {
+                    for (int i = 0; i < TFixedImage::ImageDimension; i++) {
+                        centerOfRotation[i] += this->m_FixedImageSamples[j].point[i];
+                    }
+                }
+                for (int i = 0; i < TFixedImage::ImageDimension; i++) {
+                    centerOfRotation[i] /= nSamples;
+                }
+                this->m_Transform->SetFixedParameters(centerOfRotation);
+                this->SetFixedParameters(centerOfRotation);
+            }
+        }
 
-  MyMetric();
-  virtual ~MyMetric();
-  void PrintSelf(std::ostream & os, Indent indent) const;
+    protected:
 
-private:
+        MyMetric();
+        virtual ~MyMetric();
+        void PrintSelf(std::ostream & os, Indent indent) const;
 
-  //purposely not implemented
-  MyMetric(const Self &);
-  //purposely not implemented
-  void operator=(const Self &);
+    private:
 
-  inline bool GetValueThreadProcessSample(ThreadIdType threadID,
-                                          SizeValueType fixedImageSample,
-                                          const MovingImagePointType & mappedPoint,
-                                          double movingImageValue) const;
+        //purposely not implemented
+        MyMetric(const Self &);
+        //purposely not implemented
+        void operator=(const Self &);
 
-  inline bool GetValueAndDerivativeThreadProcessSample(ThreadIdType threadID,
-                                                       SizeValueType fixedImageSample,
-                                                       const MovingImagePointType & mappedPoint,
-                                                       double movingImageValue,
-                                                       const ImageDerivativesType &
-                                                       movingImageGradientValue) const;
+        ParametersType m_FixedParameters;
 
-  struct PerThreadS
-  {
-    TransformJacobianType m_Jacobian;
-    MeasureType           m_MSE;
-    DerivativeType        m_MSEDerivative;
-  };
+        inline bool GetValueThreadProcessSample(ThreadIdType threadID,
+                                                SizeValueType fixedImageSample,
+                                                const MovingImagePointType & mappedPoint,
+                                                double movingImageValue) const;
 
-
-  itkAlignedTypedef( 64, PerThreadS, AlignedPerThreadType );
-  AlignedPerThreadType *m_PerThread;
-};
+        inline bool GetValueAndDerivativeThreadProcessSample(ThreadIdType threadID,
+                                                             SizeValueType fixedImageSample,
+                                                             const MovingImagePointType & mappedPoint,
+                                                             double movingImageValue,
+                                                             const ImageDerivativesType &
+                                                             movingImageGradientValue) const;
+        
+        struct PerThreadS
+        {
+            TransformJacobianType m_Jacobian;
+            MeasureType           m_MSE;
+            DerivativeType        m_MSEDerivative;
+        };
+        
+        
+        itkAlignedTypedef( 64, PerThreadS, AlignedPerThreadType );
+        AlignedPerThreadType *m_PerThread;
+    }
+    ;
 } // end namespace itk
 
 #ifndef ITK_MANUAL_INSTANTIATION

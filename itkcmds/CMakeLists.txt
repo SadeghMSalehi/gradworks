@@ -23,12 +23,19 @@ set (itkcmds_LIBRARIES ${ITK_LIBRARIES})
 set (SRC_METRICS itkMyMetric.h itkMyMetric.hxx itkMyMetricBase.h itkMyMetricBase.hxx)
 set (SRC_OPTIMIZERS itkMyPowellOptimizer.h itkMyPowellOptimizer.cxx itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp itkOptimizationReporter.h)
 set (SRC_MYLIBS itkImageIO.h itkTimer.h itkTimer.cpp MatrixCode.h MatrixCode.cpp itkMathCode.h)
-set (SRC_ALL ${SRC_METRICS} ${SRC_OPTIMIZERS} ${SRC_MYLIBS})
+set (SRC_TRANSFORMS itkMyEulerTransform.h itkMyEulerTransform.hxx)
+set (SRC_ALL ${SRC_METRICS} ${SRC_OPTIMIZERS} ${SRC_MYLIBS} ${SRC_TRANSFORMS})
 
 #include_directories(${POPT_INCLUDE_DIR})
 #link_directories(${POPT_LIB_DIR})
 #add_executable(itkcmds itkcmds.cpp itkinfo.cpp itkImageIO.h ${POPT_INCLUDE_DIR}/popt.h)
 #target_link_libraries(itkcmds ${itkcmds_LIBRARIES} popt)
+
+add_executable(itkNineTransform itkImageIO.h itkNineTransform.cpp ${SRC_ALL})
+target_link_libraries(itkNineTransform ${itkcmds_LIBRARIES})
+
+add_executable(itkCompositeTransform itkImageIO.h itkCompositeTransform.cpp ${SRC_ALL})
+target_link_libraries(itkCompositeTransform ${itkcmds_LIBRARIES})
 
 add_executable(itkImageReg itkImageIO.h itkImageReg.cpp ${SRC_ALL})
 target_link_libraries(itkImageReg ${itkcmds_LIBRARIES})
