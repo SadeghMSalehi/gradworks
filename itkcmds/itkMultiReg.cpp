@@ -18,6 +18,7 @@
 
 #include "itkCropImageFilter.h"
 #include "itkResampleImageFilter.h"
+#include "itkResampler.h"
 
 using namespace std;
 using namespace itk;
@@ -123,6 +124,7 @@ public:
         _optimizer->SetCostFunction(_metaMetrics);
         _optimizer->SetInitialPosition(initialParams);
         _optimizer->SetUseUnitLengthGradient(true);
+        _optimizer->SetStepLength(0.25);
         _optimizer->AddObserver(StartEvent(), _reporter);
         _optimizer->AddObserver(IterationEvent(), _reporter);
         _optimizer->AddObserver(EndEvent(), _reporter);
@@ -137,19 +139,16 @@ public:
     }
 
     void ResampleOutput(int argc, char* argv[]) {
-        ResamplerType::Pointer resampler = ResamplerType::New();
-        resampler->SetReferenceImage(_fixedImage);
-        resampler->SetInput(_movingImage);
-        resampler->SetInterpolator(InterpolatorType::New());
+        itkResampler<ImageType, LabelType, TransformType> resampler;
+
         TransformType::Pointer transform = TransformType::New();
         transform->SetParameters(_optimizer->GetCurrentPosition());
         transform->SetFixedParameters(_metaMetrics->GetMetricPointer(0)->GetFixedParameters());
-        resampler->SetTransform(transform);
-        resampler->UseReferenceImageOn();
+        resampler.SetSourceMask(_fixedLabel);
 
-        resampler->Update();
-        ImageType::Pointer resampledImage = resampler->GetOutput();
-        _imageIO.WriteImageT(argv[4], resampledImage);
+        resampler.SetTransform(transform);
+        resampler.ResampleBackward();
+        _imageIO.WriteImageT(argv[4], resampler.GetOutput());
     }
 };
 
@@ -158,6 +157,5 @@ int main(int argc, char* argv[]) {
     regEngine.LoadImages(argc, argv);
     regEngine.Initialize();
     regEngine.StartOptimization();
-    regEngine.ResampleOutput(argc, argv);
     return 0;
 }

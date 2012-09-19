@@ -14,18 +14,17 @@
 #include "itkResampleImageFilter.h"
 #include "iostream"
 #include "vector"
+#include "string"
 
 using namespace std;
 
 #define angle2rad(a) (a*itk::Math::pi/180.0)
 
-class NineReg {
+template<class TransformType>
+class RegistrationEngine {
 public:
     typedef itk::Image<unsigned int,3> LabelType;
     typedef itk::Image<float,3> ImageType;
-    typedef itk::CompositeTransform<double,3> CompositeTransform;
-    typedef itk::TranslationTransform<double> InitialTransform;
-    typedef itk::ScaleVersor3DTransform<double> NineTransform;
     typedef itk::TransformFileWriter TransformWriter;
     typedef itk::MyMetric<ImageType, ImageType> Metric;
     typedef itk::MyFRPROptimizer Optimizer;
@@ -43,24 +42,24 @@ public:
     ImageType::PointType _srcCenter;
     ImageType::PointType _dstCenter;
 
-    InitialTransform::Pointer _initialTransform;
-    NineTransform::Pointer _finalTransform;
-    
-    InitialTransform::ParametersType _initialResult;
-    NineTransform::ParametersType _finalResult;
+    typename TransformType::Pointer _transform;
+    typename TransformType::ParametersType _transformResult;
+    typename TransformType::ParametersType _centerOfRotation;
+
     Metric::FixedImageIndexContainer _labelIndexes;
-    InitialTransform::ParametersType _centerOfRotation;
+
     char* _transformOut;
     char* _resampledOut;
+    string _method;
 
     void LoadFiles(int argc, char* argv[]) {
         itkcmds::itkImageIO<ImageType> io;
         itkcmds::itkImageIO<LabelType> io2;
-        _src = io.ReadImageT(argv[1]);
-        _dst = io.ReadImageT(argv[2]);
-        _dstLabel = io2.ReadImageT(argv[3]);
-        _transformOut = argv[4];
-        _resampledOut = argv[5];
+        _src = io.ReadImageT(argv[2]);
+        _dst = io.ReadImageT(argv[3]);
+        _dstLabel = io2.ReadImageT(argv[4]);
+        _transformOut = argv[5];
+        _resampledOut = argv[6];
 
         cout << "Transform Output: " << _transformOut << endl;
         cout << "Resampled Output: " << _resampledOut << endl;
@@ -86,85 +85,75 @@ public:
         }
     }
 
-    void RunRigid() {
-        _initialTransform = InitialTransform::New();
+    void RunRegistration() {
+        _transform = TransformType::New();
+        float params[12] = { 0.994639, -0.00207486, -0.00192788, -0.000832746, 1.00641, -0.00146783, 0.000495955, -0.000724458, 0.999367, 0.989471, 10.2177, 4.1862 };
 
-        _initialTransform->SetFixedParameters(_centerOfRotation);
+        typename TransformType::ParametersType initialParams;
+        initialParams.SetSize(TransformType::ParametersDimension);
+        for (int i = 0; i < TransformType::ParametersDimension; i++) {
+            initialParams[i] = params[i];
+        }
+        _transform->SetParameters(initialParams);
+        _transform->SetFixedParameters(_centerOfRotation);
 
         OptiReporter::Pointer optiReporter = OptiReporter::New();
         Metric::Pointer metric = Metric::New();
         metric->SetFixedImage(_dst);
-        metric->SetMovingImage(_src);
-        metric->SetInterpolator(Interpolator::New());
-        metric->SetTransform(_initialTransform);
-        //metric->SetFixedImageRegion(_dst->GetBufferedRegion());
-        metric->SetFixedImageIndexes(_labelIndexes);
-//        metric->SetUseAllPixels(true);
-        metric->Initialize();
+        bool useIndexes = true;
+        if (useIndexes) {
+            metric->SetFixedImageIndexes(_labelIndexes);
+        } else {
+            metric->SetFixedImageRegion(_dst->GetBufferedRegion());
+            metric->SetUseAllPixels(true);
+        }
 
-        Optimizer::Pointer opti = Optimizer::New();
-        opti->SetCostFunction(metric);
-        Optimizer::ScalesType scales;
-        scales.SetSize(InitialTransform::ParametersDimension);
-        scales.Fill(1);
-        //scales[0] = scales[1] = scales[2] = .1;
-        
-        opti->SetUseUnitLengthGradient(true);
-        opti->SetScales(scales);
-        opti->SetInitialPosition(_initialTransform->GetParameters());
-        opti->AddObserver(itk::StartEvent(), optiReporter);
-        opti->AddObserver(itk::IterationEvent(), optiReporter);
-        opti->StartOptimization();
-        cout << "Current Cost: " << opti->GetCurrentCost() << endl;
-        _initialResult = opti->GetCurrentPosition();
-        _initialTransform->SetParameters(opti->GetCurrentPosition());
-    }
-
-    void RunNine() {
-        _finalTransform = NineTransform::New();
-//        NineTransform::OutputVectorType initialTranslation;
-//        initialTranslation[0] = _initialResult[0];
-//        initialTranslation[1] = _initialResult[1];
-//        initialTranslation[2] = _initialResult[2];
-
-        // _finalTransform->SetTranslation(initialTranslation);
-        _finalTransform->SetFixedParameters(_centerOfRotation);
-        
-        OptiReporter::Pointer optiReporter = OptiReporter::New();
-        Metric::Pointer metric = Metric::New();
-        metric->SetFixedImage(_dst);
         metric->SetMovingImage(_src);
         metric->SetInterpolator(InterpolatorNN::New());
-        metric->SetTransform(_finalTransform);
-        metric->SetFixedImageIndexes(_labelIndexes);
-//        metric->SetUseAllPixels(true);
+        metric->SetTransform(_transform);
         metric->Initialize();
 
         Optimizer::Pointer opti = Optimizer::New();
         opti->SetCostFunction(metric);
         Optimizer::ScalesType scales;
-        scales.SetSize(NineTransform::ParametersDimension);
+        scales.SetSize(TransformType::ParametersDimension);
         scales.Fill(1);
-        scales[0] = scales[1] = scales[2] = 10;
-        scales[6] = scales[7] = scales[8] = 100;
+        if (_method == "affine") {
+            cout << "apply affine scaling ..." << endl;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (i == j) {
+                        scales[3*i+j] = 30;
+                    } else {
+                        scales[3*i+j] = 160;
+                    }
+                }
+            }
+            scales[9] = scales[10] = scales[11] = 0.1;
+        } else if (_method == "nine") {
+            scales[0] = scales[1] = scales[2] = 10;
+            scales[6] = scales[7] = scales[8] = 100;
+        }
 
-        opti->SetMaximumIteration(500);
+        opti->SetMaximumIteration(1000);
+        opti->SetMaximumLineIteration(10);
         opti->SetUseUnitLengthGradient(true);
-        opti->SetStepLength(0.5);
+        opti->SetStepLength(0.25);
         opti->SetScales(scales);
-        opti->SetInitialPosition(_finalTransform->GetParameters());
+        opti->SetToFletchReeves();
+        opti->SetInitialPosition(_transform->GetParameters());
         opti->AddObserver(itk::StartEvent(), optiReporter);
         opti->AddObserver(itk::IterationEvent(), optiReporter);
         opti->StartOptimization();
         cout << "Current Cost: " << opti->GetCurrentCost() << endl;
-        _finalResult = opti->GetCurrentPosition();
-        _finalTransform->SetParameters(opti->GetCurrentPosition());
+        _transformResult = opti->GetCurrentPosition();
+        _transform->SetParameters(opti->GetCurrentPosition());
     }
 
     void SaveTransform() {
         TransformWriter::Pointer writer = TransformWriter::New();
         //writer->AddTransform(_initialTransform);
-        writer->AddTransform(_finalTransform);
+        writer->AddTransform(_transform);
         writer->SetFileName(_transformOut);
         writer->Update();
 
@@ -174,7 +163,7 @@ public:
     void ResampleResult(const char* name) {
         InterpolatorNN::Pointer resampleInterpolator = InterpolatorNN::New();
         ResamplerType::Pointer resample = ResamplerType::New();
-        resample->SetTransform(_finalTransform);
+        resample->SetTransform(_transform);
         resample->SetInput(_src);
         resample->UseReferenceImageOn();
         resample->SetReferenceImage(_dst);
@@ -186,10 +175,10 @@ public:
     }
 
 
-    int main(int argc, char* argv[]) {
+    int main(int argc, char* argv[], string method) {
+        _method = method;
         LoadFiles(argc, argv);
-        // RunRigid();
-        RunNine();
+        RunRegistration();
         SaveTransform();
         ResampleResult(_resampledOut);
         return 0;
@@ -198,6 +187,12 @@ public:
 
 
 int main(int argc, char* argv[]) {
-    NineReg nrg;
-    nrg.main(argc, argv);
+    string method(argv[1]);
+    if (method == "affine") {
+        RegistrationEngine<itk::AffineTransform<double,3> > reg;
+        reg.main(argc, argv, method);
+    } else if (method == "nine") {
+        RegistrationEngine<itk::ScaleVersor3DTransform<double> > reg;
+        reg.main(argc, argv, method);
+    }
 }
