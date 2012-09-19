@@ -39,15 +39,15 @@ public:
 
     void convertTransformToMatrix(TransformPointer transform, Matrix& matOut) const {
         typedef itk::MatrixOffsetTransformBase<double,3,3> MatrixTransformType;
-         MatrixTransformType::Pointer affineTransform = MatrixTransformType::Pointer(dynamic_cast<MatrixTransformType*>(transform.GetPointer()));
+         MatrixTransformType::Pointer matrixTransform = MatrixTransformType::Pointer(dynamic_cast<MatrixTransformType*>(transform.GetPointer()));
 
-        if (affineTransform.IsNull()) {
-            cout << "can't conver to affine transform..." << endl;
+        if (matrixTransform.IsNull()) {
+            cout << "can't convert to matrix-based transform: " << endl << transform << endl;
             matOut.identity();
             return;
         }
         
-        typename MatrixTransformType::MatrixType itkMat = affineTransform->GetMatrix();
+        typename MatrixTransformType::MatrixType itkMat = matrixTransform->GetMatrix();
         typename MatrixTransformType::ParametersType centerOfRotation = transform->GetFixedParameters();
 
 
@@ -63,7 +63,7 @@ public:
         MathCode::mult(fpback, tp, tmp1);
         MathCode::mult(tmp1, fp, matOut);
 
-        typename MatrixTransformType::OutputVectorType translation = affineTransform->GetTranslation();
+        typename MatrixTransformType::OutputVectorType translation = matrixTransform->GetTranslation();
         for (int i = 0; i < 3; i++) {
 			matOut[i][3] += translation[i];
         }

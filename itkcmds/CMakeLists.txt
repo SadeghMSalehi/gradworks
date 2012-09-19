@@ -31,6 +31,12 @@ set (SRC_ALL ${SRC_METRICS} ${SRC_OPTIMIZERS} ${SRC_MYLIBS} ${SRC_TRANSFORMS})
 #add_executable(itkcmds itkcmds.cpp itkinfo.cpp itkImageIO.h ${POPT_INCLUDE_DIR}/popt.h)
 #target_link_libraries(itkcmds ${itkcmds_LIBRARIES} popt)
 
+add_executable(imageRegistration itkImageIO.h imageRegistration.cpp ${SRC_ALL})
+target_link_libraries(imageRegistration ${itkcmds_LIBRARIES})
+
+add_executable(volumeRegistration itkImageIO.h volumeRegistration.cpp ${SRC_ALL})
+target_link_libraries(volumeRegistration ${itkcmds_LIBRARIES})
+
 add_executable(itkNineTransform itkImageIO.h itkNineTransform.cpp ${SRC_ALL})
 target_link_libraries(itkNineTransform ${itkcmds_LIBRARIES})
 
@@ -51,3 +57,6 @@ target_link_libraries(itkSimReg ${itkcmds_LIBRARIES})
 
 add_executable(itkImageMatch itkImageMatch.cxx ${SRC_MYLIBS})
 target_link_libraries(itkImageMatch ${itkcmds_LIBRARIES})
+
+add_executable(resampleImage resampleImage.cpp itkResampler.h ${SRC_MYLIBS})
+target_link_libraries(resampleImage ${itkcmds_LIBRARIES})
