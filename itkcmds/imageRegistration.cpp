@@ -1,8 +1,8 @@
 #include "itkImageIO.h"
 #include "itkCompositeTransform.h"
 #include "itkTranslationTransform.h"
-#include "itkEuler3DTransform.h"
-#include "itkScaleVersor3DTransform.h"
+#include "itkEuler2DTransform.h"
+#include "itkSimilarity2DTransform.h"
 #include "itkTransformFileWriter.h"
 #include "itkMyMetric.h"
 #include "itkMyFRPROptimizer.h"
@@ -23,8 +23,8 @@ using namespace std;
 template<class TransformType>
 class RegistrationEngine {
 public:
-    typedef itk::Image<unsigned int,3> LabelType;
-    typedef itk::Image<float,3> ImageType;
+    typedef itk::Image<unsigned int,2> LabelType;
+    typedef itk::Image<float,2> ImageType;
     typedef itk::TransformFileWriter TransformWriter;
     typedef itk::MyMetric<ImageType, ImageType> Metric;
     typedef itk::MyFRPROptimizer Optimizer;
@@ -65,8 +65,8 @@ public:
         cout << "Resampled Output: " << _resampledOut << endl;
 
         ImageType::SizeType szDst = _dst->GetBufferedRegion().GetSize();
-        itk::ContinuousIndex<double,3> szIdx;
-        for (int i = 0; i < 3; i++) {
+        itk::ContinuousIndex<double,ImageType::ImageDimension> szIdx;
+        for (int i = 0; i < ImageType::ImageDimension; i++) {
             szIdx[i] = szDst[i] / 2.0;
         }
         _dst->TransformContinuousIndexToPhysicalPoint(szIdx, _dstCenter);
@@ -80,13 +80,14 @@ public:
         }
 
         _centerOfRotation.SetSize(ImageType::ImageDimension);
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < ImageType::ImageDimension; i++) {
             _centerOfRotation[i] = _dstCenter[i];
         }
     }
 
     void RunRegistration() {
         _transform = TransformType::New();
+        /*
         float params[12] = { 0.994639, -0.00207486, -0.00192788, -0.000832746, 1.00641, -0.00146783, 0.000495955, -0.000724458, 0.999367, 0.989471, 10.2177, 4.1862 };
 
         typename TransformType::ParametersType initialParams;
@@ -94,7 +95,9 @@ public:
         for (int i = 0; i < TransformType::ParametersDimension; i++) {
             initialParams[i] = params[i];
         }
+
         _transform->SetParameters(initialParams);
+         */
         _transform->SetFixedParameters(_centerOfRotation);
 
         OptiReporter::Pointer optiReporter = OptiReporter::New();
@@ -109,7 +112,7 @@ public:
         }
 
         metric->SetMovingImage(_src);
-        metric->SetInterpolator(InterpolatorNN::New());
+        metric->SetInterpolator(Interpolator::New());
         metric->SetTransform(_transform);
         metric->Initialize();
 
@@ -119,26 +122,30 @@ public:
         scales.SetSize(TransformType::ParametersDimension);
         scales.Fill(1);
         if (_method == "affine") {
-            cout << "apply affine scaling ..." << endl;
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) {
+            // cout << "apply affine scaling ..." << endl;
+            for (int i = 0; i < ImageType::ImageDimension; i++) {
+                for (int j = 0; j < ImageType::ImageDimension; j++) {
                     if (i == j) {
-                        scales[3*i+j] = 30;
+                        scales[ImageType::ImageDimension*i+j] = 160;
                     } else {
-                        scales[3*i+j] = 160;
+                        scales[ImageType::ImageDimension*i+j] = 30;
                     }
                 }
             }
-            scales[9] = scales[10] = scales[11] = 0.1;
-        } else if (_method == "nine") {
-            scales[0] = scales[1] = scales[2] = 10;
-            scales[6] = scales[7] = scales[8] = 100;
+            if (ImageType::ImageDimension == 2) {
+                scales[4] = scales[5] = .5;
+            }
+        } else if (_method == "similar") {
+            scales[0] = 160;
+            scales[1] = 30;
+            scales[2] = 0.1;
+            scales[3] = 0.1;
         }
 
-        opti->SetMaximumIteration(1000);
-        opti->SetMaximumLineIteration(10);
+        opti->SetMaximumIteration(250);
+        opti->SetMaximumLineIteration(20);
         opti->SetUseUnitLengthGradient(true);
-        opti->SetStepLength(0.25);
+        opti->SetStepLength(1);
         opti->SetScales(scales);
         opti->SetToFletchReeves();
         opti->SetInitialPosition(_transform->GetParameters());
@@ -189,10 +196,13 @@ public:
 int main(int argc, char* argv[]) {
     string method(argv[1]);
     if (method == "affine") {
-        RegistrationEngine<itk::AffineTransform<double,3> > reg;
+        RegistrationEngine<itk::AffineTransform<double,2> > reg;
         reg.main(argc, argv, method);
-    } else if (method == "nine") {
-        RegistrationEngine<itk::ScaleVersor3DTransform<double> > reg;
+    } else if (method == "euler") {
+        RegistrationEngine<itk::Euler2DTransform<double> > reg;
+        reg.main(argc, argv, method);
+    } else if (method == "similar") {
+        RegistrationEngine<itk::Similarity2DTransform<double> > reg;
         reg.main(argc, argv, method);
     }
 }

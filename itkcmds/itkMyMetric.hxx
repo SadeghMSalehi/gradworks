@@ -212,7 +212,7 @@ void MyMetric<TFixedImage, TMovingImage>::GetValueAndDerivative(
 		cout << "Transform Parameters: " << this->m_Transform->GetParameters()
 				<< endl;
 		itkExceptionMacro(
-				"Too many samples map outside moving image buffer: " << this->m_NumberOfPixelsCounted << " / " << this->m_NumberOfFixedImageSamples << std::endl);
+                          "Too many samples map outside moving image buffer: " << this->m_NumberOfPixelsCounted << " / " << this->m_NumberOfFixedImageSamples << std::endl << "Parameters: " << parameters << std::endl);
 	}
 
 	value = 0;

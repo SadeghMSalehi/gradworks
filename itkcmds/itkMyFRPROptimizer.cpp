@@ -64,7 +64,7 @@ void MyFRPROptimizer::GetValueAndDerivative(ParametersType & p, double *val,
 			(*xi)[i] /= len;
 		}
 	}
-	cout << "Xi = " << *xi << endl;
+	// cout << "Xi = " << *xi << endl;
 }
 
 void MyFRPROptimizer::LineOptimize(ParametersType *p, ParametersType & xi,
@@ -127,7 +127,7 @@ void MyFRPROptimizer::StartOptimization() {
 	double fp;
 	this->GetValueAndDerivative(p, &fp, &xi);
 
-	cout << "Gradient: " << xi << endl;
+	// cout << "Gradient: " << xi << endl;
 
 	for (i = 0; i < this->GetSpaceDimension(); i++) {
 		g[i] = -xi[i];
@@ -150,7 +150,7 @@ void MyFRPROptimizer::StartOptimization() {
         double delta = 2.0 * vcl_abs(fret - fp);
         double tolerance = this->GetValueTolerance() * (vcl_abs(fret) + vcl_abs(fp) + FRPR_TINY);
 
-        cout << "Line Optimization: " << tempCoord << "; delta: " << delta << "; tolerance: " << tolerance << endl;
+        // cout << "Line Optimization: " << tempCoord << "; delta: " << delta << "; tolerance: " << tolerance << endl;
 		if (delta <= tolerance) {
 			if (limitCount < this->GetSpaceDimension()) {
 				this->GetValueAndDerivative(p, &fp, &xi);

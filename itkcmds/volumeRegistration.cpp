@@ -3,6 +3,7 @@
 #include "itkTranslationTransform.h"
 #include "itkEuler3DTransform.h"
 #include "itkScaleVersor3DTransform.h"
+#include "itkSimilarity3DTransform.h"
 #include "itkTransformFileWriter.h"
 #include "itkMyMetric.h"
 #include "itkMyFRPROptimizer.h"
@@ -87,20 +88,20 @@ public:
 
     void RunRegistration() {
         _transform = TransformType::New();
-        float params[12] = { 0.994639, -0.00207486, -0.00192788, -0.000832746, 1.00641, -0.00146783, 0.000495955, -0.000724458, 0.999367, 0.989471, 10.2177, 4.1862 };
-
-        typename TransformType::ParametersType initialParams;
-        initialParams.SetSize(TransformType::ParametersDimension);
-        for (int i = 0; i < TransformType::ParametersDimension; i++) {
-            initialParams[i] = params[i];
-        }
-        _transform->SetParameters(initialParams);
+//        float params[12] = { 0.994639, -0.00207486, -0.00192788, -0.000832746, 1.00641, -0.00146783, 0.000495955, -0.000724458, 0.999367, 0.989471, 10.2177, 4.1862 };
+//
+//        typename TransformType::ParametersType initialParams;
+//        initialParams.SetSize(TransformType::ParametersDimension);
+//        for (int i = 0; i < TransformType::ParametersDimension; i++) {
+//            initialParams[i] = params[i];
+//        }
+//        _transform->SetParameters(initialParams);
         _transform->SetFixedParameters(_centerOfRotation);
 
         OptiReporter::Pointer optiReporter = OptiReporter::New();
         Metric::Pointer metric = Metric::New();
         metric->SetFixedImage(_dst);
-        bool useIndexes = true;
+        bool useIndexes = false;
         if (useIndexes) {
             metric->SetFixedImageIndexes(_labelIndexes);
         } else {
@@ -123,9 +124,9 @@ public:
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < 3; j++) {
                     if (i == j) {
-                        scales[3*i+j] = 30;
-                    } else {
                         scales[3*i+j] = 160;
+                    } else {
+                        scales[3*i+j] = 30;
                     }
                 }
             }
@@ -133,12 +134,16 @@ public:
         } else if (_method == "nine") {
             scales[0] = scales[1] = scales[2] = 10;
             scales[6] = scales[7] = scales[8] = 100;
+        } else if (_method == "similar") {
+            scales[0] = scales[1] = scales[2] = 30;
+            scales[3] = scales[4] = scales[5] = 0.5;
+            scales[6] = 100;
         }
 
         opti->SetMaximumIteration(1000);
-        opti->SetMaximumLineIteration(10);
+        opti->SetMaximumLineIteration(100);
         opti->SetUseUnitLengthGradient(true);
-        opti->SetStepLength(0.25);
+        opti->SetStepLength(1);
         opti->SetScales(scales);
         opti->SetToFletchReeves();
         opti->SetInitialPosition(_transform->GetParameters());
@@ -193,6 +198,9 @@ int main(int argc, char* argv[]) {
         reg.main(argc, argv, method);
     } else if (method == "nine") {
         RegistrationEngine<itk::ScaleVersor3DTransform<double> > reg;
+        reg.main(argc, argv, method);
+    } else if (method == "similar") {
+        RegistrationEngine<itk::Similarity3DTransform<double> > reg;
         reg.main(argc, argv, method);
     }
 }
