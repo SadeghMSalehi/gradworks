@@ -144,7 +144,7 @@ public:
         TransformType::Pointer transform = TransformType::New();
         transform->SetParameters(_optimizer->GetCurrentPosition());
         transform->SetFixedParameters(_metaMetrics->GetMetricPointer(0)->GetFixedParameters());
-        resampler.SetSourceMask(_fixedLabel);
+        //resampler.SetSourceMask(_fixedLabel);
 
         resampler.SetTransform(transform);
         resampler.ResampleBackward();

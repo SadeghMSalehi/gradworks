@@ -5,7 +5,7 @@ if(COMMAND cmake_policy)
 cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
-FIND_PACKAGE(ITK REQUIRED)
+FIND_PACKAGE(ITK 4 REQUIRED)
 INCLUDE(${USE_ITK_FILE})
 
 FIND_PACKAGE(VTK REQUIRED)
@@ -18,24 +18,20 @@ FIND_PACKAGE( Boost COMPONENTS program_options)
 FIND_PACKAGE(GenerateCLP REQUIRED)
 INCLUDE(${GenerateCLP_USE_FILE})
 
-SET(ITK_LIBRARIES ${ITK_LIBRARIES})
-
-SET(MATLAB_ROOT /opt/matlab2010a CACHE PATH "root directory where matlab is installed")
-
-OPTION(BUILD_MATAPPS "Build Matlab related applications")
-IF (BUILD_MATAPPS)
-	INCLUDE_DIRECTORIES(${MATLAB_ROOT}/extern/include)
-	LINK_DIRECTORIES(${MATLAB_ROOT}/bin/glnxa64)
-	SET(MATLAB_LIBS mx mat)
-ENDIF (BUILD_MATAPPS)
-
-
-IF (BUILD_MATAPPS)
-	ADD_EXECUTABLE(vtk2mat vtk2mat.cxx)
-	TARGET_LINK_LIBRARIES(vtk2mat ${MATLAB_LIBS} vtkIO)
-ENDIF(BUILD_MATAPPS)
-
+#SET(MATLAB_ROOT /opt/matlab2010a CACHE PATH "root directory where matlab is installed")
+#
+#OPTION(BUILD_MATAPPS "Build Matlab related applications")
+#IF (BUILD_MATAPPS)
+#	INCLUDE_DIRECTORIES(${MATLAB_ROOT}/extern/include)
+#	LINK_DIRECTORIES(${MATLAB_ROOT}/bin/glnxa64)
+#	SET(MATLAB_LIBS mx mat)
+#ENDIF (BUILD_MATAPPS)
+#IF (BUILD_MATAPPS)
+#	ADD_EXECUTABLE(vtk2mat vtk2mat.cxx)
+#	TARGET_LINK_LIBRARIES(vtk2mat ${MATLAB_LIBS} vtkIO)
+#ENDIF(BUILD_MATAPPS)
 #ADD_LIBRARY(sparse STATIC /tools/sparse/lib)
+
 ADD_EXECUTABLE(itkRandomWalk itkRandomWalker2.cxx)
 TARGET_LINK_LIBRARIES(itkRandomWalk ${ITK_LIBRARIES})
 
@@ -224,3 +220,9 @@ SET(itkSampleMesh_SRC itkSampleMesh.cxx vtkPolyDataToitkMesh.cxx vtkPolyDataConn
 GENERATECLP(itkSampleMesh_SRC itkSampleMesh.xml)
 ADD_EXECUTABLE(itkSampleMesh ${itkSampleMesh_SRC})
 TARGET_LINK_LIBRARIES(itkSampleMesh ${ITK_LIBRARIES} vtkIO vtkCommon vtkFiltering)
+
+ADD_EXECUTABLE(itkcmds itkcmds.cxx itkImageIO.h)
+TARGET_LINK_LIBRARIES(itkcmds ${ITK_LIBRARIES})
+
+ADD_EXECUTABLE(itkImageMatch itkImageMatch.cxx itkImageIO.h)
+TARGET_LINK_LIBRARIES(itkImageMatch ${ITK_LIBRARIES})

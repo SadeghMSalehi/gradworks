@@ -37,26 +37,5 @@ target_link_libraries(imageRegistration ${itkcmds_LIBRARIES})
 add_executable(volumeRegistration itkImageIO.h volumeRegistration.cpp ${SRC_ALL})
 target_link_libraries(volumeRegistration ${itkcmds_LIBRARIES})
 
-add_executable(itkNineTransform itkImageIO.h itkNineTransform.cpp ${SRC_ALL})
-target_link_libraries(itkNineTransform ${itkcmds_LIBRARIES})
-
-add_executable(itkCompositeTransform itkImageIO.h itkCompositeTransform.cpp ${SRC_ALL})
-target_link_libraries(itkCompositeTransform ${itkcmds_LIBRARIES})
-
-add_executable(itkImageReg itkImageIO.h itkImageReg.cpp ${SRC_ALL})
-target_link_libraries(itkImageReg ${itkcmds_LIBRARIES})
-
 add_executable(multiReg itkImageIO.h itkMultiReg.cpp itkMetaMetrics.h ${SRC_ALL})
 target_link_libraries(multiReg ${itkcmds_LIBRARIES})
-
-add_executable(itkTransform itkTransform.cpp itkMathCode.h MatrixCode.cpp MatrixCode.h itkResampler.h)
-target_link_libraries(itkTransform ${itkcmds_LIBRARIES})
-
-add_executable(itkSimReg itkSimReg.cpp ${SRC_ALL})
-target_link_libraries(itkSimReg ${itkcmds_LIBRARIES})
-
-add_executable(itkImageMatch itkImageMatch.cxx ${SRC_MYLIBS})
-target_link_libraries(itkImageMatch ${itkcmds_LIBRARIES})
-
-add_executable(resampleImage resampleImage.cpp itkResampler.h ${SRC_MYLIBS})
-target_link_libraries(resampleImage ${itkcmds_LIBRARIES})

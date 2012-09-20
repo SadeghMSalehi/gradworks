@@ -23,8 +23,8 @@ using namespace std;
 template<class TransformType>
 class RegistrationEngine {
 public:
-    typedef itk::Image<unsigned int,2> LabelType;
-    typedef itk::Image<float,2> ImageType;
+    typedef itk::Image<unsigned short,2> LabelType;
+    typedef itk::Image<unsigned short,2> ImageType;
     typedef itk::TransformFileWriter TransformWriter;
     typedef itk::MyMetric<ImageType, ImageType> Metric;
     typedef itk::MyFRPROptimizer Optimizer;
