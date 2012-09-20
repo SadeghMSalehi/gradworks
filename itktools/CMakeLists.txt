@@ -6,6 +6,7 @@ find_package(Qt4 REQUIRED)
 
 include(${ITK_USE_FILE})
 
+set(itktools_MYCODE itkMyCore.h itkMyCore.cpp)
 set(itktools_SOURCES main.cpp mainwindow.cpp imageviewer.cpp itkImageIO.h)
 set(itktools_QT_HEADERS mainwindow.h imageviewer.h)
 set(itktools_FORMS mainwindow.ui imageviewer.ui)
@@ -19,6 +20,8 @@ include(${QT_USE_FILE})
 add_definitions(${QT_DEFINITIONS})
 
 add_executable(main 
+	${itktools_MYCODE}
+	${itktools_QT_HEADERS} 
 	${itktools_SOURCES} 
 	${itktools_HEADERS_MOC} 
 	${itktools_FORMS_HEADERS})

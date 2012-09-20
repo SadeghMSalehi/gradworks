@@ -1,12 +1,10 @@
-#include "itkImageCommon.h"
+#include "itkMyCore.h"
 #include "mainwindow.h"
 #include <QtGui>
 #include <QApplication>
 
 using namespace std;
 using namespace itk;
-
-typedef Image<short, 3> ImageType;
 
 int main(int argc, char *argv[])
 {

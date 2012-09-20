@@ -14,17 +14,14 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="ImageViewer" name="imageViewer" native="true">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>801</width>
-      <height>551</height>
-     </rect>
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="margin">
+     <number>0</number>
     </property>
-    <layout class="QHBoxLayout" name="horizontalLayout"/>
-   </widget>
+    <item>
+     <widget class="QGraphicsView" name="graphicsView"/>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -32,7 +29,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -46,6 +43,19 @@
    <addaction name="menu_File"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionSliceUp"/>
+   <addaction name="actionSliceDown"/>
+  </widget>
   <action name="action_New">
    <property name="text">
     <string>&amp;New</string>
@@ -66,15 +76,20 @@
     <string>&amp;Open</string>
    </property>
   </action>
+  <action name="actionSliceUp">
+   <property name="text">
+    <string>SliceUp</string>
+   </property>
+  </action>
+  <action name="actionSliceDown">
+   <property name="text">
+    <string>SliceDown</string>
+   </property>
+  </action>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>ImageViewer</class>
-   <extends>QWidget</extends>
-   <header>imageviewer.h</header>
-   <container>1</container>
-  </customwidget>
- </customwidgets>
+ <tabstops>
+  <tabstop>graphicsView</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>
