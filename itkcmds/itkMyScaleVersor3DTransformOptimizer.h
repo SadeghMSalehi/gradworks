@@ -15,19 +15,19 @@
  *  limitations under the License.
  *
  *=========================================================================*/
-#ifndef __itkVersorRigid3DTransformOptimizer_h
-#define __itkVersorRigid3DTransformOptimizer_h
+#ifndef __itkMyScaleVersor3DTransformOptimizer_h
+#define __itkMyScaleVersor3DTransformOptimizer_h
 
 #include "itkMyRegularStepGradientDescentOptimizer.h"
 #include "itkVersor.h"
 
 namespace itk
 {
-/** \class VersorRigid3DTransformOptimizer
- * \brief Implement a gradient descent optimizer for the VersorRigid3DTransform
+/** \class MyScaleVersor3DTransformOptimizer
+ * \brief Implement a gradient descent optimizer for the MyScaleVersor3DTransform
  * parameter space.
  *
- * VersorRigid3DTransformOptimizer is a variant of the gradient descent
+ * MyScaleVersor3DTransformOptimizer is a variant of the gradient descent
  * optimizer implmented in MyRegularStepGradientDescentOptimizer.
  *
  * Versors are not in a vector space, for that reason, the classical gradient
@@ -42,17 +42,17 @@ namespace itk
  *
  * \sa MyRegularStepGradientDescentOptimizer
  * \sa Versor
- * \sa VersorRigid3DTransform
+ * \sa MyScaleVersor3DTransform
  *
  * \ingroup Numerics Optimizers
  * \ingroup ITKOptimizers
  */
-class ITK_EXPORT VersorRigid3DTransformOptimizer:
+class ITK_EXPORT MyScaleVersor3DTransformOptimizer:
   public MyRegularStepGradientDescentBaseOptimizer
 {
 public:
   /** Standard class typedefs. */
-  typedef VersorRigid3DTransformOptimizer         Self;
+  typedef MyScaleVersor3DTransformOptimizer         Self;
   typedef MyRegularStepGradientDescentBaseOptimizer Superclass;
   typedef SmartPointer< Self >                    Pointer;
   typedef SmartPointer< const Self >              ConstPointer;
@@ -61,11 +61,11 @@ public:
   itkNewMacro(Self);
 
   /** Run-time type information (and related methods). */
-  itkTypeMacro(VersorRigid3DTransformOptimizer,
+  itkTypeMacro(MyScaleVersor3DTransformOptimizer,
                MyRegularStepGradientDescentBaseOptimizer);
 
   /** This class is specialized for 3D  */
-  itkStaticConstMacro(SpaceDimension, unsigned int, 6);
+  itkStaticConstMacro(SpaceDimension, unsigned int, 9);
 
   /**  Versor Type  */
   typedef Versor< double >       VersorType;
@@ -76,10 +76,10 @@ public:
                                  const DerivativeType & transformedGradient);
 
 protected:
-  VersorRigid3DTransformOptimizer() {}
-  virtual ~VersorRigid3DTransformOptimizer() {}
+  MyScaleVersor3DTransformOptimizer() {}
+  virtual ~MyScaleVersor3DTransformOptimizer() {}
 private:
-  VersorRigid3DTransformOptimizer(const Self &); //purposely not implemented
+  MyScaleVersor3DTransformOptimizer(const Self &); //purposely not implemented
   void operator=(const Self &);                  //purposely not implemented
 };
 } // end namespace itk

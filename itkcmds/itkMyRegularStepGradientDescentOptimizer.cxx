@@ -22,32 +22,32 @@
 
 namespace itk
 {
-/**
- * Advance one Step following the gradient direction
- * This method will be overrided in non-vector spaces
- */
-void
-MyRegularStepGradientDescentOptimizer
-::StepAlongGradient(double factor,
-                    const DerivativeType & transformedGradient)
-{
-  itkDebugMacro(<< "factor = " << factor << "  transformedGradient= " << transformedGradient);
-
-  const unsigned int spaceDimension =
-    m_CostFunction->GetNumberOfParameters();
-
-  ParametersType newPosition(spaceDimension);
-  ParametersType currentPosition = this->GetCurrentPosition();
-
-  for ( unsigned int j = 0; j < spaceDimension; j++ )
+    /**
+     * Advance one Step following the gradient direction
+     * This method will be overrided in non-vector spaces
+     */
+    void
+    MyRegularStepGradientDescentOptimizer
+    ::StepAlongGradient(double factor,
+                        const DerivativeType & transformedGradient)
     {
-    newPosition[j] = currentPosition[j] + transformedGradient[j] * factor;
+        itkDebugMacro(<< "factor = " << factor << "  transformedGradient= " << transformedGradient);
+
+        const unsigned int spaceDimension =
+        m_CostFunction->GetNumberOfParameters();
+
+        ParametersType newPosition(spaceDimension);
+        ParametersType currentPosition = this->GetCurrentPosition();
+
+        for ( unsigned int j = 0; j < spaceDimension; j++ )
+        {
+            newPosition[j] = currentPosition[j] + transformedGradient[j] * factor;
+        }
+
+        itkDebugMacro(<< "new position = " << newPosition);
+        
+        this->SetCurrentPosition(newPosition);
     }
-
-  itkDebugMacro(<< "new position = " << newPosition);
-
-  this->SetCurrentPosition(newPosition);
-}
 } // end namespace itk
 
 #endif

@@ -22,50 +22,50 @@
 
 namespace itk
 {
-/** \class MyRegularStepGradientDescentOptimizer
- * \brief Implement a gradient descent optimizer
- *
- * \ingroup Numerics  Optimizers
- *
- * \ingroup ITKOptimizers
- */
-class ITK_EXPORT MyRegularStepGradientDescentOptimizer:
-  public MyRegularStepGradientDescentBaseOptimizer
-{
-public:
-  /** Standard class typedefs. */
-  typedef MyRegularStepGradientDescentOptimizer     Self;
-  typedef MyRegularStepGradientDescentBaseOptimizer Superclass;
-  typedef SmartPointer< Self >                    Pointer;
-  typedef SmartPointer< const Self >              ConstPointer;
+    /** \class MyRegularStepGradientDescentOptimizer
+     * \brief Implement a gradient descent optimizer
+     *
+     * \ingroup Numerics  Optimizers
+     *
+     * \ingroup ITKOptimizers
+     */
+    class ITK_EXPORT MyRegularStepGradientDescentOptimizer:
+    public MyRegularStepGradientDescentBaseOptimizer
+    {
+    public:
+        /** Standard class typedefs. */
+        typedef MyRegularStepGradientDescentOptimizer     Self;
+        typedef MyRegularStepGradientDescentBaseOptimizer Superclass;
+        typedef SmartPointer< Self >                    Pointer;
+        typedef SmartPointer< const Self >              ConstPointer;
 
-  /** Method for creation through the object factory. */
-  itkNewMacro(Self);
+        /** Method for creation through the object factory. */
+        itkNewMacro(Self);
 
-  /** Run-time type information (and related methods). */
-  itkTypeMacro(MyRegularStepGradientDescentOptimizer,
-               MyRegularStepGradientDescentBaseOptimizer);
+        /** Run-time type information (and related methods). */
+        itkTypeMacro(MyRegularStepGradientDescentOptimizer,
+                     MyRegularStepGradientDescentBaseOptimizer);
 
-  /** Cost function typedefs. */
-  typedef Superclass::CostFunctionType CostFunctionType;
-  typedef CostFunctionType::Pointer    CostFunctionPointer;
-protected:
-  MyRegularStepGradientDescentOptimizer() {}
-  virtual ~MyRegularStepGradientDescentOptimizer() {}
+        /** Cost function typedefs. */
+        typedef Superclass::CostFunctionType CostFunctionType;
+        typedef CostFunctionType::Pointer    CostFunctionPointer;
+    protected:
+        MyRegularStepGradientDescentOptimizer() {}
+        virtual ~MyRegularStepGradientDescentOptimizer() {}
 
-  /** Advance one step along the corrected gradient taking into
-   * account the steplength represented by factor.
-   * This method is invoked by AdvanceOneStep. It is expected
-   * to be overrided by optimization methods in non-vector spaces
-   * \sa AdvanceOneStep */
-  virtual void StepAlongGradient(
-    double factor,
-    const DerivativeType & transformedGradient);
-
-private:
-  MyRegularStepGradientDescentOptimizer(const Self &); //purposely not implemented
-  void operator=(const Self &);                      //purposely not implemented
-};
+        /** Advance one step along the corrected gradient taking into
+         * account the steplength represented by factor.
+         * This method is invoked by AdvanceOneStep. It is expected
+         * to be overrided by optimization methods in non-vector spaces
+         * \sa AdvanceOneStep */
+        virtual void StepAlongGradient(
+                                       double factor,
+                                       const DerivativeType & transformedGradient);
+        
+    private:
+        MyRegularStepGradientDescentOptimizer(const Self &); //purposely not implemented
+        void operator=(const Self &);                      //purposely not implemented
+    };
 } // end namespace itk
 
 #endif

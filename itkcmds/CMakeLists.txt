@@ -21,7 +21,7 @@ include(${ITK_USE_FILE})
 set (itkcmds_LIBRARIES ${ITK_LIBRARIES})
 
 set (SRC_METRICS itkMyMetric.h itkMyMetric.hxx itkMyMetricBase.h itkMyMetricBase.hxx)
-set (SRC_OPTIMIZERS itkMyPowellOptimizer.h itkMyPowellOptimizer.cxx itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp itkOptimizationReporter.h itkMyRegularStepGradientDescentOptimizer.h itkMyRegularStepGradientDescentOptimizer.cxx itkMyRegularStepGradientDescentBaseOptimizer.h itkMyRegularStepGradientDescentBaseOptimizer.cxx itkVersorTransformOptimizer.h itkVersorTransformOptimizer.cxx itkVersorRigid3DTransformOptimizer.h itkVersorRigid3DTransformOptimizer.cxx)
+set (SRC_OPTIMIZERS itkMyPowellOptimizer.h itkMyPowellOptimizer.cxx itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp itkOptimizationReporter.h itkMyRegularStepGradientDescentOptimizer.h itkMyRegularStepGradientDescentOptimizer.cxx itkMyRegularStepGradientDescentBaseOptimizer.h itkMyRegularStepGradientDescentBaseOptimizer.cxx itkMyScaleVersor3DTransformOptimizer.h itkMyScaleVersor3DTransformOptimizer.cxx)
 set (SRC_MYLIBS itkImageIO.h itkTimer.h itkTimer.cpp MatrixCode.h MatrixCode.cpp itkMathCode.h)
 set (SRC_TRANSFORMS itkMyEulerTransform.h itkMyEulerTransform.hxx)
 set (SRC_ALL ${SRC_METRICS} ${SRC_OPTIMIZERS} ${SRC_MYLIBS} ${SRC_TRANSFORMS})
