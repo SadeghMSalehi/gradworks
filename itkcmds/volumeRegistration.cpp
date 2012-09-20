@@ -13,6 +13,7 @@
 #include "itkContinuousIndex.h"
 #include "itkImageRegionConstIteratorWithIndex.h"
 #include "itkResampleImageFilter.h"
+#include "itkRegularStepGradientDescentOptimizer.h"
 #include "iostream"
 #include "vector"
 #include "string"
@@ -28,7 +29,8 @@ public:
     typedef itk::Image<float,3> ImageType;
     typedef itk::TransformFileWriter TransformWriter;
     typedef itk::MyMetric<ImageType, ImageType> Metric;
-    typedef itk::MyFRPROptimizer Optimizer;
+    // typedef itk::MyFRPROptimizer Optimizer;
+    typedef itk::RegularStepGradientDescentOptimizer
     typedef itk::LinearInterpolateImageFunction<ImageType> Interpolator;
     typedef itk::NearestNeighborInterpolateImageFunction<ImageType> InterpolatorNN;
 
@@ -101,7 +103,7 @@ public:
         OptiReporter::Pointer optiReporter = OptiReporter::New();
         Metric::Pointer metric = Metric::New();
         metric->SetFixedImage(_dst);
-        bool useIndexes = false;
+        bool useIndexes = true;
         if (useIndexes) {
             metric->SetFixedImageIndexes(_labelIndexes);
         } else {
@@ -141,7 +143,7 @@ public:
         }
 
         opti->SetMaximumIteration(1000);
-        opti->SetMaximumLineIteration(100);
+        opti->SetMaximumLineIteration(10);
         opti->SetUseUnitLengthGradient(true);
         opti->SetStepLength(1);
         opti->SetScales(scales);
