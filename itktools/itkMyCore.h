@@ -18,6 +18,11 @@
 #include "itkTransformFileReader.h"
 #include "itkResampleImageFilter.h"
 
+#include "itkMyScaleVersor3DTransformOptimizer.h"
+#include "itkScaleVersor3DTransform.h"
+#include "itkMyRegistration.h"
+#include "QThread"
+
 class itkMyCore {
 private:
     int _maxSliceIndex;
@@ -33,7 +38,7 @@ public:
     LabelSliceType::Pointer LabelSlice;
     LabelSliceType::Pointer InverseLabelSlice;
 
-    TransformReaderType::TransformListType* TransformList;
+    ScaleRegistration::Pointer _registrationAlgorithm;
 
     int CurrentSliceIndex;
 
@@ -41,7 +46,6 @@ public:
         _minSliceIndex = 0;
         _maxSliceIndex = 0;
         CurrentSliceIndex = 0;
-        TransformList = NULL;
     }
 
     int GetMinSliceIndex() {
@@ -54,6 +58,8 @@ public:
 
     void LoadImage(const char* file) {
         try {
+            cout << "LoadImage() >> Current Thread Id: " << QThread::currentThreadId() << endl;
+
             ImageType::Pointer image = imageIO.ReadImageT(file);
             SourceSlice = GraySliceType::New();
             SourceSlice->SetName(std::string(file));
@@ -86,6 +92,7 @@ public:
             LabelSlice->SetName(std::string(file));
             LabelSlice->SetLabel(image);
             LabelSlice->UpdateSlice(CurrentSliceIndex, 100);
+            InverseLabelSlice = LabelSliceType::New();
         } catch (itk::ExceptionObject& ex) {
             cout << ex << endl;
         }
@@ -100,33 +107,30 @@ public:
     }
 
     void LoadTransform(const char* fileName) {
-        itk::TransformFileReader::Pointer reader = itk::TransformFileReader::New();
-        reader->SetFileName(fileName);
-        reader->Update();
-        TransformList = reader->GetTransformList();
+
     }
 
-    void ApplyTransform() {
-        if (TransformList == NULL || LabelSlice->GetViewImage().IsNull()) {
-            return;
+    void ApplyTransform(int historyId) {
+        if (_registrationAlgorithm.IsNotNull()) {
+            InverseLabelSlice->SetLabel(_registrationAlgorithm->TransformFixedLabel(historyId));
         }
-        TransformBase::Pointer transform = TransformList->front();
-        MatrixTransformType* matrixTransform = dynamic_cast<MatrixTransformType*>(transform.GetPointer());
-        if (matrixTransform == NULL) {
-            return;
-        }
-        MatrixTransformType::InverseTransformBasePointer inverseTransform = matrixTransform->GetInverseTransform();
+    }
 
-        typedef itk::ResampleImageFilter<LabelType, LabelType> ResampleFilter;
-        ResampleFilter::Pointer resampler = ResampleFilter::New();
-        resampler->SetInput(LabelSlice->GetViewImage());
-        resampler->SetTransform(inverseTransform);
-        resampler->SetInterpolator(InterpolatorNN::New());
-        resampler->SetReferenceImage(TargetSlice->GetViewImage());
-        resampler->SetUseReferenceImage(true);
-        resampler->Update();
-        InverseLabelSlice = LabelSliceType::New();
-        InverseLabelSlice->SetLabel(resampler->GetOutput());
+    void PrepareRegistration() {
+        _registrationAlgorithm = ScaleRegistration::New();
+    }
+    
+    ScaleRegistration::TransformHistoryType RunRegistration() {
+        if (_registrationAlgorithm.IsNull()) {
+            return ScaleRegistration::TransformHistoryType();
+        }
+        _registrationAlgorithm->SetImages(SourceSlice->GetSourceImage(), LabelSlice->GetViewImage(), TargetSlice->GetSourceImage());
+        try {
+            _registrationAlgorithm->RunRegistration();
+        } catch (...) {
+            cout << "I ate the registratione exception! [" << QThread::currentThreadId() << "]; RegistrationAlgorithm " << _registrationAlgorithm.GetPointer() <<  endl;
+        }
+        return _registrationAlgorithm->GetTransformHistory();
     }
 };
 

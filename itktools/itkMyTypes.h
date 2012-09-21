@@ -15,6 +15,8 @@
 #include "itkMatrixOffsetTransformBase.h"
 #include "itkNearestNeighborInterpolateImageFunction.h"
 #include "itkRescaleIntensityImageFilter.h"
+#include "itkLinearInterpolateImageFunction.h"
+#include "itkMyScaleVersor3DTransformOptimizer.h"
 
 typedef itk::Image<double, 3> ImageType;
 typedef itk::Image<unsigned short, 3> LabelType;
@@ -109,8 +111,11 @@ typedef itk::TransformBase TransformBase;
 typedef itk::TransformFileReader TransformReaderType;
 typedef itk::TransformFileWriter TransformWriterType;
 typedef itk::NearestNeighborInterpolateImageFunction<LabelType> InterpolatorNN;
-
+typedef itk::LinearInterpolateImageFunction<ImageType> LinearImageInterpolator;
+typedef itk::NearestNeighborInterpolateImageFunction<ImageType> NNImageInterpolator;
 typedef itk::RescaleIntensityImageFilter<ImageType, LabelType> IntensityFilter;
+
+
 
 
 #endif

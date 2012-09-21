@@ -4,6 +4,7 @@
 #include "QPen"
 #include "QFileDialog"
 #include "QTextStream"
+#include "QtConcurrentRun"
 #include <QDebug>
 
 QTextStream qin(stdin, QIODevice::ReadOnly);
@@ -18,6 +19,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 	connect(ui.action_Close, SIGNAL(triggered(bool)), this, SLOT(exit(void)));
     ui.graphicsView->setBackgroundBrush(QBrush(Qt::black, Qt::SolidPattern));
     ui.graphicsView->setScene(&_scene);
+    _registrationWatcher = NULL;
 }
 
 MainWindow::~MainWindow() {
@@ -55,29 +57,81 @@ void MainWindow::drawImage(bool force) {
         }
     }
 
-    if (_core.LabelSlice.IsNotNull()) {
-        if (ui.actionShowLabel->isChecked()) {
-            _core.LabelSlice->UpdateSlice(_currentSlice, ui.opacityDial->sliderPosition());
+    if (ui.actionShowLabel->isChecked() && _core.LabelSlice.IsNotNull()) {
+        int opacity =  ui.opacityDial->sliderPosition();
+        if (!ui.applyTransformCheck->isChecked()) {
+            _core.LabelSlice->UpdateSlice(_currentSlice, opacity);
             int* buffer = _core.LabelSlice->GetBitmapBuffer();
             QImage img((unsigned char*) buffer, _core.LabelSlice->GetSize()[0], _core.LabelSlice->GetSize()[1], QImage::Format_ARGB32);
             _scene.addPixmap(QPixmap::fromImage(img));
+        } else {
+            if (_core.InverseLabelSlice.IsNotNull()) {
+                _core.InverseLabelSlice->UpdateSlice(_currentSlice, opacity);
+                int* buffer = _core.InverseLabelSlice->GetBitmapBuffer();
+                QImage img((unsigned char*) buffer, _core.InverseLabelSlice->GetSize()[0], _core.InverseLabelSlice->GetSize()[1], QImage::Format_ARGB32);
+                _scene.addPixmap(QPixmap::fromImage(img));
+            }
         }
     }
 
     ui.graphicsView->update();
 }
 
-void MainWindow::on_loadTransformButton_triggered() {
+void MainWindow::on_loadTransformButton_clicked() {
 	QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                     "/tmpfs/data", tr("Transform Files (*.txt)"));
     if (fileName != NULL) {
         _core.LoadTransform(fileName.toAscii().data());
-        if (ui.applyTransform->isChecked()) {
-            _core.ApplyTransform();
+        if (ui.applyTransformCheck->isChecked()) {
+            _core.ApplyTransform(ui.currentRegistrationStep->value());
             drawImage();
         }
 
     }
+}
+
+void MainWindow::on_runRegistrationButton_clicked() {
+    ui.runRegistrationButton->setEnabled(false);
+    _core.PrepareRegistration();
+    _registrationWatcher = new QFutureWatcher<ScaleRegistration::TransformHistoryType>();
+    _registrationWatcher->setFuture(QtConcurrent::run(_core, &itkMyCore::RunRegistration));
+    connect(_registrationWatcher, SIGNAL(finished()), this, SLOT(on_registrationFinished()));
+}
+
+void MainWindow::on_applyTransformCheck_stateChanged(int check) {
+    if (check == Qt::Checked) {
+        _core.ApplyTransform(ui.currentRegistrationStep->value());
+    }
+    drawImage(true);
+}
+
+void MainWindow::loadDefaults() {
+    const char* sourceFile = "/tmpfs/data/Multiple/00.T2.nrrd";
+    const char* targetFile = "/tmpfs/data/Multiple/21.T2.nrrd";
+    const char* labelFile = "/tmpfs/data/Multiple/00.P3.nrrd";
+
+    _core.LoadImage(sourceFile);
+    _currentSlice = _core.CurrentSliceIndex;
+    ui.sliceSlider->setMaximum(_core.GetMaxSliceIndex());
+    ui.sliceSlider->setMinimum(_core.GetMinSliceIndex());
+    ui.sliceSlider->setValue(_currentSlice);
+    ui.actionOpenTarget->setEnabled(true);
+    ui.actionOpenLabel->setEnabled(true);
+
+    _core.LoadTarget(targetFile);
+    ui.actionShowTarget->setEnabled(true);
+    ui.registrationPanel->setEnabled(true);
+    ui.optimizerType->setEnabled(true);
+    ui.transformType->setEnabled(true);
+    ui.runRegistrationButton->setEnabled(true);
+    ui.regParams->setEnabled(true);
+
+    _core.LoadLabelIfGrayImageLoaded(labelFile);
+    ui.actionShowLabel->setEnabled(true);
+    ui.actionShowLabel->setChecked(true);
+    ui.opacityDial->setEnabled(true);
+
+    drawImage();
 }
 
 void MainWindow::on_actionOpenSource_triggered() {
@@ -100,8 +154,10 @@ void MainWindow::on_actionOpenTarget_triggered() {
                                                     "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
     if (fileName != NULL) {
         _core.LoadTarget(fileName.toAscii().data());
+        drawImage();
+
         ui.actionShowTarget->setEnabled(true);
-       drawImage();
+        ui.registrationPanel->setEnabled(true);
     }
 }
 

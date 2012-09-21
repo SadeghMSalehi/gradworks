@@ -20,6 +20,9 @@
  */
 template <class TConverter>
 class itkMySlicer : public itk::Object {
+private:
+    bool _modified;
+    
 public:
     typedef itk::ExtractImageFilter<LabelType, SliceType> ExtractorType;
 
@@ -32,6 +35,7 @@ public:
     itkTypeMacro(itkMySlicer, itk::Object);
     itkGetMacro(SliceImage, BitmapType::Pointer);
     itkGetMacro(ViewImage, LabelType::Pointer);
+    itkGetMacro(SourceImage, ImageType::Pointer);
     itkGetMacro(CurrentSliceIndex, int);
     itkGetMacro(Name, std::string);
     itkSetMacro(Name, std::string);
@@ -48,13 +52,16 @@ public:
     }
 
     void SetLabel(LabelType::Pointer labelImage) {
+        if (labelImage.IsNull()) {
+            return;
+        }
         m_ViewImage = labelImage;
         m_Size = m_ViewImage->GetBufferedRegion().GetSize();
     }
 
 
     bool UpdateSlice(int sliceIndex, int insideOpacity) {
-        if (m_SliceImage.IsNotNull() && sliceIndex == m_CurrentSliceIndex && insideOpacity == m_LabelInsideOpacity) {
+        if (this->GetMTime() > m_ViewImage->GetMTime() && m_SliceImage.IsNotNull() && sliceIndex == m_CurrentSliceIndex && insideOpacity == m_LabelInsideOpacity) {
             return false;
         }
         m_CurrentSliceIndex = sliceIndex;
@@ -136,6 +143,7 @@ private:
             filter->GetFunctor().SetInsideAlpha(m_LabelInsideOpacity);
             filter->Update();
             m_SliceImage = filter->GetOutput();
+            this->Modified();
         }
     }
 };

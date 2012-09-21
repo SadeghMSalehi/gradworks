@@ -6,15 +6,22 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>817</width>
+    <height>624</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Volume Registration</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>icon.png</normaloff>icon.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
     <property name="leftMargin">
      <number>0</number>
     </property>
@@ -22,7 +29,7 @@
      <number>0</number>
     </property>
     <property name="rightMargin">
-     <number>12</number>
+     <number>0</number>
     </property>
     <item>
      <widget class="QFrame" name="frame">
@@ -75,7 +82,7 @@
      <widget class="QToolBox" name="toolBox">
       <property name="maximumSize">
        <size>
-        <width>300</width>
+        <width>306</width>
         <height>16777215</height>
        </size>
       </property>
@@ -91,13 +98,13 @@
       <property name="currentIndex">
        <number>0</number>
       </property>
-      <widget class="QWidget" name="registrationPane">
+      <widget class="QWidget" name="controlPanel">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>300</width>
-         <height>529</height>
+         <width>306</width>
+         <height>485</height>
         </rect>
        </property>
        <attribute name="label">
@@ -105,31 +112,109 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout">
         <property name="leftMargin">
-         <number>6</number>
+         <number>0</number>
         </property>
         <property name="topMargin">
-         <number>6</number>
+         <number>0</number>
         </property>
         <property name="rightMargin">
-         <number>6</number>
+         <number>0</number>
         </property>
-        <property name="bottomMargin">
-         <number>12</number>
+        <property name="horizontalSpacing">
+         <number>0</number>
         </property>
         <property name="verticalSpacing">
-         <number>-1</number>
+         <number>9</number>
         </property>
-        <item row="9" column="1">
-         <widget class="QSlider" name="horizontalSlider">
+        <item row="1" column="0" colspan="2">
+         <widget class="QDial" name="opacityDial">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="maximum">
+           <number>120</number>
+          </property>
+          <property name="value">
+           <number>120</number>
+          </property>
+          <property name="sliderPosition">
+           <number>120</number>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
          </widget>
         </item>
+        <item row="0" column="0" colspan="2">
+         <widget class="QLabel" name="label_2">
+          <property name="font">
+           <font>
+            <pointsize>14</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Label Map Opacity</string>
+          </property>
+         </widget>
+        </item>
         <item row="4" column="0" colspan="2">
-         <widget class="QComboBox" name="comboBox">
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="registrationPanel">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>306</width>
+         <height>485</height>
+        </rect>
+       </property>
+       <attribute name="label">
+        <string>Registration</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_3">
+        <property name="verticalSpacing">
+         <number>9</number>
+        </property>
+        <property name="margin">
+         <number>0</number>
+        </property>
+        <item row="3" column="0">
+         <widget class="QPlainTextEdit" name="regParams">
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="plainText">
+           <string>iteration: 100;
+scales: [30,30,30,0.1,0.1,0.1,100,100,100];
+</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QComboBox" name="transformType">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>284</width>
+            <height>16777215</height>
+           </size>
           </property>
           <item>
            <property name="text">
@@ -143,30 +228,16 @@
           </item>
          </widget>
         </item>
-        <item row="9" column="0">
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>Iteration: </string>
-          </property>
-         </widget>
-        </item>
-        <item row="11" column="0" colspan="2">
-         <spacer name="verticalSpacer">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>40</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="5" column="0" colspan="2">
-         <widget class="QComboBox" name="comboBox_2">
+        <item row="2" column="0">
+         <widget class="QComboBox" name="optimizerType">
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>284</width>
+            <height>16777215</height>
+           </size>
           </property>
           <item>
            <property name="text">
@@ -190,33 +261,47 @@
           </item>
          </widget>
         </item>
-        <item row="3" column="0" colspan="2">
-         <widget class="QCheckBox" name="applyTransform">
-          <property name="text">
-           <string>Apply Transform</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0" colspan="2">
-         <widget class="QDial" name="opacityDial">
+        <item row="0" column="0">
+         <widget class="QPushButton" name="runRegistrationButton">
           <property name="enabled">
            <bool>false</bool>
           </property>
-          <property name="maximum">
-           <number>120</number>
+          <property name="maximumSize">
+           <size>
+            <width>290</width>
+            <height>16777215</height>
+           </size>
           </property>
-          <property name="value">
-           <number>120</number>
-          </property>
-          <property name="sliderPosition">
-           <number>120</number>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+          <property name="text">
+           <string>Run Registration</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="0" colspan="2">
+       </layout>
+      </widget>
+      <widget class="QWidget" name="transformPanel">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>306</width>
+         <height>485</height>
+        </rect>
+       </property>
+       <attribute name="label">
+        <string>Transformation</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <property name="horizontalSpacing">
+         <number>0</number>
+        </property>
+        <property name="verticalSpacing">
+         <number>9</number>
+        </property>
+        <property name="margin">
+         <number>0</number>
+        </property>
+        <item row="0" column="0" colspan="4">
          <widget class="QPushButton" name="loadTransformButton">
           <property name="font">
            <font>
@@ -230,19 +315,68 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="0" colspan="2">
-         <widget class="QLabel" name="label_2">
-          <property name="font">
-           <font>
-            <pointsize>14</pointsize>
-            <weight>75</weight>
-            <bold>true</bold>
-           </font>
-          </property>
+        <item row="1" column="0" colspan="4">
+         <widget class="QCheckBox" name="applyTransformCheck">
           <property name="text">
-           <string>Label Map Opacity</string>
+           <string>Apply Transform</string>
           </property>
          </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Iteration</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="currentRegistrationStep">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>999</number>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QLineEdit" name="maxRegistrationSteps">
+          <property name="maximumSize">
+           <size>
+            <width>40</width>
+            <height>16777215</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>101</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="3" column="0" colspan="4">
+         <widget class="QPlainTextEdit" name="plainTextEdit"/>
+        </item>
+        <item row="4" column="0" colspan="4">
+         <spacer name="verticalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>279</width>
+            <height>185</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </widget>

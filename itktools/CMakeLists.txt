@@ -6,11 +6,19 @@ find_package(Qt4 REQUIRED)
 
 include(${ITK_USE_FILE})
 
-set(itktools_MYCODE itkMyCore.h itkMyCore.cpp itkMyTypes.h)
-set(itktools_MYITK )
-set(itktools_SOURCES main.cpp mainwindow.cpp imageviewer.cpp itkImageIO.h)
-set(itktools_QT_HEADERS mainwindow.h imageviewer.h)
-set(itktools_FORMS mainwindow.ui imageviewer.ui)
+set(itktools_MYCODE itkImageIO.h itkMyCore.h itkMyCore.cpp itkMyTypes.h
+	itkTimer.h itkTimer.cpp itkMySlicer.h 
+	MatrixCode.h MatrixCode.cpp itkMathCode.h itkMyRegistration.h)
+set(itktools_SOURCES main.cpp mainwindow.cpp)
+set(itktools_QT_HEADERS mainwindow.h)
+set(itktools_FORMS mainwindow.ui)
+
+set (itkcmds_SRC_METRICS itkMyMetric.h itkMyMetric.hxx itkMyMetricBase.h itkMyMetricBase.hxx)
+set (itkcmds_SRC_OPTIMIZERS itkMyPowellOptimizer.h itkMyPowellOptimizer.cxx 
+	itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp itkOptimizationReporter.h 
+	itkMyRegularStepGradientDescentOptimizer.h itkMyRegularStepGradientDescentOptimizer.cxx 
+	itkMyRegularStepGradientDescentBaseOptimizer.h itkMyRegularStepGradientDescentBaseOptimizer.cxx 
+	itkMyScaleVersor3DTransformOptimizer.h itkMyScaleVersor3DTransformOptimizer.cxx)
 
 qt4_wrap_cpp(itktools_HEADERS_MOC ${itktools_QT_HEADERS})
 qt4_wrap_ui(itktools_FORMS_HEADERS ${itktools_FORMS})
@@ -20,12 +28,13 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include(${QT_USE_FILE})
 add_definitions(${QT_DEFINITIONS})
 
-add_executable(main 
+add_executable(guireg 
+	${itkcmds_SRC_METRICS}
+	${itkcmds_SRC_OPTIMIZERS}
 	${itktools_MYCODE}
-	${itktools_MYITK}
 	${itktools_QT_HEADERS} 
 	${itktools_SOURCES} 
 	${itktools_HEADERS_MOC} 
 	${itktools_FORMS_HEADERS})
 
-target_link_libraries(main ${ITK_LIBRARIES} ${QT_LIBRARIES})
+target_link_libraries(guireg ${ITK_LIBRARIES} ${QT_LIBRARIES})

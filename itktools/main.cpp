@@ -22,7 +22,8 @@ public:
         } catch (std::exception& e) {
             qCritical() << "Exception thrown:" << e.what();
         } catch (itk::ExceptionObject e) {
-            qCritical() << "itkException thrown:" << e.what();
+            qCritical() << "itkException thrown:" << endl;
+            e.Print(cout);
         } catch (...) {
             cerr<< "Unknown exception!" << endl;
             abort();
@@ -35,6 +36,7 @@ int main(int argc, char *argv[])
 {
     MainApps a(argc, argv);
     MainWindow w;
+    w.loadDefaults();
     w.show();
     return a.exec();
 }
