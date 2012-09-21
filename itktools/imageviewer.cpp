@@ -21,9 +21,7 @@ void ImageViewer::toggleDraw(void) {
 }
 
 void ImageViewer::drawSlice(QPaintEvent* event) {
-    if (_core->CurrentSlice.IsNull()) {
-        return;
-    }
+
     
 }
 

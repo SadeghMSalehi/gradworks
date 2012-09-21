@@ -24,27 +24,97 @@ MainWindow::~MainWindow() {
 
 }
 
-void MainWindow::drawImage() {
-    if (_core.CurrentSlice.IsNull()) {
-        cout << "Current Slice is NULL!!" << endl;
+void MainWindow::moveSlice() {
+    _currentSlice = ui.sliceSlider->sliderPosition();
+    drawImage();
+}
+
+void MainWindow::drawImage(bool force) {
+    if (!force && _currentSlice == _core.CurrentSliceIndex) {
         return;
     }
-    int* buffer = _core.CurrentSlice->GetBufferPointer();
-    for (int i = 0; i <_core.GrayImageSize[0] * _core.GrayImageSize[1]; i++) {
-        buffer[i] = buffer[i] << 8 | buffer[i] << 16 | buffer[i] | 0xff << 24;
-    }
-    QImage img((unsigned char*) buffer, _core.GrayImageSize[0], _core.GrayImageSize[1], QImage::Format_RGB32);
+
+    _core.SetCurrentSlice(_currentSlice);
     _scene.clear();
-    _scene.addPixmap(QPixmap::fromImage(img));
+
+    if (_core.SourceSlice.IsNotNull()) {
+        if (ui.actionShowSource->isChecked()) {
+            _core.SourceSlice->UpdateSlice(_currentSlice, 0xff);
+            int* buffer = _core.SourceSlice->GetBitmapBuffer();
+            QImage img((unsigned char*) buffer, _core.SourceSlice->GetSize()[0], _core.SourceSlice->GetSize()[1], QImage::Format_ARGB32);
+            _scene.addPixmap(QPixmap::fromImage(img));
+        }
+    }
+
+    if (_core.TargetSlice.IsNotNull()) {
+        if (ui.actionShowTarget->isChecked()) {
+            _core.TargetSlice->UpdateSlice(_currentSlice, 0xff);
+            int* buffer = _core.TargetSlice->GetBitmapBuffer();
+            QImage img((unsigned char*) buffer, _core.TargetSlice->GetSize()[0], _core.TargetSlice->GetSize()[1], QImage::Format_ARGB32);
+            _scene.addPixmap(QPixmap::fromImage(img));
+        }
+    }
+
+    if (_core.LabelSlice.IsNotNull()) {
+        if (ui.actionShowLabel->isChecked()) {
+            _core.LabelSlice->UpdateSlice(_currentSlice, ui.opacityDial->sliderPosition());
+            int* buffer = _core.LabelSlice->GetBitmapBuffer();
+            QImage img((unsigned char*) buffer, _core.LabelSlice->GetSize()[0], _core.LabelSlice->GetSize()[1], QImage::Format_ARGB32);
+            _scene.addPixmap(QPixmap::fromImage(img));
+        }
+    }
+
     ui.graphicsView->update();
 }
 
-void MainWindow::on_action_Open_triggered(bool checked) {
+void MainWindow::on_loadTransformButton_triggered() {
 	QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
-                                                    "/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
-    _core.LoadImage(fileName.toAscii().data());
+                                                    "/tmpfs/data", tr("Transform Files (*.txt)"));
+    if (fileName != NULL) {
+        _core.LoadTransform(fileName.toAscii().data());
+        if (ui.applyTransform->isChecked()) {
+            _core.ApplyTransform();
+            drawImage();
+        }
 
-    drawImage();
+    }
+}
+
+void MainWindow::on_actionOpenSource_triggered() {
+	QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
+                                                    "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
+    if (fileName != NULL) {
+        _core.LoadImage(fileName.toAscii().data());
+        _currentSlice = _core.CurrentSliceIndex;
+        ui.sliceSlider->setMaximum(_core.GetMaxSliceIndex());
+        ui.sliceSlider->setMinimum(_core.GetMinSliceIndex());
+        ui.sliceSlider->setValue(_currentSlice);
+        ui.actionOpenTarget->setEnabled(true);
+        ui.actionOpenLabel->setEnabled(true);
+        drawImage(true);
+    }
+}
+
+void MainWindow::on_actionOpenTarget_triggered() {
+	QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
+                                                    "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
+    if (fileName != NULL) {
+        _core.LoadTarget(fileName.toAscii().data());
+        ui.actionShowTarget->setEnabled(true);
+       drawImage();
+    }
+}
+
+void MainWindow::on_actionOpenLabel_triggered() {
+	QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
+                                                    "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
+    if (fileName != NULL) {
+        _core.LoadLabelIfGrayImageLoaded(fileName.toAscii().data());
+        ui.actionShowLabel->setEnabled(true);
+        ui.actionShowLabel->setChecked(true);
+        ui.opacityDial->setEnabled(true);
+        drawImage();
+    }
 }
 
 void MainWindow::sayHello(void) {

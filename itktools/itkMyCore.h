@@ -10,60 +10,123 @@
 #define __itktools__itkMyCore__
 
 #include <iostream>
+#include "itkMyTypes.h"
+#include "itkMySlicer.h"
 #include "itkImageIO.h"
 #include "itkExceptionObject.h"
-#include "itkExtractImageFilter.h"
 #include "itkRescaleIntensityImageFilter.h"
-
-typedef itk::Image<unsigned short, 3> ImageType;
-typedef itk::Image<unsigned short, 2> SliceType;
-typedef itk::Image<int, 2> BitmapType;
+#include "itkTransformFileReader.h"
+#include "itkResampleImageFilter.h"
 
 class itkMyCore {
+private:
+    int _maxSliceIndex;
+    int _minSliceIndex;
+
 public:
-    const char* ImageName;
 
     itkcmds::itkImageIO<ImageType> imageIO;
-    ImageType::Pointer GrayImage;
-    ImageType::SizeType GrayImageSize;
-    BitmapType::Pointer CurrentSlice;
+    itkcmds::itkImageIO<LabelType> labelIO;
+
+    GraySliceType::Pointer SourceSlice;
+    GraySliceType::Pointer TargetSlice;
+    LabelSliceType::Pointer LabelSlice;
+    LabelSliceType::Pointer InverseLabelSlice;
+
+    TransformReaderType::TransformListType* TransformList;
+
+    int CurrentSliceIndex;
+
+    itkMyCore() {
+        _minSliceIndex = 0;
+        _maxSliceIndex = 0;
+        CurrentSliceIndex = 0;
+        TransformList = NULL;
+    }
+
+    int GetMinSliceIndex() {
+        return _minSliceIndex;
+    }
+
+    int GetMaxSliceIndex() {
+        return _maxSliceIndex;
+    }
 
     void LoadImage(const char* file) {
         try {
-            ImageName = file;
-            GrayImage = imageIO.ReadImageT(ImageName);
-            GrayImageSize = GrayImage->GetBufferedRegion().GetSize();
-            ExtractSlice();
+            ImageType::Pointer image = imageIO.ReadImageT(file);
+            SourceSlice = GraySliceType::New();
+            SourceSlice->SetName(std::string(file));
+            SourceSlice->SetInput(image);
+            CurrentSliceIndex = SourceSlice->ComputeSliceAtCenter();
+
+            _minSliceIndex = 0;
+            _maxSliceIndex = SourceSlice->GetSize()[2];
         } catch (itk::ExceptionObject& ex) {
             cout << ex << endl;
         }
     }
 
-    void ExtractSlice(int slice = -1) {
-        typedef itk::ExtractImageFilter<ImageType, SliceType> SliceExtractor;
-        typedef itk::RescaleIntensityImageFilter<SliceType, BitmapType> IntensityFilter;
-        SliceExtractor::Pointer slicer = SliceExtractor::New();
-        ImageType::RegionType sliceRegion;
-        ImageType::SizeType sliceSize;
-        ImageType::IndexType sliceIndex;
-        sliceSize[0] = GrayImageSize[0];
-        sliceSize[1] = GrayImageSize[1];
-        sliceSize[2] = 0;
-        sliceIndex[0] = sliceIndex[1] = 0;
-        sliceIndex[2] = (slice < 0 || slice >= GrayImageSize[2]) ? (GrayImageSize[2] / 2) : slice;
-        sliceRegion.SetSize(sliceSize);
-        sliceRegion.SetIndex(sliceIndex);
-        slicer->SetInput(GrayImage);
-        slicer->SetExtractionRegion(sliceRegion);
-        slicer->SetDirectionCollapseToSubmatrix();
-        slicer->Update();
-        SliceType::Pointer tmp = slicer->GetOutput();
-        IntensityFilter::Pointer filter = IntensityFilter::New();
-        filter->SetInput(tmp);
-        filter->SetOutputMinimum(0);
-        filter->SetOutputMaximum(255);
-        filter->Update();
-        CurrentSlice = filter->GetOutput();
+    void LoadTarget(const char* file) {
+        try {
+            ImageType::Pointer image = imageIO.ReadImageT(file);
+            TargetSlice = GraySliceType::New();
+            TargetSlice->SetName(std::string(file));
+            TargetSlice->SetInput(image);
+            TargetSlice->UpdateSlice(CurrentSliceIndex, 0xff);
+        } catch (itk::ExceptionObject& ex) {
+            cout << ex << endl;
+        }
+    }
+
+    void LoadLabelIfGrayImageLoaded(const char* file) {
+        try {
+            LabelType::Pointer image = labelIO.ReadImageT(file);
+            LabelSlice = LabelSliceType::New();
+            LabelSlice->SetName(std::string(file));
+            LabelSlice->SetLabel(image);
+            LabelSlice->UpdateSlice(CurrentSliceIndex, 100);
+        } catch (itk::ExceptionObject& ex) {
+            cout << ex << endl;
+        }
+    }
+
+    void SetCurrentSlice(int slice) {
+        if (slice < _minSliceIndex || slice >= _maxSliceIndex) {
+            CurrentSliceIndex = SourceSlice->ComputeSliceAtCenter();
+        } else {
+            CurrentSliceIndex = slice;
+        }
+    }
+
+    void LoadTransform(const char* fileName) {
+        itk::TransformFileReader::Pointer reader = itk::TransformFileReader::New();
+        reader->SetFileName(fileName);
+        reader->Update();
+        TransformList = reader->GetTransformList();
+    }
+
+    void ApplyTransform() {
+        if (TransformList == NULL || LabelSlice->GetViewImage().IsNull()) {
+            return;
+        }
+        TransformBase::Pointer transform = TransformList->front();
+        MatrixTransformType* matrixTransform = dynamic_cast<MatrixTransformType*>(transform.GetPointer());
+        if (matrixTransform == NULL) {
+            return;
+        }
+        MatrixTransformType::InverseTransformBasePointer inverseTransform = matrixTransform->GetInverseTransform();
+
+        typedef itk::ResampleImageFilter<LabelType, LabelType> ResampleFilter;
+        ResampleFilter::Pointer resampler = ResampleFilter::New();
+        resampler->SetInput(LabelSlice->GetViewImage());
+        resampler->SetTransform(inverseTransform);
+        resampler->SetInterpolator(InterpolatorNN::New());
+        resampler->SetReferenceImage(TargetSlice->GetViewImage());
+        resampler->SetUseReferenceImage(true);
+        resampler->Update();
+        InverseLabelSlice = LabelSliceType::New();
+        InverseLabelSlice->SetLabel(resampler->GetOutput());
     }
 };
 
