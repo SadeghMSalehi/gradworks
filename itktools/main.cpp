@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     QStringList args = a.arguments();
     if (args.size() == 1) {
         MainWindow w;
-        w.loadDefaults();
+        // w.loadDefaults();
         w.show();
         return a.exec();
     }
