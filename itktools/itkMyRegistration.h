@@ -20,6 +20,7 @@
 #include "itkRealTimeClock.h"
 #include "QVector"
 
+#define USE_GD_OPTIMIZER
 
 template<class TTransform, class TOptimizer>
 class RegistrationEngine : public itk::Command {
@@ -212,12 +213,12 @@ public:
         scales.SetSize(TTransform::ParametersDimension);
         scales.Fill(1);
         scales[0] = scales[1] = scales[2] = 30;
-        scales[3] = scales[4] = scales[5] = .5;
-        scales[6] = scales[7] = scales[8] = 100;
+        scales[3] = scales[4] = scales[5] = 0.05;
+        scales[6] = scales[7] = scales[8] = 160;
 
         opti->SetScales(scales);
 
-        const int maxIters = 100;
+        const int maxIters = 50;
 #ifdef USE_CG_Optimizer
         opti->SetMaximumIteration(maxIters);
         opti->SetMaximumLineIteration(10);
@@ -229,7 +230,7 @@ public:
 #ifdef USE_GD_OPTIMIZER
         opti->SetNumberOfIterations(maxIters);
         opti->SetMinimumStepLength(1e-4);
-        opti->SetMaximumStepLength(3);
+        opti->SetMaximumStepLength(1);
         opti->SetRelaxationFactor(.5);
         opti->SetGradientMagnitudeTolerance(1e-4);
 #endif

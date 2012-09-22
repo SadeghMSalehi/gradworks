@@ -2,6 +2,7 @@
 #include "mainwindow.h"
 #include <QtGui>
 #include <QApplication>
+#include <QStringList>
 
 using namespace std;
 using namespace itk;
@@ -35,8 +36,30 @@ public:
 int main(int argc, char *argv[])
 {
     MainApps a(argc, argv);
-    MainWindow w;
-    w.loadDefaults();
-    w.show();
-    return a.exec();
+    QStringList args = a.arguments();
+    if (args.size() == 0) {
+        MainWindow w;
+        w.loadDefaults();
+        w.show();
+        return a.exec();
+    }
+
+    QString cmd = args.at(1);
+    if (cmd == "registration") {
+        itkMyCore core;
+        core.LoadImage(args.at(2).toAscii().data());
+        core.LoadTarget(args.at(3).toAscii().data());
+        core.LoadLabelIfGrayImageLoaded(args.at(4).toAscii().data());
+        core.PrepareRegistration();
+        core.RunRegistration();
+        core.ApplyLastTransform();
+        if (core.InverseLabelSlice.IsNotNull()) {
+            LabelType::Pointer label = core.InverseLabelSlice->GetViewImage();
+            if (label.IsNotNull()) {
+                itkcmds::itkImageIO<LabelType> io;
+                io.WriteImageT(args.at(5).toAscii().data(), label);
+            }
+        }
+    }
+    return 0;
 }

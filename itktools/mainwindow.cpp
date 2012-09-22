@@ -106,9 +106,9 @@ void MainWindow::on_applyTransformCheck_stateChanged(int check) {
 }
 
 void MainWindow::loadDefaults() {
-    const char* sourceFile = "/tmpfs/data/Multiple/00.T2.nrrd";
-    const char* targetFile = "/tmpfs/data/Multiple/21.T2.nrrd";
-    const char* labelFile = "/tmpfs/data/Multiple/00.P3.nrrd";
+    const char* sourceFile = "/tmpfs/data/PartRegistrations/00.Label.Manual.P1.nrrd";
+    const char* targetFile = "/tmpfs/data/PartRegistrations/21.Label.Manual.P1.nrrd";
+    const char* labelFile = "/tmpfs/data/PartRegistrations/00.Label.Manual.P1.nrrd";
 
     _core.LoadImage(sourceFile);
     _currentSlice = _core.CurrentSliceIndex;

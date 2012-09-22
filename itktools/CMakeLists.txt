@@ -13,6 +13,10 @@ set(itktools_SOURCES main.cpp mainwindow.cpp)
 set(itktools_QT_HEADERS mainwindow.h)
 set(itktools_FORMS mainwindow.ui)
 
+set (ants_SRC antsAllocImage.h itkAvantsMutualInformationRegistrationFunction.cxx  
+			itkAvantsMutualInformationRegistrationFunction.h    
+			itkAvantsPDEDeformableRegistrationFunction.h )
+
 set (itkcmds_SRC_METRICS itkMyMetric.h itkMyMetric.hxx itkMyMetricBase.h itkMyMetricBase.hxx)
 set (itkcmds_SRC_OPTIMIZERS itkMyPowellOptimizer.h itkMyPowellOptimizer.cxx 
 	itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp itkOptimizationReporter.h 
@@ -29,6 +33,7 @@ include(${QT_USE_FILE})
 add_definitions(${QT_DEFINITIONS})
 
 add_executable(guireg 
+	${ants_SRC}
 	${itkcmds_SRC_METRICS}
 	${itkcmds_SRC_OPTIMIZERS}
 	${itktools_MYCODE}

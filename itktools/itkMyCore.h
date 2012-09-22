@@ -116,6 +116,14 @@ public:
         }
     }
 
+    void ApplyLastTransform() {
+        int historyId = _registrationAlgorithm->GetTransformHistory().size() - 1;
+        if (historyId < 0) {
+            return;
+        }
+        ApplyTransform(historyId);
+    }
+
     void PrepareRegistration() {
         _registrationAlgorithm = ScaleRegistration::New();
     }
@@ -128,7 +136,7 @@ public:
         try {
             _registrationAlgorithm->RunRegistration();
         } catch (...) {
-            cout << "I ate the registratione exception! [" << QThread::currentThreadId() << "]; RegistrationAlgorithm " << _registrationAlgorithm.GetPointer() <<  endl;
+            //cout << "I ate the registratione exception! [" << QThread::currentThreadId() << "]; RegistrationAlgorithm " << _registrationAlgorithm.GetPointer() <<  endl;
         }
         return _registrationAlgorithm->GetTransformHistory();
     }
