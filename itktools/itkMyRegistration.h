@@ -123,6 +123,28 @@ public:
         return _transformHistory;
     }
 
+    void WriteTransform(const char* filename, int historyId) {
+        if (_transformHistory.size() == 0) {
+            return;
+        }
+
+        while (historyId < 0) {
+            historyId = historyId + _transformHistory.size();
+        }
+        
+        while (historyId >= _transformHistory.size()) {
+            historyId -= _transformHistory.size();
+        }
+
+        TransformWriterType::Pointer writer = TransformWriterType::New();
+        writer->SetFileName(filename);
+        typename TTransform::Pointer transform = TTransform::New();
+        transform->SetParameters(_transformHistory.at(historyId));
+        transform->SetFixedParameters(_transform->GetFixedParameters());
+        writer->AddTransform(transform);
+        writer->Update();
+    }
+
     LabelType::Pointer TransformFixedLabel(int historyId) {
         if (_transformHistory.size() == 0 || historyId == 0) {
             return _fixedImageLabel;

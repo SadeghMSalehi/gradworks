@@ -158,6 +158,10 @@ void MainWindow::on_actionOpenTarget_triggered() {
 
         ui.actionShowTarget->setEnabled(true);
         ui.registrationPanel->setEnabled(true);
+        ui.optimizerType->setEnabled(true);
+        ui.transformType->setEnabled(true);
+        ui.runRegistrationButton->setEnabled(true);
+        ui.regParams->setEnabled(true);
     }
 }
 

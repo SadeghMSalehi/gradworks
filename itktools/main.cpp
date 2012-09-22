@@ -60,6 +60,9 @@ int main(int argc, char *argv[])
                 io.WriteImageT(args.at(5).toAscii().data(), label);
             }
         }
+        if (args.size() > 6) {
+            core.WriteLastTransform(args.at(6).toAscii().data());
+        }
     }
     return 0;
 }

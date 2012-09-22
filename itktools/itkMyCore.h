@@ -116,6 +116,10 @@ public:
         }
     }
 
+    void WriteLastTransform(const char* fileName) {
+        _registrationAlgorithm->WriteTransform(fileName, -1);
+    }
+
     void ApplyLastTransform() {
         int historyId = _registrationAlgorithm->GetTransformHistory().size() - 1;
         if (historyId < 0) {
