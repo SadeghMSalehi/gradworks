@@ -226,3 +226,6 @@ TARGET_LINK_LIBRARIES(itkcmds ${ITK_LIBRARIES})
 
 ADD_EXECUTABLE(itkImageMatch itkImageMatch.cxx itkImageIO.h)
 TARGET_LINK_LIBRARIES(itkImageMatch ${ITK_LIBRARIES})
+
+ADD_EXECUTABLE(itkTransformToMatrix itkTransformToMatrix.cpp)
+TARGET_LINK_LIBRARIES(itkTransformToMatrix ${ITK_LIBRARIES})
