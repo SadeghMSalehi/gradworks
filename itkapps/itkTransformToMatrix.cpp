@@ -26,11 +26,11 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
             if (i > 0 || j > 0) {
-                cout << ",";
+                cout << " ";
             }
             cout << baseMatrixRep[i][j];
         }
-        cout << "," << baseMatrix->GetTranslation()[i];
+        cout << " " << baseMatrix->GetTranslation()[i];
     }
-    cout << ",0,0,0,1" << endl;
+    cout << " 0 0 0 1" << endl;
 }
