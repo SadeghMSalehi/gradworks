@@ -1,6 +1,7 @@
 #include "itkTransformFileReader.h"
 #include "itkMatrixOffsetTransformBase.h"
 #include "iostream"
+#include "string"
 
 using namespace std;
 
@@ -30,7 +31,11 @@ int main(int argc, char* argv[]) {
             }
             cout << baseMatrixRep[i][j];
         }
-        cout << " " << baseMatrix->GetTranslation()[i];
+        if (argc > 2 && string(argv[2]) == "1") {
+            cout << " " << baseMatrix->GetOffset()[i];
+        } else {
+            cout << " " << baseMatrix->GetTranslation()[i];
+        }
     }
     cout << " 0 0 0 1" << endl;
 }
