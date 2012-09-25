@@ -20,130 +20,53 @@
 
 #include "itkMyScaleVersor3DTransformOptimizer.h"
 #include "itkScaleVersor3DTransform.h"
-#include "itkMyRegistration.h"
+#include "itkMultiRegMethod.h"
+//#include "itkMyRegistration.h"
 #include "QThread"
+
+//
 
 class itkMyCore {
 private:
-    int _maxSliceIndex;
-    int _minSliceIndex;
+	int _maxSliceIndex;
+	int _minSliceIndex;
 
 public:
 
-    itkcmds::itkImageIO<ImageType> imageIO;
-    itkcmds::itkImageIO<LabelType> labelIO;
+	itkcmds::itkImageIO<ImageType> imageIO;
+	itkcmds::itkImageIO<LabelType> labelIO;
 
-    GraySliceType::Pointer SourceSlice;
-    GraySliceType::Pointer TargetSlice;
-    LabelSliceType::Pointer LabelSlice;
-    LabelSliceType::Pointer InverseLabelSlice;
+	GraySliceType::Pointer SourceSlice;
+	GraySliceType::Pointer TargetSlice;
+	LabelSliceType::Pointer LabelSlice;
+	LabelSliceType::Pointer InverseLabelSlice;
 
-    ScaleRegistration::Pointer _registrationAlgorithm;
+	RegistrationMethod::Pointer _registrationAlgorithm;
 
-    int CurrentSliceIndex;
+	int CurrentSliceIndex;
 
-    itkMyCore() {
-        _minSliceIndex = 0;
-        _maxSliceIndex = 0;
-        CurrentSliceIndex = 0;
-    }
+	itkMyCore() {
+		_minSliceIndex = 0;
+		_maxSliceIndex = 0;
+		CurrentSliceIndex = 0;
+	}
 
-    int GetMinSliceIndex() {
-        return _minSliceIndex;
-    }
+	int GetMinSliceIndex();
+	int GetMaxSliceIndex();
 
-    int GetMaxSliceIndex() {
-        return _maxSliceIndex;
-    }
+	void LoadImage(const char* file);
+	void LoadTarget(const char* file);
+	void LoadLabelIfGrayImageLoaded(const char* file);
 
-    void LoadImage(const char* file) {
-        try {
-            cout << "LoadImage() >> Current Thread Id: " << QThread::currentThreadId() << endl;
+	void SetCurrentSlice(int slice);
+	void LoadTransform(const char* fileName);
+	void ApplyTransform(int historyId);
+	void WriteLastTransform(const char* fileName);
 
-            ImageType::Pointer image = imageIO.ReadImageT(file);
-            SourceSlice = GraySliceType::New();
-            SourceSlice->SetName(std::string(file));
-            SourceSlice->SetInput(image);
-            CurrentSliceIndex = SourceSlice->ComputeSliceAtCenter();
+	void ApplyLastTransform();
+	void PrepareRegistration();
 
-            _minSliceIndex = 0;
-            _maxSliceIndex = SourceSlice->GetSize()[2];
-        } catch (itk::ExceptionObject& ex) {
-            cout << ex << endl;
-        }
-    }
-
-    void LoadTarget(const char* file) {
-        try {
-            ImageType::Pointer image = imageIO.ReadImageT(file);
-            TargetSlice = GraySliceType::New();
-            TargetSlice->SetName(std::string(file));
-            TargetSlice->SetInput(image);
-            TargetSlice->UpdateSlice(CurrentSliceIndex, 0xff);
-        } catch (itk::ExceptionObject& ex) {
-            cout << ex << endl;
-        }
-    }
-
-    void LoadLabelIfGrayImageLoaded(const char* file) {
-        try {
-            LabelType::Pointer image = labelIO.ReadImageT(file);
-            LabelSlice = LabelSliceType::New();
-            LabelSlice->SetName(std::string(file));
-            LabelSlice->SetLabel(image);
-            LabelSlice->UpdateSlice(CurrentSliceIndex, 100);
-            InverseLabelSlice = LabelSliceType::New();
-        } catch (itk::ExceptionObject& ex) {
-            cout << ex << endl;
-        }
-    }
-
-    void SetCurrentSlice(int slice) {
-        if (slice < _minSliceIndex || slice >= _maxSliceIndex) {
-            CurrentSliceIndex = SourceSlice->ComputeSliceAtCenter();
-        } else {
-            CurrentSliceIndex = slice;
-        }
-    }
-
-    void LoadTransform(const char* fileName) {
-
-    }
-
-    void ApplyTransform(int historyId) {
-        if (_registrationAlgorithm.IsNotNull()) {
-            InverseLabelSlice->SetLabel(_registrationAlgorithm->TransformFixedLabel(historyId));
-        }
-    }
-
-    void WriteLastTransform(const char* fileName) {
-        _registrationAlgorithm->WriteTransform(fileName, -1);
-    }
-
-    void ApplyLastTransform() {
-        int historyId = _registrationAlgorithm->GetTransformHistory().size() - 1;
-        if (historyId < 0) {
-            return;
-        }
-        ApplyTransform(historyId);
-    }
-
-    void PrepareRegistration() {
-        _registrationAlgorithm = ScaleRegistration::New();
-    }
-    
-    ScaleRegistration::TransformHistoryType RunRegistration() {
-        if (_registrationAlgorithm.IsNull()) {
-            return ScaleRegistration::TransformHistoryType();
-        }
-        _registrationAlgorithm->SetImages(SourceSlice->GetSourceImage(), LabelSlice->GetViewImage(), TargetSlice->GetSourceImage());
-        try {
-            _registrationAlgorithm->RunRegistration();
-        } catch (...) {
-            //cout << "I ate the registratione exception! [" << QThread::currentThreadId() << "]; RegistrationAlgorithm " << _registrationAlgorithm.GetPointer() <<  endl;
-        }
-        return _registrationAlgorithm->GetTransformHistory();
-    }
+	RegistrationMethod::TransformHistoryType RunRegistration();
 };
 
 #endif /* defined(__itktools__itkMyCore__) */

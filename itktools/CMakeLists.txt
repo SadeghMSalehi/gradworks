@@ -8,7 +8,9 @@ include(${ITK_USE_FILE})
 
 set(itktools_MYCODE itkImageIO.h itkMyCore.h itkMyCore.cpp itkMyTypes.h
 	itkTimer.h itkTimer.cpp itkMySlicer.h 
-	MatrixCode.h MatrixCode.cpp itkMathCode.h itkMyRegistration.h)
+	MatrixCode.h MatrixCode.cpp itkMathCode.h itkMyRegistration.h
+	itkMultiRegMethod.h itkMultiRegMethod.cpp	
+)
 set(itktools_SOURCES main.cpp mainwindow.cpp)
 set(itktools_QT_HEADERS mainwindow.h)
 set(itktools_FORMS mainwindow.ui)
@@ -17,7 +19,7 @@ set (ants_SRC antsAllocImage.h itkAvantsMutualInformationRegistrationFunction.cx
 			itkAvantsMutualInformationRegistrationFunction.h    
 			itkAvantsPDEDeformableRegistrationFunction.h )
 
-set (itkcmds_SRC_METRICS itkMyMetric.h itkMyMetric.hxx itkMyMetricBase.h itkMyMetricBase.hxx)
+set (itkcmds_SRC_METRICS itkMyMetric.h itkMyMetric.hxx itkMyMetricBase.h itkMyMetricBase.hxx itkMetaMetrics.h itkMetaMetrics.cpp)
 set (itkcmds_SRC_OPTIMIZERS itkMyPowellOptimizer.h itkMyPowellOptimizer.cxx 
 	itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp itkOptimizationReporter.h 
 	itkMyRegularStepGradientDescentOptimizer.h itkMyRegularStepGradientDescentOptimizer.cxx 

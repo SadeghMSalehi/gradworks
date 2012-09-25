@@ -22,7 +22,10 @@ def main(opts, args):
     transformFilter.SetInput(obj)
     transformFilter.Update()
     objOut = transformFilter.GetOutput()
-    nu.writeVTK(opts.output % (inputId), objOut)
+    if (opts.output.find("%") > 0):
+      nu.writeVTK(opts.output % (inputId), objOut)
+    else:
+      nu.writeVTK(opts.output, objOut)
     
 if __name__ == "__main__":
   parser = OptionParser(usage="transformPolydata.py [options] input1 input2 ...")

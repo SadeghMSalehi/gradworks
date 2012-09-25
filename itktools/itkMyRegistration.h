@@ -21,6 +21,8 @@
 #include "QVector"
 
 #define USE_GD_OPTIMIZER
+using namespace std;
+
 
 template<class TTransform, class TOptimizer>
 class RegistrationEngine : public itk::Command {
@@ -54,7 +56,7 @@ private:
 
     char* _transformOut;
     char* _resampledOut;
-    string _method;
+    std::string _method;
 
     itk::RealTimeClock::Pointer _clock;
     itk::RealTimeClock::TimeStampType _lastTime;
@@ -191,7 +193,7 @@ public:
         _transform = TTransform::New();
         Metric::Pointer metric = Metric::New();
         metric->SetFixedImage(_fixedImage);
-        bool useIndexes = false;
+        bool useIndexes = true;
         if (useIndexes) {
             _centerOfRotation.SetSize(ImageType::ImageDimension);
             for (int i = 0; i < ImageType::ImageDimension; i++) {
@@ -278,7 +280,7 @@ public:
 };
 
 
-typedef RegistrationEngine<itk::ScaleVersor3DTransform<double>, itk::MyScaleVersor3DTransformOptimizer > ScaleRegistration;
+typedef RegistrationEngine<itk::ScaleVersor3DTransform<double>, itk::MyScaleVersor3DTransformOptimizer > RegistrationMethod;
 
 
 #endif

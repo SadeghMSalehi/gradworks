@@ -93,7 +93,7 @@ void MainWindow::on_loadTransformButton_clicked() {
 void MainWindow::on_runRegistrationButton_clicked() {
     ui.runRegistrationButton->setEnabled(false);
     _core.PrepareRegistration();
-    _registrationWatcher = new QFutureWatcher<ScaleRegistration::TransformHistoryType>();
+    _registrationWatcher = new QFutureWatcher<RegistrationMethod::TransformHistoryType>();
     _registrationWatcher->setFuture(QtConcurrent::run(_core, &itkMyCore::RunRegistration));
     connect(_registrationWatcher, SIGNAL(finished()), this, SLOT(on_registrationFinished()));
 }
@@ -106,9 +106,15 @@ void MainWindow::on_applyTransformCheck_stateChanged(int check) {
 }
 
 void MainWindow::loadDefaults() {
-    const char* sourceFile = "/tmpfs/data/PartRegistrations/00.Label.Manual.P1.nrrd";
-    const char* targetFile = "/tmpfs/data/PartRegistrations/21.Label.Manual.P1.nrrd";
-    const char* labelFile = "/tmpfs/data/PartRegistrations/00.Label.Manual.P1.nrrd";
+//    const char* sourceFile = "/tmpfs/data/PartRegistrations/00.Label.Manual.P1.nrrd";
+//    const char* targetFile = "/tmpfs/data/PartRegistrations/21.Label.Manual.P1.nrrd";
+//    const char* labelFile = "/tmpfs/data/PartRegistrations/00.Label.Manual.P1.nrrd";
+	const char* sourceFile =
+			"/biomed-resimg/work/joohwi/CLE2-Manual/MultiReg/00.T2.nrrd";
+	const char* targetFile =
+			"/biomed-resimg/work/joohwi/CLE2-Manual/MultiReg/19.T2.nrrd";
+	const char* labelFile =
+			"/biomed-resimg/work/joohwi/CLE2-Manual/MultiReg/00.ManualParts.nrrd";
 
     _core.LoadImage(sourceFile);
     _currentSlice = _core.CurrentSliceIndex;

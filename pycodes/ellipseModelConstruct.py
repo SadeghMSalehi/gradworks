@@ -1,4 +1,4 @@
-#!/biomed-resimg/work/joohwi/Python/Python-build/bin/python
+#!/home/joohwi/python
 
 import sys
 from vtkIOPython import *
@@ -225,7 +225,7 @@ def buildEllipses2(opts, args):
     for part in subj:
       try:
         S = part[0]
-        R = np.matrix(part[1]).reshape(3,3)
+        R = np.matrix(part[1]).reshape(3,3).transpose()
         T = part[2]
       except:
         print "Error:", part

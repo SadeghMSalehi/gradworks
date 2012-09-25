@@ -88,7 +88,7 @@ private:
     itkMyCore _core;
     int _currentSlice;
 
-    QFutureWatcher<ScaleRegistration::TransformHistoryType> *_registrationWatcher;
+    QFutureWatcher<RegistrationMethod::TransformHistoryType> *_registrationWatcher;
 
 };
 

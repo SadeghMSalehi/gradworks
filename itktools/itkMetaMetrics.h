@@ -45,22 +45,27 @@ public:
     void AddMetric(typename MetricType::Pointer metric) {
         _metrics.push_back(metric);
         _metricParamterIndex.push_back(metric->GetNumberOfParameters());
-        metric->ComputeCenterOfRotation();
     }
 
     typename MetricType::Pointer GetMetricPointer(int i) {
         return _metrics[i];
     }
 
-    ParametersType GetInitialParameters() {
+    ParametersType GetParameters() {
         int nParams = this->GetNumberOfParameters();
-        ParametersType initialParams;
-        initialParams.SetSize(nParams);
+        ParametersType outParams;
+        outParams.SetSize(nParams);
 
+        int k = 0;
         for (unsigned int i = 0; i < _metrics.size(); i++) {
-                
+        	int nSubParams = _metrics[i]->GetNumberOfParameters();
+        	for (int j = 0; j < nSubParams; j++) {
+        		outParams[k++] = _metrics[i]->GetTransform()->GetParameters()[j];
+        	}
         }
     }
+
+
 
     /** Return the number of parameters required to compute
      *  this cost function.

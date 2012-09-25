@@ -1122,9 +1122,6 @@ void MyMetricBase<TFixedImage, TMovingImage>::GetValueThread(
 		this->GetValueThreadPreProcess(threadID, true);
 	}
 
-	itkcmds::PointStatistics<MovingImagePointType,
-			MovingImageType::ImageDimension> stat;
-
 	// Process the samples
 	int numSamples = 0;
 	for (int count = 0; count < chunkSize; ++count, ++fixedImageSample) {
@@ -1134,7 +1131,6 @@ void MyMetricBase<TFixedImage, TMovingImage>::GetValueThread(
 		// Get moving image value
 		this->TransformPoint(fixedImageSample, mappedPoint, sampleOk,
 				movingImageValue, threadID);
-		stat.AddPoint(mappedPoint);
 		if (sampleOk) {
 			// CALL USER FUNCTION
 			if (GetValueThreadProcessSample(threadID, fixedImageSample,
