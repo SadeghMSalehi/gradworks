@@ -11,7 +11,6 @@
 
 #include <iostream>
 #include "itkMyTypes.h"
-//#include "itkMySlicer.h"
 #include "itkMySlice.h"
 #include "itkImageIO.h"
 #include "itkExceptionObject.h"
@@ -22,7 +21,7 @@
 #include "itkMyScaleVersor3DTransformOptimizer.h"
 #include "itkScaleVersor3DTransform.h"
 #include "itkMultiRegMethod.h"
-//#include "itkMyRegistration.h"
+
 #include "QThread"
 #include "QImage"
 //

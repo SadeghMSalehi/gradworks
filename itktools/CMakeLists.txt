@@ -27,7 +27,9 @@ set (itkcmds_SRC_OPTIMIZERS itkMyPowellOptimizer.h itkMyPowellOptimizer.cxx
 	itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp itkOptimizationReporter.h 
 	itkMyRegularStepGradientDescentOptimizer.h itkMyRegularStepGradientDescentOptimizer.cxx 
 	itkMyRegularStepGradientDescentBaseOptimizer.h itkMyRegularStepGradientDescentBaseOptimizer.cxx 
-	itkMyScaleVersor3DTransformOptimizer.h itkMyScaleVersor3DTransformOptimizer.cxx)
+	itkMyScaleVersor3DTransformOptimizer.h itkMyScaleVersor3DTransformOptimizer.cxx
+	itkMyTransformFilter.h itkMyTransformFilter.hxx
+)
 
 qt4_wrap_cpp(itktools_HEADERS_MOC ${itktools_QT_HEADERS})
 qt4_wrap_ui(itktools_FORMS_HEADERS ${itktools_FORMS})
