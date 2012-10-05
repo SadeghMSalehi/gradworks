@@ -10,6 +10,9 @@
 #include "itkNiftiImageIOFactory.h"
 #include "itkImageRegionConstIteratorWithIndex.h"
 #include "itkTransformFileReader.h"
+#include "itkTransformFileWriter.h"
+#include "itkResampleImageFilter.h"
+#include "itkLinearInterpolateImageFunction.h"
 #include "itkMath.h"
 #include "iostream"
 
@@ -30,6 +33,7 @@ namespace itkcmds {
 		typedef typename T::RegionType ImageRegion;
 		typedef typename T::IndexType ImageIndex;
         typedef itk::TransformFileReader TransformFileReader;
+        typedef itk::TransformFileWriter TransformFileWriter;
         typedef TransformFileReader::TransformType TransformType;
         typedef TransformFileReader::TransformListType   TransformListType;
 
@@ -182,6 +186,35 @@ namespace itkcmds {
             return transformList->front();
         }
 
+        void WriteSingleTransform(char* fileName, typename TransformType::Pointer transform) {
+            typename TransformFileWriter::Pointer writer = TransformFileWriter::New();
+            writer->SetFileName(fileName);
+            writer->AddTransform(transform);
+            writer->Update();
+        }
+
+        void WriteMultipleTransform(char* fileName, typename TransformFileWriter::ConstTransformListType transformList) {
+            typename TransformFileWriter::Pointer writer = TransformFileWriter::New();
+            writer->SetFileName(fileName);
+            typename TransformFileWriter::ConstTransformListType::iterator transformIter = transformList.begin();
+            while (transformIter != transformList.end()) {
+                writer->AddTransform(*transformIter);
+                transformIter++;
+            }
+            writer->Update();
+        }
+
+        typename T::Pointer ResampleImageAs(typename T::Pointer image, typename T::Pointer reference) {
+            typedef itk::ResampleImageFilter<T,T> FilterType;
+            typedef itk::LinearInterpolateImageFunction<T> InterpolatorType;
+            typename FilterType::Pointer filter = FilterType::New();
+            filter->SetInput(image);
+            filter->SetReferenceImage(reference);
+            filter->UseReferenceImageOn();
+            filter->SetInterpolator(InterpolatorType::New());
+            filter->Update();
+            return filter->GetOutput();
+        }
 };
 
 template<class T, unsigned int N>

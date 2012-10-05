@@ -21,6 +21,7 @@ public:
 public slots:
     void sayHello(void);
     void on_loadTransformButton_clicked();
+    void on_saveTransformButton_clicked();    
     void on_runRegistrationButton_clicked();
     void on_actionOpenSource_triggered();
     void on_actionOpenTarget_triggered();
@@ -38,6 +39,7 @@ public slots:
         drawImage();
     }
     void on_opacityDial_valueChanged() {
+        _core.SetLabelOpacity(ui.opacityDial->value());
         drawImage();
     }
     void on_actionShowLabel_triggered() {
@@ -63,16 +65,35 @@ public slots:
         }
         ui.toolBox->setCurrentIndex(2);
         int numberOfIterations = _registrationWatcher->result().size();
+        on_transformAvailable(numberOfIterations);
+        delete _registrationWatcher;
+        _registrationWatcher = NULL;
+    }
+    
+    void on_transformAvailable(int numberOfIterations) {
         ui.maxRegistrationSteps->setText(QString("%1").arg(numberOfIterations));
         ui.runRegistrationButton->setEnabled(true);
         ui.currentRegistrationStep->setValue(numberOfIterations);
         ui.currentRegistrationStep->setMaximum(numberOfIterations);
         on_currentRegistrationStep_valueChanged(numberOfIterations);
-
-        delete _registrationWatcher;
-        _registrationWatcher = NULL;
     }
+
     void on_applyTransformCheck_stateChanged(int check);
+
+    // when slice is changed
+    void on_xySlice_toggled() {
+        changeSliceView(2);
+    }
+    void on_yzSlice_toggled() {
+        changeSliceView(0);
+    }
+    void on_zxSlice_toggled() {
+        changeSliceView(1);
+    }
+
+    void changeSliceView(int dir);
+
+
     void loadDefaults();
     void exit(void);
 
@@ -83,11 +104,10 @@ public:
 
 
 private:
+    int _viewingDir;
     Ui::MainWindowClass ui;
     QGraphicsScene _scene;
     itkMyCore _core;
-    int _currentSlice;
-
     QFutureWatcher<RegistrationMethod::TransformHistoryType> *_registrationWatcher;
 
 };

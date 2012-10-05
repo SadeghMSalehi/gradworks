@@ -46,7 +46,7 @@ private:
 	ImageType::PointType _movingCenter;
 
 	QVector<ImageType::PointType> _fixedCenter;
-	QVector<typename TransformType::Pointer> _transform;
+	QVector<TransformType::Pointer> _transform;
 	QVector<ParametersType> _transformResult;
 	QVector<ParametersType> _centerOfRotation;
 	QVector<Metric::FixedImageIndexContainer> _labelIndexes;
@@ -56,6 +56,7 @@ private:
 	itk::RealTimeClock::Pointer _clock;
 	int _numOfIterations;
 	int _updateInterval;
+    int _numOfLabels;
 	itk::RealTimeClock::TimeStampType _lastTime;
 
 	TransformHistoryType _transformHistory;
@@ -75,11 +76,16 @@ protected:
 	virtual ~itkMultiRegMethod() {
 	}
 
+    void ComputeLabelIndexes();
+
 public:
 	void Execute(itk::Object* caller, const itk::EventObject& event);
 	void OnIterate(const OptimizerType* optimizer);
 	void Execute(const itk::Object* object, const itk::EventObject& event);
 	void Update();
+    void SaveParameterHistory(const char* filename);
+    void LoadParameterHistory(const char* filename);
+    int GetNumberOfTransforms();
 
 public:
 

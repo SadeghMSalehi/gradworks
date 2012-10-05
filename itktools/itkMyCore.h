@@ -11,7 +11,8 @@
 
 #include <iostream>
 #include "itkMyTypes.h"
-#include "itkMySlicer.h"
+//#include "itkMySlicer.h"
+#include "itkMySlice.h"
 #include "itkImageIO.h"
 #include "itkExceptionObject.h"
 #include "itkRescaleIntensityImageFilter.h"
@@ -23,50 +24,82 @@
 #include "itkMultiRegMethod.h"
 //#include "itkMyRegistration.h"
 #include "QThread"
-
+#include "QImage"
 //
 
 class itkMyCore {
 private:
-	int _maxSliceIndex;
-	int _minSliceIndex;
+    BitmapType::Pointer _sourceBitmap[ImageType::ImageDimension];
+    BitmapType::Pointer _targetBitmap[ImageType::ImageDimension];
+    BitmapType::Pointer _labelBitmap[ImageType::ImageDimension];
+    BitmapType::Pointer _transformedLabelBitmap[ImageType::ImageDimension];
 
+    ImageSlicer::Pointer _sourceSlicer;
+    ImageSlicer::Pointer _targetSlicer;
+    LabelSlicer::Pointer _labelSlicer;
+    LabelSlicer::Pointer _transformedLabelSlicer;
+
+    int _labelOpacity;
+    void UpdateBitmap(ImageKindType kind, int dir, int opacity);
+    
 public:
-
 	itkcmds::itkImageIO<ImageType> imageIO;
 	itkcmds::itkImageIO<LabelType> labelIO;
 
-	GraySliceType::Pointer SourceSlice;
-	GraySliceType::Pointer TargetSlice;
-	LabelSliceType::Pointer LabelSlice;
-	LabelSliceType::Pointer InverseLabelSlice;
-
 	RegistrationMethod::Pointer _registrationAlgorithm;
 
-	int CurrentSliceIndex;
-
 	itkMyCore() {
-		_minSliceIndex = 0;
-		_maxSliceIndex = 0;
-		CurrentSliceIndex = 0;
+        _labelOpacity = 120;
 	}
 
-	int GetMinSliceIndex();
-	int GetMaxSliceIndex();
+//	int GetMinSliceIndex();
+//	int GetMaxSliceIndex(int xyz = 2);
+//    int GetCurrentSliceIndex(int xyz);
 
 	void LoadImage(const char* file);
 	void LoadTarget(const char* file);
-	void LoadLabelIfGrayImageLoaded(const char* file);
+	void LoadLabel(const char* file);
 
-	void SetCurrentSlice(int slice);
-	void LoadTransform(const char* fileName);
+    void SetCurrentSlice(int dir, int sliceIdx);
+
+	ImageType::IndexType GetCurrentSliceIndex() {
+		return _sourceSlicer->GetCurrentSliceIndex();
+	}
+
+    ImageType::SizeType GetMaxSliceIndex() {
+        return _sourceSlicer->GetMaxSliceIndex();
+    }
+
+	void PrepareRegistration();
+	RegistrationMethod::TransformHistoryType RunRegistration();
+	void ApplyLastTransform();
 	void ApplyTransform(int historyId);
 	void WriteLastTransform(const char* fileName);
 
-	void ApplyLastTransform();
-	void PrepareRegistration();
+    BitmapType::Pointer GetSourceBitmap(int dir);
+    BitmapType::Pointer GetTargetBitmap(int dir);
+    BitmapType::Pointer GetLabelBitmap(int dir);
+    BitmapType::Pointer GetTransformedBitmap(int dir);
 
-	RegistrationMethod::TransformHistoryType RunRegistration();
+    QImage ConvertToQImage(ImageKindType kind, int dir);
+    
+    void SetLabelOpacity(int opacity) {
+        _labelOpacity = opacity;
+    }
+
+	void LoadTransform(const char* fileName) {
+        this->PrepareRegistration();
+        _registrationAlgorithm->LoadParameterHistory(fileName);
+    }
+    
+    void SaveTransform(const char* filename) {
+        if (_registrationAlgorithm.IsNotNull()) {
+            _registrationAlgorithm->SaveParameterHistory(filename);
+        }
+    }
+
+
+    void ExecuteCommandLine(int argc, char* argv[]);
 };
 
 #endif /* defined(__itktools__itkMyCore__) */

@@ -63,6 +63,7 @@ public:
         		outParams[k++] = _metrics[i]->GetTransform()->GetParameters()[j];
         	}
         }
+        return outParams;
     }
 
 

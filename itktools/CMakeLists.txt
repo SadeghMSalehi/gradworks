@@ -7,9 +7,12 @@ find_package(Qt4 REQUIRED)
 include(${ITK_USE_FILE})
 
 set(itktools_MYCODE itkImageIO.h itkMyCore.h itkMyCore.cpp itkMyTypes.h
-	itkTimer.h itkTimer.cpp itkMySlicer.h 
-	MatrixCode.h MatrixCode.cpp itkMathCode.h itkMyRegistration.h
+	itkTimer.h itkTimer.cpp
+	MatrixCode.h MatrixCode.cpp 
+	itkMathCode.h itkMyRegistration.h
 	itkMultiRegMethod.h itkMultiRegMethod.cpp	
+	itkMySlice.h itkMySlice.cpp
+	guiregTest.h guiregTest.cpp
 )
 set(itktools_SOURCES main.cpp mainwindow.cpp)
 set(itktools_QT_HEADERS mainwindow.h)

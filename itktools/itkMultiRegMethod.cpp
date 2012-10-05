@@ -7,6 +7,7 @@
 
 #include "itkMultiRegMethod.h"
 #include "itkContinuousIndex.h"
+#include "sstream"
 
 void itkMultiRegMethod::Execute(itk::Object* caller,
 		const itk::EventObject& event) {
@@ -58,26 +59,27 @@ void itkMultiRegMethod::SetImages(ImageType::Pointer source,
 	_fixedImageLabel = sourceLabel;
 }
 
-void itkMultiRegMethod::RunRegistration() {
-	cout << "Generating label indexes ..." << endl;
 
-	_centerOfRotation.resize(30);
-	_labelIndexes.resize(30);
-
-	int nPixels[30];
-	for (int i = 0; i < 30; i++) {
-		nPixels[i] = 0;
-		_centerOfRotation[i].SetSize(3);
-	}
-
+void itkMultiRegMethod::ComputeLabelIndexes() {
+    QVector<int> nPixels;
 	itk::ImageRegionConstIteratorWithIndex<LabelType> labelIter(
-			_fixedImageLabel, _fixedImageLabel->GetBufferedRegion());
+                                                                _fixedImageLabel, _fixedImageLabel->GetBufferedRegion());
 
 	int maxLabel = 0;
 	for (labelIter.GoToBegin(); !labelIter.IsAtEnd(); ++labelIter) {
-		maxLabel ++;
 		LabelType::PixelType label = labelIter.Get();
 		if (label > 0) {
+            if (label >= maxLabel) {
+                _centerOfRotation.resize(label + 1);
+                _labelIndexes.resize(label + 1);
+                nPixels.resize(label + 1);
+                for (int k = maxLabel; k < label + 1; k++) {
+                    _centerOfRotation[k].SetSize(ImageType::ImageDimension);
+                    _centerOfRotation[k].Fill(0);
+                    nPixels[k] = 0;
+                }
+                maxLabel = label;
+            }
 			LabelType::IndexType idx = labelIter.GetIndex();
 			_labelIndexes[label].push_back(idx);
 			for (int i = 0; i < ImageType::ImageDimension; i++) {
@@ -87,10 +89,20 @@ void itkMultiRegMethod::RunRegistration() {
 		}
 	}
 	for (int label = 0; label < maxLabel; label++) {
-		for (int i = 0; i < ImageType::ImageDimension; i++) {
-			_centerOfRotation[label][i] /= nPixels[label];
-		}
+        itk::ContinuousIndex<double,ImageType::ImageDimension> centerIndex;
+        ImageType::PointType centerPoint;
+        for (int i = 0; i < ImageType::ImageDimension; i++) {
+            centerIndex[i] = _centerOfRotation[label][i] / nPixels[label];
+        }
+        _fixedImage->TransformContinuousIndexToPhysicalPoint(centerIndex, centerPoint);
+        for (int i = 0; i < ImageType::ImageDimension; i++) {
+            _centerOfRotation[label][i] = centerPoint[i];
+        }
 	}
+}
+
+void itkMultiRegMethod::RunRegistration() {
+    ComputeLabelIndexes();
 
 	cout << "Registration starting ..." << endl;
 
@@ -153,13 +165,113 @@ void itkMultiRegMethod::RunRegistration() {
 
     ParametersType param = _metaMetrics->GetParameters();
     _transformHistory.push_back(param);
+
+    SaveParameterHistory("TransformOutput.txt");
 }
 
 LabelType::Pointer itkMultiRegMethod::TransformFixedLabel(int historyId) {
-	return itk::SmartPointer<LabelType>(NULL);
+    TransformType::Pointer transform = TransformType::New();
+    cout << "Parameters: " << _transformHistory[historyId] << endl;
+    transform->SetParameters(_transformHistory[historyId]);
+
+    ResampleFilter::Pointer resampler = ResampleFilter::New();
+    resampler->SetInput(_fixedImageLabel);
+    resampler->SetTransform(transform);
+    resampler->SetInterpolator(InterpolatorNN::New());
+    resampler->SetReferenceImage(_fixedImageLabel);
+    resampler->UseReferenceImageOn();
+    resampler->Update();
+    return resampler->GetOutput();
 }
 
 void itkMultiRegMethod::WriteTransform(const char* filename, int historyId) {
 
 }
 
+void itkMultiRegMethod::LoadParameterHistory(const char *filename) {
+    char buff[1024];
+    ifstream fin(filename);
+
+    int nCenterOfRotations = 0;
+    int nTransforms = 0;
+    fin >> nCenterOfRotations;
+    fin >> nTransforms;
+
+    // to remove tailing newline
+    fin.getline(buff, sizeof(buff));
+
+    cout << "Reading " << nCenterOfRotations << " labels with " << nTransforms << " transforms" << endl;
+
+    _centerOfRotation.clear();
+    _centerOfRotation.push_back(ParametersType());
+    for (int i = 0; i < nCenterOfRotations; i++) {
+        ParametersType p;
+        QVector<double> q;
+        fin.clear();
+        fin.getline(buff, sizeof(buff));
+        if (!fin.eof()) {
+            double x;
+            cout << buff << endl;
+            stringstream sin(buff);
+            while (sin.good()) {
+                sin >> x;
+                if (sin.good()) {
+                    q.push_back(x);
+                }
+            }
+            p.SetSize(q.size());
+            for (int i = 0; i < q.size(); i++) {
+                p[i] = q[i];
+            }
+            _centerOfRotation.push_back(p);
+        }
+    }
+
+    _transformHistory.clear();
+    for (int i = 0; i < nTransforms; i++) {
+        ParametersType p;
+        QVector<double> q;
+        fin.getline(buff, sizeof(buff));
+        if (fin.good()) {
+            double x;
+            stringstream sin(buff);
+            while (sin.good()) {
+                sin >> x;
+                if (sin.good()) {
+                    q.push_back(x);
+                }
+            }
+            p.SetSize(q.size());
+            for (int i = 0; i < q.size(); i++) {
+                p[i] = q[i];
+            }
+            _transformHistory.push_back(p);
+        }
+    }
+
+    cout << _centerOfRotation.size() << " center of rotations read" << endl;
+    cout << _transformHistory.size() << " transforms read" << endl;
+}
+
+void itkMultiRegMethod::SaveParameterHistory(const char *filename) {
+    ofstream of(filename);
+    of << (_centerOfRotation.size() - 1) << " " << _transformHistory.size() << endl;
+    for (int i = 1; i < _centerOfRotation.size(); i++) {
+        for (int j = 0; j < _centerOfRotation[i].GetSize(); j++) {
+            of << _centerOfRotation[i][j] << " ";
+        }
+        of << endl;
+    }
+
+    for (int i = 0; i < _transformHistory.size(); i++) {
+        for (int j = 0; j < _transformHistory[i].GetSize(); j++) {
+            of << _transformHistory[i][j] << " ";
+        }
+        of << endl;
+    }
+    of.close();
+}
+
+int itkMultiRegMethod::GetNumberOfTransforms() {
+    return _transformHistory.size();
+}
