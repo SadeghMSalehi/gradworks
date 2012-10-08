@@ -76,6 +76,10 @@ public slots:
         ui.currentRegistrationStep->setValue(numberOfIterations);
         ui.currentRegistrationStep->setMaximum(numberOfIterations);
         on_currentRegistrationStep_valueChanged(numberOfIterations);
+        if (ui.applyTransformCheck->isChecked()) {
+            _core.ApplyTransform(ui.currentRegistrationStep->value());
+            drawImage();
+        }
     }
 
     void on_applyTransformCheck_stateChanged(int check);

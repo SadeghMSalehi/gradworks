@@ -30,8 +30,8 @@
 /**
  * Initialize new instance
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::itkMyTransformFilter() {
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::itkMyTransformFilter() {
 	m_OutputOrigin.Fill(0.0);
 	m_OutputSpacing.Fill(1.0);
 	m_OutputDirection.SetIdentity();
@@ -41,16 +41,12 @@ itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::itk
 	m_Size.Fill(0);
 	m_OutputStartIndex.Fill(0);
 
-	m_Transform =
-			IdentityTransform<TInterpolatorPrecisionType, ImageDimension>::New();
-
 	m_Interpolator =
 			dynamic_cast<InterpolatorType *>(LinearInterpolatorType::New().GetPointer());
 
 	m_Extrapolator = NULL;
-
-	m_DefaultPixelValue = NumericTraits < PixelType
-			> ::ZeroValue(m_DefaultPixelValue);
+	m_DefaultPixelValue = NumericTraits < PixelType > ::ZeroValue(m_DefaultPixelValue);
+    m_Transforms.clear();
 }
 
 /**
@@ -58,8 +54,8 @@ itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::itk
  *
  * \todo Add details about this class
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::PrintSelf(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::PrintSelf(
 		std::ostream & os, Indent indent) const {
 	Superclass::PrintSelf(os, indent);
 
@@ -71,7 +67,7 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 	os << indent << "OutputSpacing: " << m_OutputSpacing << std::endl;
 	os << indent << "OutputOrigin: " << m_OutputOrigin << std::endl;
 	os << indent << "OutputDirection: " << m_OutputDirection << std::endl;
-	os << indent << "Transform: " << m_Transform.GetPointer() << std::endl;
+	// os << indent << "Transform: " << m_Transform.GetPointer() << std::endl;
 	os << indent << "Interpolator: " << m_Interpolator.GetPointer()
 			<< std::endl;
 	os << indent << "Extrapolator: " << m_Extrapolator.GetPointer()
@@ -84,8 +80,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 /**
  * Set the output image spacing.
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::SetOutputSpacing(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::SetOutputSpacing(
 		const double *spacing) {
 	SpacingType s(spacing);
 
@@ -95,8 +91,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 /**
  * Set the output image origin.
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::SetOutputOrigin(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::SetOutputOrigin(
 		const double *origin) {
 	OriginPointType p(origin);
 
@@ -104,8 +100,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 }
 
 /** Helper method to set the output parameters based on this image */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::SetOutputParametersFromImage(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::SetOutputParametersFromImage(
 		const ImageBaseType *image) {
 	this->SetOutputOrigin(image->GetOrigin());
 	this->SetOutputSpacing(image->GetSpacing());
@@ -119,11 +115,17 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
  * InterpolatorType::SetInputImage is not thread-safe and hence
  * has to be set up before ThreadedGenerateData
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::BeforeThreadedGenerateData() {
-	if (!m_Transform) {
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::BeforeThreadedGenerateData() {
+	if (m_Transforms.size() == 0) {
 		itkExceptionMacro(<< "Transform not set");
-	}
+	} else {
+        for (int i = 0; i < m_NumberOfTransforms; i++) {
+            if (m_Transforms[i].IsNull()) {
+                itkExceptionMacro(<< "Transform[" << i << "] is not set!");
+            }
+        }
+    }
 
 	if (!m_Interpolator) {
 		itkExceptionMacro(<< "Interpolator not set");
@@ -156,8 +158,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 /**
  * Set up state of filter after multi-threading.
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::AfterThreadedGenerateData() {
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::AfterThreadedGenerateData() {
 	// Disconnect input image from the interpolator
 	m_Interpolator->SetInputImage(NULL);
 	if (!m_Extrapolator.IsNull()) {
@@ -169,8 +171,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 /**
  * ThreadedGenerateData
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::ThreadedGenerateData(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::ThreadedGenerateData(
 		const OutputImageRegionType & outputRegionForThread,
 		ThreadIdType threadId) {
 	// Check whether the input or the output is a
@@ -188,7 +190,14 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 	// Check whether we can use a fast path for resampling. Fast path
 	// can be used if the transformation is linear. Transform respond
 	// to the IsLinear() call.
-	if (this->m_Transform->GetTransformCategory() == TransformType::Linear) {
+    bool allLinearTransforms = true;
+    for (int i = 0; i < m_NumberOfTransforms; i++) {
+        if (m_Transforms[i]->GetTransformCategory() != TransformType::Linear) {
+            allLinearTransforms = false;
+            break;
+        }
+    }
+	if (allLinearTransforms) {
 		this->LinearThreadedGenerateData(outputRegionForThread, threadId);
 		return;
 	}
@@ -201,10 +210,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 /**
  * Cast from interpolotor output to pixel type
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-typename itkMyTransformFilter<TInputImage, TOutputImage,
-		TInterpolatorPrecisionType>::PixelType itkMyTransformFilter<TInputImage,
-		TOutputImage, TInterpolatorPrecisionType>::CastPixelWithBoundsChecking(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+typename itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::PixelType itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::CastPixelWithBoundsChecking(
 		const InterpolatorOutputType value, const ComponentType minComponent,
 		const ComponentType maxComponent) const {
 	const unsigned int nComponents =
@@ -234,8 +241,8 @@ typename itkMyTransformFilter<TInputImage, TOutputImage,
 /**
  * NonlinearThreadedGenerateData
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::NonlinearThreadedGenerateData(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::NonlinearThreadedGenerateData(
 		const OutputImageRegionType & outputRegionForThread,
 		ThreadIdType threadId) {
 	// Get the output pointers
@@ -278,7 +285,7 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 		outputPtr->TransformIndexToPhysicalPoint(outIt.GetIndex(), outputPoint);
 
 		// Compute corresponding input pixel position
-		inputPoint = this->m_Transform->TransformPoint(outputPoint);
+		// XX inputPoint = this->m_Transform->TransformPoint(outputPoint);
 		inputPtr->TransformPhysicalPointToContinuousIndex(inputPoint,
 				inputIndex);
 
@@ -311,8 +318,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 /**
  * LinearThreadedGenerateData
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::LinearThreadedGenerateData(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::LinearThreadedGenerateData(
 		const OutputImageRegionType & outputRegionForThread,
 		ThreadIdType threadId) {
 	// Get the output pointers
@@ -329,17 +336,22 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 
 	// Define a few indices that will be used to translate from an input pixel
 	// to an output pixel
-	PointType outputPoint;         // Coordinates of current output pixel
-	PointType inputPoint;          // Coordinates of current input pixel
+    PointType outputPoint;         // Coordinates of current output pixel
 	PointType tmpOutputPoint;
-	PointType tmpInputPoint;
-
-	ContinuousInputIndexType inputIndex;
-	ContinuousInputIndexType tmpInputIndex;
+	std::vector<PointType> inputPoints;          // Coordinates of current input pixel
+	std::vector<PointType> tmpInputPoints;
+    std::vector<ContinuousInputIndexType> inputIndex;
+    std::vector<ContinuousInputIndexType> tmpInputIndex;
+    
+    inputPoints.resize(m_NumberOfTransforms);
+    tmpInputPoints.resize(m_NumberOfTransforms);
+    inputIndex.resize(m_NumberOfTransforms);
+    tmpInputIndex.resize(m_NumberOfTransforms);
 
 	typedef typename PointType::VectorType VectorType;
-	VectorType delta;        // delta in input continuous index coordinate frame
-
+    std::vector<VectorType> delta;        // delta in input continuous index coordinate frame
+    delta.resize(m_NumberOfTransforms);
+    
 	IndexType index;
 
 	// Support for progress methods/callbacks
@@ -353,10 +365,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 
 	// Min/max values of the output pixel type AND these values
 	// represented as the output type of the interpolator
-	const PixelComponentType minValue = NumericTraits < PixelComponentType
-			> ::NonpositiveMin();
-	const PixelComponentType maxValue = NumericTraits < PixelComponentType
-			> ::max();
+	const PixelComponentType minValue = NumericTraits < PixelComponentType > ::NonpositiveMin();
+	const PixelComponentType maxValue = NumericTraits < PixelComponentType > ::max();
 
 	typedef typename InterpolatorType::OutputType OutputType;
 	const ComponentType minOutputValue = static_cast<ComponentType>(minValue);
@@ -367,8 +377,11 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 	outputPtr->TransformIndexToPhysicalPoint(index, outputPoint);
 
 	// Compute corresponding input pixel position
-	inputPoint = this->m_Transform->TransformPoint(outputPoint);
-	inputPtr->TransformPhysicalPointToContinuousIndex(inputPoint, inputIndex);
+    for (int i = 0; i < m_NumberOfTransforms; i++) {
+        inputPoints[i] = this->m_Transforms[i]->TransformPoint(outputPoint);
+        inputPtr->TransformPhysicalPointToContinuousIndex(inputPoints[i], inputIndex[i]);
+    }
+
 
 	// As we walk across a scan line in the output image, we trace
 	// an oriented/scaled/translated line in the input image.  Cache
@@ -388,10 +401,11 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 	//
 	++index[0];
 	outputPtr->TransformIndexToPhysicalPoint(index, tmpOutputPoint);
-	tmpInputPoint = this->m_Transform->TransformPoint(tmpOutputPoint);
-	inputPtr->TransformPhysicalPointToContinuousIndex(tmpInputPoint,
-			tmpInputIndex);
-	delta = tmpInputIndex - inputIndex;
+    for (int i = 0; i < m_NumberOfTransforms; i++) {
+        tmpInputPoints[i] = this->m_Transforms[i]->TransformPoint(tmpOutputPoint);
+        inputPtr->TransformPhysicalPointToContinuousIndex(tmpInputPoints[i], tmpInputIndex[i]);
+        delta[i] = tmpInputIndex[i] - inputIndex[i];
+    }
 
 	while (!outIt.IsAtEnd()) {
 		// Determine the continuous index of the first pixel of output
@@ -404,9 +418,10 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 
 		// Compute corresponding input pixel continuous index, this index
 		// will incremented in the scanline loop
-		inputPoint = this->m_Transform->TransformPoint(outputPoint);
-		inputPtr->TransformPhysicalPointToContinuousIndex(inputPoint,
-				inputIndex);
+        for (int i = 0; i < m_NumberOfTransforms; i++) {
+            inputPoints[i] = this->m_Transforms[i]->TransformPoint(outputPoint);
+            inputPtr->TransformPhysicalPointToContinuousIndex(inputPoints[i], inputIndex[i]);
+        }
 
 		const bool useInputMask = m_InputImageMask.IsNotNull();
 		NNInterpolatorPointer inputMaskInterpolator = NNInterpolatorType::New();
@@ -419,38 +434,34 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 			bool insideBuffer = false;
 			bool insideMask = false;
 
-			if (useInputMask) {
-				insideBuffer = inputMaskInterpolator->IsInsideBuffer(
-						inputIndex);
-				typename LableImageType::PixelType inputMaskLabel =
-						inputMaskInterpolator->EvaluateAtContinuousIndex(
-								inputIndex);
-				insideMask = inputMaskLabel == m_InputMaskPixel;
-			} else {
-				insideBuffer = m_Interpolator->IsInsideBuffer(inputIndex);
-				insideMask = true;
-			}
+            bool noROI = true;
+            outIt.Set(defaultValue);
+            for (int i = 0; i < m_NumberOfTransforms; i++) {
+                if (useInputMask) {
+                    insideBuffer = inputMaskInterpolator->IsInsideBuffer(inputIndex[i]);
+                    if (insideBuffer) {
+                        LabelPixelType inputMaskLabel =
+                        inputMaskInterpolator->EvaluateAtContinuousIndex(inputIndex[i]);
+                        insideMask = (inputMaskLabel == m_InputImageLabel[i]);
+                    } else {
+                        insideMask = false;
+                    }
+                } else {
+                    insideBuffer = m_Interpolator->IsInsideBuffer(inputIndex[i]);
+                    insideMask = true;
+                }
 
-			if (insideBuffer && insideMask) {
-				value = m_Interpolator->EvaluateAtContinuousIndex(inputIndex);
-				pixval = this->CastPixelWithBoundsChecking(value,
-						minOutputValue, maxOutputValue);
-				outIt.Set(pixval);
-			} else {
-				if (m_Extrapolator.IsNull()) {
-					outIt.Set(defaultValue); // default background value
-				} else {
-					value = m_Extrapolator->EvaluateAtContinuousIndex(
-							inputIndex);
-					pixval = this->CastPixelWithBoundsChecking(value,
-							minOutputValue, maxOutputValue);
-					outIt.Set(pixval);
-				}
-			}
-
-			progress.CompletedPixel();
+                if (insideBuffer && insideMask) {
+                    value = m_Interpolator->EvaluateAtContinuousIndex(inputIndex[i]);
+                    pixval = this->CastPixelWithBoundsChecking(value,
+                                                               minOutputValue, maxOutputValue);
+                    outIt.Set(pixval);
+                    noROI = false;
+                }
+                inputIndex[i] += delta[i];
+            }
+            progress.CompletedPixel();
 			++outIt;
-			inputIndex += delta;
 		}
 		outIt.NextLine();
 	} //while( !outIt.IsAtEnd() )
@@ -465,8 +476,8 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
  * when we cannot assume anything about the transform being used.
  * So we do the easy thing and request the entire input image.
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::GenerateInputRequestedRegion() {
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::GenerateInputRequestedRegion() {
 // call the superclass's implementation of this method
 	Superclass::GenerateInputRequestedRegion();
 
@@ -487,10 +498,9 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
  * Set the smart pointer to the reference image that will provide
  * the grid parameters for the output image.
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-const typename itkMyTransformFilter<TInputImage, TOutputImage,
-		TInterpolatorPrecisionType>::OutputImageType *
-itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::GetReferenceImage() const {
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+const typename itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::OutputImageType *
+itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::GetReferenceImage() const {
 	Self * surrogate = const_cast<Self *>(this);
 	const OutputImageType *referenceImage =
 			static_cast<const OutputImageType *>(surrogate->ProcessObject::GetInput(
@@ -503,8 +513,8 @@ itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::Get
  * Set the smart pointer to the reference image that will provide
  * the grid parameters for the output image.
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::SetReferenceImage(
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::SetReferenceImage(
 		const TOutputImage *image) {
 	itkDebugMacro("setting input ReferenceImage to " << image);
 	if (image
@@ -513,13 +523,14 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 		this->ProcessObject::SetNthInput(1, const_cast<TOutputImage *>(image));
 		this->Modified();
 	}
+    this->UseReferenceImageOn();
 }
 
 /**
  * Inform pipeline of required output region
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>::GenerateOutputInformation() {
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+void itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::GenerateOutputInformation() {
 // call the superclass' implementation of this method
 	Superclass::GenerateOutputInformation();
 
@@ -559,16 +570,17 @@ void itkMyTransformFilter<TInputImage, TOutputImage, TInterpolatorPrecisionType>
 /**
  * Verify if any of the components has been modified.
  */
-template<class TInputImage, class TOutputImage, class TInterpolatorPrecisionType>
-unsigned long itkMyTransformFilter<TInputImage, TOutputImage,
-		TInterpolatorPrecisionType>::GetMTime(void) const {
+template<class TInputImage, class TLabelImage, class TTransform, class TInterpolatorPrecisionType>
+unsigned long itkMyTransformFilter<TInputImage, TLabelImage, TTransform, TInterpolatorPrecisionType>::GetMTime(void) const {
 	unsigned long latestTime = Object::GetMTime();
 
-	if (m_Transform) {
-		if (latestTime < m_Transform->GetMTime()) {
-			latestTime = m_Transform->GetMTime();
-		}
-	}
+    for (int i = 0; i < m_NumberOfTransforms; i++) {
+        if (m_Transforms[i].IsNotNull()) {
+            if (latestTime < m_Transforms[i]->GetMTime()) {
+                latestTime = m_Transforms[i]->GetMTime();
+            }
+        }
+    }
 
 	if (m_Interpolator) {
 		if (latestTime < m_Interpolator->GetMTime()) {

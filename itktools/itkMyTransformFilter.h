@@ -79,296 +79,301 @@
  * \endwiki
  */
 template< class TInputImage,
-          class TOutputImage,
-          class TInterpolatorPrecisionType = double >
+class TLabelImage,
+class TTransform,
+class TInterpolatorPrecisionType = double >
 class ITK_EXPORT itkMyTransformFilter:
-  public ImageToImageFilter< TInputImage, TOutputImage >
+public ImageToImageFilter< TInputImage, TInputImage >
 {
 public:
-  /** Standard class typedefs. */
-  typedef itkMyTransformFilter                             Self;
-  typedef ImageToImageFilter< TInputImage, TOutputImage > Superclass;
-  typedef SmartPointer< Self >                            Pointer;
-  typedef SmartPointer< const Self >                      ConstPointer;
+    /** Standard class typedefs. */
+    typedef TInputImage TOutputImage;
+    typedef itkMyTransformFilter                             Self;
+    typedef ImageToImageFilter< TInputImage, TOutputImage > Superclass;
+    typedef SmartPointer< Self >                            Pointer;
+    typedef SmartPointer< const Self >                      ConstPointer;
 
-  typedef itk::Image<unsigned int, 3> LabelImageType;
-  typedef typename LabelImageType::Pointer LabelImagePointer;
+    typedef typename TLabelImage::Pointer LabelImagePointer;
+    typedef typename TLabelImage::PixelType LabelPixelType;
+    typedef std::vector<LabelPixelType> LabelPixelContainer;
 
-  typedef TInputImage                           InputImageType;
-  typedef TOutputImage                          OutputImageType;
-  typedef typename InputImageType::Pointer      InputImagePointer;
-  typedef typename InputImageType::ConstPointer InputImageConstPointer;
-  typedef typename OutputImageType::Pointer     OutputImagePointer;
-  typedef typename InputImageType::RegionType   InputImageRegionType;
+    typedef TInputImage                           InputImageType;
+    typedef TOutputImage                          OutputImageType;
+    typedef typename InputImageType::Pointer      InputImagePointer;
+    typedef typename InputImageType::ConstPointer InputImageConstPointer;
+    typedef typename OutputImageType::Pointer     OutputImagePointer;
+    typedef typename InputImageType::RegionType   InputImageRegionType;
 
-  /** Method for creation through the object factory. */
-  itkNewMacro(Self);
+    typedef TTransform TransformType;
+    typedef typename TTransform::Pointer TransformPointerType;
+    typedef std::vector<TransformPointerType> TransformContainer;
 
-  /** Run-time type information (and related methods). */
-  itkTypeMacro(itkMyTransformFilter, ImageToImageFilter);
+    /** Method for creation through the object factory. */
+    itkNewMacro(Self);
 
-  /** Number of dimensions. */
-  itkStaticConstMacro(ImageDimension, unsigned int,
-                      TOutputImage::ImageDimension);
-  itkStaticConstMacro(InputImageDimension, unsigned int,
-                      TInputImage::ImageDimension);
+    /** Run-time type information (and related methods). */
+    itkTypeMacro(itkMyTransformFilter, ImageToImageFilter);
 
-  /** base type for images of the current ImageDimension */
-  typedef ImageBase< itkGetStaticConstMacro(ImageDimension) > ImageBaseType;
+    /** Number of dimensions. */
+    itkStaticConstMacro(ImageDimension, unsigned int,
+                        TOutputImage::ImageDimension);
+    itkStaticConstMacro(InputImageDimension, unsigned int,
+                        TInputImage::ImageDimension);
 
-  /**
-   *  Transform typedef.
-   */
-  typedef Transform< TInterpolatorPrecisionType,
-                     itkGetStaticConstMacro(ImageDimension),
-                     itkGetStaticConstMacro(ImageDimension) >       TransformType;
-  typedef typename TransformType::ConstPointer TransformPointerType;
-
-  /** Interpolator typedef. */
-  typedef InterpolateImageFunction< InputImageType,
-                                    TInterpolatorPrecisionType >     InterpolatorType;
-  typedef typename InterpolatorType::Pointer InterpolatorPointerType;
-
-  typedef itk::NearestNeighborInterpolateImageFunction<LabelImageType> NNInterpolatorType;
-  typedef typename NNInterpolatorType::Pointer NNInterpolatorPointer;
-
-  typedef typename InterpolatorType::OutputType InterpolatorOutputType;
-
-  typedef DefaultConvertPixelTraits< InterpolatorOutputType >        InterpolatorConvertType;
-
-  typedef typename InterpolatorConvertType::ComponentType            ComponentType;
-
-  typedef LinearInterpolateImageFunction< InputImageType,
-                                          TInterpolatorPrecisionType >   LinearInterpolatorType;
-  typedef typename LinearInterpolatorType::Pointer
-  LinearInterpolatorPointerType;
-
-  /** Extrapolator typedef. */
-  typedef ExtrapolateImageFunction< InputImageType,
-                                    TInterpolatorPrecisionType >     ExtrapolatorType;
-  typedef typename ExtrapolatorType::Pointer ExtrapolatorPointerType;
-
-  /** Image size typedef. */
-  typedef Size< itkGetStaticConstMacro(ImageDimension) > SizeType;
-
-  /** Image index typedef. */
-  typedef typename TOutputImage::IndexType IndexType;
-
-  /** Image point typedef. */
-  typedef typename InterpolatorType::PointType PointType;
-  //typedef typename TOutputImage::PointType            PointType;
-
-  /** Image pixel value typedef. */
-  typedef typename TOutputImage::PixelType PixelType;
-  typedef typename TInputImage::PixelType  InputPixelType;
-
-  typedef DefaultConvertPixelTraits<PixelType> PixelConvertType;
-
-  typedef typename PixelConvertType::ComponentType PixelComponentType;
-
-  /** Input pixel continuous index typdef */
-  typedef ContinuousIndex< TInterpolatorPrecisionType, ImageDimension >
-                                           ContinuousInputIndexType;
-
-  /** Typedef to describe the output image region type. */
-  typedef typename TOutputImage::RegionType OutputImageRegionType;
-
-  /** Image spacing,origin and direction typedef */
-  typedef typename TOutputImage::SpacingType   SpacingType;
-  typedef typename TOutputImage::PointType     OriginPointType;
-  typedef typename TOutputImage::DirectionType DirectionType;
-
-  /** Set the coordinate transformation.
-   * Set the coordinate transform to use for resampling.  Note that this must
-   * be in physical coordinates and it is the output-to-input transform, NOT
-   * the input-to-output transform that you might naively expect.  By default
-   * the filter uses an Identity transform. You must provide a different
-   * transform here, before attempting to run the filter, if you do not want to
-   * use the default Identity transform. */
-  itkSetConstObjectMacro(Transform, TransformType);
-
-  /** Get a pointer to the coordinate transform. */
-  itkGetConstObjectMacro(Transform, TransformType);
-
-  /** Set the interpolator function.  The default is
-   * LinearInterpolateImageFunction<InputImageType,
-   * TInterpolatorPrecisionType>. Some
-   * other options are NearestNeighborInterpolateImageFunction
-   * (useful for binary masks and other images with a small number of
-   * possible pixel values), and BSplineInterpolateImageFunction
-   * (which provides a higher order of interpolation).  */
-  itkSetObjectMacro(Interpolator, InterpolatorType);
-
-  /** Get a pointer to the interpolator function. */
-  itkGetConstObjectMacro(Interpolator, InterpolatorType);
-
-  /** Set the extrapolator function.  The default behavior when sampling outside
-   * of the input image is to use the DefaultPixelValue.  Some other options
-   * include NearestNeighborExtrapolateImageFunction. */
-  itkSetObjectMacro(Extrapolator, ExtrapolatorType);
-
-  /** Get a pointer to the extrapolator function. */
-  itkGetConstObjectMacro(Extrapolator, ExtrapolatorType);
-
-  /** Set the size of the output image. */
-  itkSetMacro(Size, SizeType);
-
-  /** Get the size of the output image. */
-  itkGetConstReferenceMacro(Size, SizeType);
-
-  /** Set the pixel value when a transformed pixel is outside of the
-   * image.  The default default pixel value is 0. */
-  itkSetMacro(DefaultPixelValue, PixelType);
-
-  /** Get the pixel value when a transformed pixel is outside of the image */
-  itkGetConstReferenceMacro(DefaultPixelValue, PixelType);
-
-  /** Set the output image spacing. */
-  itkSetMacro(OutputSpacing, SpacingType);
-  virtual void SetOutputSpacing(const double *values);
-
-  /** Get the output image spacing. */
-  itkGetConstReferenceMacro(OutputSpacing, SpacingType);
-
-  /** Set the output image origin. */
-  itkSetMacro(OutputOrigin, OriginPointType);
-  virtual void SetOutputOrigin(const double *values);
-
-  /** Get the output image origin. */
-  itkGetConstReferenceMacro(OutputOrigin, OriginPointType);
-
-  /** Set the output direciton cosine matrix. */
-  itkSetMacro(OutputDirection, DirectionType);
-  itkGetConstReferenceMacro(OutputDirection, DirectionType);
-
-  /** Helper method to set the output parameters based on this image */
-  void SetOutputParametersFromImage(const ImageBaseType *image);
-
-  /** Set the start index of the output largest possible region.
-   * The default is an index of all zeros. */
-  itkSetMacro(OutputStartIndex, IndexType);
-
-  /** Get the start index of the output largest possible region. */
-  itkGetConstReferenceMacro(OutputStartIndex, IndexType);
-
-  /** Copy the output information from another Image.  By default,
-   *  the information is specified with the SetOutputSpacing, Origin,
-   *  and Direction methods. UseReferenceImage must be On and a
-   *  Reference image must be present to override the defaul behavior.
-   */
-  void SetReferenceImage(const TOutputImage *image);
-
-  const TOutputImage * GetReferenceImage() const;
-
-  itkSetMacro(UseReferenceImage, bool);
-  itkBooleanMacro(UseReferenceImage);
-  itkGetConstMacro(UseReferenceImage, bool);
-
-  /** itkMyTransformFilter produces an image which is a different size
-   * than its input.  As such, it needs to provide an implementation
-   * for GenerateOutputInformation() in order to inform the pipeline
-   * execution model.  The original documentation of this method is
-   * below. \sa ProcessObject::GenerateOutputInformaton() */
-  virtual void GenerateOutputInformation();
-
-  /** itkMyTransformFilter needs a different input requested region than
-   * the output requested region.  As such, itkMyTransformFilter needs
-   * to provide an implementation for GenerateInputRequestedRegion()
-   * in order to inform the pipeline execution model.
-   * \sa ProcessObject::GenerateInputRequestedRegion() */
-  virtual void GenerateInputRequestedRegion();
-
-  /** This method is used to set the state of the filter before
-   * multi-threading. */
-  virtual void BeforeThreadedGenerateData();
-
-  /** This method is used to set the state of the filter after
-   * multi-threading. */
-  virtual void AfterThreadedGenerateData();
-
-  /** Method Compute the Modified Time based on changed to the components. */
-  unsigned long GetMTime(void) const;
+    /** base type for images of the current ImageDimension */
+    typedef ImageBase< itkGetStaticConstMacro(ImageDimension) > ImageBaseType;
 
 
-  /** Fixed image resides at the space of output */
-  void SetInputImageMask(LabelImagePointer fixedImage) {
-	  m_InputImageMask = fixedImage;
-  }
+    /** Interpolator typedef. */
+    typedef InterpolateImageFunction< InputImageType, TInterpolatorPrecisionType >     InterpolatorType;
+    typedef typename InterpolatorType::Pointer InterpolatorPointerType;
 
-  void SetOutputImageMask(LabelImagePointer movingImage) {
-	  m_OutputImageMask = movingImage;
-  }
+    typedef itk::NearestNeighborInterpolateImageFunction<TLabelImage> NNInterpolatorType;
+    typedef typename NNInterpolatorType::Pointer NNInterpolatorPointer;
+
+    typedef typename InterpolatorType::OutputType InterpolatorOutputType;
+
+    typedef DefaultConvertPixelTraits< InterpolatorOutputType >        InterpolatorConvertType;
+
+    typedef typename InterpolatorConvertType::ComponentType            ComponentType;
+
+    typedef LinearInterpolateImageFunction< InputImageType,
+    TInterpolatorPrecisionType >   LinearInterpolatorType;
+    typedef typename LinearInterpolatorType::Pointer
+    LinearInterpolatorPointerType;
+
+    /** Extrapolator typedef. */
+    typedef ExtrapolateImageFunction< InputImageType,
+    TInterpolatorPrecisionType >     ExtrapolatorType;
+    typedef typename ExtrapolatorType::Pointer ExtrapolatorPointerType;
+
+    /** Image size typedef. */
+    typedef Size< itkGetStaticConstMacro(ImageDimension) > SizeType;
+
+    /** Image index typedef. */
+    typedef typename TOutputImage::IndexType IndexType;
+
+    /** Image point typedef. */
+    typedef typename InterpolatorType::PointType PointType;
+    //typedef typename TOutputImage::PointType            PointType;
+
+    /** Image pixel value typedef. */
+    typedef typename TOutputImage::PixelType PixelType;
+    typedef typename TInputImage::PixelType  InputPixelType;
+
+    typedef DefaultConvertPixelTraits<PixelType> PixelConvertType;
+
+    typedef typename PixelConvertType::ComponentType PixelComponentType;
+
+    /** Input pixel continuous index typdef */
+    typedef ContinuousIndex< TInterpolatorPrecisionType, ImageDimension >
+    ContinuousInputIndexType;
+
+    /** Typedef to describe the output image region type. */
+    typedef typename TOutputImage::RegionType OutputImageRegionType;
+
+    /** Image spacing,origin and direction typedef */
+    typedef typename TOutputImage::SpacingType   SpacingType;
+    typedef typename TOutputImage::PointType     OriginPointType;
+    typedef typename TOutputImage::DirectionType DirectionType;
+
+   /** Set the interpolator function.  The default is
+     * LinearInterpolateImageFunction<InputImageType,
+     * TInterpolatorPrecisionType>. Some
+     * other options are NearestNeighborInterpolateImageFunction
+     * (useful for binary masks and other images with a small number of
+     * possible pixel values), and BSplineInterpolateImageFunction
+     * (which provides a higher order of interpolation).  */
+    itkSetObjectMacro(Interpolator, InterpolatorType);
+
+    /** Get a pointer to the interpolator function. */
+    itkGetConstObjectMacro(Interpolator, InterpolatorType);
+
+    /** Set the extrapolator function.  The default behavior when sampling outside
+     * of the input image is to use the DefaultPixelValue.  Some other options
+     * include NearestNeighborExtrapolateImageFunction. */
+    itkSetObjectMacro(Extrapolator, ExtrapolatorType);
+
+    /** Get a pointer to the extrapolator function. */
+    itkGetConstObjectMacro(Extrapolator, ExtrapolatorType);
+
+    /** Set the size of the output image. */
+    itkSetMacro(Size, SizeType);
+
+    /** Get the size of the output image. */
+    itkGetConstReferenceMacro(Size, SizeType);
+
+    /** Set the pixel value when a transformed pixel is outside of the
+     * image.  The default default pixel value is 0. */
+    itkSetMacro(DefaultPixelValue, PixelType);
+
+    /** Get the pixel value when a transformed pixel is outside of the image */
+    itkGetConstReferenceMacro(DefaultPixelValue, PixelType);
+
+    /** Set the output image spacing. */
+    itkSetMacro(OutputSpacing, SpacingType);
+    virtual void SetOutputSpacing(const double *values);
+
+    /** Get the output image spacing. */
+    itkGetConstReferenceMacro(OutputSpacing, SpacingType);
+
+    /** Set the output image origin. */
+    itkSetMacro(OutputOrigin, OriginPointType);
+    virtual void SetOutputOrigin(const double *values);
+
+    /** Get the output image origin. */
+    itkGetConstReferenceMacro(OutputOrigin, OriginPointType);
+
+    /** Set the output direciton cosine matrix. */
+    itkSetMacro(OutputDirection, DirectionType);
+    itkGetConstReferenceMacro(OutputDirection, DirectionType);
+
+    /** Helper method to set the output parameters based on this image */
+    void SetOutputParametersFromImage(const ImageBaseType *image);
+
+    /** Set the start index of the output largest possible region.
+     * The default is an index of all zeros. */
+    itkSetMacro(OutputStartIndex, IndexType);
+
+    /** Get the start index of the output largest possible region. */
+    itkGetConstReferenceMacro(OutputStartIndex, IndexType);
+
+    /** Copy the output information from another Image.  By default,
+     *  the information is specified with the SetOutputSpacing, Origin,
+     *  and Direction methods. UseReferenceImage must be On and a
+     *  Reference image must be present to override the defaul behavior.
+     */
+    void SetReferenceImage(const TOutputImage *image);
+
+    const TOutputImage * GetReferenceImage() const;
+
+    itkSetMacro(UseReferenceImage, bool);
+    itkBooleanMacro(UseReferenceImage);
+    itkGetConstMacro(UseReferenceImage, bool);
+
+    /** itkMyTransformFilter produces an image which is a different size
+     * than its input.  As such, it needs to provide an implementation
+     * for GenerateOutputInformation() in order to inform the pipeline
+     * execution model.  The original documentation of this method is
+     * below. \sa ProcessObject::GenerateOutputInformaton() */
+    virtual void GenerateOutputInformation();
+
+    /** itkMyTransformFilter needs a different input requested region than
+     * the output requested region.  As such, itkMyTransformFilter needs
+     * to provide an implementation for GenerateInputRequestedRegion()
+     * in order to inform the pipeline execution model.
+     * \sa ProcessObject::GenerateInputRequestedRegion() */
+    virtual void GenerateInputRequestedRegion();
+
+    /** This method is used to set the state of the filter before
+     * multi-threading. */
+    virtual void BeforeThreadedGenerateData();
+
+    /** This method is used to set the state of the filter after
+     * multi-threading. */
+    virtual void AfterThreadedGenerateData();
+
+    /** Method Compute the Modified Time based on changed to the components. */
+    unsigned long GetMTime(void) const;
+
+
+    /** Fixed image resides at the space of output */
+    void SetInputMask(LabelImagePointer fixedImage) {
+        m_InputImageMask = fixedImage;
+    }
+
+    void SetOutputMask(LabelImagePointer movingImage) {
+        m_OutputImageMask = movingImage;
+    }
+
+    void SetInputMaskLabel(std::vector<LabelPixelType> fixedLabel) {
+        m_InputImageLabel = fixedLabel;
+    }
+
+    void SetOutputMaskLabel(LabelPixelType movingLabel) {
+        m_OutputImageLabel = movingLabel;
+    }
+
+    void AddTransform(TransformPointerType transform, int label) {
+        m_Transforms.push_back(transform);
+        m_InputImageLabel.push_back(label);
+        m_NumberOfTransforms = m_Transforms.size();
+    }
 
 #ifdef ITK_USE_CONCEPT_CHECKING
-  /** Begin concept checking */
-  itkConceptMacro( OutputHasNumericTraitsCheck,
-                   ( Concept::HasNumericTraits< PixelComponentType > ) );
-  /** End concept checking */
+    /** Begin concept checking */
+    itkConceptMacro( OutputHasNumericTraitsCheck,
+                    ( Concept::HasNumericTraits< PixelComponentType > ) );
+    /** End concept checking */
 #endif
 protected:
-  itkMyTransformFilter();
-  ~itkMyTransformFilter() {}
-  void PrintSelf(std::ostream & os, Indent indent) const;
+    itkMyTransformFilter();
+    ~itkMyTransformFilter() {}
+    void PrintSelf(std::ostream & os, Indent indent) const;
 
 
-  /** Override VeriyInputInformation() since this filter's inputs do
-   * not need to occoupy the same physical space.
-   *
-   * \sa ProcessObject::VerifyInputInformation
-   */
-  virtual void VerifyInputInformation() {}
+    /** Override VeriyInputInformation() since this filter's inputs do
+     * not need to occoupy the same physical space.
+     *
+     * \sa ProcessObject::VerifyInputInformation
+     */
+    virtual void VerifyInputInformation() {}
 
-  /** itkMyTransformFilter can be implemented as a multithreaded filter.
-   * Therefore, this implementation provides a ThreadedGenerateData()
-   * routine which is called for each processing thread. The output
-   * image data is allocated automatically by the superclass prior
-   * to calling ThreadedGenerateData().
-   * ThreadedGenerateData can only write to the portion of the output image
-   * specified by the parameter "outputRegionForThread"
-   * \sa ImageToImageFilter::ThreadedGenerateData(),
-   *     ImageToImageFilter::GenerateData() */
-  virtual void ThreadedGenerateData(const OutputImageRegionType & outputRegionForThread,
-                            ThreadIdType threadId);
+    /** itkMyTransformFilter can be implemented as a multithreaded filter.
+     * Therefore, this implementation provides a ThreadedGenerateData()
+     * routine which is called for each processing thread. The output
+     * image data is allocated automatically by the superclass prior
+     * to calling ThreadedGenerateData().
+     * ThreadedGenerateData can only write to the portion of the output image
+     * specified by the parameter "outputRegionForThread"
+     * \sa ImageToImageFilter::ThreadedGenerateData(),
+     *     ImageToImageFilter::GenerateData() */
+    virtual void ThreadedGenerateData(const OutputImageRegionType & outputRegionForThread,
+                                      ThreadIdType threadId);
 
-  /** Default implementation for resampling that works for any
-   * transformation type. */
-  virtual void NonlinearThreadedGenerateData(const OutputImageRegionType &
-                                     outputRegionForThread,
-                                     ThreadIdType threadId);
+    /** Default implementation for resampling that works for any
+     * transformation type. */
+    virtual void NonlinearThreadedGenerateData(const OutputImageRegionType &
+                                               outputRegionForThread,
+                                               ThreadIdType threadId);
 
-  /** Implementation for resampling that works for with linear
-   *  transformation types.
-   */
-  virtual void LinearThreadedGenerateData(const OutputImageRegionType &
-                                  outputRegionForThread,
-                                  ThreadIdType threadId);
+    /** Implementation for resampling that works for with linear
+     *  transformation types.
+     */
+    virtual void LinearThreadedGenerateData(const OutputImageRegionType &
+                                            outputRegionForThread,
+                                            ThreadIdType threadId);
 
-  virtual PixelType CastPixelWithBoundsChecking( const InterpolatorOutputType value,
-                                                 const ComponentType minComponent,
-                                                 const ComponentType maxComponent) const;
+    virtual PixelType CastPixelWithBoundsChecking( const InterpolatorOutputType value,
+                                                  const ComponentType minComponent,
+                                                  const ComponentType maxComponent) const;
 
 private:
-  itkMyTransformFilter(const Self &); //purposely not implemented
-  void operator=(const Self &);      //purposely not implemented
+    itkMyTransformFilter(const Self &); //purposely not implemented
+    void operator=(const Self &);      //purposely not implemented
 
-  SizeType                m_Size;      // Size of the output image
-  TransformPointerType    m_Transform;         // Transform
-  InterpolatorPointerType m_Interpolator;      // Image function for
-                                               // interpolation
-  ExtrapolatorPointerType m_Extrapolator;      // Image function for
-                                               // extrapolation
-  PixelType m_DefaultPixelValue;               // default pixel value
-                                               // if the point is
-                                               // outside the image
-  SpacingType     m_OutputSpacing;             // output image spacing
-  OriginPointType m_OutputOrigin;              // output image origin
-  DirectionType   m_OutputDirection;           // output image direction cosines
-  IndexType       m_OutputStartIndex;          // output image start index
-  bool            m_UseReferenceImage;
+    SizeType                m_Size;      // Size of the output image
+    // TransformPointerType    m_Transform;         // Transform
+    InterpolatorPointerType m_Interpolator;      // Image function for
+    // interpolation
+    ExtrapolatorPointerType m_Extrapolator;      // Image function for
+    // extrapolation
+    PixelType m_DefaultPixelValue;               // default pixel value
+    // if the point is
+    // outside the image
+    SpacingType     m_OutputSpacing;             // output image spacing
+    OriginPointType m_OutputOrigin;              // output image origin
+    DirectionType   m_OutputDirection;           // output image direction cosines
+    IndexType       m_OutputStartIndex;          // output image start index
+    bool            m_UseReferenceImage;
+    
+    LabelImagePointer m_InputImageMask;
+    LabelImagePointer m_OutputImageMask;
+    LabelPixelContainer m_InputImageLabel;
+    LabelPixelType m_OutputImageLabel;
 
-  LabelImagePointer m_InputImageMask;
-  LabelImagePointer m_OutputImageMask;
-
+    TransformContainer m_Transforms;
+    int m_NumberOfTransforms;
 };
 
 #ifndef ITK_MANUAL_INSTANTIATION

@@ -7,7 +7,9 @@
 //
 
 #include "itkMyCore.h"
+#include "itkMyTransformFilter.h"
 #include "itkMySlice.h"
+#include "itkTranslationTransform.h"
 #include "QVector"
 
 QImage itkMyCore::ConvertToQImage(ImageKindType kind, int dir) {
@@ -124,10 +126,13 @@ void itkMyCore::SetCurrentSlice(int dir, int sliceIdx) {
     if (_labelSlicer.IsNotNull()) {
         _labelSlicer->Update(dir, sliceIdx);
     }
+    if (_transformedLabelSlicer.IsNotNull()) {
+        _transformedLabelSlicer->Update(dir, sliceIdx);
+    }
 }
 
 
-void itkMyCore::ApplyTransform(int historyId) {
+std::string itkMyCore::ApplyTransform(int historyId) {
     int historyCount = _registrationAlgorithm->GetTransformHistory().size();
 	if (_registrationAlgorithm.IsNotNull()) {
         if (historyId < 0) {
@@ -137,7 +142,9 @@ void itkMyCore::ApplyTransform(int historyId) {
         }
         _transformedLabelSlicer = LabelSlicer::New();
         _transformedLabelSlicer->SetVolume(_registrationAlgorithm->TransformFixedLabel(historyId));
+        return _registrationAlgorithm->GetTransformString(historyId);
 	}
+    return "";
 }
 
 void itkMyCore::WriteLastTransform(const char* fileName) {
@@ -192,8 +199,94 @@ void itkMyCore::ExecuteCommandLine(int argc, char **argv) {
 	} else if (cmd == "slice") {
         this->LoadImage(argv[2]);
 
-    } else if (cmd == "test") {
+    } else if (cmd == "transform") {
+        this->LoadImage(argv[2]);
+        this->LoadLabel(argv[3]);
+        this->LoadTarget(argv[4]);
+
+        typedef itk::ScaleVersor3DTransform<> TransformType;
+        typedef itkMyTransformFilter<LabelType, LabelType, TransformType::InverseTransformBaseType> MyLabelTransformFilter;
+        MyLabelTransformFilter::Pointer transformFilter = MyLabelTransformFilter::New();
+
+        TransformType::Pointer transforms[4];
+        for (int i = 0; i < 4; i++) {
+            transforms[i] = TransformType::New();
+            TransformType::ParametersType p;
+            p.SetSize(9);
+            if (i == 0) {
+                p[0] = -0.655623;
+                p[1] = 0.134594;
+                p[2] = 0.155943;
+
+                p[6] = 1.03435;
+                p[7] = 0.999108;
+                p[8] = 1.01316;
+            } else {
+                p[0] = 1*sin(itk::Math::pi_over_2/4/90*i*10);
+                p[1] = 0;
+                p[2] = 0;
+                p[6] = 1; p[7] = 1; p[8] = 1;
+            }
+            p[3] = 0; p[4] = 0; p[5] = 0;
+            transforms[i]->SetParameters(p);
+            TransformType::ParametersType p2;
+            p2.SetSize(3);
+            /*
+             59.7313 38.0245 43.4499
+             59.6994 84.9286 35.6447
+             60.1192 131.251 30.9009
+             60.7017 123.506 14.9856
+             */
+            if (i == 0) {
+                p2[0] = 59.7313; p2[1] = 38.0245; p2[2] = 43.4499;
+            } else if (i == 1) {
+                p2[0] = 59.6994; p2[1] = 84.9286; p2[2] = 35.6447;
+            } else if (i == 2) {
+                p2[0] = 60.1192; p2[1] = 131.251; p2[2] = 30.9009;
+            } else if (i == 3) {
+                p2[0] = 60.7017; p2[1] = 123.506; p2[2] = 14.9856;
+            } else {
+                p2[0] = p2[1] = p2[2] = 0;
+            }
+            transforms[i]->SetFixedParameters(p2);
+            transformFilter->AddTransform(transforms[i]->GetInverseTransform(), (i+1));
+        }
+        transformFilter->SetNumberOfThreads(1);
+        transformFilter->SetInput(_labelSlicer->GetVolume());
+        transformFilter->SetReferenceImage(_labelSlicer->GetVolume());
+        transformFilter->SetInputMask(_labelSlicer->GetVolume());
+        transformFilter->UseReferenceImageOn();
+        transformFilter->SetInterpolator(MyLabelTransformFilter::NNInterpolatorType::New());
+        transformFilter->Update();
+        LabelType::Pointer output = transformFilter->GetOutput();
+        cout << output << endl;
+        
+        itkcmds::itkImageIO<LabelType> io;
+        io.WriteImageT("test.nrrd", output);
+    } else if (cmd == "xtrans") {
+        typedef itk::ScaleVersor3DTransform<> TransformType;
+        TransformType::Pointer trans = TransformType::New();
+        TransformType::ParametersType p;
+        p.SetSize(9);
+        p[0] = -0.655623;
+        p[1] = 0.134594;
+        p[2] = 0.155943;
+        p[3] = -9.82245e-06;
+        p[4] = -6.99575e-06;
+        p[5] = -6.56811e-06;
+        p[6] = 1.03435;
+        p[7] = 0.999108;
+        p[8] = 1.01316;
+        trans->SetParameters(p);
+
+        TransformType::ParametersType p2;
+        p2.SetSize(3);
+        p2[0] = 59.7313;
+        p2[1] = 38.0245;
+        p2[2] = 43.4499;
+        trans->SetFixedParameters(p2);
+        
+        cout << trans << endl;
+        cout << trans->GetInverseTransform() << endl;
     }
-
 }
-

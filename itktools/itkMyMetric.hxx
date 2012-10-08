@@ -41,6 +41,8 @@ MyMetric<TFixedImage, TMovingImage>::MyMetric() {
 	//  in the fixed image.
 	//  This should be fixed in ITKv4 so that this metric behaves as the others.
 	this->SetUseAllPixels(true);
+
+    this->UseExactMatchOff();
 }
 
 template<class TFixedImage, class TMovingImage>
@@ -84,9 +86,12 @@ inline bool MyMetric<TFixedImage, TMovingImage>::GetValueThreadProcessSample(
 		ThreadIdType threadID, SizeValueType fixedImageSample,
 		const MovingImagePointType & itkNotUsed(mappedPoint),
 		double movingImageValue) const {
-	double diff = movingImageValue
-			- this->m_FixedImageSamples[fixedImageSample].value;
-
+    double diff = 0;
+    if (m_UseExactMatch) {
+        diff = (movingImageValue == this->m_FixedImageSamples[fixedImageSample].value ? 0 : 1);
+    } else {
+        diff = movingImageValue - this->m_FixedImageSamples[fixedImageSample].value;
+    }
 	m_PerThread[threadID].m_MSE += diff * diff;
 
 	return true;
@@ -134,15 +139,18 @@ inline bool MyMetric<TFixedImage, TMovingImage>::GetValueAndDerivativeThreadProc
 		const MovingImagePointType & itkNotUsed(mappedPoint),
 		double movingImageValue,
 		const ImageDerivativesType & movingImageGradientValue) const {
-	double diff = movingImageValue
-			- this->m_FixedImageSamples[fixedImageSample].value;
+    double diff = 0;
+    if (m_UseExactMatch) {
+        diff = (movingImageValue == this->m_FixedImageSamples[fixedImageSample].value ? 0 : 1);
+    } else {
+        diff = movingImageValue - this->m_FixedImageSamples[fixedImageSample].value;
+    }
 
 	AlignedPerThreadType &threadS = m_PerThread[threadID];
 
 	threadS.m_MSE += diff * diff;
 
-	FixedImagePointType fixedImagePoint =
-			this->m_FixedImageSamples[fixedImageSample].point;
+	FixedImagePointType fixedImagePoint = this->m_FixedImageSamples[fixedImageSample].point;
 
 	// Need to use one of the threader transforms if we're
 	// not in thread 0.

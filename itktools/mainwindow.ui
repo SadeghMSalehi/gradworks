@@ -103,8 +103,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>306</width>
-         <height>485</height>
+         <width>157</width>
+         <height>227</height>
         </rect>
        </property>
        <attribute name="label">
@@ -200,8 +200,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>306</width>
-         <height>485</height>
+         <width>290</width>
+         <height>169</height>
         </rect>
        </property>
        <attribute name="label">
@@ -389,7 +389,7 @@ scales: [30,30,30,0.1,0.1,0.1,100,100,100];
          </spacer>
         </item>
         <item row="4" column="0" colspan="4">
-         <widget class="QPlainTextEdit" name="plainTextEdit"/>
+         <widget class="QPlainTextEdit" name="transformParams"/>
         </item>
         <item row="5" column="0" colspan="4">
          <spacer name="verticalSpacer_2">

@@ -19,8 +19,6 @@
 #include "itkScaleVersor3DTransform.h"
 #include "QVector"
 
-
-
 class itkMultiRegMethod: public itk::Command {
 public:
 	typedef itkMultiRegMethod Self;
@@ -52,6 +50,7 @@ private:
 	QVector<Metric::FixedImageIndexContainer> _labelIndexes;
 
 	std::string _method;
+    std::string _currentTransformParameterString;
 
 	itk::RealTimeClock::Pointer _clock;
 	int _numOfIterations;
@@ -60,8 +59,7 @@ private:
 	itk::RealTimeClock::TimeStampType _lastTime;
 
 	TransformHistoryType _transformHistory;
-	TransformHistoryType _transformHistoryFixedParameters;
-
+    
 private:
 	itkMultiRegMethod(const itkMultiRegMethod&);
 
@@ -86,6 +84,7 @@ public:
     void SaveParameterHistory(const char* filename);
     void LoadParameterHistory(const char* filename);
     int GetNumberOfTransforms();
+    std::string GetTransformString(int n);
 
 public:
 

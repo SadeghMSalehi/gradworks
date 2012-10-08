@@ -34,7 +34,6 @@ void MainWindow::moveSlice() {
 
 void MainWindow::drawImage(bool force) {
     _scene.clear();
-
     if (ui.actionShowSource->isChecked()) {
         _scene.addPixmap(QPixmap::fromImage(_core.ConvertToQImage(Source, _viewingDir)));
     }
@@ -48,42 +47,6 @@ void MainWindow::drawImage(bool force) {
             _scene.addPixmap(QPixmap::fromImage(_core.ConvertToQImage(Label, _viewingDir)));
         }
     }
-    
-//    if (_core.SourceSlice.IsNotNull()) {
-//        if (ui.actionShowSource->isChecked()) {
-//            _core.SourceSlice->UpdateSlice(_currentSlice, 0xff);
-//            int* buffer = _core.SourceSlice->GetBitmapBuffer();
-//            QImage img((unsigned char*) buffer, _core.SourceSlice->GetSize()[0], _core.SourceSlice->GetSize()[1], QImage::Format_ARGB32);
-//            _scene.addPixmap(QPixmap::fromImage(img));
-//        }
-//    }
-//
-//    if (_core.TargetSlice.IsNotNull()) {
-//        if (ui.actionShowTarget->isChecked()) {
-//            _core.TargetSlice->UpdateSlice(_currentSlice, 0xff);
-//            int* buffer = _core.TargetSlice->GetBitmapBuffer();
-//            QImage img((unsigned char*) buffer, _core.TargetSlice->GetSize()[0], _core.TargetSlice->GetSize()[1], QImage::Format_ARGB32);
-//            _scene.addPixmap(QPixmap::fromImage(img));
-//        }
-//    }
-//
-//    if (ui.actionShowLabel->isChecked() && _core.LabelSlice.IsNotNull()) {
-//        int opacity =  ui.opacityDial->sliderPosition();
-//        if (!ui.applyTransformCheck->isChecked()) {
-//            _core.LabelSlice->UpdateSlice(_currentSlice, opacity);
-//            int* buffer = _core.LabelSlice->GetBitmapBuffer();
-//            QImage img((unsigned char*) buffer, _core.LabelSlice->GetSize()[0], _core.LabelSlice->GetSize()[1], QImage::Format_ARGB32);
-//            _scene.addPixmap(QPixmap::fromImage(img));
-//        } else {
-//            if (_core.InverseLabelSlice.IsNotNull()) {
-//                _core.InverseLabelSlice->UpdateSlice(_currentSlice, opacity);
-//                int* buffer = _core.InverseLabelSlice->GetBitmapBuffer();
-//                QImage img((unsigned char*) buffer, _core.InverseLabelSlice->GetSize()[0], _core.InverseLabelSlice->GetSize()[1], QImage::Format_ARGB32);
-//                _scene.addPixmap(QPixmap::fromImage(img));
-//            }
-//        }
-//    }
-
     ui.graphicsView->update();
 }
 
@@ -99,14 +62,20 @@ void MainWindow::on_runRegistrationButton_clicked() {
 
 void MainWindow::on_applyTransformCheck_stateChanged(int check) {
     if (check == Qt::Checked) {
-        _core.ApplyTransform(ui.currentRegistrationStep->value());
+        std::string transformParams = _core.ApplyTransform(ui.currentRegistrationStep->value());
+        if (transformParams != "") {
+            ui.transformParams->clear();
+            ui.transformParams->appendPlainText(QString::fromUtf8(transformParams.c_str()));
+        }
+    } else {
+        ui.transformParams->clear();
     }
     drawImage(true);
 }
 
 void MainWindow::loadDefaults() {
-    const char* sourceFile = "/tmpfs/data/Atlas/p72_tmpl_CLE.nrrd";
-    const char* targetFile = "/tmpfs/data/Atlas/00.T2.nrrd";
+    const char* sourceFile = "/tmpfs/data/Atlas/p72_atlas_CLE_Parts.nrrd";
+    const char* targetFile = "/tmpfs/data/Atlas/00.Parts.nrrd";
     const char* labelFile = "/tmpfs/data/Atlas/p72_atlas_CLE_Parts.nrrd";
 //	const char* sourceFile =
 //			"/biomed-resimg/work/joohwi/CLE2-Manual/MultiReg/00.T2.nrrd";
@@ -116,8 +85,7 @@ void MainWindow::loadDefaults() {
 //			"/biomed-resimg/work/joohwi/CLE2-Manual/MultiReg/00.ManualParts.nrrd";
 
     _core.LoadImage(sourceFile);
-//    ui.sliceSlider->setMaximum(_core.GetMaxSliceIndex());
-//    ui.sliceSlider->setMinimum(_core.GetMinSliceIndex());
+
     changeSliceView(2);
     ui.actionOpenTarget->setEnabled(true);
     ui.actionOpenLabel->setEnabled(true);
@@ -201,10 +169,7 @@ void MainWindow::on_loadTransformButton_clicked() {
     if (fileName != NULL) {
         _core.LoadTransform(fileName.toAscii().data());
         on_transformAvailable(_core._registrationAlgorithm->GetNumberOfTransforms());
-        if (ui.applyTransformCheck->isChecked()) {
-            _core.ApplyTransform(ui.currentRegistrationStep->value());
-            drawImage();
-        }
+
     }
 }
 

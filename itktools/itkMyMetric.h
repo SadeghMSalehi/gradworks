@@ -121,6 +121,14 @@ namespace itk {
             }
         }
 
+        void UseExactMatchOn( ) {
+            m_UseExactMatch = true;
+        }
+
+        void UseExactMatchOff() {
+            m_UseExactMatch = false;
+        }
+
     protected:
 
         MyMetric();
@@ -128,7 +136,8 @@ namespace itk {
         void PrintSelf(std::ostream & os, Indent indent) const;
 
     private:
-
+        bool m_UseExactMatch;
+        
         //purposely not implemented
         MyMetric(const Self &);
         //purposely not implemented

@@ -7,6 +7,7 @@
 
 #include "itkMultiRegMethod.h"
 #include "itkContinuousIndex.h"
+#include "itkMyTransformFilter.h"
 #include "sstream"
 
 void itkMultiRegMethod::Execute(itk::Object* caller,
@@ -69,7 +70,7 @@ void itkMultiRegMethod::ComputeLabelIndexes() {
 	for (labelIter.GoToBegin(); !labelIter.IsAtEnd(); ++labelIter) {
 		LabelType::PixelType label = labelIter.Get();
 		if (label > 0) {
-            if (label >= maxLabel) {
+            if (label > maxLabel) {
                 _centerOfRotation.resize(label + 1);
                 _labelIndexes.resize(label + 1);
                 nPixels.resize(label + 1);
@@ -82,19 +83,24 @@ void itkMultiRegMethod::ComputeLabelIndexes() {
             }
 			LabelType::IndexType idx = labelIter.GetIndex();
 			_labelIndexes[label].push_back(idx);
+            //cout << _centerOfRotation[label] << endl;
 			for (int i = 0; i < ImageType::ImageDimension; i++) {
-				_centerOfRotation[label][i] += idx[i];
+				_centerOfRotation[label][i] = _centerOfRotation[label][i] + idx[i];
 			}
 			nPixels[label]++;
+            // cout << _centerOfRotation[label] << ", " << nPixels[label] << endl;
 		}
 	}
-	for (int label = 0; label < maxLabel; label++) {
+    cout << _fixedImage->GetBufferedRegion().GetSize() << endl;
+	for (int label = 1; label <= maxLabel; label++) {
         itk::ContinuousIndex<double,ImageType::ImageDimension> centerIndex;
         ImageType::PointType centerPoint;
         for (int i = 0; i < ImageType::ImageDimension; i++) {
             centerIndex[i] = _centerOfRotation[label][i] / nPixels[label];
         }
+
         _fixedImage->TransformContinuousIndexToPhysicalPoint(centerIndex, centerPoint);
+        cout << centerIndex << centerPoint << endl;
         for (int i = 0; i < ImageType::ImageDimension; i++) {
             _centerOfRotation[label][i] = centerPoint[i];
         }
@@ -112,6 +118,8 @@ void itkMultiRegMethod::RunRegistration() {
 	MetaMetricType::Pointer _metaMetrics = MetaMetricType::New();
     OptimizerType::Pointer _optimizer = OptimizerType::New();
 
+    int nSubParams = TransformType::New()->GetNumberOfParameters();
+
     QVector<ParametersType> params;
     for (unsigned int i = 0; i < _labelIndexes.size(); i++) {
         if (_labelIndexes[i].size() == 0) {
@@ -123,15 +131,15 @@ void itkMultiRegMethod::RunRegistration() {
         TransformType::Pointer transform = TransformType::New();
         metric->SetFixedImage(_fixedImage);
         metric->SetFixedImageIndexes(_labelIndexes[i]);
+        transform->SetFixedParameters(_centerOfRotation[i]);
+        cout << transform->GetMatrix() << "," << transform->GetOffset() << endl;
         metric->SetMovingImage(_movingImage);
         metric->SetInterpolator(interpolator);
         metric->SetTransform(dynamic_cast<SubMetricType::TransformType*>(transform.GetPointer()));
+        metric->UseExactMatchOn();
         metric->Initialize();
         _metaMetrics->AddMetric(metric);
-        transform->SetFixedParameters(_centerOfRotation[i]);
         params.push_back(transform->GetParameters());
-        cout << "Initial parameter: " << transform->GetParameters() << "\n";
-        cout << "Center of rotation: " << transform->GetFixedParameters() << "\n";
     }
 
     MetaMetricType::ParametersType initialParams;
@@ -144,15 +152,18 @@ void itkMultiRegMethod::RunRegistration() {
         }
     }
 
+    cout << "Initial Parameters: " << initialParams << endl;
+
+
     OptimizerType::ScalesType paramScales;
     paramScales.SetSize(_metaMetrics->GetNumberOfParameters());
-    for (int i = 0; i < paramScales.GetSize(); i += 9) {
+    for (int i = 0; i < paramScales.GetSize(); i += nSubParams) {
         paramScales[i] = 30;
         paramScales[i+1] = 30;
         paramScales[i+2] = 30;
-        paramScales[i+3] = 0.5;
-        paramScales[i+4] = 0.5;
-        paramScales[i+5] = 0.5;
+        paramScales[i+3] = .5;
+        paramScales[i+4] = .5;
+        paramScales[i+5] = .5;
         paramScales[i+6] = 160;
         paramScales[i+7] = 160;
         paramScales[i+8] = 160;
@@ -170,19 +181,46 @@ void itkMultiRegMethod::RunRegistration() {
 }
 
 LabelType::Pointer itkMultiRegMethod::TransformFixedLabel(int historyId) {
-    TransformType::Pointer transform = TransformType::New();
-    cout << "Parameters: " << _transformHistory[historyId] << endl;
-    transform->SetParameters(_transformHistory[historyId]);
+    ParametersType param = _transformHistory[historyId];
 
-    ResampleFilter::Pointer resampler = ResampleFilter::New();
-    resampler->SetInput(_fixedImageLabel);
-    resampler->SetTransform(transform);
-    resampler->SetInterpolator(InterpolatorNN::New());
-    resampler->SetReferenceImage(_fixedImageLabel);
-    resampler->UseReferenceImageOn();
-    resampler->Update();
-    return resampler->GetOutput();
+    TransformType::Pointer transform = TransformType::New();
+    int nParams = transform->GetNumberOfParameters();
+    int nTotalParams = param.GetSize();
+    int nTransforms = nTotalParams / nParams;
+
+    typedef itkMyTransformFilter<LabelType, LabelType, TransformType::InverseTransformBaseType> MyTransformType;
+    //typedef itkMyTransformFilter<LabelType, LabelType, TransformType> MyTransformType;
+    MyTransformType::Pointer multiTransform = MyTransformType::New();
+    
+    for (int i = 0; i < nTransforms; i++) {
+        TransformType::Pointer transform = TransformType::New();
+        ParametersType p;
+        p.SetSize(nParams);
+        for (int j = 0; j < nParams; j++) {
+            p[j] = param[i*nParams+j];
+        }
+        transform->SetParameters(p);
+        ParametersType c;
+        c.SetSize(3);
+        for (int j = 0; j < 3; j++) {
+            c[j] = _centerOfRotation[i+1][j];
+        }
+        transform->SetFixedParameters(c);
+        multiTransform->AddTransform(transform->GetInverseTransform(), (i+1));
+    }
+
+
+    multiTransform->SetInputMask(_fixedImageLabel);
+    multiTransform->SetInput(_fixedImageLabel);
+    multiTransform->SetReferenceImage(_fixedImageLabel);
+    multiTransform->SetInterpolator(MyTransformType::NNInterpolatorType::New());
+    multiTransform->Update();
+    LabelType::Pointer transformedOutput = multiTransform->GetOutput();
+
+    return transformedOutput;
 }
+
+
 
 void itkMultiRegMethod::WriteTransform(const char* filename, int historyId) {
 
@@ -251,6 +289,24 @@ void itkMultiRegMethod::LoadParameterHistory(const char *filename) {
 
     cout << _centerOfRotation.size() << " center of rotations read" << endl;
     cout << _transformHistory.size() << " transforms read" << endl;
+}
+
+std::string itkMultiRegMethod::GetTransformString(int n) {
+    stringstream ss;
+    ss << "Fixed Parameters: ";
+    ss << (_centerOfRotation.size() - 1) << " " << _transformHistory.size() << endl;
+    for (int i = 1; i < _centerOfRotation.size(); i++) {
+        for (int j = 0; j < _centerOfRotation[i].GetSize(); j++) {
+            ss << _centerOfRotation[i][j] << " ";
+        }
+        ss << endl;
+    }
+    ss << "Parameters: ";
+    for (int j = 0; j < _transformHistory[n].GetSize(); j++) {
+        ss << _transformHistory[n][j] << " ";
+    }
+    ss << endl;
+    return ss.str();
 }
 
 void itkMultiRegMethod::SaveParameterHistory(const char *filename) {

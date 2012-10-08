@@ -72,7 +72,7 @@ public:
 	void PrepareRegistration();
 	RegistrationMethod::TransformHistoryType RunRegistration();
 	void ApplyLastTransform();
-	void ApplyTransform(int historyId);
+    std::string ApplyTransform(int historyId);
 	void WriteLastTransform(const char* fileName);
 
     BitmapType::Pointer GetSourceBitmap(int dir);
