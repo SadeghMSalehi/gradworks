@@ -25,7 +25,7 @@ public:
     PNSMath() {
 
     }
-    void startOptimization(VectorType n0, double phi);
+    void startOptimization(VectorType n0, double phi, double tau);
 };
 
 #endif /* defined(__pnsc____pnsMath__) */

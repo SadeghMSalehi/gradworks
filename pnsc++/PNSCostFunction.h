@@ -71,10 +71,15 @@ public:
         m_ComputeInEuclideanSpace = eSpace;
     }
 
+    void SetTau(double tau) {
+    	m_Tau = tau;
+    }
+
 protected:
     PNSCostFunction() {
         m_Data = NULL;
         m_ComputeInEuclideanSpace = true;
+        m_Tau = 0;
     }
     virtual ~PNSCostFunction() {}
 
@@ -84,6 +89,7 @@ private:
 
     bool m_ComputeInEuclideanSpace;
     PNSBase::MatrixType* m_Data;
+    double m_Tau;
 };
 
 

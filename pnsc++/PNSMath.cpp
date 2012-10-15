@@ -11,11 +11,12 @@
 #include "PNSCostFunction.h"
 #include "itkFRPROptimizer.h"
 #include "itkSphereOptimizer.h"
+#include "itkRegularStepGradientDescentOptimizer.h"
 #include "itkCommand.h"
 #include "ExpLogTransform.h"
 
 
-typedef itk::FRPROptimizer OptimizerType;
+typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
 
 class OptimizerProgress: public itk::Command {
 public:
@@ -55,7 +56,7 @@ private:
 };
 
 
-void PNSMath::startOptimization(VectorType n0, double phi) {
+void PNSMath::startOptimization(VectorType n0, double phi, double tau) {
     m_Normal = n0;
     m_Phi = phi;
 
@@ -69,6 +70,8 @@ void PNSMath::startOptimization(VectorType n0, double phi) {
     PNSCostFunction::Pointer costFunc = PNSCostFunction::New();
     costFunc->SetData(&tangentPoints);
     costFunc->SetComputeInEuclideanSpace(true);
+    costFunc->SetTau(tau);
+
     OptimizerType::Pointer opti = OptimizerType::New();
     OptimizerType::ParametersType initialParams;
     initialParams.SetSize(4);
@@ -77,15 +80,17 @@ void PNSMath::startOptimization(VectorType n0, double phi) {
     initialParams[2] = n0[1];
     initialParams[3] = n0[2];
     OptimizerType::ScalesType scales;
-    scales.SetSize(4);
+    scales.SetSize(3);
     scales[0] = 1;
     scales[1] = 1;
     scales[2] = 1;
-    scales[3] = 1;
+    //scales[3] = 1;
     opti->SetCostFunction(costFunc);
     opti->SetInitialPosition(initialParams);
-    opti->SetUseUnitLengthGradient(true);
+    //opti->SetUseUnitLengthGradient(true);
     opti->SetScales(scales);
+    opti->SetNumberOfIterations(1000);
+    opti->SetMaximumStepLength(0.25);
 
     OptimizerProgress::Pointer progress = OptimizerProgress::New();
     opti->AddObserver(itk::StartEvent(), progress);

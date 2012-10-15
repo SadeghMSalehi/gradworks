@@ -101,7 +101,20 @@ MainWindow::~MainWindow() {
     
 }
 
-void MainWindow::AddPolyData(vtkPolyData* poly, float r, float g, float b, float opacity) {
+void MainWindow::RemovePolyData(std::string name) {
+	vtkProp* prop = m_PropMap[name];
+	m_Renderer->RemoveActor(prop);
+	m_PropMap.erase(name);
+}
+
+void MainWindow::RemoveAllPolyData() {
+	m_Renderer->RemoveAllViewProps();
+    m_Renderer->ResetCamera();
+    m_Interactor->Render();
+    m_PropMap.clear();
+}
+
+void MainWindow::AddPolyData(std::string name, vtkPolyData* poly, float r, float g, float b, float opacity) {
     vtkPolyDataMapperPointer mapper = vtkPolyDataMapperPointer::New();
     mapper->SetInputData(poly);
     vtkPropertyPointer props = vtkPropertyPointer::New();
@@ -111,15 +124,24 @@ void MainWindow::AddPolyData(vtkPolyData* poly, float r, float g, float b, float
     vtkActorPointer actor = vtkActorPointer::New();
     actor->SetMapper(mapper);
     actor->SetProperty(props);
-    
+
+
+    if (m_PropMap.find(name) != m_PropMap.end()) {
+    	m_Renderer->RemoveActor(m_PropMap[name]);
+    	m_PropMap.erase(name);
+    }
+
+    vtkProp* newActor = actor.GetPointer();
+    m_PropMap.insert(NamedProp(name, newActor));
+
     m_Renderer->AddActor(actor);
     m_Renderer->ResetCamera();
     m_Interactor->Render();
+
 }
 
 void MainWindow::on_resetButton_clicked() {
-    m_Renderer->Clear();
-    m_Renderer->RemoveAllViewProps();
+	RemoveAllPolyData();
 
     vtkSphereSourcePointer sphereSource = vtkSphereSourcePointer::New();
     sphereSource->SetThetaResolution(64);
@@ -132,13 +154,13 @@ void MainWindow::on_resetButton_clicked() {
     vtkActorPointer actor = vtkActorPointer::New();
     actor->SetMapper(mapper);
 
-    AddPolyData(CreateCircle(0, 0, 1, 0, 0, 0, 1.01), 0, 0, 1);
-    AddPolyData(CreateCircle(0, 1, 0, 0, 0, 0, 1.01), 0, 1, 0);
-    AddPolyData(CreateCircle(1, 0, 0, 0, 0, 0, 1.01), 1, 1, 0);
+    AddPolyData("zAxis", CreateCircle(0, 0, 1, 0, 0, 0, 1.01), 0, 0, 1);
+    AddPolyData("yAxis", CreateCircle(0, 1, 0, 0, 0, 0, 1.01), 0, 1, 0);
+    AddPolyData("xAxis", CreateCircle(1, 0, 0, 0, 0, 0, 1.01), 1, 1, 0);
     PNSBase::VectorType xPole("1 0 0"), yPole("0 1 0"), zPole("0 0 1");
-    AddPolyData(CreateSinglePoint(zPole), 0, 0, 1);
-    AddPolyData(CreateSinglePoint(yPole), 0, 1, 0);
-    AddPolyData(CreateSinglePoint(xPole), 1, 1, 0);
+    AddPolyData("zPole", CreateSinglePoint(zPole), 0, 0, 1);
+    AddPolyData("yPole", CreateSinglePoint(yPole), 0, 1, 0);
+    AddPolyData("xPole", CreateSinglePoint(xPole), 1, 1, 0);
 
     m_Renderer->AddActor(actor);
     m_Renderer->ResetCamera();
@@ -152,18 +174,18 @@ void MainWindow::on_addButton_clicked() {
     
     PNSBase::CreateSphereRandoms(100, M_PI_4, M_PI / 18.f, normal, m_Math.m_Data);
     vtkPolyDataPointer pointsSpheres = CreatePoints(m_Math.m_Data, 0.01);
-    AddPolyData(pointsSpheres, 1, 0, 0);
+    AddPolyData("Samples", pointsSpheres, 1, 0, 0);
 }
 
 void MainWindow::on_runButton_clicked() {
     PNSBase::VectorType northPole("0 0 1");
-    m_Math.startOptimization(northPole, M_PI_2);
+    m_Math.startOptimization(northPole, M_PI_2, ui.tauSpinBox->value());
     vtkPolyDataPointer newCircle = CreateCircle(m_Math.m_Normal, m_Math.m_Phi);
     cout << "R: " << m_Math.m_Phi << endl;
 
-    AddPolyData(newCircle, 0, 1, 1);
-    AddPolyData(CreateSinglePoint(m_Math.m_Normal, 0.05), 0, 1, 1);
-    AddPolyData(CreateSinglePoint(m_Math.m_CenterAtTangent, 0.05), 1, 0, 0);
+    AddPolyData("principalArc", newCircle, 0, 1, 1);
+    AddPolyData("centerPoint", CreateSinglePoint(m_Math.m_Normal, 0.05), 0, 1, 1);
+    AddPolyData("centerPointAtTangent", CreateSinglePoint(m_Math.m_CenterAtTangent, 0.05), 1, 0, 0);
 }
 
 void MainWindow::on_testButton_clicked() {
@@ -179,6 +201,6 @@ void MainWindow::on_testButton_clicked() {
 //    expLog.PrintMatrix(cout, m_Math.m_Data);
     vtkPolyDataPointer transformedSamples = CreatePoints(tangentSpace, 0.02);
     vtkPolyDataPointer sphereSamples = CreatePoints(sphereSpace, 0.05);
-    AddPolyData(transformedSamples, 1, .7, .7);
-    AddPolyData(sphereSamples, .3, .3, 1, .5);
+    AddPolyData("logTransformedSamples", transformedSamples, 1, .7, .7);
+    AddPolyData("expTransformedSamples", sphereSamples, .3, .3, 1, .5);
 }
