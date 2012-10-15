@@ -123,7 +123,7 @@ public:
         
         slicer->SetInput(m_Volume);
         slicer->SetExtractionRegion(sliceRegion);
-        slicer->SetDirectionCollapseToSubmatrix();
+        slicer->SetDirectionCollapseToGuess();
         slicer->Update();
         m_Slice[dir] = slicer->GetOutput();
 

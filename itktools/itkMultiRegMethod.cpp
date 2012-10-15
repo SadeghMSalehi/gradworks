@@ -136,7 +136,7 @@ void itkMultiRegMethod::RunRegistration() {
         metric->SetMovingImage(_movingImage);
         metric->SetInterpolator(interpolator);
         metric->SetTransform(dynamic_cast<SubMetricType::TransformType*>(transform.GetPointer()));
-        metric->UseExactMatchOn();
+        metric->UseExactMatchOff();
         metric->Initialize();
         _metaMetrics->AddMetric(metric);
         params.push_back(transform->GetParameters());

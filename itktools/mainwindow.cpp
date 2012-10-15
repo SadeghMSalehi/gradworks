@@ -74,18 +74,11 @@ void MainWindow::on_applyTransformCheck_stateChanged(int check) {
 }
 
 void MainWindow::loadDefaults() {
-    const char* sourceFile = "/tmpfs/data/Atlas/p72_atlas_CLE_Parts.nrrd";
-    const char* targetFile = "/tmpfs/data/Atlas/00.Parts.nrrd";
-    const char* labelFile = "/tmpfs/data/Atlas/p72_atlas_CLE_Parts.nrrd";
-//	const char* sourceFile =
-//			"/biomed-resimg/work/joohwi/CLE2-Manual/MultiReg/00.T2.nrrd";
-//	const char* targetFile =
-//			"/biomed-resimg/work/joohwi/CLE2-Manual/MultiReg/19.T2.nrrd";
-//	const char* labelFile =
-//			"/biomed-resimg/work/joohwi/CLE2-Manual/MultiReg/00.ManualParts.nrrd";
+    const char* sourceFile = "/biomed-resimg/work/joohwi/CLE2-Manual/Atlas/p72_tmpl_CLE.nrrd";
+    const char* targetFile = "/biomed-resimg/work/joohwi/CLE2-Manual/Atlas/00.T2.nrrd";
+    const char* labelFile = "/biomed-resimg/work/joohwi/CLE2-Manual/Atlas/p72_atlas_CLE_Parts.nrrd";
 
     _core.LoadImage(sourceFile);
-
     changeSliceView(2);
     ui.actionOpenTarget->setEnabled(true);
     ui.actionOpenLabel->setEnabled(true);

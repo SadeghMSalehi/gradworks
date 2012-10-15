@@ -9,6 +9,10 @@
 #ifndef __itktools__itkMyCore__
 #define __itktools__itkMyCore__
 
+
+#include "QThread"
+#include "QImage"
+
 #include <iostream>
 #include "itkMyTypes.h"
 #include "itkMySlice.h"
@@ -22,8 +26,6 @@
 #include "itkScaleVersor3DTransform.h"
 #include "itkMultiRegMethod.h"
 
-#include "QThread"
-#include "QImage"
 //
 
 class itkMyCore {
