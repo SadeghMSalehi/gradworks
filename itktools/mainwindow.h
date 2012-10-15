@@ -96,7 +96,10 @@ public slots:
     }
 
     void changeSliceView(int dir);
-
+    
+    void on_aboutButton_clicked() {
+        cout << "Hello!!" << endl;
+    }
 
     void loadDefaults();
     void exit(void);
