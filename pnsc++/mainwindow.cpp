@@ -158,9 +158,9 @@ void MainWindow::on_resetButton_clicked() {
     AddPolyData("yAxis", CreateCircle(0, 1, 0, 0, 0, 0, 1.01), 0, 1, 0);
     AddPolyData("xAxis", CreateCircle(1, 0, 0, 0, 0, 0, 1.01), 1, 1, 0);
     PNSBase::VectorType xPole("1 0 0"), yPole("0 1 0"), zPole("0 0 1");
-    AddPolyData("zPole", CreateSinglePoint(zPole), 0, 0, 1);
-    AddPolyData("yPole", CreateSinglePoint(yPole), 0, 1, 0);
-    AddPolyData("xPole", CreateSinglePoint(xPole), 1, 1, 0);
+//    AddPolyData("zPole", CreateSinglePoint(zPole), 0, 0, 1);
+//    AddPolyData("yPole", CreateSinglePoint(yPole), 0, 1, 0);
+//    AddPolyData("xPole", CreateSinglePoint(xPole), 1, 1, 0);
 
     m_Renderer->AddActor(actor);
     m_Renderer->ResetCamera();
@@ -175,6 +175,7 @@ void MainWindow::on_addButton_clicked() {
     PNSBase::CreateSphereRandoms(100, M_PI_4, M_PI / 18.f, normal, m_Math.m_Data);
     vtkPolyDataPointer pointsSpheres = CreatePoints(m_Math.m_Data, 0.01);
     AddPolyData("Samples", pointsSpheres, 1, 0, 0);
+    //AddPolyData("SampleCenters", CreateSinglePoint(normal), 0.3, 0.3, 1.0);
 }
 
 void MainWindow::on_runButton_clicked() {
@@ -185,7 +186,7 @@ void MainWindow::on_runButton_clicked() {
 
     AddPolyData("principalArc", newCircle, 0, 1, 1);
     AddPolyData("centerPoint", CreateSinglePoint(m_Math.m_Normal, 0.05), 0, 1, 1);
-    AddPolyData("centerPointAtTangent", CreateSinglePoint(m_Math.m_CenterAtTangent, 0.05), 1, 0, 0);
+    //AddPolyData("centerPointAtTangent", CreateSinglePoint(m_Math.m_CenterAtTangent, 0.05), 1, 0, 0);
 }
 
 void MainWindow::on_testButton_clicked() {

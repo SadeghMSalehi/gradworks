@@ -10,7 +10,7 @@ include(${ITK_USE_FILE})
 include(${VTK_USE_FILE})
 include(${QT_USE_FILE})
 
-set (circleVis_SOURCES main.cpp mainwindow.h mainwindow.cpp PNSBase.h PNSMath.cpp PNSMath.h PNSCostFunction.h PNSCostFunction.cpp itkSphereOptimizer.h itkSphereOptimizer.cxx ExpLogTransform.h ExpLogTransform.cpp)
+set (circleVis_SOURCES main.cpp mainwindow.h mainwindow.cpp PNSBase.h PNSMath.cpp PNSMath.h PNSCostFunction.h PNSCostFunction.cpp itkMyFRPROptimizer.h itkMyFRPROptimizer.cpp itkMyPowellOptimizer.h itkMyPowellOptimizer.cpp ExpLogTransform.h ExpLogTransform.cpp)
 set (circleVis_FORMS mainwindow.ui)
 set (circleVis_QT_HEADERS mainwindow.h)
 
@@ -19,7 +19,7 @@ qt4_wrap_ui(circleVis_FORMS_HEADERS ${circleVis_FORMS})
 
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 include_directories(/tools/Armadillo/armadillo-3.4.3/include)
-set (ARMADILLO_LIBRARIES /tools/Armadillo/Build/libarmadillo.so)
+#set (ARMADILLO_LIBRARIES /tools/Armadillo/Build/libarmadillo.so)
 
 set(MathCode_INCLUDE /tools/gradworks/MathCode/include CACHE TYPE PATH)
 set(MathCode_SRC /tools/gradworks/MathCode/src CACHE TYPE PATH)

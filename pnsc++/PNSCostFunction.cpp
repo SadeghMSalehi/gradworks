@@ -75,7 +75,6 @@ void PNSCostFunction::GetValueAndDerivative(const ParametersType & parameters,
             derivative[j] = deriv[j] / nSamples;
         }
 
-        cout << "Cost: " << cost << "; Derivative: " << derivative << endl;
         value = cost;
         return;
     }

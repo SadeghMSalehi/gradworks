@@ -10,13 +10,14 @@
 
 #include "PNSCostFunction.h"
 #include "itkFRPROptimizer.h"
+#include "itkMyFRPROptimizer.h"
 #include "itkSphereOptimizer.h"
 #include "itkRegularStepGradientDescentOptimizer.h"
 #include "itkCommand.h"
 #include "ExpLogTransform.h"
 
 
-typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
+typedef itk::MyFRPROptimizer OptimizerType;
 
 class OptimizerProgress: public itk::Command {
 public:
@@ -44,7 +45,7 @@ public:
         if (realCaller == NULL) {
             return;
         }
-        cout << realCaller->GetValue() << "; " << realCaller->GetCurrentPosition() << endl;
+        cout << realCaller->GetCurrentIteration() << "; Cost = " << realCaller->GetValue() << "; Parameters = " << realCaller->GetCurrentPosition() << endl;
     }
 
 protected:
@@ -79,6 +80,7 @@ void PNSMath::startOptimization(VectorType n0, double phi, double tau) {
     initialParams[1] = n0[0];
     initialParams[2] = n0[1];
     initialParams[3] = n0[2];
+    
     OptimizerType::ScalesType scales;
     scales.SetSize(3);
     scales[0] = 1;
@@ -87,16 +89,16 @@ void PNSMath::startOptimization(VectorType n0, double phi, double tau) {
     //scales[3] = 1;
     opti->SetCostFunction(costFunc);
     opti->SetInitialPosition(initialParams);
-    //opti->SetUseUnitLengthGradient(true);
+    opti->SetUseUnitLengthGradient(true);
     opti->SetScales(scales);
-    opti->SetNumberOfIterations(1000);
-    opti->SetMaximumStepLength(0.25);
+    
+    //opti->SetNumberOfIterations(1000);
+    //opti->SetMaximumStepLength(0.25);
 
     OptimizerProgress::Pointer progress = OptimizerProgress::New();
     opti->AddObserver(itk::StartEvent(), progress);
     opti->AddObserver(itk::IterationEvent(), progress);
     opti->StartOptimization();
-
 
     OptimizerType::ParametersType solution = opti->GetCurrentPosition();
 

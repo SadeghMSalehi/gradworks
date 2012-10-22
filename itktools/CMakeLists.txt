@@ -6,6 +6,10 @@ find_package(Qt4 REQUIRED)
 
 include(${ITK_USE_FILE})
 
+set (IPOPT_LIB_DIR /tools/IpOpt/lib)
+set (IPOPT_LIBRARIES ${IPOPT_LIB_DIR}/libiomp5.dylib ${IPOPT_LIB_DIR}/libipopt.dylib ${IPOPT_LIB_DIR}/libpardiso412-MACOS-X86-64.dylib)
+include_directories(/tools/IpOpt/include)
+
 set(itktools_MYCODE itkImageIO.h itkMyCore.h itkMyCore.cpp itkMyTypes.h
 	itkTimer.h itkTimer.cpp
 	MatrixCode.h MatrixCode.cpp 
