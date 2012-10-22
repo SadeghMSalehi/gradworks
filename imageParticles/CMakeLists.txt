@@ -14,7 +14,18 @@ set (IPOPT_LIB_DIR /tools/IpOpt/lib)
 set (IPOPT_LIBRARIES ${IPOPT_LIB_DIR}/libiomp5.dylib ${IPOPT_LIB_DIR}/libipopt.dylib ${IPOPT_LIB_DIR}/libpardiso412-MACOS-X86-64.dylib)
 include_directories(/tools/IpOpt/include)
 
-set(ITKFILES itkScalarToARGBColormapImageFilter.h itkScalarToARGBColormapImageFilter.hxx itkARGBColormapFunction.h)
+set(ITKFILES 
+	itkScalarToARGBColormapImageFilter.h 
+	itkScalarToARGBColormapImageFilter.hxx 
+	itkARGBColormapFunction.h
+	itkMyFRPROptimizer.h
+	itkMyFRPROptimizer.cpp
+	itkMyPowellOptimizer.h
+	itkMyPowellOptimizer.cpp
+	itkSphereBoundedGradientDescentOptimizer.h
+	itkSphereBoundedGradientDescentOptimizer.cxx
+)
+
 set(HEADERS mainwindow.h)
 set(SOURCES main.cpp mainwindow.cpp itkImageIO.h)
 set(FORMS particlesUI.ui)

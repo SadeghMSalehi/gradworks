@@ -28,7 +28,7 @@ public:
     typedef Superclass::ParametersType ParametersType;
     typedef Superclass::ParametersValueType ParametersValueType;
     typedef itk::Array<ParametersValueType> DerivativeType;
-    typedef itk::Point<float,VDim> PointType;
+    typedef itk::Vector<float,VDim> PointType;
     typedef std::vector<PointType> PointContainerType;
 
     void Initialize(PointContainerType points) {
@@ -44,9 +44,13 @@ public:
                 stats(ba.GetNorm());
             }
             double sampleStdev = ::sqrt(stats.var());
-            double sigmaEstimate = 1.06 * sampleStdev * ::pow(m_NumberOfPoints, -5);
+            double sigmaEstimate = 1.06 * sampleStdev * ::pow(m_NumberOfPoints, -1/5);
             m_SampleSigmas[i] = sigmaEstimate;
         }
+    }
+
+    ParametersType GetSampleSigmas() {
+    	return m_SampleSigmas;
     }
 
 
@@ -77,6 +81,7 @@ public:
     virtual MeasureType GetValue(const ParametersType & parameters) const {
         MeasureType value;
         DerivativeType derivative;
+        derivative.SetSize(GetNumberOfParameters());
         GetValueAndDerivative(parameters, value, derivative);
         return value;
     }
@@ -96,28 +101,45 @@ public:
                                        DerivativeType & derivative) const {
         MeasureType cost = 0;
         int nParams = p.GetSize();
-        for (int i = 0, ptId = 0; i < nParams; i += VDim, ptId++) {
-            double si = m_SampleSigmas[ptId];
+        for (int i = 0, iPtId = 0; i < nParams; i += VDim, iPtId++) {
+            double si = 10; //m_SampleSigmas[iPtId];
             double gSum = 0;
-            std::vector<double> distVector;
-            std::vector<double> gVector;
-            distVector.resize(m_NumberOfPoints);
-            for (int j = 0; j < nParams; j += VDim) {
-                double dist = 0;
+            arma::vec weights;
+            weights.zeros(m_NumberOfPoints);
+            for (int j = 0, jPtId = 0; j < nParams; j += VDim, jPtId++) {
+            	if (j == i) {
+            		continue;
+            	}
+                double dist_ij = 0;
                 for (int k = 0; k < VDim; k++) {
-                    dist += (p[i+k] - p[j+k]) * (p[i+k] - p[j+k]);
+                	dist_ij += (p[i+k] - p[j+k]) * (p[i+k] - p[j+k]);
                 }
-                dist = ::sqrt(dist);
-                double g = G(dist, si);
-                distVector[j] = dist;
-                gVector[j] = g;
-                gSum += g;
+                dist_ij = ::sqrt(dist_ij);
+                double g = G(dist_ij, si);
+                weights[jPtId] = g;
             }
-            cost += ::log(gSum);
-            for (int k = 0; k < m_NumberOfPoints; k++) {
-                distVector[k] * gVector[j] / gSum;
+            gSum = arma::sum(weights);
+            cost += gSum;
+
+            weights /= gSum;
+            arma::vec deriv_i;
+            deriv_i.zeros(VDim);
+            for (int j = 0, jPtId = 0; j < nParams; j += VDim, jPtId++) {
+            	if (j == i) {
+            		continue;
+            	}
+            	double dist = 0;
+            	for (int k = 0; k < VDim; k++) {
+            		deriv_i[k] += (p[i+k] - p[j+k]) * weights[jPtId];
+            	}
+            }
+            deriv_i = - deriv_i / (si*si);
+            for (int k = 0; k < VDim; k++) {
+            	derivative[i + k] = deriv_i[k];
             }
         }
+        value = cost;
+        //cout << "Cost: " << value << "; #: " << p << endl;
     }
 
 protected:

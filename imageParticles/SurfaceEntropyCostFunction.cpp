@@ -9,7 +9,3 @@
 #include "SurfaceEntropyCostFunction.h"
 
 
-void SurfaceEntropyCostFunction::GetValueAndDerivative(const ParametersType & parameters,
-                                                       MeasureType& value, DerivativeType& derivative) const {
-    
-}
