@@ -11,7 +11,9 @@
 
 #include <iostream>
 #include <itkSingleValuedCostFunction.h>
+#include <itkVector.h>
 #include <armadillo>
+#include "imageParticleTypes.h"
 
 template <unsigned int VDim>
 class SurfaceEntropyCostFunction: public itk::SingleValuedCostFunction {
@@ -31,6 +33,10 @@ public:
     typedef itk::Vector<float,VDim> PointType;
     typedef std::vector<PointType> PointContainerType;
 
+    void SetImage(ImageType::Pointer image) {
+        m_Image = image;
+    }
+    
     void Initialize(PointContainerType points) {
         m_NumberOfPoints = points.size();
         m_Points = points;
@@ -65,11 +71,47 @@ public:
         return initial;
     }
 
-    double G(double dxi, double si) const {
+    inline double G(double dxi, double si) const {
         if (dxi > 3*si || dxi < -3*si) {
             return 0;
         }
         return exp(-(dxi*dxi) / (2*si*si)) / (sqrt(2*M_PI)*si);
+    }
+
+    inline double weightedG(double dxi, double si, double x, double y, double z) const {
+        if (m_Image.IsNull()) {
+            cout << "Image is null" << endl;
+            exit(0);
+        }
+        ImageType::PointType p;
+        p[0] = x;
+        p[1] = y;
+        ImageType::IndexType i;
+        i[0] = ::round(x);
+        i[1] = ::round(y);
+        ImageType::PixelType v = 1;
+        if (m_Image->GetBufferedRegion().IsInside(i)) {
+            v = m_Image->GetPixel(i) / 10;
+            //cout << v << endl;
+        } else {
+            cout << "(" << x << "," << y << ") => " << i << endl;
+            cout << m_Image->GetBufferedRegion().GetSize() << endl;
+        }
+
+        v = (v < 1) ? 1 : v;
+        if (v != v) {
+            v = 1;
+        }
+        if (v > 1) {
+            //cout << v << endl;
+        }
+
+        if (dxi > 3*si || dxi < -3*si) {
+            return 0;
+        }
+
+        double g = exp(-(dxi*dxi) / (2*si*si)) / (sqrt(2*M_PI)*si)/v;
+        return g;
     }
 
     virtual unsigned int GetNumberOfParameters() const {
@@ -115,7 +157,8 @@ public:
                 	dist_ij += (p[i+k] - p[j+k]) * (p[i+k] - p[j+k]);
                 }
                 dist_ij = ::sqrt(dist_ij);
-                double g = G(dist_ij, si);
+                //double g = G(dist_ij, si);
+                double g = weightedG(dist_ij, si, p[i], p[i+1], 0);
                 weights[jPtId] = g;
             }
             gSum = arma::sum(weights);
@@ -128,7 +171,6 @@ public:
             	if (j == i) {
             		continue;
             	}
-            	double dist = 0;
             	for (int k = 0; k < VDim; k++) {
             		deriv_i[k] += (p[i+k] - p[j+k]) * weights[jPtId];
             	}
@@ -153,6 +195,7 @@ private:
     PointContainerType m_Points;
     ParametersType m_SampleSigmas;
     int m_NumberOfPoints;
+    ImageType::Pointer m_Image;
 };
 
 #endif /* defined(__imageParticles__SurfaceEntropyCostFunction__) */

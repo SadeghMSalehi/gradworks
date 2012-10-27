@@ -6,24 +6,19 @@
 #include "QDebug"
 #include "QGraphicsPixmapItem"
 #include "vector"
-#include "itkImageIO.h"
-#include "itkScalarToARGBColormapImageFilter.h"
-#include "itkMyFRPROptimizer.h"
-#include "itkRegularStepGradientDescentOptimizer.h"
-#include "itkSphereBoundedGradientDescentOptimizer.h"
-#include "itkARGBColormapFunction.h"
-#include "armadillo"
-#include "SurfaceEntropyCostFunction.h"
 
-typedef itk::RGBAPixel<unsigned char> RGBAPixel;
-typedef itk::RGBPixel<unsigned char> RGBPixel;
-typedef itk::Image<double, 3> ImageType;
-typedef itk::Image<RGBAPixel, 3> BitmapType;
-typedef itk::ScalarToARGBColormapImageFilter<ImageType, BitmapType> ScalarToRGBFilter;
-typedef itk::SphereBoundedGradientDescentOptimizer OptimizerType;
-typedef arma::mat MatrixType;
+#include "SurfaceEntropyCostFunction.h"
+#include "SurfaceEntropyNLP.h"
+#include "IpIpoptApplication.hpp"
+#include "imageParticleTypes.h"
+
 
 std::vector<BitmapType::Pointer> bitmapList;
+std::vector<BitmapType::Pointer> gradMagBitmapList;
+std::vector<ImageType::Pointer> imageList;
+std::vector<GradientImageType::Pointer> gradientImageList;
+std::vector<ImageType::Pointer> gradMagImageList;
+
 MatrixType pointList;
 
 class OptimizerProgress: public itk::Command {
@@ -76,12 +71,34 @@ BitmapType::Pointer loadImage(QString f) {
 	try {
 		itkcmds::itkImageIO<ImageType> io;
 		ImageType::Pointer img = io.ReadImageT(f.toAscii().data());
+        imageList.push_back(img);
+
 		ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
 		rgbFilter->SetInput(img);
 		rgbFilter->SetNumberOfThreads(1);
 		rgbFilter->Update();
 		rgbImage = rgbFilter->GetOutput();
 		bitmapList.push_back(rgbImage);
+
+        GradientImageFilter::Pointer gradFilter = GradientImageFilter::New();
+        gradFilter->SetInput(img);
+        gradFilter->SetSigma(.5);
+        gradFilter->Update();
+        gradientImageList.push_back(gradFilter->GetOutput());
+
+        VectorMagnitudeImageFilter::Pointer magFilter = VectorMagnitudeImageFilter::New();
+        magFilter->SetInput(gradientImageList.back());
+        magFilter->Update();
+        gradMagImageList.push_back(magFilter->GetOutput());
+
+
+		ScalarToRGBFilter::Pointer rgbMagFilter = ScalarToRGBFilter::New();
+		rgbMagFilter->SetInput(magFilter->GetOutput());
+		rgbMagFilter->SetNumberOfThreads(1);
+		rgbMagFilter->Update();
+        BitmapType::Pointer rgbGradMagImage = rgbMagFilter->GetOutput();
+        gradMagBitmapList.push_back(rgbGradMagImage);
+
 	} catch (itk::ExceptionObject& ex) {
 		cout << ex.what() << endl;
 	}
@@ -119,8 +136,10 @@ MainWindow::MainWindow(QWidget *parent) :
 			QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 	ui.graphicsView->scale(4, 4);
 
-	addImage(tr("/base/imageParticles/data/12.T2.slice.nrrd"));
-	addImage(tr("/base/imageParticles/data/13.T2.slice.nrrd"));
+//	addImage(tr("/base/imageParticles/data/12.T2.slice.nrrd"));
+//	addImage(tr("/base/imageParticles/data/13.T2.slice.nrrd"));
+    addImage(tr("/data/SliceImages/12.T2.slice.nrrd"));
+    addImage(tr("/data/SliceImages/13.T2.slice.nrrd"));
 }
 
 MainWindow::~MainWindow() {
@@ -186,7 +205,7 @@ void MainWindow::on_actionDeploy_triggered() {
 			}
 		}
 	} else {
-		pointList.randn(bitmapList.size(), 300 * 2);
+		pointList.randn(bitmapList.size(), 100 * 2);
 		BitmapType::IndexType imageCenter;
 		imageCenter[0] = bmpSz[0] / 2;
 		imageCenter[1] = bmpSz[1] / 2;
@@ -221,7 +240,7 @@ void MainWindow::on_listWidget_currentRowChanged(int currentRow) {
 void MainWindow::updateScene() {
 	int currentImage = ui.listWidget->currentRow();
 	gs.clear();
-	BitmapType::Pointer bitmap = bitmapList[currentImage];
+	BitmapType::Pointer bitmap = gradMagBitmapList[currentImage];
 	QGraphicsPixmapItem* pixItem = gs.addPixmap(getPixmap(bitmap));
 	pixItem->pos();
 
@@ -250,8 +269,49 @@ void MainWindow::on_actionRun_triggered() {
 	if (bitmapList.size() == 0) {
 		return;
 	}
-
 	BitmapType::SizeType imgSz = bitmapList[0]->GetBufferedRegion().GetSize();
+
+    bool useIpOpt = false;
+    if (useIpOpt) {
+        SurfaceEntropyNLP* nlp = new SurfaceEntropyNLP();
+        nlp->SetInitialPoints(pointList);
+        arma::vec imageRegion;
+        imageRegion.zeros(2);
+        imageRegion[0] = imgSz[0];
+        imageRegion[1] = imgSz[1];
+        nlp->SetRegion(imageRegion);
+        nlp->SetCenter(imageRegion/2);
+        nlp->SetRadius(arma::vec("40 40"));
+        nlp->SetNumberOfPoints(pointList.n_cols / 2);
+
+        Ipopt::SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
+        app->Options()->SetNumericValue("tol", 1e-9);
+        app->Options()->SetStringValue("mu_strategy", "adpative");
+        app->Options()->SetStringValue("hessian_approximation", "limited-memory");
+
+        Ipopt::ApplicationReturnStatus status;
+        status = app->Initialize();
+        if (status != Solve_Succeeded) {
+            printf("Error during initializtion");
+        }
+
+        status = app->OptimizeTNLP(Ipopt::SmartPtr<TNLP>(nlp));
+        if (status == Solve_Succeeded) {
+            printf("Problem Solved");
+        } else if (status == Invalid_Number_Detected) {
+            cout << "Invalid Number Detected" << endl;
+        } else {
+            printf("Problem Failed: %d", status);
+        }
+        arma::vec points = nlp->GetResultPoints();
+        for (int j = 0; j < points.n_elem; j++) {
+            pointList.at(0, j) = points.at(j);
+        }
+        updateScene();        //delete nlp;
+        return;
+    }
+
+
 
 	int currentImage = ui.listWidget->currentRow();
 
@@ -268,6 +328,7 @@ void MainWindow::on_actionRun_triggered() {
 	}
 
 	CostFunction::Pointer costFunc = CostFunction::New();
+    costFunc->SetImage(gradMagImageList[currentImage]);
 	costFunc->Initialize(initialPoints);
 
 	CostFunction::ParametersType initialParams =
@@ -290,7 +351,7 @@ void MainWindow::on_actionRun_triggered() {
 	//opti->SetUseUnitLengthGradient(true);
 	//opti->SetMaximumIteration(3);
 	//opti->SetMaximumLineIteration(10);
-	opti->SetNumberOfIterations(1000);
+	opti->SetNumberOfIterations(10);
 	opti->StartOptimization();
 
 	CostFunction::ParametersType result = opti->GetCurrentPosition();

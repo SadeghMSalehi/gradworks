@@ -10,6 +10,12 @@ include(${QT_USE_FILE})
 
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 
+if(OPENMP_FOUND)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
 set (IPOPT_LIB_DIR /tools/IpOpt/lib)
 set (IPOPT_LIBRARIES ${IPOPT_LIB_DIR}/libiomp5.dylib ${IPOPT_LIB_DIR}/libipopt.dylib ${IPOPT_LIB_DIR}/libpardiso412-MACOS-X86-64.dylib)
 include_directories(/tools/IpOpt/include)
@@ -27,7 +33,7 @@ set(ITKFILES
 )
 
 set(HEADERS mainwindow.h)
-set(SOURCES main.cpp mainwindow.cpp itkImageIO.h)
+set(SOURCES main.cpp mainwindow.cpp itkImageIO.h SurfaceEntropyCostFunction.h SurfaceEntropyCostFunction.cpp)
 set(FORMS particlesUI.ui)
 
 set (ITK_PARTICLES_SOURCES 
@@ -56,6 +62,8 @@ set (ITK_PARTICLES_SOURCES
 	itkParticleVectorFunction.h
 )
 
+set (IPOPT_FILES SurfaceEntropyNLP.h SurfaceEntropyNLP.cpp)
+
 qt4_wrap_cpp(HEADERS_MOC ${HEADERS})
 qt4_wrap_ui(FORMS_HEADERS ${FORMS})
 
@@ -64,6 +72,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_definitions(${QT_DEFINITIONS})
 
 add_executable(imageParticles 
+	${IPOPT_FILES}
 	${ITK_PARTICLES_SOURCES}
 	${ITKFILES}
 	${HEADERS} 
@@ -71,4 +80,4 @@ add_executable(imageParticles
 	${HEADERS_MOC} 
 	${FORMS_HEADERS})
 
-target_link_libraries(imageParticles ${ITK_LIBRARIES} ${QT_LIBRARIES} ${ARMADILLO_LIBRARIES})
+target_link_libraries(imageParticles ${ITK_LIBRARIES} ${QT_LIBRARIES} ${ARMADILLO_LIBRARIES} ${IPOPT_LIBRARIES})
