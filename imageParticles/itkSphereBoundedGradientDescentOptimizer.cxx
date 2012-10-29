@@ -40,15 +40,16 @@ void SphereBoundedGradientDescentOptimizer::StepAlongGradient(double factor,
 	}
 
 	int pointDimension = 2;
-	for (int j = 0; j < spaceDimension; j += pointDimension) {
+	for (unsigned int j = 0; j < spaceDimension; j += pointDimension) {
 		VectorType pj;
 		for (int i = 0; i < pointDimension; i++) {
 			pj[i] = newPosition[j + i];
 		}
 		VectorType center_pj = pj - m_Center;
 		double dist = center_pj.GetNorm();
+        center_pj.Normalize();
 		if (dist > m_Radius) {
-			VectorType newPos = center_pj * (m_Radius / dist) + m_Center;
+			VectorType newPos = center_pj * m_Radius + m_Center;
 			for (int i = 0; i < pointDimension; i++) {
 				newPosition[j + i] = newPos[i];
 			}

@@ -757,10 +757,10 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
+            pixel[3] = 255;
 
             return pixel;
         }

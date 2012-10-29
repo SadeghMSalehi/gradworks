@@ -1,5 +1,6 @@
 project(imageParticles)
 cmake_minimum_required(VERSION 2.8)
+set(CMAKE_XCODE_ATTRIBUTE_GCC_VERSION "com.apple.compilers.llvmgcc42")
 
 find_package(ITK 4 REQUIRED)
 find_package(Qt4 REQUIRED)
@@ -10,15 +11,13 @@ include(${QT_USE_FILE})
 
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 
-if(OPENMP_FOUND)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
+set (CMAKE_C_FLAGS -fopenmp)
+set (CMAKE_CPP_FLAGS -fopenmp)
 
 set (IPOPT_LIB_DIR /tools/IpOpt/lib)
 set (IPOPT_LIBRARIES ${IPOPT_LIB_DIR}/libiomp5.dylib ${IPOPT_LIB_DIR}/libipopt.dylib ${IPOPT_LIB_DIR}/libpardiso412-MACOS-X86-64.dylib)
 include_directories(/tools/IpOpt/include)
+#include_directories(/usr/llvm-gcc-4.2/lib/gcc/i686-apple-darwin11/4.2.1/include)
 
 set(ITKFILES 
 	itkScalarToARGBColormapImageFilter.h 
@@ -72,7 +71,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_definitions(${QT_DEFINITIONS})
 
 add_executable(imageParticles 
-	${IPOPT_FILES}
+#	${IPOPT_FILES}
 	${ITK_PARTICLES_SOURCES}
 	${ITKFILES}
 	${HEADERS} 

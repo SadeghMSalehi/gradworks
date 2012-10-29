@@ -27,7 +27,7 @@
    <property name="minimumSize">
     <size>
      <width>256</width>
-     <height>128</height>
+     <height>170</height>
     </size>
    </property>
    <attribute name="dockWidgetArea">
@@ -39,7 +39,126 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="QListWidget" name="listWidget"/>
+      <widget class="QToolBox" name="toolBox">
+       <property name="currentIndex">
+        <number>1</number>
+       </property>
+       <widget class="QWidget" name="page">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>256</width>
+          <height>481</height>
+         </rect>
+        </property>
+        <attribute name="label">
+         <string>Image List</string>
+        </attribute>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="margin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QListWidget" name="listWidget"/>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="page_2">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>256</width>
+          <height>481</height>
+         </rect>
+        </property>
+        <attribute name="label">
+         <string>Tool Box</string>
+        </attribute>
+        <layout class="QGridLayout" name="gridLayout">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Particles #</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="numberOfParticles">
+           <property name="minimum">
+            <number>100</number>
+           </property>
+           <property name="maximum">
+            <number>1000</number>
+           </property>
+           <property name="singleStep">
+            <number>100</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Iteration #</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="numberOfIterations">
+           <property name="minimum">
+            <number>100</number>
+           </property>
+           <property name="maximum">
+            <number>5000</number>
+           </property>
+           <property name="singleStep">
+            <number>100</number>
+           </property>
+           <property name="value">
+            <number>500</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>Anim Interval</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="animationInterval">
+           <property name="minimum">
+            <number>100</number>
+           </property>
+           <property name="maximum">
+            <number>1000</number>
+           </property>
+           <property name="singleStep">
+            <number>100</number>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>419</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </widget>
      </item>
     </layout>
    </widget>
@@ -60,6 +179,11 @@
    <addaction name="actionZoomOut"/>
    <addaction name="actionDeploy"/>
    <addaction name="actionRun"/>
+   <addaction name="actionPointLoad"/>
+   <addaction name="actionPointSave"/>
+   <addaction name="actionPlayTrace"/>
+   <addaction name="actionSaveTrace"/>
+   <addaction name="actionLoadTrace"/>
   </widget>
   <action name="actionOpen">
    <property name="text">
@@ -89,6 +213,40 @@
   <action name="actionRun">
    <property name="text">
     <string>Run</string>
+   </property>
+  </action>
+  <action name="actionPointSave">
+   <property name="text">
+    <string>PointSave</string>
+   </property>
+  </action>
+  <action name="actionPointLoad">
+   <property name="text">
+    <string>PointLoad</string>
+   </property>
+  </action>
+  <action name="actionPlayTrace">
+   <property name="text">
+    <string>Play Trace</string>
+   </property>
+   <property name="toolTip">
+    <string>Play point moving trace</string>
+   </property>
+  </action>
+  <action name="actionSaveTrace">
+   <property name="text">
+    <string>Save Trace</string>
+   </property>
+   <property name="toolTip">
+    <string>Save point moving trace</string>
+   </property>
+  </action>
+  <action name="actionLoadTrace">
+   <property name="text">
+    <string>Load Trace</string>
+   </property>
+   <property name="toolTip">
+    <string>Load point moving trace</string>
    </property>
   </action>
  </widget>

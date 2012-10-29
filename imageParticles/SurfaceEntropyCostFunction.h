@@ -13,6 +13,7 @@
 #include <itkSingleValuedCostFunction.h>
 #include <itkVector.h>
 #include <armadillo>
+#include "/usr/llvm-gcc-4.2/lib/gcc/i686-apple-darwin11/4.2.1/include/omp.h"
 #include "imageParticleTypes.h"
 
 template <unsigned int VDim>
@@ -63,8 +64,8 @@ public:
     ParametersType GetInitialParameters() {
         ParametersType initial;
         initial.SetSize(m_Points.size() * 2);
-        for (int i = 0; i < m_Points.size(); i++) {
-            for (int j = 0; j < VDim; j++) {
+        for (unsigned int i = 0; i < m_Points.size(); i++) {
+            for (unsigned int j = 0; j < VDim; j++) {
                 initial[VDim*i + j] = m_Points[i][j];
             }
         }
@@ -91,26 +92,30 @@ public:
         i[1] = ::round(y);
         ImageType::PixelType v = 1;
         if (m_Image->GetBufferedRegion().IsInside(i)) {
-            v = m_Image->GetPixel(i) / 10;
+            v = m_Image->GetPixel(i);
             //cout << v << endl;
         } else {
             cout << "(" << x << "," << y << ") => " << i << endl;
             cout << m_Image->GetBufferedRegion().GetSize() << endl;
         }
 
-        v = (v < 1) ? 1 : v;
         if (v != v) {
             v = 1;
         }
-        if (v > 1) {
-            //cout << v << endl;
-        }
+        v = (v < 1) ? 1 : v;
 
         if (dxi > 3*si || dxi < -3*si) {
             return 0;
         }
 
-        double g = exp(-(dxi*dxi) / (2*si*si)) / (sqrt(2*M_PI)*si)/v;
+        if (v > 1) {
+           // cout << v << endl;
+        }
+
+        dxi = dxi * (v / 100);
+
+
+        double g = exp(-(dxi*dxi) / (2*si*si)) / (sqrt(2*M_PI)*si);
         return g;
     }
 
@@ -143,7 +148,11 @@ public:
                                        DerivativeType & derivative) const {
         MeasureType cost = 0;
         int nParams = p.GetSize();
-        for (int i = 0, iPtId = 0; i < nParams; i += VDim, iPtId++) {
+        int iPtId = -1;
+
+#pragma omp parallel for
+        for (int i = 0; i < nParams; i += VDim) {
+            iPtId ++;
             double si = 10; //m_SampleSigmas[iPtId];
             double gSum = 0;
             arma::vec weights;
@@ -153,7 +162,7 @@ public:
             		continue;
             	}
                 double dist_ij = 0;
-                for (int k = 0; k < VDim; k++) {
+                for (unsigned int k = 0; k < VDim; k++) {
                 	dist_ij += (p[i+k] - p[j+k]) * (p[i+k] - p[j+k]);
                 }
                 dist_ij = ::sqrt(dist_ij);
@@ -167,16 +176,18 @@ public:
             weights /= gSum;
             arma::vec deriv_i;
             deriv_i.zeros(VDim);
-            for (int j = 0, jPtId = 0; j < nParams; j += VDim, jPtId++) {
+            int jPtId = -1;
+            for (int j = 0; j < nParams; j += VDim) {
+                jPtId ++;
             	if (j == i) {
             		continue;
             	}
-            	for (int k = 0; k < VDim; k++) {
+            	for (unsigned int k = 0; k < VDim; k++) {
             		deriv_i[k] += (p[i+k] - p[j+k]) * weights[jPtId];
             	}
             }
             deriv_i = - deriv_i / (si*si);
-            for (int k = 0; k < VDim; k++) {
+            for (unsigned int k = 0; k < VDim; k++) {
             	derivative[i + k] = deriv_i[k];
             }
         }

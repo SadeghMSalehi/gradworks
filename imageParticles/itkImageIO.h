@@ -269,6 +269,7 @@ public:
 template<class T, unsigned int n>
 std::ostream& operator<<(std::ostream& out, const PointStatistics<T,n>& s) {
     out << "Center: " << s.GetBoundsCenter() << "; Min: " << s.GetBoundsMinimum() << "; Max: " << s.GetBoundsMaximum() << ";";
+    return out;
 }
 
 template<class T, class S>
