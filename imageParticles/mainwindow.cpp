@@ -9,7 +9,6 @@
 
 #include "SurfaceEntropyCostFunction.h"
 //#include "SurfaceEntropyNLP.h"
-#include "IpIpoptApplication.hpp"
 #include "imageParticleTypes.h"
 #include "NBody.h"
 
@@ -81,7 +80,7 @@ public:
             << realCaller->GetValue() << "; Parameters = "
             << realCaller->GetCurrentPosition() << endl;
         }
-        if (++m_Counter % 20 == 0) {
+        if (++m_Counter % 1 == 0) {
             m_ParametersHistory->push_back(realCaller->GetCurrentPosition());
         }
 	}
@@ -158,6 +157,7 @@ void drawGrid(QGraphicsScene* gs, double x0, double y0, double xSpacing,
 MainWindow::MainWindow(QWidget *parent) :
 QMainWindow(parent) {
 	ui.setupUi(this);
+
     //    QSize gvSize = ui.graphicsView->size();
     //    ui.graphicsView->setSceneRect(0, 0, gvSize.width(), gvSize.height());
     //    qDebug() << "Scene Rect: " << ui.graphicsView->sceneRect();
@@ -168,8 +168,13 @@ QMainWindow(parent) {
     //	addImage(tr("/base/imageParticles/data/12.T2.slice.nrrd"));
     //	addImage(tr("/base/imageParticles/data/13.T2.slice.nrrd"));
 
+#ifdef __APPLE__
     addImage(tr("/data/2D/circle.jpg"));
     addImage(tr("/data/2D/circle.jpg"));
+#else
+    addImage(tr("/base/imageParticles/data/circle.jpg"));
+    addImage(tr("/base/imageParticles/data/circle.jpg"));
+#endif
     QObject::connect(&m_Timer, SIGNAL(timeout()), this, SLOT(on_timer_timeout()));
 }
 
@@ -336,7 +341,10 @@ void MainWindow::on_actionRun_triggered() {
 
 	CostFunction::Pointer costFunc = CostFunction::New();
     costFunc->SetImage(gradMagImageList[currentImage]);
+    costFunc->SetUseAdaptiveSampling(ui.actionAdaptiveSampling->isChecked());
+
 	costFunc->Initialize(initialPoints);
+
 
 	CostFunction::ParametersType initialParams =
     costFunc->GetInitialParameters();
@@ -349,10 +357,11 @@ void MainWindow::on_actionRun_triggered() {
     progress->SetParticlesHistory(&positionHistory);
     
 	OptimizerType::Pointer opti = OptimizerType::New();
-	opti->AddObserver(itk::IterationEvent(), progress);
+	opti->AddObserver(itk::IterationEvent(), progress.GetPointer());
 	opti->SetCostFunction(costFunc);
 	opti->SetInitialPosition(initialParams);
 	opti->SetRadius(RADIUS);
+	opti->SetRelaxationFactor(0.05);
 
 	OptimizerType::VectorType center;
 	center[0] = imgSz[0] / 2;
@@ -378,6 +387,40 @@ void MainWindow::on_actionRun_triggered() {
     }
 	updateScene();
 
+}
+
+void MainWindow::on_actionNBodySimulation_triggered() {
+	if (pointList.n_elem == 0 || bitmapList.size() < 1) {
+		return;
+	}
+	g_numberOfIterations = ui.numberOfIterations->value();
+
+	cout << "Running nbody simulation: " << g_numberOfIterations << endl;
+	int currentImage = ui.listWidget->currentRow();
+	int nPoints = pointList.n_cols / POINT_DIMENSIONS;
+	BitmapType::SizeType imgSz = bitmapList[0]->GetBufferedRegion().GetSize();
+
+	NBodySystem nBodySystem;
+	nBodySystem.setBounds(0, 0, imgSz[0], imgSz[1]);
+	for (int i = 0; i < pointList.n_cols; i += POINT_DIMENSIONS) {
+		Body b;
+		b.x = pointList.at(currentImage, i);
+		b.y = pointList.at(currentImage, i+1);
+		b.mass = 1;
+		nBodySystem.addBody(b);
+	}
+
+	cout << "particles added" << endl;
+	for (unsigned int i = 0; i < g_numberOfIterations; i++) {
+		nBodySystem.advance(0.1);
+	}
+
+	cout << "iteration done" << endl;
+	for (int i = 0; i < nPoints; i++) {
+		pointList.at(currentImage, POINT_DIMENSIONS*i) = nBodySystem.bodies[i].x;
+		pointList.at(currentImage, POINT_DIMENSIONS*i+1) = nBodySystem.bodies[i].y;
+	}
+	updateScene();
 }
 
 void MainWindow::on_actionPointSave_triggered() {

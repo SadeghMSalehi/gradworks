@@ -49,7 +49,7 @@
           <x>0</x>
           <y>0</y>
           <width>256</width>
-          <height>481</height>
+          <height>459</height>
          </rect>
         </property>
         <attribute name="label">
@@ -73,7 +73,7 @@
           <x>0</x>
           <y>0</y>
           <width>256</width>
-          <height>481</height>
+          <height>459</height>
          </rect>
         </property>
         <attribute name="label">
@@ -133,7 +133,7 @@
          <item row="2" column="1">
           <widget class="QSpinBox" name="animationInterval">
            <property name="minimum">
-            <number>100</number>
+            <number>10</number>
            </property>
            <property name="maximum">
             <number>1000</number>
@@ -173,17 +173,57 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionOpen"/>
-   <addaction name="actionClose"/>
-   <addaction name="actionZoomIn"/>
-   <addaction name="actionZoomOut"/>
    <addaction name="actionDeploy"/>
    <addaction name="actionRun"/>
-   <addaction name="actionPointLoad"/>
-   <addaction name="actionPointSave"/>
    <addaction name="actionPlayTrace"/>
-   <addaction name="actionSaveTrace"/>
-   <addaction name="actionLoadTrace"/>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu_File">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionOpen"/>
+    <addaction name="actionClose"/>
+   </widget>
+   <widget class="QMenu" name="menu_View">
+    <property name="title">
+     <string>&amp;View</string>
+    </property>
+    <addaction name="actionZoomIn"/>
+    <addaction name="actionZoomOut"/>
+   </widget>
+   <widget class="QMenu" name="menuParticles">
+    <property name="title">
+     <string>&amp;Particles</string>
+    </property>
+    <addaction name="actionDeploy"/>
+    <addaction name="actionRun"/>
+    <addaction name="actionPointLoad"/>
+    <addaction name="actionPointSave"/>
+    <addaction name="separator"/>
+    <addaction name="actionAdaptiveSampling"/>
+    <addaction name="actionNBodySimulation"/>
+   </widget>
+   <widget class="QMenu" name="menu_Trace">
+    <property name="title">
+     <string>&amp;Trace</string>
+    </property>
+    <addaction name="actionPlayTrace"/>
+    <addaction name="actionLoadTrace"/>
+    <addaction name="actionSaveTrace"/>
+   </widget>
+   <addaction name="menu_File"/>
+   <addaction name="menu_View"/>
+   <addaction name="menuParticles"/>
+   <addaction name="menu_Trace"/>
   </widget>
   <action name="actionOpen">
    <property name="text">
@@ -247,6 +287,22 @@
    </property>
    <property name="toolTip">
     <string>Load point moving trace</string>
+   </property>
+  </action>
+  <action name="actionAdaptiveSampling">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Adaptive Sampling</string>
+   </property>
+  </action>
+  <action name="actionNBodySimulation">
+   <property name="text">
+    <string>NBody Simulation</string>
    </property>
   </action>
  </widget>

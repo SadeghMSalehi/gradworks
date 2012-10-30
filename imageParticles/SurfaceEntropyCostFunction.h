@@ -13,7 +13,9 @@
 #include <itkSingleValuedCostFunction.h>
 #include <itkVector.h>
 #include <armadillo>
+#ifdef __APPLE__
 #include "/usr/llvm-gcc-4.2/lib/gcc/i686-apple-darwin11/4.2.1/include/omp.h"
+#endif
 #include "imageParticleTypes.h"
 
 template <unsigned int VDim>
@@ -54,6 +56,10 @@ public:
             double sigmaEstimate = 1.06 * sampleStdev * ::pow(m_NumberOfPoints, -1/5);
             m_SampleSigmas[i] = sigmaEstimate;
         }
+    }
+
+    void SetUseAdaptiveSampling(bool adaptiveSampling) {
+    	m_AdaptiveSampling = adaptiveSampling;
     }
 
     ParametersType GetSampleSigmas() {
@@ -112,7 +118,7 @@ public:
            // cout << v << endl;
         }
 
-        dxi = dxi * (v / 100);
+        dxi = dxi * (v / 150);
 
 
         double g = exp(-(dxi*dxi) / (2*si*si)) / (sqrt(2*M_PI)*si);
@@ -153,7 +159,7 @@ public:
 #pragma omp parallel for
         for (int i = 0; i < nParams; i += VDim) {
             iPtId ++;
-            double si = 10; //m_SampleSigmas[iPtId];
+            double si = 7; //m_SampleSigmas[iPtId];
             double gSum = 0;
             arma::vec weights;
             weights.zeros(m_NumberOfPoints);
@@ -166,8 +172,12 @@ public:
                 	dist_ij += (p[i+k] - p[j+k]) * (p[i+k] - p[j+k]);
                 }
                 dist_ij = ::sqrt(dist_ij);
-                //double g = G(dist_ij, si);
-                double g = weightedG(dist_ij, si, p[i], p[i+1], 0);
+                double g = 0;
+                if (m_AdaptiveSampling) {
+                	g = weightedG(dist_ij, si, p[j], p[j+1], 0);
+                } else {
+                	g = G(dist_ij, si);
+                }
                 weights[jPtId] = g;
             }
             gSum = arma::sum(weights);
@@ -198,7 +208,9 @@ public:
 protected:
     SurfaceEntropyCostFunction() {
         m_NumberOfPoints = 0;
+        m_AdaptiveSampling = true;
     }
+
     virtual ~SurfaceEntropyCostFunction() {
     }
 
@@ -207,6 +219,7 @@ private:
     ParametersType m_SampleSigmas;
     int m_NumberOfPoints;
     ImageType::Pointer m_Image;
+    bool m_AdaptiveSampling;
 };
 
 #endif /* defined(__imageParticles__SurfaceEntropyCostFunction__) */
