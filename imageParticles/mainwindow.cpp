@@ -28,6 +28,7 @@ unsigned int g_numberOfPoints;
 unsigned int g_numberOfIterations;
 MatrixType g_pointHistory;
 typedef std::vector<OptimizerType::ParametersType> ParametersHistoryType;
+std::vector<double> g_costHistory;
 
 MatrixType pointList;
 
@@ -82,6 +83,7 @@ public:
         }
         if (++m_Counter % 1 == 0) {
             m_ParametersHistory->push_back(realCaller->GetCurrentPosition());
+            g_costHistory.push_back(realCaller->GetValue());
         }
 	}
 
@@ -324,6 +326,9 @@ void MainWindow::on_actionRun_triggered() {
 
 
     g_numberOfIterations = ui.numberOfIterations->value();
+    g_costHistory.clear();
+
+    cout << "Number of Iterations:" << g_numberOfIterations << endl;
 	int currentImage = ui.listWidget->currentRow();
 
 
@@ -361,16 +366,21 @@ void MainWindow::on_actionRun_triggered() {
 	opti->SetCostFunction(costFunc);
 	opti->SetInitialPosition(initialParams);
 	opti->SetRadius(RADIUS);
-	opti->SetRelaxationFactor(0.05);
-
+    opti->SetMaximumStepLength(1);
+    
 	OptimizerType::VectorType center;
 	center[0] = imgSz[0] / 2;
 	center[1] = imgSz[1] / 2;
 	opti->SetCenter(center);
+    opti->SetNumberOfIterations(g_numberOfIterations);
+    
 	//opti->SetUseUnitLengthGradient(true);
 	//opti->SetMaximumIteration(3);
 	//opti->SetMaximumLineIteration(10);
-	opti->SetNumberOfIterations(g_numberOfIterations);
+
+    //opti->SetUseUnitLengthGradient(true);
+
+
 	opti->StartOptimization();
 
 	CostFunction::ParametersType result = opti->GetCurrentPosition();
@@ -378,6 +388,7 @@ void MainWindow::on_actionRun_triggered() {
 		pointList(currentImage, i) = result[i];
 	}
 
+    cout << "Number of Iteration Performed: " << opti->GetCurrentIteration() << endl;
     cout << "Number of traces: " << positionHistory.size() << endl;
     g_pointHistory.zeros(positionHistory.size(), pointList.n_cols);
     for (unsigned int i = 0; i < g_pointHistory.n_rows; i++) {
@@ -385,6 +396,30 @@ void MainWindow::on_actionRun_triggered() {
             g_pointHistory.at(i,j) = positionHistory[i][j];
         }
     }
+
+    // generate some data:
+    QVector<double> x(g_costHistory.size()), y(g_costHistory.size()); // initialize with entries 0..100
+    for (int i = 0; i < x.count(); ++i)
+    {
+        x[i] = i;
+        y[i] = g_costHistory[i];
+
+        cout << y[i] << endl;
+    }
+
+    QCustomPlot* customPlot = ui.customPlot;
+    customPlot->clearGraphs();
+    
+    // create graph and assign data to it:
+    customPlot->addGraph();
+    customPlot->graph(0)->setData(x, y);
+    customPlot->rescaleAxes();
+
+    // give the axes some labels:
+    customPlot->xAxis->setLabel("iteration");
+    customPlot->yAxis->setLabel("cost");
+    customPlot->replot();
+
 	updateScene();
 
 }
@@ -412,7 +447,7 @@ void MainWindow::on_actionNBodySimulation_triggered() {
 
 	cout << "particles added" << endl;
 	for (unsigned int i = 0; i < g_numberOfIterations; i++) {
-		nBodySystem.advance(0.1);
+		nBodySystem.advance(0.01);
 	}
 
 	cout << "iteration done" << endl;
@@ -420,6 +455,9 @@ void MainWindow::on_actionNBodySimulation_triggered() {
 		pointList.at(currentImage, POINT_DIMENSIONS*i) = nBodySystem.bodies[i].x;
 		pointList.at(currentImage, POINT_DIMENSIONS*i+1) = nBodySystem.bodies[i].y;
 	}
+
+    pointList.print();
+
 	updateScene();
 }
 
@@ -452,6 +490,9 @@ void MainWindow::on_actionSaveTrace_triggered() {
 	}
 }
 
+void MainWindow::on_actionShowPlotWindow_triggered() {
+    ui.dockWidget_2->show();
+}
 
 void MainWindow::on_timer_timeout() {
     if (g_pointHistoryIdx >= g_pointHistory.n_rows) {

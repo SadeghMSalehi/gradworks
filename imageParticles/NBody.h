@@ -45,26 +45,26 @@ public:
 		struct R {
 			double dx, dy, dz, unused;
 		};
-		static R r[1000];
-		static double mag[1000];
 
 		for (unsigned i = 0, k = 0; i < bodies.size() - 1; ++i) {
 			Body& iBody = bodies[i];
 			for (unsigned j = i + 1; j < bodies.size(); ++j, ++k) {
-				r[k].dx = iBody.x - bodies[j].x;
-				r[k].dy = iBody.y - bodies[j].y;
-				r[k].dz = iBody.z - bodies[j].z;
+                struct R r;
 
-	            double d2 = r[k].dx * r[k].dx + r[k].dy * r[k].dy + r[k].dz * r[k].dz;
+				r.dx = iBody.x - bodies[j].x;
+				r.dy = iBody.y - bodies[j].y;
+				r.dz = iBody.z - bodies[j].z;
+
+	            double d2 = r.dx * r.dx + r.dy * r.dy + r.dz * r.dz;
 	            double mag = dt / (d2 * sqrt(d2));
 
-	            iBody.vx -= r[k].dx * bodies[j].mass * mag;
-				iBody.vy -= r[k].dy * bodies[j].mass * mag;
-				iBody.vz -= r[k].dz * bodies[j].mass * mag;
+	            iBody.vx -= r.dx * bodies[j].mass * mag;
+				iBody.vy -= r.dy * bodies[j].mass * mag;
+				iBody.vz -= r.dz * bodies[j].mass * mag;
 
-				bodies[j].vx += r[k].dx * iBody.mass * mag;
-				bodies[j].vy += r[k].dy * iBody.mass * mag;
-				bodies[j].vz += r[k].dz * iBody.mass * mag;
+				bodies[j].vx += r.dx * iBody.mass * mag;
+				bodies[j].vy += r.dy * iBody.mass * mag;
+				bodies[j].vz += r.dz * iBody.mass * mag;
 			}
 		}
 

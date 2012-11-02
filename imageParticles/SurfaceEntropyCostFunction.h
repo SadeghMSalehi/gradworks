@@ -90,16 +90,12 @@ public:
             cout << "Image is null" << endl;
             exit(0);
         }
-        ImageType::PointType p;
-        p[0] = x;
-        p[1] = y;
         ImageType::IndexType i;
         i[0] = ::round(x);
         i[1] = ::round(y);
         ImageType::PixelType v = 1;
         if (m_Image->GetBufferedRegion().IsInside(i)) {
             v = m_Image->GetPixel(i);
-            //cout << v << endl;
         } else {
             cout << "(" << x << "," << y << ") => " << i << endl;
             cout << m_Image->GetBufferedRegion().GetSize() << endl;
@@ -156,10 +152,9 @@ public:
         int nParams = p.GetSize();
         int iPtId = -1;
 
-#pragma omp parallel for
         for (int i = 0; i < nParams; i += VDim) {
             iPtId ++;
-            double si = 7; //m_SampleSigmas[iPtId];
+            double si = 3; //m_SampleSigmas[iPtId];
             double gSum = 0;
             arma::vec weights;
             weights.zeros(m_NumberOfPoints);
@@ -183,7 +178,13 @@ public:
             gSum = arma::sum(weights);
             cost += gSum;
 
-            weights /= gSum;
+            if (gSum == 0) {
+                weights.fill(0);
+            } else {
+                weights /= gSum;
+            }
+            
+
             arma::vec deriv_i;
             deriv_i.zeros(VDim);
             int jPtId = -1;

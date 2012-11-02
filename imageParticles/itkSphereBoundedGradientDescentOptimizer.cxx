@@ -59,7 +59,6 @@ void SphereBoundedGradientDescentOptimizer::StepAlongGradient(double factor,
 	itkDebugMacro(<< "new position = " << newPosition);
 
 	this->SetCurrentPosition(newPosition);
-
 }
 } // end namespace itk
 

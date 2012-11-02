@@ -29,6 +29,7 @@ typedef itk::GradientRecursiveGaussianImageFilter<ImageType,GradientImageType> G
 typedef itk::VectorMagnitudeImageFilter<GradientImageType,ImageType> VectorMagnitudeImageFilter;
 typedef itk::ScalarToARGBColormapImageFilter<ImageType, BitmapType> ScalarToRGBFilter;
 typedef itk::SphereBoundedGradientDescentOptimizer OptimizerType;
+//typedef itk::MyFRPROptimizer OptimizerType;
 typedef arma::mat MatrixType;
 
 #endif

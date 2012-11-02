@@ -28,6 +28,7 @@ public slots:
     void on_actionPlayTrace_triggered();
     void on_actionSaveTrace_triggered();
     void on_actionLoadTrace_triggered();
+    void on_actionShowPlotWindow_triggered();
     void on_actionNBodySimulation_triggered();
     void on_listWidget_itemClicked(QListWidgetItem * item);
     void on_listWidget_currentRowChanged(int currentRow);

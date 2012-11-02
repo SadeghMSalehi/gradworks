@@ -12,7 +12,7 @@ include(${QT_USE_FILE})
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 
 set (CMAKE_C_FLAGS -fopenmp)
-set (CMAKE_CPP_FLAGS -fopenmp)
+set (CMAKE_CXX_FLAGS -fopenmp)
 
 #set (IPOPT_LIB_DIR /tools/IpOpt/lib)
 #set (IPOPT_LIBRARIES ${IPOPT_LIB_DIR}/libiomp5.dylib ${IPOPT_LIB_DIR}/libipopt.dylib ${IPOPT_LIB_DIR}/libpardiso412-MACOS-X86-64.dylib)
@@ -28,12 +28,26 @@ set(ITKFILES
 	itkMyFRPROptimizer.cpp
 	itkMyPowellOptimizer.h
 	itkMyPowellOptimizer.cpp
+	itkMyRegularStepGradientDescentBaseOptimizer.h
+	itkMyRegularStepGradientDescentBaseOptimizer.cxx
+	itkMyRegularStepGradientDescentOptimizer.h
+	itkMyRegularStepGradientDescentOptimizer.cxx
 	itkSphereBoundedGradientDescentOptimizer.h
 	itkSphereBoundedGradientDescentOptimizer.cxx
 )
 
-set(HEADERS mainwindow.h)
-set(SOURCES main.cpp mainwindow.cpp itkImageIO.h SurfaceEntropyCostFunction.h SurfaceEntropyCostFunction.cpp)
+set(HEADERS mainwindow.h qcustomplot.h)
+
+set(SOURCES main.cpp 
+	mainwindow.cpp 
+	itkImageIO.h 
+	SurfaceEntropyCostFunction.h 
+	SurfaceEntropyCostFunction.cpp 
+	NBody.h 
+	NBody.cpp 
+	qcustomplot.cpp
+)
+
 set(FORMS particlesUI.ui)
 
 set (ITK_PARTICLES_SOURCES 
@@ -73,7 +87,6 @@ add_definitions(${QT_DEFINITIONS})
 
 add_executable(imageParticles 
 #	${IPOPT_FILES}
-	${ITK_PARTICLES_SOURCES}
 	${ITKFILES}
 	${HEADERS} 
 	${SOURCES} 
