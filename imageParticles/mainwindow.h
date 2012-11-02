@@ -23,6 +23,7 @@ public slots:
     void on_actionZoomOut_triggered();
     void on_actionDeploy_triggered();
     void on_actionRun_triggered();
+    void on_actionContinueOptimization_triggered();
     void on_actionPointSave_triggered();
     void on_actionPointLoad_triggered();
     void on_actionPlayTrace_triggered();
@@ -34,13 +35,13 @@ public slots:
     void on_listWidget_currentRowChanged(int currentRow);
     void on_timer_timeout();
 
-
-
 public:
     void playScene();
     void updateScene();
     void addImage(QString filename);
     void resizeEvent(QResizeEvent* event);
+
+    void runOptimization();
 
 private:
     Ui::MainWindow ui;

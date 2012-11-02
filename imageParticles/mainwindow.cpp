@@ -77,9 +77,11 @@ public:
 		}
         bool traceSteps = false;
         if (traceSteps) {
-            cout << realCaller->GetCurrentIteration() << "; Cost = "
-            << realCaller->GetValue() << "; Parameters = "
-            << realCaller->GetCurrentPosition() << endl;
+//        	cout << realCaller->GetCurrentIteration() << "; Cost = "
+//        			<< realCaller->GetValue() << "; Parameters = "
+//        			<< realCaller->GetCurrentPosition() << endl;
+
+        	cout << realCaller->GetValue() << endl;
         }
         if (++m_Counter % 1 == 0) {
             m_ParametersHistory->push_back(realCaller->GetCurrentPosition());
@@ -276,6 +278,20 @@ void MainWindow::on_listWidget_currentRowChanged(int currentRow) {
 }
 
 void MainWindow::on_actionRun_triggered() {
+    g_numberOfIterations = ui.numberOfIterations->value();
+    g_costHistory.clear();
+    g_pointHistory.clear();
+    g_pointHistoryIdx = 0;
+
+    runOptimization();
+}
+
+void MainWindow::on_actionContinueOptimization_triggered() {
+	g_numberOfIterations = ui.numberOfIterations->value();
+    runOptimization();
+}
+
+void MainWindow::runOptimization() {
 	if (bitmapList.size() == 0) {
 		return;
 	}
@@ -323,19 +339,12 @@ void MainWindow::on_actionRun_triggered() {
          */
     }
 
-
-
-    g_numberOfIterations = ui.numberOfIterations->value();
-    g_costHistory.clear();
-
-    cout << "Number of Iterations:" << g_numberOfIterations << endl;
 	int currentImage = ui.listWidget->currentRow();
-
-
 	const static int nDim = POINT_DIMENSIONS;
 	typedef SurfaceEntropyCostFunction<nDim> CostFunction;
 	CostFunction::PointContainerType initialPoints;
 	initialPoints.resize(pointList.n_cols / nDim);
+
 	for (unsigned int i = 0; i < initialPoints.size(); i++) {
 		CostFunction::PointType pi;
 		for (int j = 0; j < nDim; j++) {
@@ -344,35 +353,51 @@ void MainWindow::on_actionRun_triggered() {
 		initialPoints[i] = pi;
 	}
 
+	cout << "Initial cost function set up " << endl;
+
 	CostFunction::Pointer costFunc = CostFunction::New();
     costFunc->SetImage(gradMagImageList[currentImage]);
     costFunc->SetUseAdaptiveSampling(ui.actionAdaptiveSampling->isChecked());
-
 	costFunc->Initialize(initialPoints);
 
-
-	CostFunction::ParametersType initialParams =
-    costFunc->GetInitialParameters();
-	double cost = costFunc->GetValue(initialParams);
-	cout << "Cost before optimization: " << cost << endl;
-
     ParametersHistoryType positionHistory;
-	cout  << "Intial Parameters: " << initialParams << endl;
 	OptimizerProgress::Pointer progress = OptimizerProgress::New();
     progress->SetParticlesHistory(&positionHistory);
     
+    CostFunction::ParametersType initialParams = costFunc->GetInitialParameters();
+
 	OptimizerType::Pointer opti = OptimizerType::New();
 	opti->AddObserver(itk::IterationEvent(), progress.GetPointer());
 	opti->SetCostFunction(costFunc);
 	opti->SetInitialPosition(initialParams);
-	opti->SetRadius(RADIUS);
-    opti->SetMaximumStepLength(1);
-    
-	OptimizerType::VectorType center;
-	center[0] = imgSz[0] / 2;
-	center[1] = imgSz[1] / 2;
-	opti->SetCenter(center);
-    opti->SetNumberOfIterations(g_numberOfIterations);
+
+#ifdef USE_LBFGS_OPTIMIZER
+	opti->SetMinimize(true);
+	OptimizerType::BoundValueType lowerBound, upperBound;
+	OptimizerType::BoundSelectionType boundSelection;
+
+	lowerBound.SetSize(initialParams.GetSize());
+	upperBound.SetSize(initialParams.GetSize());
+	boundSelection.SetSize(initialParams.GetSize());
+
+	for (int i = 0; i < lowerBound.GetSize(); i += POINT_DIMENSIONS) {
+		lowerBound[i] = lowerBound[i+1] = 0;
+		upperBound[i] = imgSz[0];
+		upperBound[i+1] = imgSz[1];
+		boundSelection[i] = boundSelection[i+1] = 2;
+	}
+
+	opti->SetLowerBound(lowerBound);
+	opti->SetUpperBound(upperBound);
+	opti->SetBoundSelection(boundSelection);
+#endif
+	//opti->SetRadius(RADIUS);
+
+//	OptimizerType::VectorType center;
+//	center[0] = imgSz[0] / 2;
+//	center[1] = imgSz[1] / 2;
+	//opti->SetCenter(center);
+    //opti->SetNumberOfIterations(g_numberOfIterations);
     
 	//opti->SetUseUnitLengthGradient(true);
 	//opti->SetMaximumIteration(3);
@@ -381,19 +406,25 @@ void MainWindow::on_actionRun_triggered() {
     //opti->SetUseUnitLengthGradient(true);
 
 
+    cout << "Starting optimization ..." << endl;
 	opti->StartOptimization();
+	cout << "Optimization done ..." << endl;
 
 	CostFunction::ParametersType result = opti->GetCurrentPosition();
 	for (unsigned int i = 0; i < result.GetSize(); i++) {
 		pointList(currentImage, i) = result[i];
 	}
 
-    cout << "Number of Iteration Performed: " << opti->GetCurrentIteration() << endl;
+    // cout << "Number of Iteration Performed: " << opti->GetCurrentIteration() << endl;
     cout << "Number of traces: " << positionHistory.size() << endl;
-    g_pointHistory.zeros(positionHistory.size(), pointList.n_cols);
-    for (unsigned int i = 0; i < g_pointHistory.n_rows; i++) {
+
+    int prevHistoryCount = g_pointHistory.n_rows;
+    g_pointHistory.resize(g_pointHistory.n_rows + positionHistory.size(), pointList.n_cols);
+    cout << "Point history size: " << g_pointHistory.n_rows << endl;
+
+    for (unsigned int i = prevHistoryCount; i < g_pointHistory.n_rows; i++) {
         for (unsigned int j = 0; j < g_pointHistory.n_cols; j++) {
-            g_pointHistory.at(i,j) = positionHistory[i][j];
+            g_pointHistory.at(i,j) = positionHistory[i - prevHistoryCount][j];
         }
     }
 
@@ -403,10 +434,9 @@ void MainWindow::on_actionRun_triggered() {
     {
         x[i] = i;
         y[i] = g_costHistory[i];
-
-        cout << y[i] << endl;
     }
 
+    cout << "Drawing plot: " << endl;
     QCustomPlot* customPlot = ui.customPlot;
     customPlot->clearGraphs();
     

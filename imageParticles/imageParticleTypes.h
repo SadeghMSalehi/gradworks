@@ -16,6 +16,7 @@
 #include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkVectorMagnitudeImageFilter.h"
 #include "itkARGBColormapFunction.h"
+#include "itkLBFGSBOptimizer.h"
 #include "armadillo"
 
 const int VDimension = 2;
@@ -28,8 +29,13 @@ typedef itk::Image<GradientType,VDimension> GradientImageType;
 typedef itk::GradientRecursiveGaussianImageFilter<ImageType,GradientImageType> GradientImageFilter;
 typedef itk::VectorMagnitudeImageFilter<GradientImageType,ImageType> VectorMagnitudeImageFilter;
 typedef itk::ScalarToARGBColormapImageFilter<ImageType, BitmapType> ScalarToRGBFilter;
-typedef itk::SphereBoundedGradientDescentOptimizer OptimizerType;
+typedef itk::LBFGSBOptimizer OptimizerType;
+//typedef itk::SphereBoundedGradientDescentOptimizer OptimizerType;
 //typedef itk::MyFRPROptimizer OptimizerType;
+
 typedef arma::mat MatrixType;
+
+#define USE_LBFGS_OPTIMIZER
+
 
 #endif

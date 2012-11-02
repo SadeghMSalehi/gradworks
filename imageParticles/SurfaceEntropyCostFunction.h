@@ -75,6 +75,7 @@ public:
                 initial[VDim*i + j] = m_Points[i][j];
             }
         }
+        cout << "Initial Parameters: " << initial << endl;
         return initial;
     }
 
@@ -97,8 +98,8 @@ public:
         if (m_Image->GetBufferedRegion().IsInside(i)) {
             v = m_Image->GetPixel(i);
         } else {
-            cout << "(" << x << "," << y << ") => " << i << endl;
-            cout << m_Image->GetBufferedRegion().GetSize() << endl;
+//            cout << "(" << x << "," << y << ") => " << i << endl;
+//            cout << m_Image->GetBufferedRegion().GetSize() << endl;
         }
 
         if (v != v) {
@@ -152,6 +153,12 @@ public:
         int nParams = p.GetSize();
         int iPtId = -1;
 
+        derivative.SetSize(GetNumberOfParameters());
+
+//        cout << "Parameters: " << p << endl;
+//        cout << "Derivatives: " << derivative << "[" << derivative.GetSize() << "]" << endl;
+//        cout << "Number of Points: " << m_NumberOfPoints << endl;
+
         for (int i = 0; i < nParams; i += VDim) {
             iPtId ++;
             double si = 3; //m_SampleSigmas[iPtId];
@@ -185,25 +192,29 @@ public:
             }
             
 
-            arma::vec deriv_i;
-            deriv_i.zeros(VDim);
-            int jPtId = -1;
-            for (int j = 0; j < nParams; j += VDim) {
-                jPtId ++;
-            	if (j == i) {
-            		continue;
+//            cout << "Computing derivatives ..." << endl;
+
+            if (derivative.GetSize() > 0) {
+            	arma::vec deriv_i;
+            	deriv_i.zeros(VDim);
+            	int jPtId = -1;
+            	for (int j = 0; j < nParams; j += VDim) {
+            		jPtId ++;
+            		if (j == i) {
+            			continue;
+            		}
+            		for (unsigned int k = 0; k < VDim; k++) {
+            			deriv_i[k] += (p[i+k] - p[j+k]) * weights[jPtId];
+            		}
             	}
+            	deriv_i = - deriv_i / (si*si);
             	for (unsigned int k = 0; k < VDim; k++) {
-            		deriv_i[k] += (p[i+k] - p[j+k]) * weights[jPtId];
+            		derivative[i + k] = deriv_i[k];
             	}
-            }
-            deriv_i = - deriv_i / (si*si);
-            for (unsigned int k = 0; k < VDim; k++) {
-            	derivative[i + k] = deriv_i[k];
             }
         }
         value = cost;
-        //cout << "Cost: " << value << "; #: " << p << endl;
+//        cout << "Cost: " << value << "; #: " << p << endl;
     }
 
 protected:
