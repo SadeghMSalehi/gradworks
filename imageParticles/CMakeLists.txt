@@ -34,9 +34,11 @@ set(ITKFILES
 	itkMyRegularStepGradientDescentOptimizer.cxx
 	itkSphereBoundedGradientDescentOptimizer.h
 	itkSphereBoundedGradientDescentOptimizer.cxx
+	itkImageBoundedGradientDescentOptimizer.h
+	itkImageBoundedGradientDescentOptimizer.cxx
 )
 
-set(HEADERS mainwindow.h qcustomplot.h)
+set(HEADERS mainwindow.h qcustomplot.h qmygraphicsview.h)
 
 set(SOURCES main.cpp 
 	mainwindow.cpp 
@@ -46,6 +48,12 @@ set(SOURCES main.cpp
 	NBody.h 
 	NBody.cpp 
 	qcustomplot.cpp
+	qmygraphicsview.cpp
+	imageParticleTypes.h
+#	imageParticleCore.h
+#	imageParticleCore.cpp
+	itkMyPowellOptimizer.h
+	itkMyPowellOptimizer.cpp
 )
 
 set(FORMS particlesUI.ui)

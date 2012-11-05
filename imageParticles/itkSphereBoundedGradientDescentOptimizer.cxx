@@ -21,6 +21,7 @@
 #include "itkSphereBoundedGradientDescentOptimizer.h"
 
 namespace itk {
+    
 /**
  * Advance one Step following the gradient direction
  * This method will be overrided in non-vector spaces

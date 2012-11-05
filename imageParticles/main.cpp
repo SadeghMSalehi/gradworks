@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QStringList>
 #include <iostream>
+//#include "imageParticleCore.h"
 
 using namespace std;
 
@@ -37,5 +38,8 @@ int main(int argc, char *argv[]) {
 		MainWindow w;
 		w.show();
 		return a.exec();
+    } else {
+//        ImageParticleCore core;
+//        core.Run();
     }
 }

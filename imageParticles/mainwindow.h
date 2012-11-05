@@ -34,6 +34,7 @@ public slots:
     void on_listWidget_itemClicked(QListWidgetItem * item);
     void on_listWidget_currentRowChanged(int currentRow);
     void on_timer_timeout();
+    void on_graphicsView_mousePressed(QMouseEvent* event);
 
 public:
     void playScene();

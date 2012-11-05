@@ -18,6 +18,9 @@
 #endif
 #include "imageParticleTypes.h"
 
+#define __CLAMP(x,s)((x<-3*si?0:(x>3*si?0:x)))
+
+
 template <unsigned int VDim>
 class SurfaceEntropyCostFunction: public itk::SingleValuedCostFunction {
 public:
@@ -35,6 +38,14 @@ public:
     typedef itk::Array<ParametersValueType> DerivativeType;
     typedef itk::Vector<float,VDim> PointType;
     typedef std::vector<PointType> PointContainerType;
+
+    void SetDistanceVectorImage(DistanceVectorImageType::Pointer distVector) {
+        m_distVectorMap = distVector;
+    }
+
+    void SetDistanceVectorMagnitudeImage(ImageType::Pointer distVectorMag) {
+        m_distVectorMagnitudeMap = distVectorMag;
+    }
 
     void SetImage(ImageType::Pointer image) {
         m_Image = image;
@@ -149,22 +160,33 @@ public:
     virtual void GetValueAndDerivative(const ParametersType & p,
                                        MeasureType & value,
                                        DerivativeType & derivative) const {
-        MeasureType cost = 0;
+        MeasureType cost = 0, rCost = 0;
         int nParams = p.GetSize();
         int iPtId = -1;
 
         derivative.SetSize(GetNumberOfParameters());
-
+        InterpolatorType::Pointer interpolator = InterpolatorType::New();
+        interpolator->SetInputImage(m_distVectorMagnitudeMap);
+        
 //        cout << "Parameters: " << p << endl;
 //        cout << "Derivatives: " << derivative << "[" << derivative.GetSize() << "]" << endl;
 //        cout << "Number of Points: " << m_NumberOfPoints << endl;
 
         for (int i = 0; i < nParams; i += VDim) {
             iPtId ++;
-            double si = 3; //m_SampleSigmas[iPtId];
+            double si = 11; //m_SampleSigmas[iPtId];
             double gSum = 0;
             arma::vec weights;
+
             weights.zeros(m_NumberOfPoints);
+
+            ContinuousIndexType ii;
+            ii[0] = p[i];
+            ii[1] = p[i+1];
+
+            //double ri = interpolator->EvaluateAtContinuousIndex(ii);
+            //rCost += exp(-__CLAMP(ri,3*si)/(si*si));
+
             for (int j = 0, jPtId = 0; j < nParams; j += VDim, jPtId++) {
             	if (j == i) {
             		continue;
@@ -176,7 +198,7 @@ public:
                 dist_ij = ::sqrt(dist_ij);
                 double g = 0;
                 if (m_AdaptiveSampling) {
-                	g = weightedG(dist_ij, si, p[j], p[j+1], 0);
+                	g = weightedG(dist_ij, si, p[i], p[i+1], 0);
                 } else {
                 	g = G(dist_ij, si);
                 }
@@ -208,12 +230,17 @@ public:
             		}
             	}
             	deriv_i = - deriv_i / (si*si);
+
+                ImageType::IndexType ii;
+                ii[0] = p[i];
+                ii[1] = p[i+1];
+                ImageType::OffsetType distOffset = m_distVectorMap->GetPixel(ii);
             	for (unsigned int k = 0; k < VDim; k++) {
-            		derivative[i + k] = deriv_i[k];
+            		derivative[i + k] = deriv_i[k];// + abs(ri) / 100 * distOffset[k];
             	}
             }
         }
-        value = cost;
+        value = cost;// + rCost;
 //        cout << "Cost: " << value << "; #: " << p << endl;
     }
 
@@ -231,6 +258,8 @@ private:
     ParametersType m_SampleSigmas;
     int m_NumberOfPoints;
     ImageType::Pointer m_Image;
+    ImageType::Pointer m_distVectorMagnitudeMap;
+    DistanceVectorImageType::Pointer m_distVectorMap;
     bool m_AdaptiveSampling;
 };
 

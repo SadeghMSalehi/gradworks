@@ -31,6 +31,7 @@ namespace itk
             typedef SmartPointer< Self >        Pointer;
             typedef SmartPointer< const Self >  ConstPointer;
 
+
             /** Run-time type information (and related methods). */
             itkTypeMacro(ColormapFunction, Object);
 
@@ -39,12 +40,17 @@ namespace itk
             typedef TScalar                                        ScalarType;
             typedef typename NumericTraits< ScalarType >::RealType RealType;
 
+            RGBComponentType m_Alpha;
+
             itkSetMacro(MinimumRGBComponentValue, RGBComponentType);
             itkGetConstMacro(MinimumRGBComponentValue, RGBComponentType);
 
             itkSetMacro(MaximumRGBComponentValue, RGBComponentType);
             itkGetConstMacro(MaximumRGBComponentValue, RGBComponentType);
 
+            itkSetMacro(Alpha, RGBComponentType);
+            itkGetConstMacro(Alpha, RGBComponentType);
+            
             itkSetMacro(MinimumInputValue, ScalarType);
             itkGetConstMacro(MinimumInputValue, ScalarType);
 
@@ -64,12 +70,14 @@ namespace itk
             virtual RGBPixelType operator()(const ScalarType &) const = 0;
 
         protected:
+            
             ARGBColormapFunction()
             {
                 this->m_MinimumInputValue = NumericTraits< TScalar >::min();
                 this->m_MaximumInputValue = NumericTraits< TScalar >::max();
                 this->m_MinimumRGBComponentValue = NumericTraits< RGBComponentType >::min();
                 this->m_MaximumRGBComponentValue = NumericTraits< RGBComponentType >::max();
+                this->m_Alpha = 255;
             }
 
             ~ARGBColormapFunction() {}
@@ -129,6 +137,7 @@ namespace itk
 
             RGBComponentType m_MinimumRGBComponentValue;
             RGBComponentType m_MaximumRGBComponentValue;
+
         };
 
         /**
@@ -192,7 +201,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -256,7 +265,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = 0;
             pixel[1] = 0;
             pixel[2] = this->RescaleRGBComponentValue(value);
@@ -327,7 +336,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -400,7 +409,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -549,7 +558,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -613,7 +622,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = 0;
             pixel[1] = this->RescaleRGBComponentValue(value);
             pixel[2] = 0;
@@ -681,7 +690,7 @@ namespace itk
             pixel[0] = this->RescaleRGBComponentValue(value);
             pixel[1] = pixel[0];
             pixel[2] = pixel[0];
-            pixel[3] = 0xff;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             return pixel;
         }
 
@@ -760,7 +769,7 @@ namespace itk
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
 
             return pixel;
         }
@@ -836,7 +845,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -915,7 +924,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
 
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -1000,7 +1009,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
             
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -1065,7 +1074,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
             
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(value);
             pixel[1] = 0;
             pixel[2] = 0;
@@ -1137,7 +1146,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
             
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -1209,7 +1218,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
             
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);
@@ -1281,7 +1290,7 @@ namespace itk
             RGBPixelType pixel;
             NumericTraits<TRGBPixel>::SetLength(pixel, 4);
             
-            pixel[3] = 255;
+            pixel[3] = ARGBColormapFunction<TScalar, TRGBPixel>::m_Alpha;
             pixel[0] = this->RescaleRGBComponentValue(red);
             pixel[1] = this->RescaleRGBComponentValue(green);
             pixel[2] = this->RescaleRGBComponentValue(blue);

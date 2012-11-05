@@ -188,8 +188,7 @@ namespace itk
         for ( unsigned int i = 0; i < spaceDimension; i++ )
         {
             transformedGradient[i]  = m_Gradient[i] / scales[i];
-            previousTransformedGradient[i] =
-            m_PreviousGradient[i] / scales[i];
+            previousTransformedGradient[i] = m_PreviousGradient[i] / scales[i];
         }
 
         double magnitudeSquare = 0;

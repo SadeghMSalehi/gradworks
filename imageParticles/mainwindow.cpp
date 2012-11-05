@@ -12,16 +12,27 @@
 #include "imageParticleTypes.h"
 #include "NBody.h"
 
+#include "itkImageBoundedGradientDescentOptimizer.h"
+typedef itk::ImageBoundedGradientDescentOptimizer OptimizerType;
+
 
 #define RADIUS 60
 #define NUMBER_OF_POINTS 500
 #define POINT_DIMENSIONS 2
 
-std::vector<BitmapType::Pointer> bitmapList;
-std::vector<BitmapType::Pointer> gradMagBitmapList;
-std::vector<ImageType::Pointer> imageList;
-std::vector<GradientImageType::Pointer> gradientImageList;
-std::vector<ImageType::Pointer> gradMagImageList;
+std::vector<BitmapType::Pointer> g_bitmapList;
+std::vector<BitmapType::Pointer> g_gradmagBitmapList;
+std::vector<BitmapType::Pointer> g_distanceMapBitmapList;
+std::vector<BitmapType::Pointer> g_maskBitmapList;
+
+std::vector<ImageType::Pointer> g_imageList;
+std::vector<GradientImageType::Pointer> g_gradientImageList;
+std::vector<ImageType::Pointer> g_gradmagImageList;
+std::vector<ImageType::Pointer> g_distanceMapList;
+std::vector<DistanceVectorImageType::Pointer> g_distanceVectorList;
+std::vector<ImageType::Pointer> g_boundaryMapList;
+
+MatrixType g_pointList;
 
 unsigned int g_pointHistoryIdx;
 unsigned int g_numberOfPoints;
@@ -30,7 +41,7 @@ MatrixType g_pointHistory;
 typedef std::vector<OptimizerType::ParametersType> ParametersHistoryType;
 std::vector<double> g_costHistory;
 
-MatrixType pointList;
+
 
 class OptimizerProgress: public itk::Command {
 private:
@@ -104,38 +115,70 @@ BitmapType::Pointer loadImage(QString f) {
 	try {
 		itkcmds::itkImageIO<ImageType> io;
 		ImageType::Pointer img = io.ReadImageT(f.toAscii().data());
-        imageList.push_back(img);
+        g_imageList.push_back(img);
 
-		ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
+        ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
 		rgbFilter->SetInput(img);
-		rgbFilter->SetNumberOfThreads(1);
+		rgbFilter->SetNumberOfThreads(8);
+        rgbFilter->SetAlphaValue(128);
 		rgbFilter->Update();
 		rgbImage = rgbFilter->GetOutput();
-		bitmapList.push_back(rgbImage);
+		g_bitmapList.push_back(rgbImage);
 
         GradientImageFilter::Pointer gradFilter = GradientImageFilter::New();
         gradFilter->SetInput(img);
-        gradFilter->SetSigma(.5);
+        gradFilter->SetSigma(3);
         gradFilter->Update();
-        gradientImageList.push_back(gradFilter->GetOutput());
+        g_gradientImageList.push_back(gradFilter->GetOutput());
 
         VectorMagnitudeImageFilter::Pointer magFilter = VectorMagnitudeImageFilter::New();
-        magFilter->SetInput(gradientImageList.back());
+        magFilter->SetInput(g_gradientImageList.back());
         magFilter->Update();
-        gradMagImageList.push_back(magFilter->GetOutput());
-
+        g_gradmagImageList.push_back(magFilter->GetOutput());
 
 		ScalarToRGBFilter::Pointer rgbMagFilter = ScalarToRGBFilter::New();
 		rgbMagFilter->SetInput(magFilter->GetOutput());
 		rgbMagFilter->SetNumberOfThreads(1);
 		rgbMagFilter->Update();
         BitmapType::Pointer rgbGradMagImage = rgbMagFilter->GetOutput();
-        gradMagBitmapList.push_back(rgbGradMagImage);
+        g_gradmagBitmapList.push_back(rgbGradMagImage);
 
 	} catch (itk::ExceptionObject& ex) {
 		cout << ex.what() << endl;
 	}
 	return rgbImage;
+}
+
+
+void loadMask(QString f) {
+    itkcmds::itkImageIO<ImageType> io;
+    ImageType::Pointer img = io.ReadImageT(f.toAscii().data());
+    g_boundaryMapList.push_back(img);
+
+    ScalarToRGBFilter::Pointer rgbFilter1 = ScalarToRGBFilter::New();
+    rgbFilter1->SetInput(img);
+    rgbFilter1->SetAlphaValue(128);
+    rgbFilter1->Update();
+    BitmapType::Pointer maskBitmap = rgbFilter1->GetOutput();
+    g_maskBitmapList.push_back(maskBitmap);
+
+    DistanceMapFilter::Pointer distmapFilter = DistanceMapFilter::New();
+    distmapFilter->SetInput(img);
+    distmapFilter->Update();
+    ImageType::Pointer distImg = distmapFilter->GetOutput();
+    g_distanceMapList.push_back(distmapFilter->GetOutput());
+    
+    DistanceVectorImageType::Pointer distVector = distmapFilter->GetVectorDistanceMap();
+    g_distanceVectorList.push_back(distVector);
+
+    ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
+    rgbFilter->SetInput(distImg);
+    rgbFilter->SetNumberOfThreads(8);
+    rgbFilter->Update();
+    BitmapType::Pointer rgbImage = rgbFilter->GetOutput();
+    g_distanceMapBitmapList.push_back(rgbImage);
+
+    cout << "Bitmap for distance map .." << endl;
 }
 
 QPixmap getPixmap(BitmapType::Pointer bitmap) {
@@ -147,7 +190,7 @@ QPixmap getPixmap(BitmapType::Pointer bitmap) {
 
 void drawGrid(QGraphicsScene* gs, double x0, double y0, double xSpacing,
               double ySpacing) {
-	BitmapType::SizeType bmpSz = bitmapList[0]->GetBufferedRegion().GetSize();
+	BitmapType::SizeType bmpSz = g_bitmapList[0]->GetBufferedRegion().GetSize();
 	for (double x = x0; x < bmpSz[0]; x += xSpacing) {
 		gs->addLine(x, 0, x, bmpSz[1], QPen(QColor(255, 255, 0)));
 		cout << x << endl;
@@ -175,6 +218,8 @@ QMainWindow(parent) {
 #ifdef __APPLE__
     addImage(tr("/data/2D/circle.jpg"));
     addImage(tr("/data/2D/circle.jpg"));
+    loadMask(tr("/data/2D/circle-boundary.png"));
+    loadMask(tr("/data/2D/circle-boundary.png"));
 #else
     addImage(tr("/base/imageParticles/data/circle.jpg"));
     addImage(tr("/base/imageParticles/data/circle.jpg"));
@@ -210,11 +255,11 @@ void MainWindow::on_actionZoomOut_triggered() {
  *
  */
 void MainWindow::on_actionDeploy_triggered() {
-	if (bitmapList.size() == 0) {
+	if (g_bitmapList.size() == 0) {
 		return;
 	}
 
-	BitmapType::SizeType bmpSz = bitmapList[0]->GetBufferedRegion().GetSize();
+	BitmapType::SizeType bmpSz = g_bitmapList[0]->GetBufferedRegion().GetSize();
 	bool uniformDistribution = false;
 	/*
 	 * uniform distribution
@@ -225,7 +270,7 @@ void MainWindow::on_actionDeploy_triggered() {
 		int nPoints = nX * nY;
 		int distX = (int) round((bmpSz[0] - x0) / (nX - 1));
 		int distY = (int) round((bmpSz[1] - y0) / (nY - 1));
-		pointList.zeros(bitmapList.size(), nPoints * 2);
+		g_pointList.zeros(g_bitmapList.size(), nPoints * 2);
 		std::vector<int> xCoords, yCoords;
 		xCoords.resize(nX);
 		yCoords.resize(nY);
@@ -235,33 +280,33 @@ void MainWindow::on_actionDeploy_triggered() {
 		for (int j = 0; j < nY; j++) {
 			yCoords[j] = y0 + j * distY;
 		}
-		for (unsigned int k = 0; k < bitmapList.size(); k++) {
+		for (unsigned int k = 0; k < g_bitmapList.size(); k++) {
 			for (int j = 0; j < nY; j++) {
 				for (int i = 0; i < nX; i++) {
-					pointList(k, 2 * (j * nX + i)) = xCoords[i];
-					pointList(k, 2 * (j * nX + i) + 1) = yCoords[j];
+					g_pointList(k, 2 * (j * nX + i)) = xCoords[i];
+					g_pointList(k, 2 * (j * nX + i) + 1) = yCoords[j];
 				}
 			}
 		}
 	} else {
         g_numberOfPoints = ui.numberOfParticles->value();
-		pointList.randn(bitmapList.size(), g_numberOfPoints * POINT_DIMENSIONS);
+		g_pointList.randn(g_bitmapList.size(), g_numberOfPoints * POINT_DIMENSIONS);
 		BitmapType::IndexType imageCenter;
 		imageCenter[0] = bmpSz[0] / 2;
 		imageCenter[1] = bmpSz[1] / 2;
-		for (unsigned int i = 0; i < pointList.n_cols; i += POINT_DIMENSIONS) {
-			for (unsigned int k = 0; k < bitmapList.size(); k++) {
-				pointList(k, i) = 10 * pointList(k, i) + imageCenter[0];
-				pointList(k, i + 1) = 10 * pointList(k, i + 1) + imageCenter[1];
-				if (pointList(k, i) < 0) {
-					pointList(k, i) = imageCenter[0];
-				} else if (pointList(k, i) >= bmpSz[1]) {
-					pointList(k, i) = imageCenter[1];
+		for (unsigned int i = 0; i < g_pointList.n_cols; i += POINT_DIMENSIONS) {
+			for (unsigned int k = 0; k < g_bitmapList.size(); k++) {
+				g_pointList(k, i) = 10 * g_pointList(k, i) + imageCenter[0];
+				g_pointList(k, i + 1) = 10 * g_pointList(k, i + 1) + imageCenter[1];
+				if (g_pointList(k, i) < 0) {
+					g_pointList(k, i) = imageCenter[0];
+				} else if (g_pointList(k, i) >= bmpSz[1]) {
+					g_pointList(k, i) = imageCenter[1];
 				}
-				if (pointList(k, i + 1) < 0) {
-					pointList(k, i + 1) = imageCenter[0];
-				} else if (pointList(k, i + 1) >= bmpSz[1]) {
-					pointList(k, i + 1) = imageCenter[1];
+				if (g_pointList(k, i + 1) < 0) {
+					g_pointList(k, i + 1) = imageCenter[0];
+				} else if (g_pointList(k, i + 1) >= bmpSz[1]) {
+					g_pointList(k, i + 1) = imageCenter[1];
 				}
 			}
 		}
@@ -292,16 +337,16 @@ void MainWindow::on_actionContinueOptimization_triggered() {
 }
 
 void MainWindow::runOptimization() {
-	if (bitmapList.size() == 0) {
+	if (g_bitmapList.size() == 0) {
 		return;
 	}
-	BitmapType::SizeType imgSz = bitmapList[0]->GetBufferedRegion().GetSize();
+	BitmapType::SizeType imgSz = g_bitmapList[0]->GetBufferedRegion().GetSize();
 
     bool useIpOpt = false;
     if (useIpOpt) {
         /*
          SurfaceEntropyNLP* nlp = new SurfaceEntropyNLP();
-         nlp->SetInitialPoints(pointList);
+         nlp->SetInitialPoints(g_pointList);
          arma::vec imageRegion;
          imageRegion.zeros(2);
          imageRegion[0] = imgSz[0];
@@ -309,7 +354,7 @@ void MainWindow::runOptimization() {
          nlp->SetRegion(imageRegion);
          nlp->SetCenter(imageRegion/2);
          nlp->SetRadius(arma::vec("40 40"));
-         nlp->SetNumberOfPoints(pointList.n_cols / 2);
+         nlp->SetNumberOfPoints(g_pointList.n_cols / 2);
 
          Ipopt::SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
          app->Options()->SetNumericValue("tol", 1e-9);
@@ -332,7 +377,7 @@ void MainWindow::runOptimization() {
          }
          arma::vec points = nlp->GetResultPoints();
          for (int j = 0; j < points.n_elem; j++) {
-         pointList.at(0, j) = points.at(j);
+         g_pointList.at(0, j) = points.at(j);
          }
          updateScene();        //delete nlp;
          return;
@@ -343,12 +388,12 @@ void MainWindow::runOptimization() {
 	const static int nDim = POINT_DIMENSIONS;
 	typedef SurfaceEntropyCostFunction<nDim> CostFunction;
 	CostFunction::PointContainerType initialPoints;
-	initialPoints.resize(pointList.n_cols / nDim);
+	initialPoints.resize(g_pointList.n_cols / nDim);
 
 	for (unsigned int i = 0; i < initialPoints.size(); i++) {
 		CostFunction::PointType pi;
 		for (int j = 0; j < nDim; j++) {
-			pi[j] = pointList(currentImage, i * nDim + j);
+			pi[j] = g_pointList(currentImage, i * nDim + j);
 		}
 		initialPoints[i] = pi;
 	}
@@ -356,9 +401,11 @@ void MainWindow::runOptimization() {
 	cout << "Initial cost function set up " << endl;
 
 	CostFunction::Pointer costFunc = CostFunction::New();
-    costFunc->SetImage(gradMagImageList[currentImage]);
+    costFunc->SetImage(g_gradmagImageList[currentImage]);
     costFunc->SetUseAdaptiveSampling(ui.actionAdaptiveSampling->isChecked());
 	costFunc->Initialize(initialPoints);
+    costFunc->SetDistanceVectorImage(g_distanceVectorList[currentImage]);
+    costFunc->SetDistanceVectorMagnitudeImage(g_distanceMapList[currentImage]);
 
     ParametersHistoryType positionHistory;
 	OptimizerProgress::Pointer progress = OptimizerProgress::New();
@@ -369,6 +416,7 @@ void MainWindow::runOptimization() {
 	OptimizerType::Pointer opti = OptimizerType::New();
 	opti->AddObserver(itk::IterationEvent(), progress.GetPointer());
 	opti->SetCostFunction(costFunc);
+    opti->SetBoundaryImage(g_boundaryMapList[currentImage]);
 	opti->SetInitialPosition(initialParams);
 
 #ifdef USE_LBFGS_OPTIMIZER
@@ -412,14 +460,14 @@ void MainWindow::runOptimization() {
 
 	CostFunction::ParametersType result = opti->GetCurrentPosition();
 	for (unsigned int i = 0; i < result.GetSize(); i++) {
-		pointList(currentImage, i) = result[i];
+		g_pointList(currentImage, i) = result[i];
 	}
 
     // cout << "Number of Iteration Performed: " << opti->GetCurrentIteration() << endl;
     cout << "Number of traces: " << positionHistory.size() << endl;
 
     int prevHistoryCount = g_pointHistory.n_rows;
-    g_pointHistory.resize(g_pointHistory.n_rows + positionHistory.size(), pointList.n_cols);
+    g_pointHistory.resize(g_pointHistory.n_rows + positionHistory.size(), g_pointList.n_cols);
     cout << "Point history size: " << g_pointHistory.n_rows << endl;
 
     for (unsigned int i = prevHistoryCount; i < g_pointHistory.n_rows; i++) {
@@ -439,7 +487,6 @@ void MainWindow::runOptimization() {
     cout << "Drawing plot: " << endl;
     QCustomPlot* customPlot = ui.customPlot;
     customPlot->clearGraphs();
-    
     // create graph and assign data to it:
     customPlot->addGraph();
     customPlot->graph(0)->setData(x, y);
@@ -449,28 +496,30 @@ void MainWindow::runOptimization() {
     customPlot->xAxis->setLabel("iteration");
     customPlot->yAxis->setLabel("cost");
     customPlot->replot();
+//    customPlot->setInteractions(QCustomPlot::iRangeDrag | QCustomPlot::iRangeZoom);
+//    customPlot->setRangeZoomAxes(NULL, customPlot->yAxis);
 
 	updateScene();
 
 }
 
 void MainWindow::on_actionNBodySimulation_triggered() {
-	if (pointList.n_elem == 0 || bitmapList.size() < 1) {
+	if (g_pointList.n_elem == 0 || g_bitmapList.size() < 1) {
 		return;
 	}
 	g_numberOfIterations = ui.numberOfIterations->value();
 
 	cout << "Running nbody simulation: " << g_numberOfIterations << endl;
 	int currentImage = ui.listWidget->currentRow();
-	int nPoints = pointList.n_cols / POINT_DIMENSIONS;
-	BitmapType::SizeType imgSz = bitmapList[0]->GetBufferedRegion().GetSize();
+	int nPoints = g_pointList.n_cols / POINT_DIMENSIONS;
+	BitmapType::SizeType imgSz = g_bitmapList[0]->GetBufferedRegion().GetSize();
 
 	NBodySystem nBodySystem;
 	nBodySystem.setBounds(0, 0, imgSz[0], imgSz[1]);
-	for (int i = 0; i < pointList.n_cols; i += POINT_DIMENSIONS) {
+	for (int i = 0; i < g_pointList.n_cols; i += POINT_DIMENSIONS) {
 		Body b;
-		b.x = pointList.at(currentImage, i);
-		b.y = pointList.at(currentImage, i+1);
+		b.x = g_pointList.at(currentImage, i);
+		b.y = g_pointList.at(currentImage, i+1);
 		b.mass = 1;
 		nBodySystem.addBody(b);
 	}
@@ -482,22 +531,22 @@ void MainWindow::on_actionNBodySimulation_triggered() {
 
 	cout << "iteration done" << endl;
 	for (int i = 0; i < nPoints; i++) {
-		pointList.at(currentImage, POINT_DIMENSIONS*i) = nBodySystem.bodies[i].x;
-		pointList.at(currentImage, POINT_DIMENSIONS*i+1) = nBodySystem.bodies[i].y;
+		g_pointList.at(currentImage, POINT_DIMENSIONS*i) = nBodySystem.bodies[i].x;
+		g_pointList.at(currentImage, POINT_DIMENSIONS*i+1) = nBodySystem.bodies[i].y;
 	}
 
-    pointList.print();
+    g_pointList.print();
 
 	updateScene();
 }
 
 void MainWindow::on_actionPointSave_triggered() {
-    pointList.save("pointSamples.txt");
+    g_pointList.save("pointSamples.txt");
     updateScene();
 }
 
 void MainWindow::on_actionPointLoad_triggered() {
-    pointList.load("pointSamples.txt");
+    g_pointList.load("pointSamples.txt");
     updateScene();
 }
 
@@ -536,20 +585,29 @@ void MainWindow::on_timer_timeout() {
 void MainWindow::updateScene() {
 	int currentImage = ui.listWidget->currentRow();
 	gs.clear();
-	BitmapType::Pointer bitmap = gradMagBitmapList[currentImage];
-	QGraphicsPixmapItem* pixItem = gs.addPixmap(getPixmap(bitmap));
-	pixItem->pos();
 
-	if (pointList.n_cols > 0) {
-		int nPoints = pointList.n_cols / POINT_DIMENSIONS;
+    BitmapType::Pointer bitmap;
+    if (g_maskBitmapList.size() > 0) {
+        bitmap = g_maskBitmapList[currentImage];
+    } else if (g_gradmagBitmapList.size() > 0) {
+        bitmap = g_gradmagBitmapList[currentImage];
+    }
+    BitmapType::Pointer bitmap2;
+    bitmap2 = g_bitmapList[currentImage];
+
+	gs.addPixmap(getPixmap(bitmap));
+    gs.addPixmap(getPixmap(bitmap2));
+
+	if (g_pointList.n_cols > 0) {
+		int nPoints = g_pointList.n_cols / POINT_DIMENSIONS;
         cout << "Number of points: " << nPoints << endl;
 		itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
 		colorFunc->SetMinimumInputValue(0);
 		colorFunc->SetMaximumInputValue(nPoints);
 
 		for (int j = 0; j < nPoints; j++) {
-			double x = pointList(currentImage, POINT_DIMENSIONS * j);
-			double y = pointList(currentImage, POINT_DIMENSIONS * j + 1);
+			double x = g_pointList(currentImage, POINT_DIMENSIONS * j);
+			double y = g_pointList(currentImage, POINT_DIMENSIONS * j + 1);
 			itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(j);
 			QColor pointColor(rgb[0], rgb[1], rgb[2]);
 			gs.addEllipse(x, y, 1, 1, QPen(pointColor),
@@ -560,7 +618,7 @@ void MainWindow::updateScene() {
 	currentImage = ui.listWidget->currentRow();
     bool drawBoundary = false;
     if (drawBoundary) {
-        BitmapType::SizeType bmpSz = bitmapList[0]->GetBufferedRegion().GetSize();
+        BitmapType::SizeType bmpSz = g_bitmapList[0]->GetBufferedRegion().GetSize();
         gs.addEllipse(::round(bmpSz[0]/2)- RADIUS,::round(bmpSz[1]/2)-RADIUS, RADIUS*2, RADIUS*2, QPen(Qt::white));
     }
 }
@@ -570,7 +628,7 @@ void MainWindow::playScene() {
         gs.clear();
         
         int currentImage = ui.listWidget->currentRow();
-        BitmapType::Pointer bitmap = gradMagBitmapList[currentImage];
+        BitmapType::Pointer bitmap = g_gradmagBitmapList[currentImage];
         QGraphicsPixmapItem* pixItem = gs.addPixmap(getPixmap(bitmap));
         pixItem->pos();
 
@@ -596,4 +654,19 @@ void MainWindow::addImage(QString filename) {
 	loadImage(filename);
 	ui.listWidget->addItem(filename);
 	ui.listWidget->setCurrentRow(ui.listWidget->count() - 1);
+}
+
+void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
+    int currentImage = ui.listWidget->currentRow();
+    if (currentImage < 0) {
+        return;
+    }
+
+    QPointF xy = ui.graphicsView->mapToScene(event->pos());
+    ImageType::Pointer sourceImage = g_imageList[currentImage];
+    ImageType::IndexType sourceIdx;
+    sourceIdx[0] = event->x();
+    sourceIdx[1] = event->y();
+    ImageType::PixelType pixel = sourceImage->GetPixel(sourceIdx);
+    cout << pixel << endl;
 }
