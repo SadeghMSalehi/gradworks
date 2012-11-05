@@ -49,7 +49,7 @@
           <x>0</x>
           <y>0</y>
           <width>256</width>
-          <height>408</height>
+          <height>413</height>
          </rect>
         </property>
         <attribute name="label">
@@ -73,7 +73,7 @@
           <x>0</x>
           <y>0</y>
           <width>256</width>
-          <height>408</height>
+          <height>413</height>
          </rect>
         </property>
         <attribute name="label">
@@ -175,6 +175,7 @@
    </attribute>
    <addaction name="actionDeploy"/>
    <addaction name="actionRun"/>
+   <addaction name="actionContinueOptimization"/>
    <addaction name="actionPlayTrace"/>
   </widget>
   <widget class="QMenuBar" name="menuBar">
@@ -324,6 +325,11 @@
   <action name="actionShowPlotWindow">
    <property name="text">
     <string>Show Plot Window</string>
+   </property>
+  </action>
+  <action name="actionContinueOptimization">
+   <property name="text">
+    <string>Continue</string>
    </property>
   </action>
  </widget>

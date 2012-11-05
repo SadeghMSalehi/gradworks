@@ -401,7 +401,7 @@ void MainWindow::runOptimization() {
 	cout << "Initial cost function set up " << endl;
 
 	CostFunction::Pointer costFunc = CostFunction::New();
-    costFunc->SetImage(g_gradmagImageList[currentImage]);
+    costFunc->SetImage(g_imageList[currentImage]);
     costFunc->SetUseAdaptiveSampling(ui.actionAdaptiveSampling->isChecked());
 	costFunc->Initialize(initialPoints);
     costFunc->SetDistanceVectorImage(g_distanceVectorList[currentImage]);
@@ -418,6 +418,7 @@ void MainWindow::runOptimization() {
 	opti->SetCostFunction(costFunc);
     opti->SetBoundaryImage(g_boundaryMapList[currentImage]);
 	opti->SetInitialPosition(initialParams);
+    opti->SetNumberOfIterations(g_numberOfIterations);
 
 #ifdef USE_LBFGS_OPTIMIZER
 	opti->SetMinimize(true);
@@ -592,10 +593,12 @@ void MainWindow::updateScene() {
     } else if (g_gradmagBitmapList.size() > 0) {
         bitmap = g_gradmagBitmapList[currentImage];
     }
+    if (bitmap.IsNotNull()) {
+        gs.addPixmap(getPixmap(bitmap));
+    }
+
     BitmapType::Pointer bitmap2;
     bitmap2 = g_bitmapList[currentImage];
-
-	gs.addPixmap(getPixmap(bitmap));
     gs.addPixmap(getPixmap(bitmap2));
 
 	if (g_pointList.n_cols > 0) {
@@ -621,25 +624,35 @@ void MainWindow::updateScene() {
         BitmapType::SizeType bmpSz = g_bitmapList[0]->GetBufferedRegion().GetSize();
         gs.addEllipse(::round(bmpSz[0]/2)- RADIUS,::round(bmpSz[1]/2)-RADIUS, RADIUS*2, RADIUS*2, QPen(Qt::white));
     }
+
+    cout << g_imageList[currentImage] << endl;
 }
+
+
 
 void MainWindow::playScene() {
 	if (g_pointHistory.n_rows > 0 && g_pointHistoryIdx < g_pointHistory.n_rows) {
         gs.clear();
         
         int currentImage = ui.listWidget->currentRow();
-        BitmapType::Pointer bitmap = g_gradmagBitmapList[currentImage];
+        BitmapType::Pointer bitmap = g_bitmapList[currentImage];
         QGraphicsPixmapItem* pixItem = gs.addPixmap(getPixmap(bitmap));
         pixItem->pos();
 
 		int nPoints = g_pointHistory.n_cols / POINT_DIMENSIONS;
-		itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
+		itk::Function::JetColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::JetColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
 		colorFunc->SetMinimumInputValue(0);
-		colorFunc->SetMaximumInputValue(nPoints);
+		colorFunc->SetMaximumInputValue(255);
 		for (int j = 0; j < nPoints; j++) {
 			double x = g_pointHistory.at(g_pointHistoryIdx, POINT_DIMENSIONS*j);
 			double y = g_pointHistory.at(g_pointHistoryIdx, POINT_DIMENSIONS*j + 1);
-			itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(j);
+
+            ImageType::IndexType xyIdx;
+            xyIdx[0] = x; xyIdx[1] = y;
+            ImageType::PixelType xyVal = g_imageList[currentImage]->GetPixel(xyIdx);
+            itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(xyVal);
+
+            // cout << xyIdx[0] << "," << xyIdx[1] << "," << xyVal << "," << (int) rgb[0] << "," << (int) rgb[1] << "," << (int) rgb[2] << endl;
 			QColor pointColor(rgb[0], rgb[1], rgb[2]);
 			gs.addEllipse(x, y, 1, 1, QPen(pointColor),
                           QBrush(pointColor, Qt::SolidPattern));
@@ -665,8 +678,8 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
     QPointF xy = ui.graphicsView->mapToScene(event->pos());
     ImageType::Pointer sourceImage = g_imageList[currentImage];
     ImageType::IndexType sourceIdx;
-    sourceIdx[0] = event->x();
-    sourceIdx[1] = event->y();
+    sourceIdx[0] = xy.x();
+    sourceIdx[1] = xy.y();
     ImageType::PixelType pixel = sourceImage->GetPixel(sourceIdx);
-    cout << pixel << endl;
+    cout << sourceIdx[0] << "," << sourceIdx[1] << "," << pixel << endl;
 }

@@ -17,6 +17,7 @@
 #include "/usr/llvm-gcc-4.2/lib/gcc/i686-apple-darwin11/4.2.1/include/omp.h"
 #endif
 #include "imageParticleTypes.h"
+#include "itkRescaleIntensityImageFilter.h"
 
 #define __CLAMP(x,s)((x<-3*si?0:(x>3*si?0:x)))
 
@@ -48,7 +49,17 @@ public:
     }
 
     void SetImage(ImageType::Pointer image) {
-        m_Image = image;
+        typedef itk::RescaleIntensityImageFilter<ImageType> RescaleFilter;
+        RescaleFilter::Pointer filter = RescaleFilter::New();
+        filter->SetInput(image);
+        filter->SetOutputMinimum(1);
+        filter->SetOutputMaximum(2);
+        filter->Update();
+        m_Image = filter->GetOutput();
+    }
+
+    ImageType::Pointer GetImage() {
+        return m_Image;
     }
     
     void Initialize(PointContainerType points) {
@@ -113,21 +124,11 @@ public:
 //            cout << m_Image->GetBufferedRegion().GetSize() << endl;
         }
 
-        if (v != v) {
-            v = 1;
-        }
-        v = (v < 1) ? 1 : v;
-
         if (dxi > 3*si || dxi < -3*si) {
             return 0;
         }
 
-        if (v > 1) {
-           // cout << v << endl;
-        }
-
-        dxi = dxi * (v / 150);
-
+        dxi = dxi * (2*(v-1)+1);
 
         double g = exp(-(dxi*dxi) / (2*si*si)) / (sqrt(2*M_PI)*si);
         return g;
@@ -174,23 +175,32 @@ public:
 
         for (int i = 0; i < nParams; i += VDim) {
             iPtId ++;
-            double si = 11; //m_SampleSigmas[iPtId];
+            double si = 15; //m_SampleSigmas[iPtId];
             double gSum = 0;
             arma::vec weights;
 
             weights.zeros(m_NumberOfPoints);
 
-            ContinuousIndexType ii;
-            ii[0] = p[i];
-            ii[1] = p[i+1];
-
-            //double ri = interpolator->EvaluateAtContinuousIndex(ii);
-            //rCost += exp(-__CLAMP(ri,3*si)/(si*si));
+            ImageType::IndexType ii;
+            ii[0] = ::round(p[i]);
+            ii[1] = ::round(p[i+1]);
+            ImageType::PixelType v = 1;
+            if (m_Image->GetBufferedRegion().IsInside(ii)) {
+                v = m_Image->GetPixel(ii);
+            }
 
             for (int j = 0, jPtId = 0; j < nParams; j += VDim, jPtId++) {
             	if (j == i) {
             		continue;
             	}
+                ImageType::IndexType jj;
+                jj[0] = ::round(p[j]);
+                jj[1] = ::round(p[j+1]);
+                ImageType::PixelType w = 1;
+                if (m_Image->GetBufferedRegion().IsInside(ii)) {
+                    w = m_Image->GetPixel(ii);
+                }
+                
                 double dist_ij = 0;
                 for (unsigned int k = 0; k < VDim; k++) {
                 	dist_ij += (p[i+k] - p[j+k]) * (p[i+k] - p[j+k]);
@@ -198,7 +208,8 @@ public:
                 dist_ij = ::sqrt(dist_ij);
                 double g = 0;
                 if (m_AdaptiveSampling) {
-                	g = weightedG(dist_ij, si, p[i], p[i+1], 0);
+                	//g = weightedG(dist_ij, si, p[i], p[i+1], 0);
+                    g = G(w * dist_ij, si);
                 } else {
                 	g = G(dist_ij, si);
                 }
