@@ -439,7 +439,13 @@ void MainWindow::runOptimization() {
 	cout << "Initial cost function set up " << endl;
 
 	CostFunction::Pointer costFunc = CostFunction::New();
-    costFunc->SetUsePhantomParticles(true);
+    costFunc->SetSigma(ui.sigma->value());
+    costFunc->SetCutoffDistance(ui.cutoffDistance->value());
+    costFunc->SetPhantomCutoffDistance(ui.cutoffDistancePhantom->value());
+    costFunc->SetMaxKappa(ui.maxKappa->value());
+    if (ui.usePhantomParticles->isChecked()) {
+        costFunc->SetPhantomParticles(&g_phantomParticles);
+    }
     costFunc->SetImage(g_imageList[currentImage]);
     costFunc->SetUseAdaptiveSampling(ui.actionAdaptiveSampling->isChecked());
 	costFunc->Initialize(initialPoints);
@@ -507,6 +513,7 @@ void MainWindow::runOptimization() {
     cout << "Starting optimization ..." << endl;
 	opti->StartOptimization();
 	cout << "Optimization done ..." << endl;
+    costFunc->Print();
 
 	CostFunction::ParametersType result = opti->GetCurrentPosition();
 	for (unsigned int i = 0; i < result.GetSize(); i++) {

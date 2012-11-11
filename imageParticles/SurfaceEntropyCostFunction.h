@@ -24,10 +24,6 @@
 template<unsigned int VDim>
 class SurfaceEntropyCostFunction: public itk::SingleValuedCostFunction {
 public:
-	const static double __sigma = 7;
-	const static double __cutoff = 1;
-	const static double __cutoffDistance = 15;
-
 	typedef SurfaceEntropyCostFunction Self;
 	typedef itk::SingleValuedCostFunction Superclass;
 	typedef itk::SmartPointer<Self> Pointer;
@@ -43,6 +39,11 @@ public:
 	typedef itk::Array<ParametersValueType> DerivativeType;
 	typedef itk::Vector<float, VDim> PointType;
 	typedef std::vector<PointType> PointContainerType;
+
+    itkSetMacro(CutoffDistance, double);
+    itkSetMacro(Sigma, double);
+    itkSetMacro(PhantomCutoffDistance, double);
+    itkSetMacro(MaxKappa, double);
 
 	void SetDistanceVectorImage(DistanceVectorImageType::Pointer distVector) {
 		m_distVectorMap = distVector;
@@ -67,7 +68,7 @@ public:
 		RescaleFilter::Pointer filter = RescaleFilter::New();
 		filter->SetInput(image);
 		filter->SetOutputMinimum(1);
-		filter->SetOutputMaximum(__sigma);
+		filter->SetOutputMaximum(m_MaxKappa);
 		filter->Update();
 		m_Image = filter->GetOutput();
 	}
@@ -271,15 +272,15 @@ public:
 	inline double computeEntropy(const ParametersType& p, int i, int j,
 			double kappa = 1) const {
 		double dist2 = 0;
-		double si = __sigma / kappa;
+		double si = m_Sigma / kappa;
 		for (int k = 0; k < 2; k++) {
 			dist2 += (p[2 * i + k] - p[2 * j + k])
 					* (p[2 * i + k] - p[2 * j + k]);
 		}
-		if (dist2 > (__cutoffDistance * __cutoffDistance)) {
+		if (dist2 > (m_CutoffDistance * m_CutoffDistance)) {
 			return 0;
 		} else {
-			double force = exp(-kappa * kappa * dist2 / (si * si));
+			double force = exp(-dist2 / (si * si));
 			if (force != force) {
 				cout << "Force is NaN; " << i << ", " << j << "; " << dist2
 						<< ";" << p << endl;
@@ -292,7 +293,7 @@ public:
 	inline double computePhantomParticleEntropy(const ParametersType& p, int i,
 			int j, double kappa = 1) const {
 		double dist2 = 0;
-		double si = __sigma / kappa;
+		double si = m_Sigma / kappa;
 
 		arma::vec phantom;
 		phantom << m_PhantomParticles->at(1).at(2 * j)
@@ -302,10 +303,10 @@ public:
 			dist2 += (p[2 * i + k] - phantom[k]) * (p[2 * i + k] - phantom[k]);
 		}
 
-		if (dist2 > (__cutoffDistance * __cutoffDistance)) {
+		if (dist2 > (m_PhantomCutoffDistance * m_PhantomCutoffDistance)) {
 			return 0;
 		} else {
-			double force = exp(-kappa * kappa * dist2 / (si * si));
+			double force = exp(-dist2 / (si * si));
 			if (force != force) {
 				cout << "Force is NaN; " << i << ", " << j << "; " << dist2
 						<< ";" << p << endl;
@@ -332,10 +333,10 @@ public:
 			if (dist > 5) {
 				return exp(5 * 5);
 			} else {
-				return exp(dist * dist / (__sigma * __sigma));
+				return exp(dist * dist / (m_Sigma * m_Sigma));
 			}
 		} else {
-			return exp(-dist * dist / (__sigma * __sigma));
+			return exp(-dist * dist / (m_Sigma * m_Sigma));
 		}
 	}
 
@@ -353,7 +354,11 @@ public:
 			MeasureType & value, DerivativeType & derivative) const {
 		int nParams = p.GetSize();
 		int nPoints = nParams / 2;
-		int nPhantoms = m_PhantomParticles->at(0).size();
+        if (m_PhantomParticles->size() == 0) {
+            cout << "Phantom Particles is not initialized!!" << endl;
+            exit(0);
+        }
+		int nPhantoms = m_PhantomParticles->at(0).size() / 2;
 
 		InterpolatorType::Pointer interpolator = InterpolatorType::New();
 		interpolator->SetInputImage(m_Image);
@@ -532,21 +537,33 @@ public:
 			MeasureType & value, DerivativeType & derivative) const {
 		derivative.SetSize(GetNumberOfParameters());
 		derivative.Fill(0);
-		if (m_UsePhantomParticles) {
-			if (m_PhantomParticles != NULL) {
-				GetPhantomValueAndDerivative(p, value, derivative);
-			} else {
-				GetGuardedValueAndDerivative(p, value, derivative);
-			}
-		} else {
-			GetUnguardedValueAndDerivative(p, value, derivative);
-		}
+		if (m_PhantomParticles != NULL) {
+            cout << "Using phantom particles ..." << endl;
+            GetPhantomValueAndDerivative(p, value, derivative);
+        } else {
+            cout << "Using boundary guarded particles ..." << endl;            
+            GetGuardedValueAndDerivative(p, value, derivative);
+        }
 	}
+
+    void Print() {
+        cout << "Sigma: " << m_Sigma << endl;
+        cout << "Max Kappa: " << m_MaxKappa << endl;
+        cout << "Cutoff Distance: " << m_CutoffDistance << endl;
+        cout << "Cutoff Distance for boundary: " << m_PhantomCutoffDistance << endl;
+        cout << "Adaptive Sampling: " << m_AdaptiveSampling << endl;
+    }
 
 protected:
 	SurfaceEntropyCostFunction() {
 		m_NumberOfPoints = 0;
 		m_AdaptiveSampling = true;
+        m_PhantomParticles = NULL;
+
+        m_Sigma = 7.0;
+        m_MaxKappa = sqrt(2);
+        m_CutoffDistance = 15;
+        m_PhantomCutoffDistance = 3;
 	}
 
 	virtual ~SurfaceEntropyCostFunction() {
@@ -563,6 +580,11 @@ private:
 	ListOfPointVectorType* m_PhantomParticles;
 	bool m_AdaptiveSampling;
 	bool m_UsePhantomParticles;
+
+    double m_Sigma;
+    double m_MaxKappa;
+    double m_CutoffDistance;
+    double m_PhantomCutoffDistance;
 };
 
 #endif /* defined(__imageParticles__SurfaceEntropyCostFunction__) */
