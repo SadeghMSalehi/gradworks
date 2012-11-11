@@ -25,6 +25,10 @@
 template <unsigned int VDim>
 class SurfaceEntropyCostFunction: public itk::SingleValuedCostFunction {
 public:
+    const static double __sigma = 7;
+    const static double __cutoff = 1;
+    const static double __cutoffDistance = 15;
+    
     typedef SurfaceEntropyCostFunction Self;
     typedef itk::SingleValuedCostFunction Superclass;
     typedef itk::SmartPointer<Self> Pointer;
@@ -46,6 +50,16 @@ public:
 
     void SetDistanceVectorMagnitudeImage(ImageType::Pointer distVectorMag) {
         m_distVectorMagnitudeMap = distVectorMag;
+        m_Interpolator = InterpolatorType::New();
+        m_Interpolator->SetInputImage(m_distVectorMagnitudeMap);
+    }
+
+    void SetUsePhantomParticles(bool usePhantoms) {
+        m_UsePhantomParticles = usePhantoms;
+    }
+
+    void SetPhantomParticles(ListOfPointVectorType* phantomParticles) {
+        m_PhantomParticles = phantomParticles;
     }
 
     void SetImage(ImageType::Pointer image) {
@@ -53,7 +67,7 @@ public:
         RescaleFilter::Pointer filter = RescaleFilter::New();
         filter->SetInput(image);
         filter->SetOutputMinimum(1);
-        filter->SetOutputMaximum(2);
+        filter->SetOutputMaximum(__sigma);
         filter->Update();
         m_Image = filter->GetOutput();
     }
@@ -156,11 +170,9 @@ public:
         GetValueAndDerivative(parameters, value, derivative);
     }
 
-    /** This method returns the value and derivative of the cost function corresponding
-     * to the specified parameters    */
-    virtual void GetValueAndDerivative(const ParametersType & p,
-                                       MeasureType & value,
-                                       DerivativeType & derivative) const {
+    void GetUnguardedValueAndDerivative(const ParametersType & p,
+                                        MeasureType & value,
+                                        DerivativeType & derivative) const {
         MeasureType cost = 0, rCost = 0;
         int nParams = p.GetSize();
         int iPtId = -1;
@@ -168,10 +180,10 @@ public:
         derivative.SetSize(GetNumberOfParameters());
         InterpolatorType::Pointer interpolator = InterpolatorType::New();
         interpolator->SetInputImage(m_distVectorMagnitudeMap);
-        
-//        cout << "Parameters: " << p << endl;
-//        cout << "Derivatives: " << derivative << "[" << derivative.GetSize() << "]" << endl;
-//        cout << "Number of Points: " << m_NumberOfPoints << endl;
+
+        //        cout << "Parameters: " << p << endl;
+        //        cout << "Derivatives: " << derivative << "[" << derivative.GetSize() << "]" << endl;
+        //        cout << "Number of Points: " << m_NumberOfPoints << endl;
 
         for (int i = 0; i < nParams; i += VDim) {
             iPtId ++;
@@ -200,7 +212,7 @@ public:
                 if (m_Image->GetBufferedRegion().IsInside(ii)) {
                     w = m_Image->GetPixel(ii);
                 }
-                
+
                 double dist_ij = 0;
                 for (unsigned int k = 0; k < VDim; k++) {
                 	dist_ij += (p[i+k] - p[j+k]) * (p[i+k] - p[j+k]);
@@ -223,9 +235,9 @@ public:
             } else {
                 weights /= gSum;
             }
-            
 
-//            cout << "Computing derivatives ..." << endl;
+
+            //            cout << "Computing derivatives ..." << endl;
 
             if (derivative.GetSize() > 0) {
             	arma::vec deriv_i;
@@ -252,7 +264,175 @@ public:
             }
         }
         value = cost;// + rCost;
-//        cout << "Cost: " << value << "; #: " << p << endl;
+        //        cout << "Cost: " << value << "; #: " << p << endl;
+
+    }
+
+    inline double computeEntropy(const ParametersType& p, int i, int j, double kappa = 1) const {
+        double dist2 = 0;
+        double si = __sigma / kappa;
+        for (int k = 0; k < 2; k++) {
+            dist2 += (p[2*i+k] - p[2*j+k])*(p[2*i+k] - p[2*j+k]);
+        }
+        if (dist2 > (__cutoffDistance*__cutoffDistance)) {
+            return 0;
+        } else {
+            double force = exp(-kappa*kappa*dist2/(si*si));
+            if (force != force) {
+                cout << "Force is NaN; " << i << ", " << j << "; " << dist2 << ";" << p << endl;
+                exit(0);
+            }
+            return force;
+        }
+    }
+
+    inline double computePhantomEntropy(const ParametersType& p, int i) const {
+        ContinuousIndexType idx;
+        idx[0] = p[2*i];
+        idx[1] = p[2*i+1];
+        if (!m_Interpolator->IsInsideBuffer(idx)) {
+            return exp(5*5/9);
+        }
+        ImageType::PixelType dist = m_Interpolator->EvaluateAtContinuousIndex(idx);
+        if (dist != dist) {
+            cout << "dist is NaN" << endl;
+            return exp(5*5);
+        }
+        if (dist > 0) {
+            if (dist > 5) {
+                return exp(5*5);
+            } else {
+                return exp(dist*dist/(__sigma*__sigma));
+            }
+        } else {
+            return exp(-dist*dist/(__sigma*__sigma));
+        }
+    }
+
+    arma::vec normalizeGradient(ImageType::OffsetType gradient) const {
+        arma::vec norm;
+        norm << gradient[0] << gradient[1];
+        if (arma::norm(norm, 2) == 0) {
+            norm.zeros(2);
+            return norm;
+        }
+        return norm / arma::norm(norm, 2);
+    }
+
+    void GetGuardedValueAndDerivative(const ParametersType & p,
+                                      MeasureType & value,
+                                      DerivativeType & derivative) const {
+        int nParams = p.GetSize();
+        int nPoints = nParams / 2;
+
+        InterpolatorType::Pointer interpolator = InterpolatorType::New();
+        interpolator->SetInputImage(m_Image);
+
+        arma::mat entropies;
+        arma::vec phantomEntropies, entropiesSum;
+        entropies.zeros(nPoints, nPoints + 1);
+        phantomEntropies.zeros(nPoints);
+        entropiesSum.zeros(nPoints);
+
+        double cost = 0;
+        for (int i = 0; i < nPoints; i++) {
+            double sum = 0;
+
+
+            for (int j = 0; j < nPoints; j++) {
+                if (i == j) {
+                    continue;
+                }
+                ImageType::ValueType kappa = 1;
+                if (m_AdaptiveSampling) {
+                    ContinuousIndexType idx;
+                    idx[0] = p[2*j];
+                    idx[1] = p[2*j+1];
+                    kappa = interpolator->EvaluateAtContinuousIndex(idx);
+                }
+                entropies.at(i,j) = computeEntropy(p,i,j,kappa);
+                sum += entropies.at(i,j);
+            }
+            entropies.at(i,nPoints) = computePhantomEntropy(p, i);
+            sum += entropies.at(i,nPoints);
+            if (sum > 0) {
+                entropies.row(i) = entropies.row(i) / sum;
+            }
+            if (sum != sum) {
+
+                cout << "sum is NaN; " << "phantom = " << entropies.at(i, nPoints) << "; " << p[2*i] << "," << p[2*i+1] << endl;
+            }
+            cost += sum;
+        }
+        for (int i = 0; i < nPoints; i++) {
+            for (int j = 0; j < nPoints; j++) {
+                if (i == j) {
+                    continue;
+                }
+                for (int k = 0; k < 2; k++) {
+                    derivative[i*2+k] -= entropies.at(i,j) * (p[2*i+k] - p[2*j+k]);
+                    if (derivative[i*2+k] != derivative[i*2+k]) {
+                        cout << "Derivative is NaN; " << i << "; " << entropies.at(i,j) << endl;
+                    }
+                }
+            }
+            ContinuousIndexType idx;
+            idx[0] = p[2*i];
+            idx[1] = p[2*i+1];
+            if (m_Interpolator->IsInsideBuffer(idx)) {
+                double dist = m_Interpolator->EvaluateAtContinuousIndex(idx);
+                if (dist > 0) {
+                    ImageType::IndexType gIdx;
+                    gIdx[0] = ::round(p[2*i]);
+                    gIdx[1] = ::round(p[2*i+1]);
+                    ImageType::OffsetType gradientPixel = m_distVectorMap->GetPixel(gIdx);
+                    arma::vec normalizedGradient = normalizeGradient(gradientPixel);
+                    for (int k = 0; k < 2; k++) {
+                        derivative[i*2+k] -= (entropies.at(i, nPoints)*normalizedGradient[k]);
+                        if (derivative[i*2+k] != derivative[i*2+k]) {
+                            cout << "Derivative is NaN; " << i << "; phantomForce = " << entropies.at(i, nPoints) << "; Gradient = " << normalizedGradient << "; " << endl;
+                        }
+                    }
+                } else if (dist < 0) {
+                    ImageType::IndexType gIdx;
+                    gIdx[0] = ::round(p[2*i]);
+                    gIdx[1] = ::round(p[2*i+1]);
+                    ImageType::OffsetType gradientPixel = m_distVectorMap->GetPixel(gIdx);
+                    arma::vec normalizedGradient = normalizeGradient(gradientPixel);
+                    for (int k = 0; k < 2; k++) {
+                        derivative[i*2+k] -= (entropies.at(i, nPoints)*normalizedGradient[k]);
+                        if (derivative[i*2+k] != derivative[i*2+k]) {
+                            cout << "Derivative is NaN; " << i << "; phantomForce = " << entropies.at(i, nPoints) << "; Gradient = " << normalizedGradient << "; " << endl;
+                        }
+                    }
+                }
+            }
+        }
+        value = cost;
+        if (value != value) {
+            cout << "Value is NAN; " << p << endl;
+            exit(0);
+        }
+        for (int i = 0; i < nParams; i++) {
+            if (derivative[i] != derivative[i]) {
+                cout << i << " th derivative is nan; " << p << ";" << derivative << endl;
+            }
+        }
+    }
+
+
+    /** This method returns the value and derivative of the cost function corresponding
+     * to the specified parameters    */
+    virtual void GetValueAndDerivative(const ParametersType & p,
+                                       MeasureType & value,
+                                       DerivativeType & derivative) const {
+        derivative.SetSize(GetNumberOfParameters());
+        derivative.Fill(0);
+        if (m_UsePhantomParticles) {
+            GetGuardedValueAndDerivative(p, value, derivative);
+        } else {
+            GetUnguardedValueAndDerivative(p, value, derivative);
+        }
     }
 
 protected:
@@ -270,8 +450,11 @@ private:
     int m_NumberOfPoints;
     ImageType::Pointer m_Image;
     ImageType::Pointer m_distVectorMagnitudeMap;
+    InterpolatorType::Pointer m_Interpolator;
     DistanceVectorImageType::Pointer m_distVectorMap;
+    ListOfPointVectorType* m_PhantomParticles;
     bool m_AdaptiveSampling;
+    bool m_UsePhantomParticles;
 };
 
 #endif /* defined(__imageParticles__SurfaceEntropyCostFunction__) */

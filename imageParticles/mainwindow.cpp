@@ -12,8 +12,8 @@
 #include "imageParticleTypes.h"
 #include "NBody.h"
 
-#include "itkImageBoundedGradientDescentOptimizer.h"
-typedef itk::ImageBoundedGradientDescentOptimizer OptimizerType;
+//#include "itkImageBoundedGradientDescentOptimizer.h"
+//typedef itk::ImageBoundedGradientDescentOptimizer OptimizerType;
 
 
 #define RADIUS 60
@@ -24,6 +24,7 @@ std::vector<BitmapType::Pointer> g_bitmapList;
 std::vector<BitmapType::Pointer> g_gradmagBitmapList;
 std::vector<BitmapType::Pointer> g_distanceMapBitmapList;
 std::vector<BitmapType::Pointer> g_maskBitmapList;
+std::vector<BitmapType::Pointer> g_cannyMaskBitmapList;
 
 std::vector<ImageType::Pointer> g_imageList;
 std::vector<GradientImageType::Pointer> g_gradientImageList;
@@ -31,8 +32,12 @@ std::vector<ImageType::Pointer> g_gradmagImageList;
 std::vector<ImageType::Pointer> g_distanceMapList;
 std::vector<DistanceVectorImageType::Pointer> g_distanceVectorList;
 std::vector<ImageType::Pointer> g_boundaryMapList;
+std::vector<ImageType::Pointer> g_cannyMaskList;
 
+
+ListOfPointVectorType g_phantomParticles;
 MatrixType g_pointList;
+
 
 unsigned int g_pointHistoryIdx;
 unsigned int g_numberOfPoints;
@@ -110,6 +115,19 @@ private:
 	void operator=(const Self &); //purposely not implemented
 };
 
+
+static void createPhantomParticles(ImageType::Pointer edgeImg) {
+    PointVectorType phantoms;
+    itk::ImageRegionConstIteratorWithIndex<ImageType> iter(edgeImg, edgeImg->GetBufferedRegion());
+    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+        if (iter.Get() > 0) {
+            phantoms.push_back(iter.GetIndex()[0]);
+            phantoms.push_back(iter.GetIndex()[1]);
+        }
+    }
+    g_phantomParticles.push_back(phantoms);
+}
+
 BitmapType::Pointer loadImage(QString f) {
 	BitmapType::Pointer rgbImage;
 	try {
@@ -178,6 +196,22 @@ void loadMask(QString f) {
     BitmapType::Pointer rgbImage = rgbFilter->GetOutput();
     g_distanceMapBitmapList.push_back(rgbImage);
 
+    EdgeDetectionFilterType::Pointer edgeFilter = EdgeDetectionFilterType::New();
+    edgeFilter->SetInput(img);
+    edgeFilter->Update();
+    ImageType::Pointer edgeImg = edgeFilter->GetOutput();
+
+    ScalarToRGBFilter::Pointer edgeRGBFilter = ScalarToRGBFilter::New();
+    edgeRGBFilter->SetInput(edgeImg);
+    edgeRGBFilter->SetNumberOfThreads(8);
+    edgeRGBFilter->Update();
+    BitmapType::Pointer edgeRGB = edgeRGBFilter->GetOutput();
+
+    g_cannyMaskList.push_back(edgeImg);
+    g_cannyMaskBitmapList.push_back(edgeRGB);
+
+    createPhantomParticles(edgeImg);
+
     cout << "Bitmap for distance map .." << endl;
 }
 
@@ -220,6 +254,8 @@ QMainWindow(parent) {
     addImage(tr("/data/2D/circle.jpg"));
     loadMask(tr("/data/2D/circle-boundary.png"));
     loadMask(tr("/data/2D/circle-boundary.png"));
+
+    cout << g_phantomParticles[1].size() << endl;
 #else
     addImage(tr("/base/imageParticles/data/circle.jpg"));
     addImage(tr("/base/imageParticles/data/circle.jpg"));
@@ -401,6 +437,7 @@ void MainWindow::runOptimization() {
 	cout << "Initial cost function set up " << endl;
 
 	CostFunction::Pointer costFunc = CostFunction::New();
+    costFunc->SetUsePhantomParticles(true);
     costFunc->SetImage(g_imageList[currentImage]);
     costFunc->SetUseAdaptiveSampling(ui.actionAdaptiveSampling->isChecked());
 	costFunc->Initialize(initialPoints);
@@ -416,10 +453,20 @@ void MainWindow::runOptimization() {
 	OptimizerType::Pointer opti = OptimizerType::New();
 	opti->AddObserver(itk::IterationEvent(), progress.GetPointer());
 	opti->SetCostFunction(costFunc);
-    opti->SetBoundaryImage(g_boundaryMapList[currentImage]);
-	opti->SetInitialPosition(initialParams);
-    opti->SetNumberOfIterations(g_numberOfIterations);
 
+	opti->SetInitialPosition(initialParams);
+
+#ifdef USE_GD_OPTIMIZER
+    //opti->SetBoundaryImage(g_boundaryMapList[currentImage]);
+    opti->SetNumberOfIterations(g_numberOfIterations);
+#endif
+
+#ifdef USE_FRPR_OPTIMIZER
+    opti->SetMaximumIteration(g_numberOfIterations);
+    opti->SetMaximumLineIteration(10);
+    opti->SetStepLength(.25);
+    opti->SetUseUnitLengthGradient(true);
+#endif
 #ifdef USE_LBFGS_OPTIMIZER
 	opti->SetMinimize(true);
 	OptimizerType::BoundValueType lowerBound, upperBound;
@@ -588,10 +635,10 @@ void MainWindow::updateScene() {
 	gs.clear();
 
     BitmapType::Pointer bitmap;
-    if (g_maskBitmapList.size() > 0) {
-        bitmap = g_maskBitmapList[currentImage];
+    if (g_cannyMaskBitmapList.size() > 0) {
+        bitmap = g_cannyMaskBitmapList[currentImage];
     } else if (g_gradmagBitmapList.size() > 0) {
-        bitmap = g_gradmagBitmapList[currentImage];
+        // bitmap = g_gradmagBitmapList[currentImage];
     }
     if (bitmap.IsNotNull()) {
         gs.addPixmap(getPixmap(bitmap));
@@ -625,7 +672,13 @@ void MainWindow::updateScene() {
         gs.addEllipse(::round(bmpSz[0]/2)- RADIUS,::round(bmpSz[1]/2)-RADIUS, RADIUS*2, RADIUS*2, QPen(Qt::white));
     }
 
-    cout << g_imageList[currentImage] << endl;
+    bool drawPhantoms = true && (g_phantomParticles.size() > 0);
+    if (drawPhantoms) {
+        std::vector<float>& phantoms = g_phantomParticles[currentImage];
+        for (unsigned j = 0; j < phantoms.size(); j += 2) {
+            gs.addEllipse(phantoms[j], phantoms[j+1], 1, 1, QPen(Qt::white), QBrush(Qt::white, Qt::SolidPattern));
+        }
+    }
 }
 
 
@@ -676,7 +729,7 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
     }
 
     QPointF xy = ui.graphicsView->mapToScene(event->pos());
-    ImageType::Pointer sourceImage = g_imageList[currentImage];
+    ImageType::Pointer sourceImage = g_distanceMapList[currentImage];
     ImageType::IndexType sourceIdx;
     sourceIdx[0] = xy.x();
     sourceIdx[1] = xy.y();
