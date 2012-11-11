@@ -259,8 +259,10 @@ QMainWindow(parent) {
 #else
     addImage(tr("/base/imageParticles/data/circle.jpg"));
     addImage(tr("/base/imageParticles/data/circle.jpg"));
+    loadMask(tr("/base/imageParticles/data/circle-boundary.png"));
+    loadMask(tr("/base/imageParticles/data/circle-boundary.png"));
 #endif
-    QObject::connect(&m_Timer, SIGNAL(timeout()), this, SLOT(on_timer_timeout()));
+    QObject::connect(&m_Timer, SIGNAL(timeout()), this, SLOT(particleAnimationTimeout()));
 }
 
 MainWindow::~MainWindow() {
@@ -621,7 +623,7 @@ void MainWindow::on_actionShowPlotWindow_triggered() {
     ui.dockWidget_2->show();
 }
 
-void MainWindow::on_timer_timeout() {
+void MainWindow::particleAnimationTimeout() {
     if (g_pointHistoryIdx >= g_pointHistory.n_rows) {
         m_Timer.stop();
     } else {
@@ -674,10 +676,13 @@ void MainWindow::updateScene() {
 
     bool drawPhantoms = true && (g_phantomParticles.size() > 0);
     if (drawPhantoms) {
+    	cout << "Drawing Phantoms ..." << endl;
         std::vector<float>& phantoms = g_phantomParticles[currentImage];
         for (unsigned j = 0; j < phantoms.size(); j += 2) {
             gs.addEllipse(phantoms[j], phantoms[j+1], 1, 1, QPen(Qt::white), QBrush(Qt::white, Qt::SolidPattern));
         }
+    } else {
+    	cout << "# of phantom subjects: " << g_phantomParticles.size() << endl;
     }
 }
 

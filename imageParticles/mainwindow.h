@@ -33,7 +33,7 @@ public slots:
     void on_actionNBodySimulation_triggered();
     void on_listWidget_itemClicked(QListWidgetItem * item);
     void on_listWidget_currentRowChanged(int currentRow);
-    void on_timer_timeout();
+    void particleAnimationTimeout();
     void on_graphicsView_mousePressed(QMouseEvent* event);
 
 public:
