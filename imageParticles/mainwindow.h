@@ -35,10 +35,14 @@ public slots:
     void on_listWidget_currentRowChanged(int currentRow);
     void particleAnimationTimeout();
     void on_graphicsView_mousePressed(QMouseEvent* event);
+    void on_animationInterval_valueChanged(int value);
+    void on_optiCG_toggled(bool toggled);
+    void on_optiLBFG_toggled(bool toggled);
+    void on_optiGD_toggled(bool toggled);
+    void updateScene();
 
 public:
     void playScene();
-    void updateScene();
     void addImage(QString filename);
     void resizeEvent(QResizeEvent* event);
 
@@ -48,6 +52,7 @@ private:
     Ui::MainWindow ui;
     QGraphicsScene gs;
     QTimer m_Timer;
+    QActionGroup* m_particleColors;
 };
 
 #endif

@@ -38,6 +38,8 @@ std::vector<ImageType::Pointer> g_cannyMaskList;
 ListOfPointVectorType g_phantomParticles;
 MatrixType g_pointList;
 
+typedef SurfaceEntropyCostFunction<POINT_DIMENSIONS> CostFunction;
+
 
 unsigned int g_pointHistoryIdx;
 unsigned int g_numberOfPoints;
@@ -86,22 +88,25 @@ public:
 	 * const Object */
 	virtual void Execute(const itk::Object *caller,
                          const itk::EventObject & event) {
-		const OptimizerType* realCaller =
-        dynamic_cast<const OptimizerType*>(caller);
+		const OptimizerType* realCaller = dynamic_cast<const OptimizerType*>(caller);
 		if (realCaller == NULL) {
 			return;
 		}
-        bool traceSteps = false;
-        if (traceSteps) {
-//        	cout << realCaller->GetCurrentIteration() << "; Cost = "
-//        			<< realCaller->GetValue() << "; Parameters = "
-//        			<< realCaller->GetCurrentPosition() << endl;
-
-        	cout << realCaller->GetValue() << endl;
-        }
         if (++m_Counter % 1 == 0) {
-            m_ParametersHistory->push_back(realCaller->GetCurrentPosition());
-            g_costHistory.push_back(realCaller->GetValue());
+            if (dynamic_cast<const LBFGSOptimizerType*>(caller) != NULL) {
+                const LBFGSOptimizerType* opti = dynamic_cast<const LBFGSOptimizerType*>(caller);
+                g_costHistory.push_back(opti->GetCachedValue());
+            } else if (dynamic_cast<const FRPROptimizerType*>(caller) != NULL) {
+                const FRPROptimizerType* opti = dynamic_cast<const FRPROptimizerType*>(caller);
+                g_costHistory.push_back(opti->GetValue());
+            } else if (dynamic_cast<const GDOptimizerType*>(caller) != NULL) {
+                const GDOptimizerType* opti = dynamic_cast<const GDOptimizerType*>(caller);
+                g_costHistory.push_back(opti->GetValue());
+            }
+            if (realCaller->GetCurrentPosition().GetSize() > 0) {
+                m_ParametersHistory->push_back(realCaller->GetCurrentPosition());
+            }
+
         }
 	}
 
@@ -211,8 +216,6 @@ void loadMask(QString f) {
     g_cannyMaskBitmapList.push_back(edgeRGB);
 
     createPhantomParticles(edgeImg);
-
-    cout << "Bitmap for distance map .." << endl;
 }
 
 QPixmap getPixmap(BitmapType::Pointer bitmap) {
@@ -239,6 +242,15 @@ MainWindow::MainWindow(QWidget *parent) :
 QMainWindow(parent) {
 	ui.setupUi(this);
 
+    m_particleColors = new QActionGroup(this);
+    m_particleColors->addAction(ui.actionParticleBlack);
+    m_particleColors->addAction(ui.actionParticleRed);
+    m_particleColors->addAction(ui.actionParticleGreen);
+    m_particleColors->addAction(ui.actionParticleBlue);
+    m_particleColors->addAction(ui.actionParticleWhite);
+    m_particleColors->addAction(ui.actionParticleHSV);
+    ui.actionParticleHSV->setChecked(true);
+
     //    QSize gvSize = ui.graphicsView->size();
     //    ui.graphicsView->setSceneRect(0, 0, gvSize.width(), gvSize.height());
     //    qDebug() << "Scene Rect: " << ui.graphicsView->sceneRect();
@@ -246,6 +258,7 @@ QMainWindow(parent) {
 	ui.graphicsView->setRenderHints(
                                     QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 	ui.graphicsView->scale(2, 2);
+    ui.graphicsView->setBackgroundBrush(QBrush(Qt::black, Qt::SolidPattern));
     //	addImage(tr("/base/imageParticles/data/12.T2.slice.nrrd"));
     //	addImage(tr("/base/imageParticles/data/13.T2.slice.nrrd"));
 
@@ -253,16 +266,20 @@ QMainWindow(parent) {
     addImage(tr("/data/2D/circle.jpg"));
     addImage(tr("/data/2D/circle.jpg"));
     loadMask(tr("/data/2D/circle-boundary.png"));
-    loadMask(tr("/data/2D/circle-boundary.png"));
+    loadMask(tr("/data/2D/random-boundary.jpg"));
 
     cout << g_phantomParticles[1].size() << endl;
 #else
     addImage(tr("/base/imageParticles/data/circle.jpg"));
     addImage(tr("/base/imageParticles/data/circle.jpg"));
     loadMask(tr("/base/imageParticles/data/circle-boundary.png"));
-    loadMask(tr("/base/imageParticles/data/circle-boundary.png"));
+    loadMask(tr("/base/imageParticles/data/random-boundary.jpg"));
 #endif
     QObject::connect(&m_Timer, SIGNAL(timeout()), this, SLOT(particleAnimationTimeout()));
+    QObject::connect(ui.actionShowImage, SIGNAL(triggered()), this, SLOT(updateScene()));
+    QObject::connect(ui.actionShowShapeMask, SIGNAL(triggered()), this, SLOT(updateScene()));
+    QObject::connect(ui.actionShowShapeDistanceMap, SIGNAL(triggered()), this, SLOT(updateScene()));
+    QObject::connect(m_particleColors, SIGNAL(triggered(QAction*)), this, SLOT(updateScene()));
 }
 
 MainWindow::~MainWindow() {
@@ -374,57 +391,69 @@ void MainWindow::on_actionContinueOptimization_triggered() {
     runOptimization();
 }
 
+
+CostFunction::ParametersType optimizeByGD(CostFunction::Pointer costFunc, CostFunction::ParametersType initialParams, OptimizerProgress::Pointer progress) {
+	GDOptimizerType::Pointer opti = GDOptimizerType::New();
+	opti->AddObserver(itk::IterationEvent(), progress.GetPointer());
+	opti->SetCostFunction(costFunc);
+	opti->SetInitialPosition(initialParams);
+    opti->SetNumberOfIterations(g_numberOfIterations);
+    cout << "Starting optimization ..." << endl;
+	opti->StartOptimization();
+	cout << "Optimization done ..." << endl;
+    costFunc->Print();
+    return opti->GetCurrentPosition();
+}
+
+CostFunction::ParametersType optimizeByLBFGS(CostFunction::Pointer costFunc, CostFunction::ParametersType initialParams, OptimizerProgress::Pointer progress) {
+	LBFGSOptimizerType::Pointer opti = LBFGSOptimizerType::New();
+	opti->AddObserver(itk::IterationEvent(), progress.GetPointer());
+	opti->SetCostFunction(costFunc);
+	opti->SetInitialPosition(initialParams);
+	opti->SetMinimize(true);
+
+    cout << "Starting optimization ..." << endl;
+	opti->StartOptimization();
+	cout << "Optimization done ..." << endl;
+    costFunc->Print();
+    return opti->GetCurrentPosition();
+}
+
+CostFunction::ParametersType optimizeByFRPR(CostFunction::Pointer costFunc, CostFunction::ParametersType initialParams, OptimizerProgress::Pointer progress) {
+	FRPROptimizerType::Pointer opti = FRPROptimizerType::New();
+	opti->AddObserver(itk::IterationEvent(), progress.GetPointer());
+	opti->SetCostFunction(costFunc);
+	opti->SetInitialPosition(initialParams);
+    opti->SetMaximumIteration(g_numberOfIterations);
+    opti->SetMaximumLineIteration(10);
+    opti->SetStepLength(.25);
+    opti->SetUseUnitLengthGradient(true);
+    cout << "Starting optimization ..." << endl;
+	opti->StartOptimization();
+	cout << "Optimization done ..." << endl;
+    costFunc->Print();
+    return opti->GetCurrentPosition();
+}
+
+void MainWindow::on_optiCG_toggled(bool toggled) {
+}
+
+void MainWindow::on_optiLBFG_toggled(bool toggled) {
+
+}
+
+void MainWindow::on_optiGD_toggled(bool toggled) {
+
+}
+
 void MainWindow::runOptimization() {
 	if (g_bitmapList.size() == 0) {
 		return;
 	}
 	BitmapType::SizeType imgSz = g_bitmapList[0]->GetBufferedRegion().GetSize();
 
-    bool useIpOpt = false;
-    if (useIpOpt) {
-        /*
-         SurfaceEntropyNLP* nlp = new SurfaceEntropyNLP();
-         nlp->SetInitialPoints(g_pointList);
-         arma::vec imageRegion;
-         imageRegion.zeros(2);
-         imageRegion[0] = imgSz[0];
-         imageRegion[1] = imgSz[1];
-         nlp->SetRegion(imageRegion);
-         nlp->SetCenter(imageRegion/2);
-         nlp->SetRadius(arma::vec("40 40"));
-         nlp->SetNumberOfPoints(g_pointList.n_cols / 2);
-
-         Ipopt::SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
-         app->Options()->SetNumericValue("tol", 1e-9);
-         app->Options()->SetStringValue("mu_strategy", "adpative");
-         app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-
-         Ipopt::ApplicationReturnStatus status;
-         status = app->Initialize();
-         if (status != Solve_Succeeded) {
-         printf("Error during initializtion");
-         }
-
-         status = app->OptimizeTNLP(Ipopt::SmartPtr<TNLP>(nlp));
-         if (status == Solve_Succeeded) {
-         printf("Problem Solved");
-         } else if (status == Invalid_Number_Detected) {
-         cout << "Invalid Number Detected" << endl;
-         } else {
-         printf("Problem Failed: %d", status);
-         }
-         arma::vec points = nlp->GetResultPoints();
-         for (int j = 0; j < points.n_elem; j++) {
-         g_pointList.at(0, j) = points.at(j);
-         }
-         updateScene();        //delete nlp;
-         return;
-         */
-    }
-
 	int currentImage = ui.listWidget->currentRow();
 	const static int nDim = POINT_DIMENSIONS;
-	typedef SurfaceEntropyCostFunction<nDim> CostFunction;
 	CostFunction::PointContainerType initialPoints;
 	initialPoints.resize(g_pointList.n_cols / nDim);
 
@@ -436,8 +465,6 @@ void MainWindow::runOptimization() {
 		initialPoints[i] = pi;
 	}
 
-	cout << "Initial cost function set up " << endl;
-
 	CostFunction::Pointer costFunc = CostFunction::New();
     costFunc->SetSigma(ui.sigma->value());
     costFunc->SetCutoffDistance(ui.cutoffDistance->value());
@@ -446,90 +473,42 @@ void MainWindow::runOptimization() {
     if (ui.usePhantomParticles->isChecked()) {
         costFunc->SetPhantomParticles(&g_phantomParticles);
     }
-    costFunc->SetImage(g_imageList[currentImage]);
+    costFunc->SetImage(g_gradmagImageList[currentImage]);
     costFunc->SetUseAdaptiveSampling(ui.actionAdaptiveSampling->isChecked());
 	costFunc->Initialize(initialPoints);
     costFunc->SetDistanceVectorImage(g_distanceVectorList[currentImage]);
     costFunc->SetDistanceVectorMagnitudeImage(g_distanceMapList[currentImage]);
 
+
+    CostFunction::ParametersType initialParams = costFunc->GetInitialParameters();
+
     ParametersHistoryType positionHistory;
 	OptimizerProgress::Pointer progress = OptimizerProgress::New();
     progress->SetParticlesHistory(&positionHistory);
     
-    CostFunction::ParametersType initialParams = costFunc->GetInitialParameters();
 
-	OptimizerType::Pointer opti = OptimizerType::New();
-	opti->AddObserver(itk::IterationEvent(), progress.GetPointer());
-	opti->SetCostFunction(costFunc);
+    CostFunction::ParametersType result;
 
-	opti->SetInitialPosition(initialParams);
-
-#ifdef USE_GD_OPTIMIZER
-    //opti->SetBoundaryImage(g_boundaryMapList[currentImage]);
-    opti->SetNumberOfIterations(g_numberOfIterations);
-#endif
-
-#ifdef USE_FRPR_OPTIMIZER
-    opti->SetMaximumIteration(g_numberOfIterations);
-    opti->SetMaximumLineIteration(10);
-    opti->SetStepLength(.25);
-    opti->SetUseUnitLengthGradient(true);
-#endif
-#ifdef USE_LBFGS_OPTIMIZER
-	opti->SetMinimize(true);
-	OptimizerType::BoundValueType lowerBound, upperBound;
-	OptimizerType::BoundSelectionType boundSelection;
-
-	lowerBound.SetSize(initialParams.GetSize());
-	upperBound.SetSize(initialParams.GetSize());
-	boundSelection.SetSize(initialParams.GetSize());
-
-	for (int i = 0; i < lowerBound.GetSize(); i += POINT_DIMENSIONS) {
-		lowerBound[i] = lowerBound[i+1] = 0;
-		upperBound[i] = imgSz[0];
-		upperBound[i+1] = imgSz[1];
-		boundSelection[i] = boundSelection[i+1] = 2;
-	}
-
-	opti->SetLowerBound(lowerBound);
-	opti->SetUpperBound(upperBound);
-	opti->SetBoundSelection(boundSelection);
-#endif
-	//opti->SetRadius(RADIUS);
-
-//	OptimizerType::VectorType center;
-//	center[0] = imgSz[0] / 2;
-//	center[1] = imgSz[1] / 2;
-	//opti->SetCenter(center);
-    //opti->SetNumberOfIterations(g_numberOfIterations);
+    if (ui.optiCG->isChecked()) {
+        result = optimizeByFRPR(costFunc, initialParams, progress);
+    } else if (ui.optiGD->isChecked()) {
+        result = optimizeByGD(costFunc, initialParams, progress);
+    } else if (ui.optiLBFGS->isChecked()) {
+        result = optimizeByLBFGS(costFunc, initialParams, progress);
+    }
     
-	//opti->SetUseUnitLengthGradient(true);
-	//opti->SetMaximumIteration(3);
-	//opti->SetMaximumLineIteration(10);
-
-    //opti->SetUseUnitLengthGradient(true);
-
-
-    cout << "Starting optimization ..." << endl;
-	opti->StartOptimization();
-	cout << "Optimization done ..." << endl;
-    costFunc->Print();
-
-	CostFunction::ParametersType result = opti->GetCurrentPosition();
 	for (unsigned int i = 0; i < result.GetSize(); i++) {
 		g_pointList(currentImage, i) = result[i];
 	}
 
-    // cout << "Number of Iteration Performed: " << opti->GetCurrentIteration() << endl;
-    cout << "Number of traces: " << positionHistory.size() << endl;
-
     int prevHistoryCount = g_pointHistory.n_rows;
     g_pointHistory.resize(g_pointHistory.n_rows + positionHistory.size(), g_pointList.n_cols);
-    cout << "Point history size: " << g_pointHistory.n_rows << endl;
 
     for (unsigned int i = prevHistoryCount; i < g_pointHistory.n_rows; i++) {
-        for (unsigned int j = 0; j < g_pointHistory.n_cols; j++) {
-            g_pointHistory.at(i,j) = positionHistory[i - prevHistoryCount][j];
+        if (positionHistory[i - prevHistoryCount].size() == g_pointHistory.n_cols) {
+            for (unsigned int j = 0; j < g_pointHistory.n_cols; j++) {
+                g_pointHistory.at(i,j) = positionHistory[i - prevHistoryCount][j];
+            }
         }
     }
 
@@ -541,7 +520,6 @@ void MainWindow::runOptimization() {
         y[i] = g_costHistory[i];
     }
 
-    cout << "Drawing plot: " << endl;
     QCustomPlot* customPlot = ui.customPlot;
     customPlot->clearGraphs();
     // create graph and assign data to it:
@@ -573,7 +551,7 @@ void MainWindow::on_actionNBodySimulation_triggered() {
 
 	NBodySystem nBodySystem;
 	nBodySystem.setBounds(0, 0, imgSz[0], imgSz[1]);
-	for (int i = 0; i < g_pointList.n_cols; i += POINT_DIMENSIONS) {
+	for (unsigned i = 0; i < g_pointList.n_cols; i += POINT_DIMENSIONS) {
 		Body b;
 		b.x = g_pointList.at(currentImage, i);
 		b.y = g_pointList.at(currentImage, i+1);
@@ -612,6 +590,26 @@ void MainWindow::on_actionPlayTrace_triggered() {
     m_Timer.start(ui.animationInterval->value());
 }
 
+
+void MainWindow::on_animationInterval_valueChanged(int v) {
+    if (m_Timer.isActive()) {
+        m_Timer.stop();
+        m_Timer.start(ui.animationInterval->value());
+    }
+}
+
+
+void MainWindow::particleAnimationTimeout() {
+    if (g_pointHistoryIdx >= g_pointHistory.n_rows) {
+        ui.statusBar->showMessage(QString("Animation Done.."));
+        m_Timer.stop();
+    } else {
+        playScene();
+        ui.statusBar->showMessage(QString("Playing %1 frame ..").arg(g_pointHistoryIdx));
+        g_pointHistoryIdx++;
+    }
+}
+
 void MainWindow::on_actionLoadTrace_triggered() {
 	QString fileName = QFileDialog::getOpenFileName(this, tr("Load Text File"), "/data", tr("Texts (*.txt)"));
 	if (fileName != NULL) {
@@ -630,36 +628,30 @@ void MainWindow::on_actionShowPlotWindow_triggered() {
     ui.dockWidget_2->show();
 }
 
-void MainWindow::particleAnimationTimeout() {
-    if (g_pointHistoryIdx >= g_pointHistory.n_rows) {
-        m_Timer.stop();
-    } else {
-        playScene();
-        g_pointHistoryIdx++;
-    }
-}
-
 void MainWindow::updateScene() {
 	int currentImage = ui.listWidget->currentRow();
 	gs.clear();
 
-    BitmapType::Pointer bitmap;
-    if (g_cannyMaskBitmapList.size() > 0) {
-        bitmap = g_cannyMaskBitmapList[currentImage];
-    } else if (g_gradmagBitmapList.size() > 0) {
-        // bitmap = g_gradmagBitmapList[currentImage];
+    if (ui.actionShowImage->isChecked()) {
+        BitmapType::Pointer bitmap2;
+        bitmap2 = g_gradmagBitmapList[currentImage];
+        gs.addPixmap(getPixmap(bitmap2));
     }
-    if (bitmap.IsNotNull()) {
-        gs.addPixmap(getPixmap(bitmap));
+    if (ui.actionShowShapeMask->isChecked()) {
+        if (!g_maskBitmapList.empty()) {
+            BitmapType::Pointer bitmap = g_maskBitmapList[currentImage];
+            gs.addPixmap(getPixmap(bitmap));
+        }
+    } else if (ui.actionShowShapeDistanceMap->isChecked()) {
+        if (!g_distanceMapBitmapList.empty()) {
+            BitmapType::Pointer bitmap = g_distanceMapBitmapList[currentImage];
+            gs.addPixmap(getPixmap(bitmap));
+        }
     }
 
-    BitmapType::Pointer bitmap2;
-    bitmap2 = g_bitmapList[currentImage];
-    gs.addPixmap(getPixmap(bitmap2));
 
 	if (g_pointList.n_cols > 0) {
 		int nPoints = g_pointList.n_cols / POINT_DIMENSIONS;
-        cout << "Number of points: " << nPoints << endl;
 		itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
 		colorFunc->SetMinimumInputValue(0);
 		colorFunc->SetMaximumInputValue(nPoints);
@@ -667,8 +659,21 @@ void MainWindow::updateScene() {
 		for (int j = 0; j < nPoints; j++) {
 			double x = g_pointList(currentImage, POINT_DIMENSIONS * j);
 			double y = g_pointList(currentImage, POINT_DIMENSIONS * j + 1);
-			itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(j);
-			QColor pointColor(rgb[0], rgb[1], rgb[2]);
+
+            QColor pointColor = Qt::black;
+            if (ui.actionParticleRed->isChecked()) {
+                pointColor = Qt::red;
+            } else if (ui.actionParticleGreen->isChecked()) {
+                pointColor = Qt::green;
+            } else if (ui.actionParticleBlue->isChecked()) {
+                pointColor = Qt::blue;
+            } else if (ui.actionParticleWhite->isChecked()) {
+                pointColor = Qt::white;
+            } else if (ui.actionParticleHSV->isChecked()) {
+                itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(j);
+                pointColor = QColor(rgb[0], rgb[1], rgb[2]);
+            }
+
 			gs.addEllipse(x, y, 1, 1, QPen(pointColor),
                           QBrush(pointColor, Qt::SolidPattern));
 		}
@@ -681,15 +686,12 @@ void MainWindow::updateScene() {
         gs.addEllipse(::round(bmpSz[0]/2)- RADIUS,::round(bmpSz[1]/2)-RADIUS, RADIUS*2, RADIUS*2, QPen(Qt::white));
     }
 
-    bool drawPhantoms = true && (g_phantomParticles.size() > 0);
+    bool drawPhantoms = false && (g_phantomParticles.size() > 0);
     if (drawPhantoms) {
-    	cout << "Drawing Phantoms ..." << endl;
         std::vector<float>& phantoms = g_phantomParticles[currentImage];
         for (unsigned j = 0; j < phantoms.size(); j += 2) {
             gs.addEllipse(phantoms[j], phantoms[j+1], 1, 1, QPen(Qt::white), QBrush(Qt::white, Qt::SolidPattern));
         }
-    } else {
-    	cout << "# of phantom subjects: " << g_phantomParticles.size() << endl;
     }
 }
 

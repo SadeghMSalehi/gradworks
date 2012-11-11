@@ -18,7 +18,7 @@
 #include "itkVectorMagnitudeImageFilter.h"
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 #include "itkARGBColormapFunction.h"
-#include "itkLBFGSBOptimizer.h"
+#include "itkLBFGSOptimizer.h"
 #include "itkLinearInterpolateImageFunction.h"
 #include "itkVectorLinearInterpolateImageFunction.h"
 #include "itkNearestNeighborInterpolateImageFunction.h"
@@ -48,10 +48,11 @@ typedef itk::ZeroCrossingImageFilter<ImageType,ImageType> EdgeDetectionFilterTyp
 
 typedef itk::NearestNeighborInterpolateImageFunction<ImageType,float> NearestNeighborInterpolatorType;
 
-//typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
-//typedef itk::LBFGSBOptimizer OptimizerType;
+typedef itk::SingleValuedNonLinearOptimizer OptimizerType;
+typedef itk::RegularStepGradientDescentOptimizer GDOptimizerType;
+typedef itk::LBFGSOptimizer LBFGSOptimizerType;
+typedef itk::MyFRPROptimizer FRPROptimizerType;
 //typedef itk::SphereBoundedGradientDescentOptimizer OptimizerType;
-typedef itk::MyFRPROptimizer OptimizerType;
 //typedef itk::MyPowellOptimizer OptimizerType;
 
 

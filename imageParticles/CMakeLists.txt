@@ -1,6 +1,7 @@
 project(imageParticles)
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_XCODE_ATTRIBUTE_GCC_VERSION "com.apple.compilers.llvmgcc42")
+set(CMAKE_XCODE_ATTRIBUTE_ENABLE_OPENMP_SUPPORT "YES")
 
 find_package(ITK 4 REQUIRED)
 find_package(Qt4 REQUIRED)
@@ -11,8 +12,9 @@ include(${QT_USE_FILE})
 
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 
-set (CMAKE_C_FLAGS -fopenmp)
-set (CMAKE_CXX_FLAGS -fopenmp)
+set (CMAKE_C_FLAGS "-fopenmp")
+set (CMAKE_CXX_FLAGS "-fopenmp")
+set (CMAKE_CXX_FLAGS_RELEASE "-mmmx -msse -msse2 -msse3 -msse4.1")
 
 #set (IPOPT_LIB_DIR /tools/IpOpt/lib)
 #set (IPOPT_LIBRARIES ${IPOPT_LIB_DIR}/libiomp5.dylib ${IPOPT_LIB_DIR}/libipopt.dylib ${IPOPT_LIB_DIR}/libpardiso412-MACOS-X86-64.dylib)

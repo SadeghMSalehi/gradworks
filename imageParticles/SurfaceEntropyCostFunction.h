@@ -45,6 +45,10 @@ public:
     itkSetMacro(PhantomCutoffDistance, double);
     itkSetMacro(MaxKappa, double);
 
+    void SetNumberOfSubjects(int nSubjects) {
+        m_NumberOfSubjects = nSujects;
+    }
+    
 	void SetDistanceVectorImage(DistanceVectorImageType::Pointer distVector) {
 		m_distVectorMap = distVector;
 	}
@@ -428,6 +432,8 @@ public:
 		entropiesSum.zeros(nPoints);
 
 		double cost = 0;
+
+#pragma omp parallel for
 		for (int i = 0; i < nPoints; i++) {
 			double sum = 0;
 
@@ -458,6 +464,7 @@ public:
 			}
 			cost += sum;
 		}
+#pragma omp parallel for
 		for (int i = 0; i < nPoints; i++) {
 			for (int j = 0; j < nPoints; j++) {
 				if (i == j) {
@@ -541,7 +548,6 @@ public:
             cout << "Using phantom particles ..." << endl;
             GetPhantomValueAndDerivative(p, value, derivative);
         } else {
-            cout << "Using boundary guarded particles ..." << endl;            
             GetGuardedValueAndDerivative(p, value, derivative);
         }
 	}
