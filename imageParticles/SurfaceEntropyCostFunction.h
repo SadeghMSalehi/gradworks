@@ -45,6 +45,7 @@ public:
     itkSetMacro(Sigma, double);
     itkSetMacro(PhantomCutoffDistance, double);
     itkSetMacro(MaxKappa, double);
+    itkSetMacro(EnsembleFactor, double);
 
 
     void Clear() {
@@ -485,7 +486,7 @@ public:
             arma::mat entropies;
             entropies.zeros(m_nPoints, m_nPoints + 1);
             double cost = 0;
-//#pragma omp parallel for
+#pragma omp parallel for
             for (int i = 0; i < m_nPoints; i++) {
                 double sum = 0;
                 for (int j = 0; j < m_nPoints; j++) {
@@ -507,12 +508,12 @@ public:
                 if (sum > 0) {
                     entropies.row(i) = entropies.row(i) / sum;
                 }
-//#pragma omp critical
+#pragma omp critical
                 {
                     cost += sum;
                 }
             }
-//#pragma omp parallel for
+#pragma omp parallel for
             for (int i = 0; i < m_nPoints; i++) {
                 for (int j = 0; j < m_nPoints; j++) {
                     if (i == j) {
@@ -551,7 +552,54 @@ public:
             }
             value += cost;
         }
+
+        MeasureType ensembleCost = 0;
+        const arma::mat ensembleDeriv = ComputeEnsembleEntropies(p, ensembleCost);
+        int k = 0;
+        for (int j = 0; j < (int) ensembleDeriv.n_rows; j++) {
+            for (int i = 0; i < (int) ensembleDeriv.n_cols; i++) {
+                derivative[k] = ((1 - m_EnsembleFactor) * derivative[k] + m_EnsembleFactor * ensembleDeriv.at(j,i));
+                k++;
+            }
+        }
+        if (m_EnsembleFactor > 0) {
+        value += (m_EnsembleFactor * ensembleCost);
+        }
 	}
+
+    arma::mat ComputeEnsembleEntropies(const ParametersType& p, MeasureType& entropy) const {
+        arma::mat P;
+        P.zeros(m_nSubjects, m_nVars);
+        for (int i = 0; i < m_nVars; i++) {
+            for (int j = 0; j  < m_nSubjects; j++) {
+                P.at(j, i) = p[j * m_nVars + i];
+            }
+        }
+        arma::mat meanP = arma::mean(P, 0);
+
+
+        arma::mat Y(P);
+        for (int j = 0; j < m_nSubjects; j++) {
+            Y.row(j) = P.row(j) - meanP;
+        }
+
+
+        //cout << P.at(0,0) << " + " << P.at(1,0) << " = " << (2*meanP.at(0,0)) << Y.at(0,0) << " + " << Y.at(1,0) << endl;
+        //cout << P.at(0,1) << " + " << P.at(1,1) << " = " << (2*meanP.at(0,1)) << Y.at(0,1) << " + " << Y.at(1,1) << endl;
+        arma::mat YYt = Y * Y.t();
+        arma::vec eigval;
+        arma::mat eigvec;
+        arma::eig_sym(eigval, eigvec, YYt);        // use standard algorithm by default
+        entropy = arma::sum(eigval);
+
+
+        arma::mat YYtY = YYt * Y;
+        double norm = arma::norm(YYtY, 2);
+        if (norm > 0) {
+            YYtY /= norm;
+        }
+        return YYtY;
+    }
 
 	/** This method returns the value and derivative of the cost function corresponding
 	 * to the specified parameters    */
@@ -559,6 +607,7 @@ public:
 			MeasureType & value, DerivativeType & derivative) const {
 		derivative.SetSize(GetNumberOfParameters());
 		derivative.Fill(0);
+
 		if (m_PhantomParticles != NULL) {
             cout << "Using phantom particles ..." << endl;
             GetPhantomValueAndDerivative(p, value, derivative);
@@ -585,6 +634,7 @@ protected:
         m_MaxKappa = sqrt(2);
         m_CutoffDistance = 15;
         m_PhantomCutoffDistance = 3;
+        m_EnsembleFactor = 0.5;
 
         m_nSubjects = 0;
         m_nVars = 0;
@@ -625,6 +675,7 @@ private:
     double m_MaxKappa;
     double m_CutoffDistance;
     double m_PhantomCutoffDistance;
+    double m_EnsembleFactor;
 };
 
 #endif /* defined(__imageParticles__SurfaceEntropyCostFunction__) */

@@ -195,17 +195,15 @@ void loadMask(QString f) {
     edgeFilter->Update();
     ImageType::Pointer edgeImg = edgeFilter->GetOutput();
 
-    ScalarToRGBFilter::Pointer edgeRGBFilter = ScalarToRGBFilter::New();
-    edgeRGBFilter->SetInput(edgeImg);
-    edgeRGBFilter->SetNumberOfThreads(8);
-    edgeRGBFilter->Update();
-    BitmapType::Pointer edgeRGB = edgeRGBFilter->GetOutput();
-
-    g_cannyMaskList.push_back(edgeImg);
-    g_cannyMaskBitmapList.push_back(edgeRGB);
-
-    createPhantomParticles(edgeImg);
-}
+    PointVectorType phantoms;
+    itk::ImageRegionConstIteratorWithIndex<ImageType> iter(edgeImg, edgeImg->GetBufferedRegion());
+    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+        if (iter.Get() > 0) {
+            phantoms.push_back(iter.GetIndex()[0]);
+            phantoms.push_back(iter.GetIndex()[1]);
+        }
+    }
+    g_phantomParticles.push_back(phantoms);}
 
 QPixmap getPixmap(BitmapType::Pointer bitmap) {
 	BitmapType::SizeType bitmapSz = bitmap->GetBufferedRegion().GetSize();
@@ -269,6 +267,7 @@ QMainWindow(parent) {
     QObject::connect(ui.actionShowShapeMask, SIGNAL(triggered()), this, SLOT(updateScene()));
     QObject::connect(ui.actionShowShapeDistanceMap, SIGNAL(triggered()), this, SLOT(updateScene()));
     QObject::connect(m_particleColors, SIGNAL(triggered(QAction*)), this, SLOT(updateScene()));
+    QObject::connect(ui.actionShowPhantomParticles, SIGNAL(triggered()), this, SLOT(updateScene()));
 
     ui.listWidget->setCurrentRow(0);
 }
@@ -351,6 +350,7 @@ void MainWindow::on_actionRun_triggered() {
     m_CostFunc->SetPhantomCutoffDistance(ui.cutoffDistancePhantom->value());
     m_CostFunc->SetMaxKappa(ui.maxKappa->value());
     m_CostFunc->SetUseAdaptiveSampling(ui.actionAdaptiveSampling->isChecked());
+    m_CostFunc->SetEnsembleFactor(ui.ensembleFactor->value());
     for (unsigned i = 0; i < g_imageList.size() && i < g_pointList.size(); i++) {
         m_CostFunc->AddSubjects(g_pointList[i], g_gradmagImageList[i], g_boundaryMapList[i]);
     }
@@ -576,17 +576,13 @@ void MainWindow::updateScene() {
 		}
 	}
 
-    /*
-	currentImage = ui.listWidget->currentRow();
-
-    bool drawPhantoms = false && (g_phantomParticles.size() > 0);
+    bool drawPhantoms = ui.actionShowPhantomParticles->isChecked() && (g_phantomParticles.size() > 0);
     if (drawPhantoms) {
         std::vector<float>& phantoms = g_phantomParticles[currentImage];
         for (unsigned j = 0; j < phantoms.size(); j += 2) {
             gs.addEllipse(phantoms[j], phantoms[j+1], 1, 1, QPen(Qt::white), QBrush(Qt::white, Qt::SolidPattern));
         }
     }
-    */
 }
 
 
