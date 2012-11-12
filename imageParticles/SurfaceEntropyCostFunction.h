@@ -45,10 +45,41 @@ public:
     itkSetMacro(PhantomCutoffDistance, double);
     itkSetMacro(MaxKappa, double);
 
-    void SetNumberOfSubjects(int nSubjects) {
-        m_NumberOfSubjects = nSujects;
+    void Clear() {
+        m_listOfKappaMaps.clear();
+        m_listOfKappaMapInterpolators.clear();
+        m_listOfShapeDistanceMaps.clear();
+        m_listOfShapeDistanceMapInterpolators.clear();
+        m_listOfShapeDistanceVectorMaps.clear();
+        m_Points.zeros(0,0);
     }
-    
+
+    void ConstructDistanceMap(ImageType::Pointer shapeMask, ImageType::Pointer& shapeDistanceMap, DistanceVectorImageType::Pointer& shapeDistanceVectorMap) {
+        
+
+    }
+
+    bool AddSubjects(arma::vec &pointSamples, ImageType::Pointer kappaMap, ImageType::Pointer shapeMask) {
+        if (pointSamples.n_cols != m_NumberOfPoints) {
+            return false;
+        }
+        m_Points.reshape(m_Points.n_row + 1, m_NumberOfPoints);
+        m_Points.row(m_NumberOfSubjects) = pointSamples;
+        m_listOfKappaMaps.push_back(kappaMap);
+        InterpolatorType::Pointer kappaInterpolator = InterpolatorType::New();
+        kappaInterpolator->SetInputImage(kappaMap);
+        m_listOfKappaMapInterpolators.push_back(kappaInterpolator);
+        m_listOfKappaMaps.push_back(kappaMap);
+        ImageType::Pointer shapeDistanceMap;
+        DistanceVectorImageType::Pointer shapeDistanceVectorMap;
+        ConstructDistanceMap(shapeMask, shapeDistanceMap, shapeDistanceVectorMap);
+        m_listOfShapeDistanceMaps.push_back(shapeDistanceMap);
+        m_listOfShapeDistanceVectorMaps.push_back(shapeDistanceVectorMap);
+        InterpolatorType::Pointer shapeDistanceInterpolator = InterpolatorType::New();
+        shapeDistanceInterpolator->SetInputImage(shapeDistanceMap);
+        m_listOfKappaMapInterpolators.push_back(shapeDistanceInterpolator);
+    }
+
 	void SetDistanceVectorImage(DistanceVectorImageType::Pointer distVector) {
 		m_distVectorMap = distVector;
 	}
@@ -576,9 +607,20 @@ protected:
 	}
 
 private:
-	PointContainerType m_Points;
+
 	ParametersType m_SampleSigmas;
 	int m_NumberOfPoints;
+    int m_NumberOfSubjects;
+
+    // NumberOfSubjects * NumberOfPoints matrix
+	PointContainerType m_Points;
+
+    std::vector<ImageType::Pointer> m_listOfKappaMaps;
+    std::vector<ImageType::Pointer> m_listOfShapeDistanceMaps;
+    std::vector<DistanceVectorImageType::Pointer> m_listOfShapeDistanceVectorMaps;
+    std::vector<InterpolatorType::Pointer> m_listOfKappaMapInterpolators;
+    std::vector<InterpolatorType::Pointer> m_listOfShapeDistanceMapInterpolators;
+
 	ImageType::Pointer m_Image;
 	ImageType::Pointer m_distVectorMagnitudeMap;
 	InterpolatorType::Pointer m_Interpolator;
