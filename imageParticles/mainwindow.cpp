@@ -256,7 +256,7 @@ QMainWindow(parent) {
     addImage(tr("/data/2D/circle.jpg"));
     loadMask(tr("/data/2D/random-boundary.jpg"));
 #else
-    addImage(tr("/base/imageParticles/data/circle.jpg"));
+    addImage(tr("/base/imageParticles/data/10.T2.slice.nrrd"));
     addImage(tr("/base/imageParticles/data/circle.jpg"));
     loadMask(tr("/base/imageParticles/data/circle-boundary.png"));
     loadMask(tr("/base/imageParticles/data/random-boundary.jpg"));

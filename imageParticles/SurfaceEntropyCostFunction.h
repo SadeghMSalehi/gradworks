@@ -553,17 +553,18 @@ public:
             value += cost;
         }
 
-        MeasureType ensembleCost = 0;
-        const arma::mat ensembleDeriv = ComputeEnsembleEntropies(p, ensembleCost);
-        int k = 0;
-        for (int j = 0; j < (int) ensembleDeriv.n_rows; j++) {
-            for (int i = 0; i < (int) ensembleDeriv.n_cols; i++) {
-                derivative[k] = ((1 - m_EnsembleFactor) * derivative[k] + m_EnsembleFactor * ensembleDeriv.at(j,i));
-                k++;
-            }
-        }
         if (m_EnsembleFactor > 0) {
-        value += (m_EnsembleFactor * ensembleCost);
+        	MeasureType ensembleCost = 0;
+        	const arma::mat ensembleDeriv = ComputeEnsembleEntropies(p, ensembleCost);
+        	int k = 0;
+        	for (int j = 0; j < (int) ensembleDeriv.n_rows; j++) {
+        		for (int i = 0; i < (int) ensembleDeriv.n_cols; i++) {
+        			derivative[k] = ((1 - m_EnsembleFactor) * derivative[k] + m_EnsembleFactor * ensembleDeriv.at(j,i));
+        			k++;
+        		}
+        	}
+
+        	value += (m_EnsembleFactor * ensembleCost);
         }
 	}
 
