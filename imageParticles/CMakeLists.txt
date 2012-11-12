@@ -52,6 +52,7 @@ set(SOURCES main.cpp
 	qcustomplot.cpp
 	qmygraphicsview.cpp
 	imageParticleTypes.h
+	imageParticleTools.cpp
 #	imageParticleCore.h
 #	imageParticleCore.cpp
 	itkMyPowellOptimizer.h

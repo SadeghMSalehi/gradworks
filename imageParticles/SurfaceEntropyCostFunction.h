@@ -13,9 +13,9 @@
 #include <itkSingleValuedCostFunction.h>
 #include <itkVector.h>
 #include <armadillo>
-#ifdef __APPLE__
-#include "/usr/llvm-gcc-4.2/lib/gcc/i686-apple-darwin11/4.2.1/include/omp.h"
-#endif
+//#ifdef __APPLE__
+//#include "/usr/llvm-gcc-4.2/lib/gcc/i686-apple-darwin11/4.2.1/include/omp.h"
+//#endif
 #include "imageParticleTypes.h"
 #include "itkRescaleIntensityImageFilter.h"
 
@@ -33,6 +33,7 @@ public:
 	;itkNewMacro(Self)
 	;
 
+    const static int Dimensions = VDim;
 	typedef double MeasureType;
 	typedef Superclass::ParametersType ParametersType;
 	typedef Superclass::ParametersValueType ParametersValueType;
@@ -45,13 +46,14 @@ public:
     itkSetMacro(PhantomCutoffDistance, double);
     itkSetMacro(MaxKappa, double);
 
+
     void Clear() {
         m_listOfKappaMaps.clear();
         m_listOfKappaMapInterpolators.clear();
         m_listOfShapeDistanceMaps.clear();
         m_listOfShapeDistanceMapInterpolators.clear();
         m_listOfShapeDistanceVectorMaps.clear();
-        m_Points.zeros(0,0);
+        m_Points.clear();
     }
 
     void ConstructDistanceMap(ImageType::Pointer shapeMask, ImageType::Pointer& shapeDistanceMap, DistanceVectorImageType::Pointer& shapeDistanceVectorMap) {
@@ -62,30 +64,49 @@ public:
         shapeDistanceVectorMap = distmapFilter->GetVectorDistanceMap();
     }
 
-    bool AddSubjects(arma::vec &pointSamples, ImageType::Pointer kappaMap, ImageType::Pointer shapeMask) {
-        if (pointSamples.n_cols != m_NumberOfPoints) {
+    bool AddSubjects(PointVectorType pointSamples, ImageType::Pointer kappaMap, ImageType::Pointer shapeMask) {
+        if (m_Points.size() > 0 && pointSamples.size() != m_Points[0].size()) {
             return false;
         }
-        m_Points.reshape(m_Points.n_row + 1, m_NumberOfPoints);
-        m_Points.row(m_NumberOfSubjects) = pointSamples;
-        m_listOfKappaMaps.push_back(kappaMap);
+
+        // rescale kappa map
+		typedef itk::RescaleIntensityImageFilter<ImageType> RescaleFilter;
+		RescaleFilter::Pointer filter = RescaleFilter::New();
+		filter->SetInput(kappaMap);
+		filter->SetOutputMinimum(1);
+		filter->SetOutputMaximum(m_MaxKappa);
+		filter->Update();
+        kappaMap = filter->GetOutput();
+
+        // adding attribute map
         InterpolatorType::Pointer kappaInterpolator = InterpolatorType::New();
         kappaInterpolator->SetInputImage(kappaMap);
         m_listOfKappaMapInterpolators.push_back(kappaInterpolator);
+        m_Points.push_back(pointSamples);
         m_listOfKappaMaps.push_back(kappaMap);
+
+        // adding shape distance map
         ImageType::Pointer shapeDistanceMap;
         DistanceVectorImageType::Pointer shapeDistanceVectorMap;
         ConstructDistanceMap(shapeMask, shapeDistanceMap, shapeDistanceVectorMap);
-        m_listOfShapeDistanceMaps.push_back(shapeDistanceMap);
-        m_listOfShapeDistanceVectorMaps.push_back(shapeDistanceVectorMap);
+
         InterpolatorType::Pointer shapeDistanceInterpolator = InterpolatorType::New();
         shapeDistanceInterpolator->SetInputImage(shapeDistanceMap);
-        m_listOfKappaMapInterpolators.push_back(shapeDistanceInterpolator);
+        m_listOfShapeDistanceMaps.push_back(shapeDistanceMap);
+        m_listOfShapeDistanceVectorMaps.push_back(shapeDistanceVectorMap);
+        m_listOfShapeDistanceMapInterpolators.push_back(shapeDistanceInterpolator);
 
-        cout << shapeDistanceMap;
-        cout << shapeDistanceVectorMap;
+        m_nSubjects = m_listOfKappaMaps.size();
+        m_nVars = pointSamples.size();
+        m_nPoints = m_nVars / POINT_DIMENSIONS;
+
+        cout << "# subjects: " << m_nSubjects << endl;
+        return true;
     }
 
+
+
+    /*
 	void SetDistanceVectorImage(DistanceVectorImageType::Pointer distVector) {
 		m_distVectorMap = distVector;
 	}
@@ -137,12 +158,13 @@ public:
 		}
 	}
 
+     ParametersType GetSampleSigmas() {
+        return m_SampleSigmas;
+     }
+    */
+
 	void SetUseAdaptiveSampling(bool adaptiveSampling) {
 		m_AdaptiveSampling = adaptiveSampling;
-	}
-
-	ParametersType GetSampleSigmas() {
-		return m_SampleSigmas;
 	}
 
 	ParametersType GetInitialParameters() {
@@ -192,7 +214,7 @@ public:
 	}
 
 	virtual unsigned int GetNumberOfParameters() const {
-		return m_Points.size() * VDim;
+		return m_nSubjects * m_nVars;
 	}
 
 	/** This method returns the value of the cost function corresponding
@@ -310,13 +332,13 @@ public:
 
 	}
 
-	inline double computeEntropy(const ParametersType& p, int i, int j,
+	inline double computeEntropy(const ParametersType& p, int nOffset, int i, int j,
 			double kappa = 1) const {
 		double dist2 = 0;
 		double si = m_Sigma / kappa;
 		for (int k = 0; k < 2; k++) {
-			dist2 += (p[2 * i + k] - p[2 * j + k])
-					* (p[2 * i + k] - p[2 * j + k]);
+			dist2 += (p[nOffset + 2 * i + k] - p[nOffset + 2 * j + k])
+					* (p[nOffset + 2 * i + k] - p[nOffset + 2 * j + k]);
 		}
 		if (dist2 > (m_CutoffDistance * m_CutoffDistance)) {
 			return 0;
@@ -357,15 +379,15 @@ public:
 		}
 	}
 
-	inline double computePhantomEntropy(const ParametersType& p, int i) const {
+	inline double computePhantomEntropy(const ParametersType& p, int n, int i) const {
+        const int nOffset = n * m_nVars;
 		ContinuousIndexType idx;
-		idx[0] = p[2 * i];
-		idx[1] = p[2 * i + 1];
-		if (!m_Interpolator->IsInsideBuffer(idx)) {
+		idx[0] = p[nOffset + 2 * i];
+		idx[1] = p[nOffset + 2 * i + 1];
+		if (!m_listOfShapeDistanceMapInterpolators[n]->IsInsideBuffer(idx)) {
 			return exp(5 * 5 / 9);
 		}
-		ImageType::PixelType dist = m_Interpolator->EvaluateAtContinuousIndex(
-				idx);
+		ImageType::PixelType dist = m_listOfShapeDistanceMapInterpolators[n]->EvaluateAtContinuousIndex(idx);
 		if (dist != dist) {
 			cout << "dist is NaN" << endl;
 			return exp(5 * 5);
@@ -456,123 +478,79 @@ public:
 
 	void GetGuardedValueAndDerivative(const ParametersType & p,
 			MeasureType & value, DerivativeType & derivative) const {
-		int nParams = p.GetSize();
-		int nPoints = nParams / 2;
-
-		InterpolatorType::Pointer interpolator = InterpolatorType::New();
-		interpolator->SetInputImage(m_Image);
-
-		arma::mat entropies;
-		arma::vec phantomEntropies, entropiesSum;
-		entropies.zeros(nPoints, nPoints + 1);
-		phantomEntropies.zeros(nPoints);
-		entropiesSum.zeros(nPoints);
-
-		double cost = 0;
-
-#pragma omp parallel for
-		for (int i = 0; i < nPoints; i++) {
-			double sum = 0;
-
-			for (int j = 0; j < nPoints; j++) {
-				if (i == j) {
-					continue;
-				}
-				ImageType::ValueType kappa = 1;
-				if (m_AdaptiveSampling) {
-					ContinuousIndexType idx;
-					idx[0] = p[2 * j];
-					idx[1] = p[2 * j + 1];
-					kappa = interpolator->EvaluateAtContinuousIndex(idx);
-				}
-				entropies.at(i, j) = computeEntropy(p, i, j, kappa);
-				sum += entropies.at(i, j);
-			}
-			entropies.at(i, nPoints) = computePhantomEntropy(p, i);
-			sum += entropies.at(i, nPoints);
-			if (sum > 0) {
-				entropies.row(i) = entropies.row(i) / sum;
-			}
-			if (sum != sum) {
-
-				cout << "sum is NaN; " << "phantom = "
-						<< entropies.at(i, nPoints) << "; " << p[2 * i] << ","
-						<< p[2 * i + 1] << endl;
-			}
-			cost += sum;
-		}
-#pragma omp parallel for
-		for (int i = 0; i < nPoints; i++) {
-			for (int j = 0; j < nPoints; j++) {
-				if (i == j) {
-					continue;
-				}
-				for (int k = 0; k < 2; k++) {
-					derivative[i * 2 + k] -= entropies.at(i, j)
-							* (p[2 * i + k] - p[2 * j + k]);
-					if (derivative[i * 2 + k] != derivative[i * 2 + k]) {
-						cout << "Derivative is NaN; " << i << "; "
-								<< entropies.at(i, j) << endl;
-					}
-				}
-			}
-			ContinuousIndexType idx;
-			idx[0] = p[2 * i];
-			idx[1] = p[2 * i + 1];
-			if (m_Interpolator->IsInsideBuffer(idx)) {
-				double dist = m_Interpolator->EvaluateAtContinuousIndex(idx);
-				if (dist > 0) {
-					ImageType::IndexType gIdx;
-					gIdx[0] = ::round(p[2 * i]);
-					gIdx[1] = ::round(p[2 * i + 1]);
-					ImageType::OffsetType gradientPixel =
-							m_distVectorMap->GetPixel(gIdx);
-					arma::vec normalizedGradient = normalizeGradient(
-							gradientPixel);
-					for (int k = 0; k < 2; k++) {
-						derivative[i * 2 + k] -= (entropies.at(i, nPoints)
-								* normalizedGradient[k]);
-						if (derivative[i * 2 + k] != derivative[i * 2 + k]) {
-							cout << "Derivative is NaN; " << i
-									<< "; phantomForce = "
-									<< entropies.at(i, nPoints)
-									<< "; Gradient = " << normalizedGradient
-									<< "; " << endl;
-						}
-					}
-				} else if (dist < 0) {
-					ImageType::IndexType gIdx;
-					gIdx[0] = ::round(p[2 * i]);
-					gIdx[1] = ::round(p[2 * i + 1]);
-					ImageType::OffsetType gradientPixel =
-							m_distVectorMap->GetPixel(gIdx);
-					arma::vec normalizedGradient = normalizeGradient(
-							gradientPixel);
-					for (int k = 0; k < 2; k++) {
-						derivative[i * 2 + k] -= (entropies.at(i, nPoints)
-								* normalizedGradient[k]);
-						if (derivative[i * 2 + k] != derivative[i * 2 + k]) {
-							cout << "Derivative is NaN; " << i
-									<< "; phantomForce = "
-									<< entropies.at(i, nPoints)
-									<< "; Gradient = " << normalizedGradient
-									<< "; " << endl;
-						}
-					}
-				}
-			}
-		}
-		value = cost;
-		if (value != value) {
-			cout << "Value is NAN; " << p << endl;
-			exit(0);
-		}
-		for (int i = 0; i < nParams; i++) {
-			if (derivative[i] != derivative[i]) {
-				cout << i << " th derivative is nan; " << p << ";" << derivative
-						<< endl;
-			}
-		}
+        // cout << "# points: " << m_nPoints << "; # vars: " << m_nVars << "; # subjects: " << m_nSubjects << endl;
+        value = 0;
+        for (int n = 0; n < m_nSubjects; n++) {
+            const unsigned nOffset = m_nVars * n;
+            arma::mat entropies;
+            entropies.zeros(m_nPoints, m_nPoints + 1);
+            double cost = 0;
+//#pragma omp parallel for
+            for (int i = 0; i < m_nPoints; i++) {
+                double sum = 0;
+                for (int j = 0; j < m_nPoints; j++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    ImageType::ValueType kappa = 1;
+                    if (m_AdaptiveSampling) {
+                        ContinuousIndexType idx;
+                        idx[0] = p[nOffset + 2 * j];
+                        idx[1] = p[nOffset + 2 * j + 1];
+                        kappa = m_listOfKappaMapInterpolators[n]->EvaluateAtContinuousIndex(idx);
+                    }
+                    entropies.at(i, j) = computeEntropy(p, nOffset, i, j, kappa);
+                    sum += entropies.at(i, j);
+                }
+                entropies.at(i, m_nPoints) = computePhantomEntropy(p, n, i);
+                sum += entropies.at(i, m_nPoints);
+                if (sum > 0) {
+                    entropies.row(i) = entropies.row(i) / sum;
+                }
+//#pragma omp critical
+                {
+                    cost += sum;
+                }
+            }
+//#pragma omp parallel for
+            for (int i = 0; i < m_nPoints; i++) {
+                for (int j = 0; j < m_nPoints; j++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    for (int k = 0; k < 2; k++) {
+                        derivative[nOffset + i * 2 + k] -= entropies.at(i, j) * (p[nOffset + 2 * i + k] - p[nOffset + 2 * j + k]);
+                    }
+                }
+                ContinuousIndexType idx;
+                idx[0] = p[nOffset + 2 * i];
+                idx[1] = p[nOffset + 2 * i + 1];
+                if (m_listOfKappaMapInterpolators[n]->IsInsideBuffer(idx)) {
+                    double dist = m_listOfKappaMapInterpolators[n]->EvaluateAtContinuousIndex(idx);
+                    if (dist > 0) {
+                        ImageType::IndexType gIdx;
+                        gIdx[0] = ::round(p[nOffset + 2 * i]);
+                        gIdx[1] = ::round(p[nOffset + 2 * i + 1]);
+                        ImageType::OffsetType gradientPixel = m_listOfShapeDistanceVectorMaps[n]->GetPixel(gIdx);
+                        arma::vec normalizedGradient = normalizeGradient(gradientPixel);
+                        for (int k = 0; k < 2; k++) {
+                            derivative[nOffset + i * 2 + k] -= (entropies.at(i, m_nPoints) * normalizedGradient[k]);
+                        }
+                    } else if (dist < 0) {
+                        ImageType::IndexType gIdx;
+                        gIdx[0] = ::round(p[nOffset + 2 * i]);
+                        gIdx[1] = ::round(p[nOffset + 2 * i + 1]);
+                        ImageType::OffsetType gradientPixel = m_listOfShapeDistanceVectorMaps[n]->GetPixel(gIdx);
+                        arma::vec normalizedGradient = normalizeGradient(
+                                                                         gradientPixel);
+                        for (int k = 0; k < 2; k++) {
+                            derivative[nOffset + i * 2 + k] -= (entropies.at(i, m_nPoints) * normalizedGradient[k]);
+                        }
+                    }
+                }
+            }
+            value += cost;
+        }
 	}
 
 	/** This method returns the value and derivative of the cost function corresponding
@@ -607,6 +585,10 @@ protected:
         m_MaxKappa = sqrt(2);
         m_CutoffDistance = 15;
         m_PhantomCutoffDistance = 3;
+
+        m_nSubjects = 0;
+        m_nVars = 0;
+        m_nPoints = 0;
 	}
 
 	virtual ~SurfaceEntropyCostFunction() {
@@ -619,7 +601,11 @@ private:
     int m_NumberOfSubjects;
 
     // NumberOfSubjects * NumberOfPoints matrix
-	PointContainerType m_Points;
+	ListOfPointVectorType m_Points;
+
+    int m_nSubjects;
+    int m_nVars;
+    int m_nPoints;
 
     std::vector<ImageType::Pointer> m_listOfKappaMaps;
     std::vector<ImageType::Pointer> m_listOfShapeDistanceMaps;

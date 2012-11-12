@@ -29,7 +29,9 @@
 #include "itkContinuousIndex.h"
 #include "armadillo"
 
-const int VDimension = 2;
+#define POINT_DIMENSIONS 2
+
+const int VDimension = POINT_DIMENSIONS;
 typedef itk::CovariantVector<double,VDimension> GradientType;
 typedef itk::RGBAPixel<unsigned char> RGBAPixel;
 typedef itk::RGBPixel<unsigned char> RGBPixel;
@@ -49,6 +51,7 @@ typedef itk::ZeroCrossingImageFilter<ImageType,ImageType> EdgeDetectionFilterTyp
 typedef itk::NearestNeighborInterpolateImageFunction<ImageType,float> NearestNeighborInterpolatorType;
 
 typedef itk::SingleValuedNonLinearOptimizer OptimizerType;
+typedef OptimizerType::ParametersType OptimizerParameters;
 typedef itk::RegularStepGradientDescentOptimizer GDOptimizerType;
 typedef itk::LBFGSOptimizer LBFGSOptimizerType;
 typedef itk::MyFRPROptimizer FRPROptimizerType;
@@ -58,7 +61,11 @@ typedef itk::MyFRPROptimizer FRPROptimizerType;
 
 typedef std::vector<float> PointVectorType;
 typedef std::vector<PointVectorType> ListOfPointVectorType;
+typedef std::vector<OptimizerParameters> ListOfParametersType;
+
 typedef arma::mat MatrixType;
+
+
 
 #define __CLAMP(x,s)((x<-3*si?0:(x>3*si?0:x)))
 
@@ -66,5 +73,16 @@ typedef arma::mat MatrixType;
 //#define USE_GD_OPTIMIZER
 #define USE_FRPR_OPTIMIZER
 //#define USE_POWELL_OPTIMIZER
+
+
+
+// utility functions defined in imageParticleTools.cpp
+
+void ConvertParametersToListOfPointVectors(OptimizerParameters& inputParams, int nSubj, int nVars, ListOfPointVectorType& outputPoints);
+void ConvertListOfPointVectorsToParameters(ListOfPointVectorType& inputPoints, OptimizerParameters& outputParams);
+void SaveListOfPointVectors(ListOfPointVectorType& inputPoints, const char* fileName);
+void LoadListOfPointVectors(const char* fileName, ListOfPointVectorType& outputPoints);
+
+
 
 #endif
