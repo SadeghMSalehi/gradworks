@@ -7,7 +7,6 @@
 #include "QGraphicsPixmapItem"
 #include "vector"
 
-#include "SurfaceEntropyCostFunction.h"
 //#include "SurfaceEntropyNLP.h"
 #include "imageParticleTypes.h"
 #include "NBody.h"
@@ -733,7 +732,7 @@ void MainWindow::resizeEvent(QResizeEvent* event) {
 void MainWindow::addImage(QString filename) {
 	loadImage(filename);
 	ui.listWidget->addItem(filename);
-	ui.listWidget->setCurrentRow(ui.listWidget->count() - 1);
+	// ui.listWidget->setCurrentRow(ui.listWidget->count() - 1);
 }
 
 void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {

@@ -49,7 +49,7 @@
           <x>0</x>
           <y>0</y>
           <width>256</width>
-          <height>469</height>
+          <height>466</height>
          </rect>
         </property>
         <attribute name="label">
@@ -73,7 +73,7 @@
           <x>0</x>
           <y>0</y>
           <width>256</width>
-          <height>469</height>
+          <height>466</height>
          </rect>
         </property>
         <attribute name="label">
@@ -291,7 +291,7 @@
           <x>0</x>
           <y>0</y>
           <width>256</width>
-          <height>469</height>
+          <height>466</height>
          </rect>
         </property>
         <attribute name="label">
@@ -339,7 +339,7 @@
      <x>0</x>
      <y>0</y>
      <width>823</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -551,11 +551,17 @@
    </property>
   </action>
   <action name="actionParticleGreen">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Green</string>
    </property>
   </action>
   <action name="actionParticleBlue">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Blue</string>
    </property>
@@ -569,6 +575,12 @@
    </property>
   </action>
   <action name="actionParticleHSV">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>HSV</string>
    </property>

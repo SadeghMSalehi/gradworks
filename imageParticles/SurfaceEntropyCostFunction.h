@@ -55,8 +55,11 @@ public:
     }
 
     void ConstructDistanceMap(ImageType::Pointer shapeMask, ImageType::Pointer& shapeDistanceMap, DistanceVectorImageType::Pointer& shapeDistanceVectorMap) {
-        
-
+        DistanceMapFilter::Pointer distmapFilter = DistanceMapFilter::New();
+        distmapFilter->SetInput(shapeMask);
+        distmapFilter->Update();
+        shapeDistanceMap = distmapFilter->GetOutput();
+        shapeDistanceVectorMap = distmapFilter->GetVectorDistanceMap();
     }
 
     bool AddSubjects(arma::vec &pointSamples, ImageType::Pointer kappaMap, ImageType::Pointer shapeMask) {
@@ -78,6 +81,9 @@ public:
         InterpolatorType::Pointer shapeDistanceInterpolator = InterpolatorType::New();
         shapeDistanceInterpolator->SetInputImage(shapeDistanceMap);
         m_listOfKappaMapInterpolators.push_back(shapeDistanceInterpolator);
+
+        cout << shapeDistanceMap;
+        cout << shapeDistanceVectorMap;
     }
 
 	void SetDistanceVectorImage(DistanceVectorImageType::Pointer distVector) {

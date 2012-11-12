@@ -7,6 +7,8 @@
 #include "QTimer"
 
 #include "ui_particlesUI.h"
+#include "SurfaceEntropyCostFunction.h"
+
 
 class MainWindow : public QMainWindow
 {
@@ -53,6 +55,7 @@ private:
     QGraphicsScene gs;
     QTimer m_Timer;
     QActionGroup* m_particleColors;
+    SurfaceEntropyCostFunction<2>::Pointer m_CostFunc;
 };
 
 #endif
