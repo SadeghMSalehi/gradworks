@@ -1,0 +1,144 @@
+//
+//  ImageViewManager.h
+//  laplacePDE
+//
+//  Created by Joohwi Lee on 11/13/12.
+//
+//
+
+#ifndef __laplacePDE__ImageViewManager__
+#define __laplacePDE__ImageViewManager__
+
+#include <iostream>
+#include "itkImage.h"
+#include "itkImageRegionIteratorWithIndex.h"
+#include "itkRGBAPixel.h"
+#include "vector"
+#include "itkArray.h"
+#include "QPixmap"
+
+const int VDim = 3;
+const int SDim = 2;
+
+typedef itk::Image<double, VDim> ImageType;
+typedef itk::Image<double, SDim> SliceType;
+typedef itk::RGBAPixel<unsigned char> RGBAPixel;
+typedef itk::Image<RGBAPixel, SDim> RGBAImageType;
+typedef itk::Image<unsigned short, VDim> LabelType;
+typedef itk::ImageRegionIteratorWithIndex<LabelType> LabelIteratorType;
+typedef itk::Image<unsigned short, SDim> LabelSliceType;
+typedef itk::ImageRegionIteratorWithIndex<LabelSliceType> LabelSliceIteratorType;
+typedef itk::FixedArray<SliceType::Pointer,VDim> SliceTupleType;
+typedef itk::FixedArray<LabelSliceType::Pointer,VDim> LabelSliceTupleType;
+typedef itk::FixedArray<RGBAImageType::Pointer,VDim> RGBAImageTupleType;
+typedef itk::FixedArray<double,4> StatTupleType;
+typedef itk::FixedArray<int,VDim> IntTupleType;
+
+class ImageContainer: public itk::LightObject {
+public:
+    typedef ImageContainer Self;
+    typedef itk::LightObject Superclass;
+    typedef itk::SmartPointer<ImageContainer> Pointer;
+    typedef itk::SmartPointer<const ImageContainer> ConstPointer;
+    typedef std::vector<ImageContainer::Pointer> List;
+
+    itkNewMacro(Self);
+    itkTypeMacro(ImageContainer, itk::LightObject);
+
+    itkGetConstMacro(Name, std::string);
+    itkGetConstMacro(Image, ImageType::Pointer);
+    itkGetConstMacro(Label, LabelType::Pointer);
+
+    void SetAlpha(int alpha);
+    void SetLabelAlpha(int alpha);
+    void SetSliceIndex(int dim, int idx);
+
+    void LoadImage(const char* filename);
+    void LoadLabel(const char* filename);
+
+    void SetImage(ImageType::Pointer image);
+    void SetLabel(LabelType::Pointer label);
+
+    bool HasImage() {
+        return m_Image.IsNotNull();
+    }
+
+    bool HasLabel() {
+        return m_Label.IsNotNull();
+    }
+
+    QPixmap GetPixmap(int dim);
+    QPixmap GetLabelPixmap(int dim);
+
+    IntTupleType GetSize() {
+        return m_MaxSliceIndexes;
+    }
+
+    IntTupleType GetSliceIndex() {
+        return m_SliceIndexes;
+    }
+
+    void SetName(std::string name) {
+        m_Name = name;
+    }
+
+    SliceType::Pointer GetSlice(int dim) {
+        if (m_Slices[dim].IsNull()) {
+            UpdateSlice(dim);
+        }
+        return m_Slices[dim];
+    }
+
+    LabelSliceType::Pointer GetLabelSlice(int dim) {
+        if (m_LabelSlices[dim].IsNull()) {
+            UpdateLabelSlice(dim);
+        }
+        return m_LabelSlices[dim];
+    }
+
+    SliceType::Pointer GetSlice() {
+        return m_Slices[m_SliceDir];
+    }
+
+    LabelSliceType::Pointer GetLabelSlice() {
+        return m_LabelSlices[m_SliceDir];
+    }
+
+    void SetSliceDir(int dir) {
+        m_SliceDir = dir;
+    }
+    
+protected:
+    ImageContainer() : m_SliceDir(0) {
+        m_Alpha = 255;
+        m_LabelAlpha = 128;
+        m_IntensityStats.Fill(0);
+        m_LabelStats.Fill(0);
+        m_MaxSliceIndexes.Fill(0);
+        m_SliceIndexes.Fill(0);
+    };
+    virtual ~ImageContainer() {};
+
+    void UpdateSlice(int dim);
+    void UpdateBitmap(int dim);
+    void UpdateLabelSlice(int dim);
+    void UpdateLabelBitmap(int dim);
+    
+private:
+    ImageContainer(const Self &); //purposely not implemented
+    void operator=(const Self &);  //purposely not implemented
+
+    int m_SliceDir;
+    int m_Alpha, m_LabelAlpha;
+    StatTupleType m_IntensityStats, m_LabelStats;
+    ImageType::Pointer m_Image;
+    LabelType::Pointer m_Label;
+    SliceTupleType m_Slices;
+    LabelSliceTupleType m_LabelSlices;
+    IntTupleType m_SliceIndexes;
+    IntTupleType m_MaxSliceIndexes;
+    RGBAImageTupleType m_Bitmaps, m_LabelBitmaps;
+    std::string m_Name;
+};
+
+#endif /* defined(__laplacePDE__ImageViewManager__) */

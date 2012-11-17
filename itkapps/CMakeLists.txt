@@ -229,3 +229,6 @@ TARGET_LINK_LIBRARIES(itkImageMatch ${ITK_LIBRARIES})
 
 ADD_EXECUTABLE(itkTransformToMatrix itkTransformToMatrix.cpp)
 TARGET_LINK_LIBRARIES(itkTransformToMatrix ${ITK_LIBRARIES})
+
+ADD_EXECUTABLE(itkLaplaceField itkLaplaceField.cpp)
+TARGET_LINK_LIBRARIES(itkLaplaceField ${ITK_LIBRARIES})
