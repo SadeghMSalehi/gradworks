@@ -13,6 +13,8 @@
 #include "itkARGBColorFunction.h"
 #include "itkScalarToARGBColormapImageFilter.h"
 
+ImageContainer::SliceDictionary g_DerivedSliceDictionary;
+
 void ImageContainer::SetAlpha(int alpha) {
     if (alpha == m_Alpha) {
         return;
@@ -55,6 +57,7 @@ void ImageContainer::SetSliceIndex(int dim, int idx) {
 
 void ImageContainer::LoadImage(const char* filename) {
     itkcmds::itkImageIO<ImageType> io;
+    SetName(std::string(filename));
     SetImage(io.ReadImageT(filename));
 }
 
@@ -130,6 +133,16 @@ void ImageContainer::UpdateBitmap(int dim) {
     rgbFilter->SetMaximumValue(m_IntensityStats[1]);
     rgbFilter->Update();
     m_Bitmaps[dim] = rgbFilter->GetOutput();
+}
+
+RGBAImageType::Pointer ImageContainer::CreateBitmap(SliceType::Pointer slice, int alpha) {
+    typedef itk::ScalarToARGBColormapImageFilter<SliceType, RGBAImageType> ScalarToRGBFilter;
+    ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
+    rgbFilter->SetInput(slice);
+    rgbFilter->UseManualScalingOff();
+    rgbFilter->SetAlphaValue(alpha);
+    rgbFilter->Update();
+    return rgbFilter->GetOutput();
 }
 
 
@@ -227,4 +240,38 @@ QPixmap ImageContainer::GetLabelPixmap(int dim) {
     QImage qImg = QImage((unsigned char*) bitmap->GetBufferPointer(),
                          bitmapSz[0], bitmapSz[1], QImage::Format_ARGB32);
     return QPixmap::fromImage(qImg);
+}
+
+void ImageContainer::AddDerivedView(std::string name, RGBAImageType::Pointer slice) {
+    g_DerivedSliceDictionary.insert(NameSlicePair(name, slice));
+    if (m_EventCallback != NULL) {
+        m_EventCallback->EventRaised(0xADDCE, 0);
+    }
+}
+
+RGBAImageType::Pointer ImageContainer::GetDerivedView(std::string name) {
+    RGBAImageType::Pointer slice = g_DerivedSliceDictionary[name];
+    return slice;
+}
+
+void ImageContainer::GetDerivedViewNames(StringList& names) {
+    for (SliceDictionary::iterator iter = g_DerivedSliceDictionary.begin(); iter != g_DerivedSliceDictionary.end(); iter++) {
+        names.push_back(iter->first);
+        cout << "name: " << iter->first << endl;
+    }
+}
+
+QPixmap ImageContainer::GetDerivedViewPixmap(std::string name) {
+    RGBAImageType::Pointer bitmap = GetDerivedView(name);
+    if (bitmap.IsNull()) {
+        return QPixmap();
+    }
+    RGBAImageType::SizeType bitmapSz = bitmap->GetBufferedRegion().GetSize();
+    QImage qImg = QImage((unsigned char*) bitmap->GetBufferPointer(),
+                         bitmapSz[0], bitmapSz[1], QImage::Format_ARGB32);
+    return QPixmap::fromImage(qImg);
+}
+
+void ImageContainer::ClearDerivedViews() {
+    g_DerivedSliceDictionary.clear();
 }

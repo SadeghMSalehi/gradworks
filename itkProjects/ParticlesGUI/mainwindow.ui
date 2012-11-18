@@ -6,65 +6,84 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>842</width>
+    <height>677</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout">
+   <layout class="QVBoxLayout" name="verticalLayout_2">
     <property name="margin">
      <number>0</number>
     </property>
     <item>
-     <widget class="QTabWidget" name="tabWidget">
-      <property name="tabShape">
-       <enum>QTabWidget::Rounded</enum>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
       </property>
-      <property name="currentIndex">
-       <number>0</number>
-      </property>
-      <widget class="QWidget" name="imageTab">
-       <attribute name="title">
-        <string>Image</string>
-       </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
-        <property name="spacing">
-         <number>0</number>
-        </property>
-        <property name="margin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QGraphicsView" name="graphicsView">
-          <property name="frameShape">
-           <enum>QFrame::NoFrame</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QScrollBar" name="sliceIndex">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-         </widget>
-        </item>
-       </layout>
+      <widget class="QTabWidget" name="tabWidget">
+       <property name="tabShape">
+        <enum>QTabWidget::Rounded</enum>
+       </property>
+       <property name="currentIndex">
+        <number>0</number>
+       </property>
+       <widget class="QWidget" name="imageTab">
+        <attribute name="title">
+         <string>Image</string>
+        </attribute>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="margin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QGraphicsView" name="graphicsView">
+           <property name="frameShape">
+            <enum>QFrame::NoFrame</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QScrollBar" name="sliceIndex">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="modelTab">
+        <attribute name="title">
+         <string>Model</string>
+        </attribute>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <property name="margin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QVTKWidget2" name="qvtkwidget" native="true"/>
+         </item>
+        </layout>
+       </widget>
       </widget>
-      <widget class="QWidget" name="modelTab">
-       <attribute name="title">
-        <string>Model</string>
-       </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_3">
-        <property name="margin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QVTKWidget2" name="qvtkwidget" native="true"/>
-        </item>
-       </layout>
+      <widget class="QCustomPlot" name="costPlot" native="true">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>150</height>
+        </size>
+       </property>
+       <property name="autoFillBackground">
+        <bool>false</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
       </widget>
      </widget>
     </item>
@@ -75,7 +94,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>842</width>
      <height>22</height>
     </rect>
    </property>
@@ -91,10 +110,8 @@
     <property name="title">
      <string>Images</string>
     </property>
-    <addaction name="actionOpenSource"/>
-    <addaction name="actionOpenTarget"/>
-    <addaction name="actionOpenSourceLabel"/>
-    <addaction name="actionOpenTargetLabel"/>
+    <addaction name="actionAddImage"/>
+    <addaction name="actionAddLabel"/>
    </widget>
    <widget class="QMenu" name="menuParticles">
     <property name="title">
@@ -123,10 +140,24 @@
    <addaction name="menuParticles"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionRunImageParticles"/>
+   <addaction name="actionContinue"/>
+   <addaction name="actionAnimation"/>
+  </widget>
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
     <size>
-     <width>200</width>
+     <width>220</width>
      <height>204</height>
     </size>
    </property>
@@ -143,25 +174,37 @@
        <property name="currentIndex">
         <number>0</number>
        </property>
-       <widget class="QWidget" name="page">
+       <widget class="QWidget" name="imageSettings">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>200</width>
-          <height>404</height>
+          <width>220</width>
+          <height>481</height>
          </rect>
         </property>
         <attribute name="label">
          <string>Image Settings</string>
         </attribute>
-        <layout class="QGridLayout" name="gridLayout">
+        <layout class="QGridLayout" name="gridLayout_3">
+         <property name="leftMargin">
+          <number>3</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>3</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
          <item row="0" column="0" colspan="3">
           <widget class="QGroupBox" name="groupBox">
            <property name="title">
             <string>Viewing Planes</string>
            </property>
-           <layout class="QVBoxLayout" name="verticalLayout">
+           <layout class="QHBoxLayout" name="horizontalLayout">
             <property name="spacing">
              <number>6</number>
             </property>
@@ -177,7 +220,7 @@
             <item>
              <widget class="QRadioButton" name="showXY">
               <property name="text">
-               <string>XY Plane</string>
+               <string>XY</string>
               </property>
               <property name="checked">
                <bool>true</bool>
@@ -187,14 +230,14 @@
             <item>
              <widget class="QRadioButton" name="showYZ">
               <property name="text">
-               <string>YZ Plane</string>
+               <string>YZ</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QRadioButton" name="showZX">
               <property name="text">
-               <string>ZX Plane</string>
+               <string>ZX</string>
               </property>
              </widget>
             </item>
@@ -206,46 +249,54 @@
            <property name="title">
             <string>Image Selection</string>
            </property>
-           <layout class="QVBoxLayout" name="verticalLayout_2">
+           <layout class="QGridLayout" name="gridLayout">
             <property name="leftMargin">
-             <number>12</number>
+             <number>3</number>
             </property>
             <property name="topMargin">
              <number>0</number>
             </property>
+            <property name="rightMargin">
+             <number>3</number>
+            </property>
             <property name="bottomMargin">
              <number>0</number>
             </property>
-            <item>
-             <widget class="QRadioButton" name="showSource">
+            <item row="0" column="0">
+             <widget class="QCheckBox" name="showGray">
               <property name="text">
-               <string>Source</string>
+               <string>Gray</string>
               </property>
               <property name="checked">
                <bool>true</bool>
               </property>
              </widget>
             </item>
-            <item>
-             <widget class="QRadioButton" name="showTarget">
+            <item row="0" column="1">
+             <widget class="QComboBox" name="grayImages"/>
+            </item>
+            <item row="1" column="0">
+             <widget class="QCheckBox" name="showLabel">
               <property name="text">
-               <string>Target</string>
+               <string>Label</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
               </property>
              </widget>
             </item>
-            <item>
-             <widget class="QCheckBox" name="showSourceLabel">
+            <item row="1" column="1">
+             <widget class="QComboBox" name="labelImages"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QCheckBox" name="showDerived">
               <property name="text">
-               <string>Source Label</string>
+               <string>Derived</string>
               </property>
              </widget>
             </item>
-            <item>
-             <widget class="QCheckBox" name="showTargetLabel">
-              <property name="text">
-               <string>Target Label</string>
-              </property>
-             </widget>
+            <item row="2" column="1">
+             <widget class="QComboBox" name="derivedImages"/>
             </item>
            </layout>
           </widget>
@@ -316,30 +367,7 @@
            </property>
           </widget>
          </item>
-         <item row="5" column="0" colspan="2">
-          <widget class="QLabel" name="label_6">
-           <property name="text">
-            <string>Particles Count</string>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="2">
-          <widget class="QSpinBox" name="numberOfPoints">
-           <property name="minimum">
-            <number>10</number>
-           </property>
-           <property name="maximum">
-            <number>3000</number>
-           </property>
-           <property name="singleStep">
-            <number>10</number>
-           </property>
-           <property name="value">
-            <number>100</number>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="1">
+         <item row="5" column="1">
           <spacer name="verticalSpacer">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
@@ -354,13 +382,13 @@
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="page_2">
+       <widget class="QWidget" name="modelSettings">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>200</width>
-          <height>404</height>
+          <width>220</width>
+          <height>481</height>
          </rect>
         </property>
         <attribute name="label">
@@ -383,30 +411,81 @@
         </layout>
        </widget>
        <widget class="QWidget" name="optimizerSettings">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>220</width>
+          <height>481</height>
+         </rect>
+        </property>
         <attribute name="label">
          <string>Optimizer Settings</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_2">
-         <property name="leftMargin">
-          <number>6</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>6</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
          <item row="0" column="0">
+          <widget class="QLabel" name="label_10">
+           <property name="text">
+            <string>Optimizer</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QComboBox" name="optimizerType">
+           <property name="maximumSize">
+            <size>
+             <width>80</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <item>
+            <property name="text">
+             <string>Regular Gradient Descent</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>FRPR Conjugate Gradient</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>LBFGS Newton's method</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="1" column="0" colspan="2">
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>Particles Count</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QSpinBox" name="numberOfPoints">
+           <property name="minimum">
+            <number>10</number>
+           </property>
+           <property name="maximum">
+            <number>3000</number>
+           </property>
+           <property name="singleStep">
+            <number>10</number>
+           </property>
+           <property name="value">
+            <number>100</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
           <widget class="QLabel" name="label_2">
            <property name="text">
             <string>Iterations</string>
            </property>
           </widget>
          </item>
-         <item row="0" column="2">
+         <item row="2" column="2">
           <widget class="QSpinBox" name="numberOfIterations">
            <property name="minimum">
             <number>10</number>
@@ -422,14 +501,14 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
+         <item row="3" column="0">
           <widget class="QLabel" name="label_5">
            <property name="text">
             <string>Max Kappa</string>
            </property>
           </widget>
          </item>
-         <item row="1" column="2">
+         <item row="3" column="2">
           <widget class="QDoubleSpinBox" name="maxKappa">
            <property name="minimum">
             <double>1.000000000000000</double>
@@ -440,16 +519,19 @@
            <property name="singleStep">
             <double>0.100000000000000</double>
            </property>
+           <property name="value">
+            <double>2.000000000000000</double>
+           </property>
           </widget>
          </item>
-         <item row="2" column="0" colspan="2">
+         <item row="4" column="0">
           <widget class="QLabel" name="label_7">
            <property name="text">
             <string>Sigma</string>
            </property>
           </widget>
          </item>
-         <item row="2" column="2">
+         <item row="4" column="2">
           <widget class="QDoubleSpinBox" name="sigma">
            <property name="minimum">
             <double>1.000000000000000</double>
@@ -465,14 +547,37 @@
            </property>
           </widget>
          </item>
-         <item row="3" column="0" colspan="2">
+         <item row="5" column="0" colspan="2">
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>Gradient Sigma</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="2">
+          <widget class="QDoubleSpinBox" name="gradientSigma">
+           <property name="minimum">
+            <double>0.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>10.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.500000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
           <widget class="QLabel" name="label_8">
            <property name="text">
             <string>Cutoff</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="2">
+         <item row="6" column="2">
           <widget class="QDoubleSpinBox" name="cutoffDistance">
            <property name="minimum">
             <double>1.000000000000000</double>
@@ -488,7 +593,7 @@
            </property>
           </widget>
          </item>
-         <item row="4" column="1" colspan="2">
+         <item row="7" column="1">
           <spacer name="verticalSpacer_3">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
@@ -508,33 +613,12 @@
     </layout>
    </widget>
   </widget>
-  <widget class="QToolBar" name="toolBar">
-   <property name="windowTitle">
-    <string>toolBar</string>
-   </property>
-   <attribute name="toolBarArea">
-    <enum>TopToolBarArea</enum>
-   </attribute>
-   <attribute name="toolBarBreak">
-    <bool>false</bool>
-   </attribute>
-   <addaction name="actionRunImageParticles"/>
-   <addaction name="actionAnimation"/>
-  </widget>
-  <action name="actionOpenSource">
+  <action name="actionAddImage">
    <property name="text">
-    <string>&amp;Open Source Image</string>
+    <string>&amp;Load Image</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+1</string>
-   </property>
-  </action>
-  <action name="actionOpenTarget">
-   <property name="text">
-    <string>Open &amp;Target Image</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+2</string>
    </property>
   </action>
   <action name="actionOpenSurface">
@@ -547,12 +631,15 @@
     <string>Create Target Surface</string>
    </property>
   </action>
-  <action name="actionOpenSourceLabel">
+  <action name="actionAddLabel">
    <property name="text">
-    <string>Open Source Label</string>
+    <string>Load Label</string>
+   </property>
+   <property name="toolTip">
+    <string>Load Label Image</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+3</string>
+    <string>Ctrl+2</string>
    </property>
   </action>
   <action name="actionAnimation">
@@ -569,14 +656,6 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+R</string>
-   </property>
-  </action>
-  <action name="actionOpenTargetLabel">
-   <property name="text">
-    <string>Open Target Label</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+4</string>
    </property>
   </action>
   <action name="actionRandomParticlesInit">
@@ -649,12 +728,23 @@
     <string>HSV</string>
    </property>
   </action>
+  <action name="actionContinue">
+   <property name="text">
+    <string>Continue</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
    <class>QVTKWidget2</class>
    <extends>QWidget</extends>
    <header>QVTKWidget2.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QCustomPlot</class>
+   <extends>QWidget</extends>
+   <header>qcustomplot.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

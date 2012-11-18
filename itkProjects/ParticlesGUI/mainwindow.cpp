@@ -40,19 +40,23 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this) {
     ui.graphicsView->setScene(&m_scene);
     ui.graphicsView->setBackgroundBrush(QBrush(Qt::black, Qt::SolidPattern));
 
+
     QObject::connect(&m_Timer, SIGNAL(timeout()), this, SLOT(on_animationTimeout()));
     QObject::connect(ui.sliceIndex, SIGNAL(sliderMoved(int)), this, SLOT(updateScene()));
     QObject::connect(ui.showXY, SIGNAL(toggled(bool)), this, SLOT(chooseSlice()));
     QObject::connect(ui.showYZ, SIGNAL(toggled(bool)), this, SLOT(chooseSlice()));
     QObject::connect(ui.showZX, SIGNAL(toggled(bool)), this, SLOT(chooseSlice()));
-    QObject::connect(ui.showSource, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
-    QObject::connect(ui.showTarget, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
-    QObject::connect(ui.showSourceLabel, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
-    QObject::connect(ui.showTargetLabel, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.grayImages, SIGNAL(currentIndexChanged(int)), this, SLOT(selectImage(int)));
+    QObject::connect(ui.labelImages, SIGNAL(currentIndexChanged(int)), this, SLOT(selectLabel(int)));
+
     QObject::connect(ui.zoomRatio, SIGNAL(valueChanged(double)), this, SLOT(updateScene()));
     QObject::connect(ui.labelOpacity, SIGNAL(valueChanged(int)), this, SLOT(updateScene()));
     QObject::connect(&m_ParticleColors, SIGNAL(triggered(QAction*)), this, SLOT(updateScene()));
-
+    QObject::connect(ui.actionShowParticles, SIGNAL(triggered()), this, SLOT(updateScene()));
+    QObject::connect(ui.showGray, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showLabel, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showDerived, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    
 	ui.graphicsView->setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
     m_ParticleColors.addAction(ui.actionParticleBlack);
     m_ParticleColors.addAction(ui.actionParticleWhite);
@@ -60,89 +64,126 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this) {
     m_ParticleColors.addAction(ui.actionParticleGreen);
     m_ParticleColors.addAction(ui.actionParticleBlue);
     m_ParticleColors.addAction(ui.actionParticleHSV);
+
+    ui.costPlot->setColor(QColor(0xf5, 0xf3, 0xff));
+    ui.costPlot->addGraph();
 }
 
 MainWindow::~MainWindow() {
 
 }
 
+void MainWindow::on_derivedImages_currentIndexChanged(int n) {
+    if (n > 0) {
+        ui.showDerived->setCheckState(Qt::Checked);
+    } else {
+        ui.showDerived->setCheckState(Qt::Unchecked);
+    }
+    updateScene();
+}
+
+void MainWindow::EventRaised(int eventId, int eventCode, const void* src, void* data) {
+    if (eventId == 0xADDCE) {
+        ui.derivedImages->clear();
+        ui.derivedImages->addItem("-----");
+        ImageContainer::StringList derivedNames;
+        ImageContainer::GetDerivedViewNames(derivedNames);
+        for (int i = 0; i < derivedNames.size(); i++) {
+            ui.derivedImages->addItem(derivedNames[i].c_str());
+        }
+    } else if (eventId == 0xADDCEC) {
+        double* doubleData = (double*) data;
+        ui.costPlot->graph()->addData(doubleData[0], doubleData[1]);
+        ui.costPlot->rescaleAxes();
+        ui.costPlot->xAxis->setLabel("iteration");
+        ui.costPlot->yAxis->setLabel("cost");
+        ui.costPlot->replot();
+    }
+}
+
 void MainWindow::ReadyToExperiments() {
-    LoadImage("/data/00.T2.nrrd", 0);
-    LoadLabel("/data/00.Label.nrrd", 0);
+    LoadImage("/data/00.T2.nrrd");
+    LoadLabel("/data/00.Label.nrrd");
     on_actionRandomParticlesInit_triggered();
 }
 
-void MainWindow::LoadImage(QString fileName, int idx) {
+void MainWindow::selectImage(int idx) {
+    updateScene();
+}
+
+void MainWindow::selectLabel(int idx) {
+    updateScene();
+}
+
+void MainWindow::LoadImage(QString fileName) {
     ImageContainer::Pointer image;
-    if (m_ImageList.size() > idx) {
-        image = m_ImageList[idx];
-    } else {
-        image = ImageContainer::New();
-        for (int j = 0; j < idx; j++) {
-            if (image.IsNull()) {
-                m_ImageList.push_back(ImageContainer::Pointer());
-            }
+    for (int i = 0; i < (int) m_ImageList.size(); i++) {
+        if (!m_ImageList[i]->HasImage()) {
+            image = m_ImageList[i];
         }
+    }
+    if (image.IsNull()) {
+        image = ImageContainer::New();
+        image->SetEventCallback(this);
         m_ImageList.push_back(image);
     }
     image->LoadImage(fileName.toUtf8().data());
-    if (image->HasImage() && !image->HasLabel()) {
-        ui.sliceIndex->setMaximum(m_ImageList[idx]->GetSize()[0]);
-        ui.sliceIndex->setValue(m_ImageList[idx]->GetSliceIndex()[0]);
-        updateScene();
-    }
-    ui.tabWidget->setCurrentWidget(ui.imageTab);
-}
-
-void MainWindow::LoadLabel(QString fileName, int idx) {
-    ImageContainer::Pointer image;
-    if (m_ImageList.size() > idx) {
-        image = m_ImageList[idx];
-    } else {
-        image = ImageContainer::New();
-        for (int j = 0; j < idx; j++) {
-            if (image.IsNull()) {
-                m_ImageList.push_back(ImageContainer::Pointer());
-            }
-        }
-        m_ImageList.push_back(image);
-    }
-    image->LoadLabel(fileName.toUtf8().data());
-    if (!image->HasImage() && image->HasLabel()) {
-        ui.sliceIndex->setMaximum(m_ImageList[idx]->GetSize()[0]);
-        ui.sliceIndex->setValue(m_ImageList[idx]->GetSliceIndex()[0]);
+    if (!image->HasLabel()) {
+        ui.sliceIndex->setMaximum(image->GetSize()[0]);
+        ui.sliceIndex->setValue(image->GetSliceIndex()[0]);
     }
     updateScene();
     ui.tabWidget->setCurrentWidget(ui.imageTab);
+    ui.toolBox->setCurrentWidget(ui.imageSettings);
+    ui.grayImages->addItem(fileName);
+
 }
 
-void MainWindow::on_actionOpenSource_triggered() {
+/**
+ * Load label image and add to ImageList
+ * Handles label selection combobox
+ */
+void MainWindow::LoadLabel(QString fileName) {
+    ImageContainer::Pointer image;
+    for (int i = 0; i < (int) m_ImageList.size(); i++) {
+        if (!m_ImageList[i]->HasLabel()) {
+            image = m_ImageList[i];
+            break;
+        }
+    }
+    if (image.IsNull()) {
+        image = ImageContainer::New();
+        image->SetEventCallback(this);
+        m_ImageList.push_back(image);
+    }
+
+    image->LoadLabel(fileName.toUtf8().data());
+    if (!image->HasImage()) {
+        ui.sliceIndex->setMaximum(image->GetSize()[0]);
+        ui.sliceIndex->setValue(image->GetSliceIndex()[0]);
+    }
+    updateScene();
+    ui.tabWidget->setCurrentWidget(ui.imageTab);
+    ui.toolBox->setCurrentWidget(ui.imageSettings);
+    ui.labelImages->addItem(fileName);
+}
+
+void MainWindow::on_actionAddImage_triggered() {
     QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                     "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
     if (fileName.isNull()) {
         return;
     }
-    LoadImage(fileName, 0);
+    LoadImage(fileName);
 }
 
-void MainWindow::on_actionOpenSourceLabel_triggered() {
+void MainWindow::on_actionAddLabel_triggered() {
     QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                     "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
     if (fileName.isNull()) {
         return;
     }
-    ui.showSourceLabel->setChecked(true);
-    LoadLabel(fileName, 0);
-}
-
-
-void MainWindow::on_actionOpenTarget_triggered() {
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
-                                                    "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
-    if (fileName.isNull()) {
-        return;
-    }
-    LoadImage(fileName, 1);
+    LoadLabel(fileName);
 }
 
 
@@ -200,28 +241,28 @@ void MainWindow::updateScene() {
 
     int dim = GetCurrentView();
     int image = GetCurrentImage();
+    int labelIdx = ui.labelImages->currentIndex();
 
-    if (IsImageAvailable(image) || IsLabelAvailable(image)) {
-        ui.sliceIndex->setMaximum(m_ImageList[image]->GetSize()[dim]);
-        m_ImageList[image]->SetSliceIndex(dim, ui.sliceIndex->value());
-    }
-    if (IsImageAvailable(image)) {
-        QGraphicsPixmapItem* item = m_scene.addPixmap(m_ImageList[image]->GetPixmap(dim));
-        ui.graphicsView->centerOn((const QGraphicsItem*) item);
+    // Gray image rendering
+    if (ui.derivedImages->currentIndex() > 0 && ui.showDerived->isChecked()) {
+        m_scene.addPixmap(ImageContainer::GetDerivedViewPixmap(ui.derivedImages->currentText().toUtf8().data()));
+    } else {
+        if (m_ImageList.size() > image && ui.showGray->isChecked()) {
+            ui.sliceIndex->setMaximum(m_ImageList[image]->GetSize()[dim]);
+            m_ImageList[image]->SetSliceIndex(dim, ui.sliceIndex->value());
+            QGraphicsPixmapItem* item = m_scene.addPixmap(m_ImageList[image]->GetPixmap(dim));
+            ui.graphicsView->centerOn((const QGraphicsItem*) item);
+        }
 
     }
-    if (ui.showSourceLabel->isChecked()) {
-        if (IsLabelAvailable(0)) {
-            m_ImageList[0]->SetLabelAlpha(m_Props.GetInt("labelOpacity", 128));
-            m_scene.addPixmap(m_ImageList[0]->GetLabelPixmap(dim));
-        }
+
+    // Label image rendering
+    if (m_ImageList.size() > labelIdx && ui.showLabel->isChecked()) {
+        m_ImageList[labelIdx]->SetLabelAlpha(m_Props.GetInt("labelOpacity", 128));
+        m_scene.addPixmap(m_ImageList[labelIdx]->GetLabelPixmap(dim));
     }
-    if (ui.showTargetLabel->isChecked()) {
-        if (IsLabelAvailable(1)) {
-            m_ImageList[1]->SetLabelAlpha(m_Props.GetInt("labelOpacity", 128));
-            m_scene.addPixmap(m_ImageList[1]->GetLabelPixmap(dim));
-        }
-    }
+
+    // Particles rendering
     if (g_imageParticlesAlgo.IsNotNull() && ui.actionShowParticles->isChecked()) {
         const OptimizerParametersType* particles = NULL;
         if (g_showTraceParticles) {
@@ -311,22 +352,34 @@ void MainWindow::on_animationTimeout() {
 }
 
 void MainWindow::on_actionRandomParticlesInit_triggered() {
+    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
     g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
     g_imageParticlesAlgo->SetPropertyAccess(m_Props);
     g_imageParticlesAlgo->SetViewingDimension(GetCurrentView());
     g_imageParticlesAlgo->SetImageList(&m_ImageList);
+    g_imageParticlesAlgo->SetEventCallback(this);
     g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
     updateScene();
 }
 
 
 void MainWindow::on_actionRunImageParticles_triggered() {
+    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
+    ui.costPlot->graph()->clearData();
     if (IsImageAvailable(0)) {
         if (g_imageParticlesAlgo.IsNotNull()) {
+            ImageContainer::ClearDerivedViews();
             g_imageParticlesAlgo->SetImageList(&m_ImageList);
             // g_imageParticlesAlgo->SetPropertyAccess(m_Props);
             g_imageParticlesAlgo->RunOptimization();
         }
     }
     updateScene();
+}
+
+void MainWindow::on_actionContinue_triggered() {
+    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
+    if (g_imageParticlesAlgo.IsNotNull()) {
+        g_imageParticlesAlgo->ContinueOptimization();
+    }
 }

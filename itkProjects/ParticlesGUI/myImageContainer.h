@@ -14,8 +14,10 @@
 #include "itkImageRegionIteratorWithIndex.h"
 #include "itkRGBAPixel.h"
 #include "vector"
+#include "map"
 #include "itkArray.h"
 #include "QPixmap"
+#include "myEventCallback.h"
 
 const int VDim = 3;
 const int SDim = 2;
@@ -41,6 +43,9 @@ public:
     typedef itk::SmartPointer<ImageContainer> Pointer;
     typedef itk::SmartPointer<const ImageContainer> ConstPointer;
     typedef std::vector<ImageContainer::Pointer> List;
+    typedef std::map<std::string, RGBAImageType::Pointer> SliceDictionary;
+    typedef std::pair<std::string, RGBAImageType::Pointer> NameSlicePair;
+    typedef std::vector<std::string> StringList;
 
     itkNewMacro(Self);
     itkTypeMacro(ImageContainer, itk::LightObject);
@@ -107,9 +112,21 @@ public:
     void SetSliceDir(int dir) {
         m_SliceDir = dir;
     }
-    
+
+    void SetEventCallback(EventCallback* callback) { m_EventCallback = callback; }
+
+    // derived image related methods
+    void AddDerivedView(std::string name, RGBAImageType::Pointer slice);
+    static RGBAImageType::Pointer GetDerivedView(std::string name);
+    static QPixmap GetDerivedViewPixmap(std::string name);
+    static void GetDerivedViewNames(StringList& nameList);
+    static void ClearDerivedViews();
+
+    // utility methods
+    static RGBAImageType::Pointer CreateBitmap(SliceType::Pointer slice, int alpha = 255);
+
 protected:
-    ImageContainer() : m_SliceDir(0) {
+    ImageContainer() : m_SliceDir(0), m_EventCallback(NULL) {
         m_Alpha = 255;
         m_LabelAlpha = 128;
         m_IntensityStats.Fill(0);
@@ -139,6 +156,8 @@ private:
     IntTupleType m_MaxSliceIndexes;
     RGBAImageTupleType m_Bitmaps, m_LabelBitmaps;
     std::string m_Name;
+    EventCallback* m_EventCallback;
+
 };
 
 #endif /* defined(__laplacePDE__ImageViewManager__) */

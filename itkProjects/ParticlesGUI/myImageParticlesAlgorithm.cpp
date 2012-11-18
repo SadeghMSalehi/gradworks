@@ -14,6 +14,7 @@
 #include "itkRegularStepGradientDescentOptimizer.h"
 #include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkVectorMagnitudeImageFilter.h"
+#include "itkThresholdImageFilter.h"
 #include "itkFRPROptimizer.h"
 #include "itkLBFGSOptimizer.h"
 #include "itkImageIO.h"
@@ -79,7 +80,7 @@ public:
             //            }
             cout << "Iteration: " << m_Counter << "; Cost: " << value << endl;
             if (m_Algo != NULL) {
-                m_Algo->ReportParameters(realCaller->GetCurrentPosition());
+                m_Algo->ReportParameters(realCaller->GetCurrentPosition(), m_Counter, value);
             }
 		}
 	}
@@ -139,6 +140,7 @@ public:
     itkSetMacro(PhantomCutoffDistance, double);
     itkSetMacro(MaxKappa, double);
     itkSetMacro(EnsembleFactor, double);
+    itkSetMacro(GradientSigma, double);
 
 
     void Clear() {
@@ -164,7 +166,7 @@ public:
         // generate kappa map from gradient magnitude image
         GradientImageFilter::Pointer gradFilter = GradientImageFilter::New();
         gradFilter->SetInput(image->GetSlice());
-        gradFilter->SetSigma(1);
+        gradFilter->SetSigma(m_GradientSigma);
         gradFilter->Update();
         
         VectorMagnitudeImageFilter::Pointer magFilter = VectorMagnitudeImageFilter::New();
@@ -179,6 +181,7 @@ public:
 		filter->SetOutputMaximum(m_MaxKappa);
 		filter->Update();
         SliceType::Pointer kappaMap = filter->GetOutput();
+        image->AddDerivedView(image->GetName() + "/kappaMap", ImageContainer::CreateBitmap(kappaMap));
 
         // adding attribute map
         InterpolatorType::Pointer kappaInterpolator = InterpolatorType::New();
@@ -190,6 +193,23 @@ public:
         SliceType::Pointer shapeDistanceMap;
         DistanceVectorImageType::Pointer shapeDistanceVectorMap;
         ConstructDistanceMap(image->GetLabelSlice(), shapeDistanceMap, shapeDistanceVectorMap);
+        image->AddDerivedView(image->GetName() + "/distanceMap", ImageContainer::CreateBitmap(shapeDistanceMap));
+
+
+        typedef itk::ThresholdImageFilter<SliceType> ThresholdFilterType;
+        ThresholdFilterType::Pointer threshold = ThresholdFilterType::New();
+        threshold->SetInput(shapeDistanceMap);
+        threshold->ThresholdBelow(0);
+        threshold->SetOutsideValue(0);
+        threshold->Update();
+
+        ThresholdFilterType::Pointer threshold2 = ThresholdFilterType::New();
+        threshold2->SetInput(threshold->GetOutput());
+        threshold2->ThresholdAbove(0);
+        threshold2->SetOutsideValue(1);
+        threshold2->Update();
+        image->AddDerivedView(image->GetName() + "/distanceMapBound", ImageContainer::CreateBitmap(threshold2->GetOutput()));
+
 
         InterpolatorType::Pointer shapeDistanceInterpolator = InterpolatorType::New();
         shapeDistanceInterpolator->SetInputImage(shapeDistanceMap);
@@ -304,7 +324,7 @@ public:
             const unsigned nOffset = m_nVars * n;
             MatrixType entropies(m_nPoints, m_nPoints + 1);
             double cost = 0;
-#pragma omp parallel for
+//#pragma omp parallel for
             for (int i = 0; i < m_nPoints; i++) {
                 double sum = 0;
                 for (int j = 0; j < m_nPoints; j++) {
@@ -328,12 +348,12 @@ public:
                         entropies[i][j] /= sum;
                     }
                 }
-#pragma omp critical
+//#pragma omp critical
                 {
                     cost += sum;
                 }
             }
-#pragma omp parallel for
+//#pragma omp parallel for
             for (int i = 0; i < m_nPoints; i++) {
                 for (int j = 0; j < m_nPoints; j++) {
                     if (i == j) {
@@ -347,7 +367,7 @@ public:
                 idx[0] = p[nOffset + 2 * i];
                 idx[1] = p[nOffset + 2 * i + 1];
                 if (m_KappaMapInterpolators[n]->IsInsideBuffer(idx)) {
-                    double dist = m_KappaMapInterpolators[n]->EvaluateAtContinuousIndex(idx);
+                    double dist = m_DistanceMapInterpolators[n]->EvaluateAtContinuousIndex(idx);
                     if (dist > 0) {
                         SliceType::IndexType gIdx;
                         gIdx[0] = ::round(p[nOffset + 2 * i]);
@@ -355,7 +375,8 @@ public:
                         OffsetVectorType gradientPixel(m_DistanceVectorMaps[n]->GetPixel(gIdx).GetOffset(), ImageType::OffsetType::GetOffsetDimension());
                         OffsetVectorType normalizedGradient = gradientPixel.normalize();
                         for (int k = 0; k < 2; k++) {
-                            derivative[nOffset + i * 2 + k] -= (entropies[i][m_nPoints] * normalizedGradient[k]);
+                            derivative[nOffset + i * 2 + k] = -(entropies[i][m_nPoints] * normalizedGradient[k]);
+                            // cout << derivative[nOffset+i*2+k] << "[" << i << "; " << dist << "]";
                         }
                     } else if (dist < 0) {
                         SliceType::IndexType gIdx;
@@ -480,9 +501,10 @@ private:
     double m_CutoffDistance;
     double m_PhantomCutoffDistance;
     double m_EnsembleFactor;
+    double m_GradientSigma;
 };
 
-ImageParticlesAlgorithm::ImageParticlesAlgorithm() : m_ImageList(NULL), m_Running(false) {
+ImageParticlesAlgorithm::ImageParticlesAlgorithm() : m_ImageList(NULL), m_Running(false), m_EventCallback(NULL) {
 	// TODO Auto-generated constructor stub
     m_ViewingDimension = 0;
 }
@@ -602,11 +624,13 @@ ImageParticlesAlgorithm::OptimizerType::Pointer ImageParticlesAlgorithm::CreateO
 void ImageParticlesAlgorithm::RunOptimization() {
     ImageEntropyCostFunction::Pointer costFunc = ImageEntropyCostFunction::New();
     m_CostFunc = CostFunctionType::Pointer(dynamic_cast<CostFunctionType*>(costFunc.GetPointer()));
+    m_iters = 0;
 
     costFunc->SetCutoffDistance(m_Props.GetDouble("cutoffDistance", 15));
     costFunc->SetMaxKappa(m_Props.GetDouble("maxKappa", 2));
     costFunc->SetPhantomCutoffDistance(m_Props.GetDouble("phantomCutoff", 3));
     costFunc->SetEnsembleFactor(m_Props.GetDouble("ensembleFactor", 0));
+    costFunc->SetGradientSigma(m_Props.GetDouble("gradientSigma", 0.5));
 
 
     for (int i = 0; i < m_nSubjects; i++) {
@@ -641,7 +665,6 @@ void ImageParticlesAlgorithm::ContinueOptimization() {
         opti->SetCostFunction(m_CostFunc);
         opti->SetInitialPosition(m_CurrentParams);
         opti->AddObserver(itk::IterationEvent(), progress);
-        cout << opti << endl;
         opti->StartOptimization();
         m_CurrentParams = opti->GetCurrentPosition();
     } catch (itk::ExceptionObject& e) {
@@ -655,8 +678,10 @@ bool ImageParticlesAlgorithm::IsRunning() {
 	return m_Running;
 }
 
-void ImageParticlesAlgorithm::ReportParameters(const OptimizerParametersType &params) {
+void ImageParticlesAlgorithm::ReportParameters(const OptimizerParametersType &params, int iterNo, double cost) {
     m_Traces.push_back(params);
+    double iterCost[] = { m_iters++, cost };
+    m_EventCallback->EventRaised(0xADDCEC, 0, this, iterCost);
 }
 
 const ImageParticlesAlgorithm::OptimizerParametersType* ImageParticlesAlgorithm::GetTraceParameters(int idx) {

@@ -12,10 +12,12 @@
 #include <itkSmartPointer.h>
 #include <itkObjectFactory.h>
 #include "myImageContainer.h"
+#include "myEventCallback.h"
 #include "itkSingleValuedNonLinearOptimizer.h"
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 #include "itkLinearInterpolateImageFunction.h"
 #include "PropertyAccess.h"
+
 
 class vtkPoints;
 
@@ -52,9 +54,10 @@ public:
 	void RunOptimization();
 	void ContinueOptimization();
 	bool IsRunning();
-    void ReportParameters(const OptimizerParametersType& params);
+    void ReportParameters(const OptimizerParametersType& params, int iterNo, double cost);
     const OptimizerParametersType* GetTraceParameters(int idx);
     int GetNumberOfTraces() { return m_Traces.size(); }
+    void SetEventCallback(EventCallback* callback) { m_EventCallback = callback; }
     
 protected:
 	ImageParticlesAlgorithm();
@@ -67,6 +70,7 @@ private:
 	ImageParticlesAlgorithm(const Self &);
 	void operator=(const Self &);
 
+    int m_iters;
     int m_nSubjects;
     int m_nPoints;
     int m_nParams;
@@ -78,6 +82,7 @@ private:
     OptimizerParametersType m_CurrentParams;
     PropertyAccess m_Props;
 	bool m_Running;
+    EventCallback* m_EventCallback;
 
     // ui related field
     int m_ViewingDimension;

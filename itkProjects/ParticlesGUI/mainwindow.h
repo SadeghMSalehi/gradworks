@@ -12,12 +12,13 @@
 #include "myImageContainer.h"
 #include "vtkPropScene.h"
 #include "PropertyAccess.h"
+#include "myEventCallback.h"
 
 class vtkPolyData;
 class vtkGenericOpenGLRenderWindow;
 class QVTKInteractor;
 
-class MainWindow: public QMainWindow {
+class MainWindow: public QMainWindow, public EventCallback {
     Q_OBJECT
 
 public:
@@ -25,16 +26,20 @@ public:
     ~MainWindow();
 
     void ReadyToExperiments();
+    virtual void EventRaised(int eventId, int eventCode, const void* src = 0, void* data = 0);
     
 public slots:
-    void on_actionOpenSource_triggered();
-    void on_actionOpenSourceLabel_triggered();
-    void on_actionOpenTarget_triggered();
+    void on_actionAddImage_triggered();
+    void on_actionAddLabel_triggered();
     void on_actionOpenSurface_triggered();
     void on_actionRunImageParticles_triggered();
     void on_actionAnimation_triggered();
     void on_actionRandomParticlesInit_triggered();
-    
+    void on_actionContinue_triggered();
+    void on_derivedImages_currentIndexChanged(int n);
+
+    void selectImage(int);
+    void selectLabel(int);
     void updateScene();
     void chooseSlice();
     void on_animationTimeout();
@@ -43,14 +48,14 @@ private:
 //    void AddPolyData(std::string name, vtkPolyData* poly, float r = 1, float g = 0, float b = 0, float opacity = 1.0);
 //    void RemovePolyData(std::string name);
 //    void RemoveAllPolyData();
-    void LoadImage(QString fileName, int idx);
-    void LoadLabel(QString fileName, int idx);
+    void LoadImage(QString fileName);
+    void LoadLabel(QString fileName);
 
     inline bool IsSourceAvailable() { return m_ImageList.size() > 0 && m_ImageList[0].IsNotNull(); }
     inline bool IsTargetAvailable() { return m_ImageList.size() > 1 && m_ImageList[1].IsNotNull(); }
     inline bool IsImageAvailable(int n) { return m_ImageList.size() > n && m_ImageList[n]->HasImage(); }
     inline bool IsLabelAvailable(int n) { return m_ImageList.size() > n && m_ImageList[n]->HasLabel(); }
-    inline int GetCurrentImage() { return ui.showSource->isChecked() ? 0 : 1; }
+    inline int GetCurrentImage() { return ui.grayImages->currentIndex(); }
     inline int GetCurrentView() { return ui.showXY->isChecked() ? 0 : ui.showYZ->isChecked() ? 1 : 2; }
 
     Ui::MainWindow ui;
