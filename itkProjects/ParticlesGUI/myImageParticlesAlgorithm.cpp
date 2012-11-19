@@ -20,6 +20,7 @@
 #include "itkLBFGSOptimizer.h"
 #include "itkImageIO.h"
 #include "algorithm"
+#include "vtkPoints.h"
 
 using namespace std;
 const static int Dimensions = 2;
@@ -590,6 +591,26 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
 }
 
 
+void ImageParticlesAlgorithm::CreateInitialPoints(vtkPoints* pointSet) {
+    m_nSubjects = m_ImageList->size();
+    m_nParams = pointSet->GetNumberOfPoints()*Dims;
+    m_nPoints = pointSet->GetNumberOfPoints();
+    m_nTotalParams = m_nSubjects*m_nParams;
+
+    // random pick up
+    OptimizerParametersType initial;
+    initial.SetSize(m_nTotalParams);
+    for (int l = 0; l < m_ImageList->size(); l++) {
+        for (int i = 0; i < m_nPoints; i++) {
+            double *xyz = pointSet->GetPoint(i);
+            initial[l*m_nParams+i*Dims+0] = xyz[0];
+            initial[l*m_nParams+i*Dims+1] = xyz[1];
+        }
+    }
+
+    m_CurrentParams = initial;
+}
+
 /**
  * Compute distance map for labels and set up initial parameters
  *
@@ -696,3 +717,4 @@ const ImageParticlesAlgorithm::OptimizerParametersType* ImageParticlesAlgorithm:
         return NULL;
     }
 }
+

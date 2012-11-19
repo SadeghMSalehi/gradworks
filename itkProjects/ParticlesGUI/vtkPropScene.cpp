@@ -20,6 +20,9 @@
 #include "vtkProperty.h"
 #include "vtkPolyDataReader.h"
 #include "vtkRenderer.h"
+#include "vtkDiskSource.h"
+#include "vtkPlaneSource.h"
+#include "vtkTriangleFilter.h"
 
 vtkPropScene::vtkPropScene() {
     m_LastActor = NULL;
@@ -40,6 +43,29 @@ vtkPolyData* vtkPropScene::LoadPolyData(const char *filename) {
 
 void vtkPropScene::Render() {
     m_Renderer->Render();
+}
+
+vtkPolyData* vtkPropScene::CreateDisk(int innerRadius, int outerRadius) {
+    vtkDiskSource* diskSource = vtkDiskSource::New();
+    diskSource->SetOuterRadius(outerRadius);
+    diskSource->SetInnerRadius(innerRadius);
+    diskSource->SetCircumferentialResolution(36);
+    diskSource->SetRadialResolution(18);
+    diskSource->Update();
+    return diskSource->GetOutput();
+}
+
+vtkPolyData* vtkPropScene::CreatePlane(int xr, int yr, double cx, double cy) {
+    vtkPlaneSource* planeSource = vtkPlaneSource::New();
+    planeSource->SetResolution(xr, yr);
+    planeSource->SetCenter(cx, cy, 0);
+    planeSource->SetNormal(0, 0, 1);
+    vtkTriangleFilter* filter = vtkTriangleFilter::New();
+    filter->SetInputConnection(planeSource->GetOutputPort());
+    filter->PassLinesOn();
+    filter->PassVertsOn();
+    filter->Update();
+    return filter->GetOutput();
 }
 
 vtkActor* vtkPropScene::AddPolyData(std::string name, vtkPolyData *poly) {
@@ -88,6 +114,9 @@ vtkProp* vtkPropScene::RemoveProp(std::string name) {
 
 vtkPolyData* vtkPropScene::FindPolyData(std::string name) {
     vtkActor* actor = FindActor(name);
+    if (actor == NULL) {
+        return NULL;
+    }
     return dynamic_cast<vtkPolyData*>(actor->GetMapper()->GetInput());
 }
 vtkActor* vtkPropScene::FindActor(std::string name) {

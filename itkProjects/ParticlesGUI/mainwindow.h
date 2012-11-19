@@ -32,11 +32,13 @@ public slots:
     void on_actionAddImage_triggered();
     void on_actionAddLabel_triggered();
     void on_actionOpenSurface_triggered();
+    void on_actionTest_triggered();
     void on_actionRunImageParticles_triggered();
     void on_actionAnimation_triggered();
     void on_actionRandomParticlesInit_triggered();
     void on_actionContinue_triggered();
     void on_derivedImages_currentIndexChanged(int n);
+    void on_graphicsView_mousePressed(QMouseEvent* event);
 
     void selectImage(int);
     void selectLabel(int);

@@ -49,6 +49,7 @@ public:
 	void SetImageList(ImageContainer::List* list) { m_ImageList = list; }
 	void AddInitialPoints(OptimizerParametersType& points);
     void CreateRandomInitialPoints(int nPoints);
+    void CreateInitialPoints(vtkPoints* pointSet);
 
     // optimization execution
 	void RunOptimization();

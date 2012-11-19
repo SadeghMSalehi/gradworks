@@ -102,10 +102,10 @@ void MainWindow::EventRaised(int eventId, int eventCode, const void* src, void* 
 }
 
 void MainWindow::ReadyToExperiments() {
-    LoadImage("/data/00.T2.nrrd");
-    LoadLabel("/data/00.Label.nrrd");
-    LoadImage("/data/16.T2.nrrd");
-    LoadLabel("/data/16.Label.nrrd");
+    LoadImage("/data/Particles/00.T2.nrrd");
+    LoadLabel("/data/Particles/00.Label.nrrd");
+    LoadImage("/data/Particles/16.T2.nrrd");
+    LoadLabel("/data/Particles/16.Label.nrrd");
     on_actionRandomParticlesInit_triggered();
 }
 
@@ -202,20 +202,40 @@ void MainWindow::on_actionOpenSurface_triggered() {
     m_PropScene.SetColor(1, 0, 0);
     m_PropScene.SetRepresentation(0);
 
+    vtkPolyData* disk = m_PropScene.CreateDisk(0, 10);
+    m_PropScene.AddPolyData("disk", disk);
+    m_PropScene.SetColor(0, 0, 1);
+    m_PropScene.SetRepresentation(1);
+
+
     m_Renderer->ResetCamera();
     m_Interactor->Render();
 
-    ParticleAlgorithm::Pointer algo = ParticleAlgorithm::New();
-    algo->SetPropertyAccess(m_Props);
-    algo->SetInitialParticles(poly);
-    algo->RunOptimization();
-    g_Params = algo->GetParameterTrace();
+//    ParticleAlgorithm::Pointer algo = ParticleAlgorithm::New();
+//    algo->SetPropertyAccess(m_Props);
+//    algo->SetInitialParticles(poly);
+//    algo->RunOptimization();
+//    g_Params = algo->GetParameterTrace();
     ////
     //    vtkPolyData* poly2 = poly->NewInstance();
     //    poly2->DeepCopy(poly);
     //
     //    vtkPointSet* result = algo->GetResultPoints();
     //    poly2->SetPoints(result->GetPoints());
+}
+
+void MainWindow::on_actionTest_triggered() {
+    if (ui.tabWidget->currentWidget() == ui.modelTab) {
+        vtkPolyData* object = m_PropScene.CreatePlane(10, 10, 0, 0);
+        object->Print(cout);
+        m_PropScene.AddPolyData("object", object);
+        m_PropScene.SetColor(0, 0, 1);
+        m_PropScene.SetRepresentation(1);
+
+
+        m_Renderer->ResetCamera();
+        m_Interactor->Render();
+    }
 }
 
 void MainWindow::chooseSlice() {
@@ -333,26 +353,35 @@ void MainWindow::on_animationTimeout() {
         ui.statusbar->showMessage(QString("%1 frame played...").arg(g_AnimFrame));        
         g_AnimFrame += m_Props.GetInt("animationInterleave", 10);
     } else if (ui.tabWidget->currentWidget() == ui.modelTab) {
-        vtkPolyData* poly = m_PropScene.FindPolyData("mainSurface");
-        if (poly == NULL) {
+        int imageIdx = ui.grayImages->currentIndex();
+        if (imageIdx < 0) {
             m_Timer.stop();
             return;
         }
 
-        if (g_AnimFrame < (int) g_Params.size()) {
-            OptimizerParametersType param = g_Params[g_AnimFrame];
-            if (param.GetSize() != 3 * poly->GetNumberOfPoints()) {
-                m_Timer.stop();
-                return;
-            }
+        vtkPolyData* poly = m_PropScene.FindPolyData("plane");
+        if (poly == NULL || g_imageParticlesAlgo.IsNull()) {
+            m_Timer.stop();
+            return;
+        }
 
+//        if (g_AnimFrame < (int) g_Params.size()) {
+//            OptimizerParametersType param = g_Params[g_AnimFrame];
+//            if (param.GetSize() != 3 * poly->GetNumberOfPoints()) {
+//                m_Timer.stop();
+//                return;
+//            }
+        if (g_AnimFrame < (int) g_imageParticlesAlgo->GetNumberOfTraces()) {
+            const OptimizerParametersType *param = g_imageParticlesAlgo->GetTraceParameters(g_AnimFrame);
             int nPoints = poly->GetNumberOfPoints();
+            int nOffset = imageIdx * (nPoints * 2);
             for (int i = 0; i < nPoints; i++) {
-                poly->GetPoints()->SetPoint(i, param[3*i], param[3*i+1], param[3*i+2]);
+                poly->GetPoints()->SetPoint(i, param->operator[](nOffset+2*i), param->operator[](nOffset+2*i+1), 0);
             }
             m_PropScene.ModifyLastActor();
-
-            ui.statusbar->showMessage(QString("%1 frame showing").arg(++g_AnimFrame));
+            ui.statusbar->showMessage(QString("%1 frame showing").arg(g_AnimFrame));
+            g_AnimFrame += m_Props.GetInt("animationInterleave", 10);
+            m_Renderer->ResetCamera();
             m_Interactor->Render();
         }
     }
@@ -390,5 +419,29 @@ void MainWindow::on_actionContinue_triggered() {
     ui.toolBox->setCurrentWidget(ui.optimizerSettings);
     if (g_imageParticlesAlgo.IsNotNull()) {
         g_imageParticlesAlgo->ContinueOptimization();
+        updateScene();
     }
+}
+
+void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
+    QPoint o = event->pos();
+    QPointF p = ui.graphicsView->mapToScene(o);
+
+    int xyRes = ::round(::sqrt(m_Props.GetInt("numberOfPoints", 100)));
+    vtkPolyData* plane = m_PropScene.CreatePlane(xyRes, xyRes, p.x(), p.y());
+    m_PropScene.AddPolyData("plane", plane);
+    m_PropScene.SetColor(0, 0, 1);
+    m_PropScene.SetRepresentation(1);
+    m_Renderer->ResetCamera();
+    m_Interactor->Render();
+
+    g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
+    g_imageParticlesAlgo->SetPropertyAccess(m_Props);
+    g_imageParticlesAlgo->SetViewingDimension(GetCurrentView());
+    g_imageParticlesAlgo->SetImageList(&m_ImageList);
+    g_imageParticlesAlgo->SetEventCallback(this);
+    // g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
+    g_imageParticlesAlgo->CreateInitialPoints(plane->GetPoints());
+    g_imageParticlesAlgo->SetSliceMarker(ui.sliceIndex->value());
+    updateScene();
 }

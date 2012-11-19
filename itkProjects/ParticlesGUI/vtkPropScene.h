@@ -41,6 +41,10 @@ public:
     vtkProp* RemoveProp(std::string name);
     void ModifyLastActor();
 
+    vtkPolyData* CreateDisk(int innerRadius, int outerRadius);
+    vtkPolyData* CreatePlane(int xr, int yr, double cx, double cy);
+
+
     void SetColor(float r, float g, float b);
     void SetOpacity(float o);
     void SetRepresentation(int n);
