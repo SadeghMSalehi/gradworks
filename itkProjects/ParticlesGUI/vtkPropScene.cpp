@@ -57,15 +57,17 @@ vtkPolyData* vtkPropScene::CreateDisk(int innerRadius, int outerRadius) {
 
 vtkPolyData* vtkPropScene::CreatePlane(int xr, int yr, double cx, double cy) {
     vtkPlaneSource* planeSource = vtkPlaneSource::New();
-    planeSource->SetResolution(xr, yr);
+    planeSource->SetResolution(10, 10);
     planeSource->SetCenter(cx, cy, 0);
     planeSource->SetNormal(0, 0, 1);
-    vtkTriangleFilter* filter = vtkTriangleFilter::New();
-    filter->SetInputConnection(planeSource->GetOutputPort());
-    filter->PassLinesOn();
-    filter->PassVertsOn();
-    filter->Update();
-    return filter->GetOutput();
+    planeSource->Update();
+//    vtkTriangleFilter* filter = vtkTriangleFilter::New();
+//    filter->SetInputConnection(planeSource->GetOutputPort());
+//    filter->PassLinesOff();
+//    filter->PassVertsOff();
+//    filter->Update();
+    cout << "Setting done" << endl;
+    return planeSource->GetOutput();
 }
 
 vtkActor* vtkPropScene::AddPolyData(std::string name, vtkPolyData *poly) {

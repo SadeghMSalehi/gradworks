@@ -309,7 +309,7 @@ public:
 			} else {
 				return exp(dist * dist / (m_Sigma * m_Sigma));
 			}
-		} else {
+		} else if (dist > -3){
 			return exp(-dist * dist / (m_Sigma * m_Sigma));
 		}
 	}
@@ -388,17 +388,17 @@ public:
                         OffsetVectorType gradientPixel(m_DistanceVectorMaps[n]->GetPixel(gIdx).GetOffset(), ImageType::OffsetType::GetOffsetDimension());
                         OffsetVectorType normalizedGradient = gradientPixel.normalize();
                         for (int k = 0; k < 2; k++) {
-                            derivative[nOffset + i * 2 + k] = -(entropies[i][m_nPoints] * normalizedGradient[k]);
+                            derivative[nOffset + i * 2 + k] = - (entropies[i][m_nPoints] * normalizedGradient[k]);
                             // cout << derivative[nOffset+i*2+k] << "[" << i << "; " << dist << "]";
                         }
-                    } else if (dist == 0) {
+                    } else if (dist < 1) {
                         SliceType::IndexType gIdx;
                         gIdx[0] = ::round(p[nOffset + 2 * i]);
                         gIdx[1] = ::round(p[nOffset + 2 * i + 1]);
                         OffsetVectorType gradientPixel(m_DistanceVectorMaps[n]->GetPixel(gIdx).GetOffset(), ImageType::OffsetType::GetOffsetDimension());
                         OffsetVectorType normalizedGradient = gradientPixel.normalize();
                         for (int k = 0; k < 2; k++) {
-                            derivative[nOffset + i * 2 + k] -= (1 - m_EnsembleFactor) * (entropies[i][m_nPoints] * normalizedGradient[k]);
+                            derivative[nOffset + i * 2 + k] += (1 - m_EnsembleFactor) * (entropies[i][m_nPoints] * normalizedGradient[k]);
                         }
                     }
                 }
@@ -474,6 +474,7 @@ protected:
         m_nVars = 0;
         m_nPoints = 0;
         m_nTotalVars = 0;
+
 	}
 
 	virtual ~ImageEntropyCostFunction() {
@@ -483,7 +484,7 @@ private:
 
 	ParametersType m_SampleSigmas;
 	int m_NumberOfPoints;
-    int m_NumberOfSubjects;
+    // int m_NumberOfSubjects;
 
     // NumberOfSubjects * NumberOfPoints matrix
     ImageParticlesAlgorithm::ParametersList m_Points;
@@ -501,7 +502,7 @@ private:
 
 	ImageParticlesAlgorithm::ParametersList* m_PhantomParticles;
 	bool m_AdaptiveSampling;
-	bool m_UsePhantomParticles;
+	// bool m_UsePhantomParticles;
 
     double m_Sigma;
     double m_MaxKappa;

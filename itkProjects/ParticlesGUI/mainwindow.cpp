@@ -427,21 +427,27 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
     QPoint o = event->pos();
     QPointF p = ui.graphicsView->mapToScene(o);
 
-    int xyRes = ::round(::sqrt(m_Props.GetInt("numberOfPoints", 100)));
+    cout << p.x() << "," << p.y() << endl;
+
+    int xyRes = 10; //::round(::sqrt(m_Props.GetInt("numberOfPoints", 100)));
     vtkPolyData* plane = m_PropScene.CreatePlane(xyRes, xyRes, p.x(), p.y());
+    plane->Print(cout);
+
     m_PropScene.AddPolyData("plane", plane);
     m_PropScene.SetColor(0, 0, 1);
     m_PropScene.SetRepresentation(1);
     m_Renderer->ResetCamera();
     m_Interactor->Render();
 
-    g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
-    g_imageParticlesAlgo->SetPropertyAccess(m_Props);
-    g_imageParticlesAlgo->SetViewingDimension(GetCurrentView());
-    g_imageParticlesAlgo->SetImageList(&m_ImageList);
-    g_imageParticlesAlgo->SetEventCallback(this);
-    // g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
-    g_imageParticlesAlgo->CreateInitialPoints(plane->GetPoints());
-    g_imageParticlesAlgo->SetSliceMarker(ui.sliceIndex->value());
+    cout << "Render a plane ..." << endl;
+
+//    g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
+//    g_imageParticlesAlgo->SetPropertyAccess(m_Props);
+//    g_imageParticlesAlgo->SetViewingDimension(GetCurrentView());
+//    g_imageParticlesAlgo->SetImageList(&m_ImageList);
+//    g_imageParticlesAlgo->SetEventCallback(this);
+//    // g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
+//    g_imageParticlesAlgo->CreateInitialPoints(plane->GetPoints());
+//    g_imageParticlesAlgo->SetSliceMarker(ui.sliceIndex->value());
     updateScene();
 }
