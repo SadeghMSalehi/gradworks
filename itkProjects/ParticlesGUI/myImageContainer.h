@@ -102,7 +102,7 @@ public:
     }
 
     SliceType::Pointer GetSlice() {
-        return m_Slices[m_SliceDir];
+        return GetSlice(m_SliceDir);
     }
 
     LabelSliceType::Pointer GetLabelSlice() {

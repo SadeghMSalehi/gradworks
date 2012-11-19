@@ -257,7 +257,6 @@ RGBAImageType::Pointer ImageContainer::GetDerivedView(std::string name) {
 void ImageContainer::GetDerivedViewNames(StringList& names) {
     for (SliceDictionary::iterator iter = g_DerivedSliceDictionary.begin(); iter != g_DerivedSliceDictionary.end(); iter++) {
         names.push_back(iter->first);
-        cout << "name: " << iter->first << endl;
     }
 }
 

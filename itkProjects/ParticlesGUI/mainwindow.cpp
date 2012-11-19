@@ -104,6 +104,8 @@ void MainWindow::EventRaised(int eventId, int eventCode, const void* src, void* 
 void MainWindow::ReadyToExperiments() {
     LoadImage("/data/00.T2.nrrd");
     LoadLabel("/data/00.Label.nrrd");
+    LoadImage("/data/16.T2.nrrd");
+    LoadLabel("/data/16.Label.nrrd");
     on_actionRandomParticlesInit_triggered();
 }
 
@@ -136,7 +138,7 @@ void MainWindow::LoadImage(QString fileName) {
     ui.tabWidget->setCurrentWidget(ui.imageTab);
     ui.toolBox->setCurrentWidget(ui.imageSettings);
     ui.grayImages->addItem(fileName);
-
+    g_imageParticlesAlgo = ImageParticlesAlgorithm::Pointer();
 }
 
 /**
@@ -166,6 +168,7 @@ void MainWindow::LoadLabel(QString fileName) {
     ui.tabWidget->setCurrentWidget(ui.imageTab);
     ui.toolBox->setCurrentWidget(ui.imageSettings);
     ui.labelImages->addItem(fileName);
+    g_imageParticlesAlgo = ImageParticlesAlgorithm::Pointer();    
 }
 
 void MainWindow::on_actionAddImage_triggered() {
@@ -264,45 +267,49 @@ void MainWindow::updateScene() {
 
     // Particles rendering
     if (g_imageParticlesAlgo.IsNotNull() && ui.actionShowParticles->isChecked()) {
-        const OptimizerParametersType* particles = NULL;
-        if (g_showTraceParticles) {
-            particles = g_imageParticlesAlgo->GetTraceParameters(g_AnimFrame);
-        } else {
-            particles = &(g_imageParticlesAlgo->GetCurrentParams());
-        }
-        if (particles != NULL) {
-//            const int nSubj = g_imageParticlesAlgo->GetNumberOfSubjects();
-            const int nPoints = g_imageParticlesAlgo->GetNumberOfPoints();
-            const int nParams = g_imageParticlesAlgo->GetNumberOfParams();
-            const int nDims = 2;
-
-            itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
-            colorFunc->SetMinimumInputValue(0);
-            colorFunc->SetMaximumInputValue(nPoints);
-
-            for (int i = 0; i < nPoints; i++) {
-                double x = particles->GetElement(image * nParams + nDims * i);
-                double y = particles->GetElement(image * nParams + nDims * i + 1);
-
-                QColor pointColor = Qt::black;
-                if (ui.actionParticleRed->isChecked()) {
-                    pointColor = Qt::red;
-                } else if (ui.actionParticleGreen->isChecked()) {
-                    pointColor = Qt::green;
-                } else if (ui.actionParticleBlue->isChecked()) {
-                    pointColor = Qt::blue;
-                } else if (ui.actionParticleWhite->isChecked()) {
-                    pointColor = Qt::white;
-                } else if (ui.actionParticleHSV->isChecked()) {
-                    itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(i);
-                    pointColor = QColor(rgb[0], rgb[1], rgb[2]);
+        if (g_imageParticlesAlgo->IsMarkerValid(dim, ui.sliceIndex->value())) {
+            const OptimizerParametersType* particles = NULL;
+            if (g_showTraceParticles) {
+                particles = g_imageParticlesAlgo->GetTraceParameters(g_AnimFrame);
+            } else {
+                particles = &(g_imageParticlesAlgo->GetCurrentParams());
+            }
+            if (particles != NULL && particles->GetSize() >= (image+1)*g_imageParticlesAlgo->GetNumberOfParams()) {
+                //            const int nSubj = g_imageParticlesAlgo->GetNumberOfSubjects();
+                const int nPoints = g_imageParticlesAlgo->GetNumberOfPoints();
+                const int nParams = g_imageParticlesAlgo->GetNumberOfParams();
+                const int nDims = 2;
+                
+                itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
+                colorFunc->SetMinimumInputValue(0);
+                colorFunc->SetMaximumInputValue(nPoints);
+                
+                for (int i = 0; i < nPoints; i++) {
+                    double x = particles->GetElement(image * nParams + nDims * i);
+                    double y = particles->GetElement(image * nParams + nDims * i + 1);
+                    
+                    QColor pointColor = Qt::black;
+                    if (ui.actionParticleRed->isChecked()) {
+                        pointColor = Qt::red;
+                    } else if (ui.actionParticleGreen->isChecked()) {
+                        pointColor = Qt::green;
+                    } else if (ui.actionParticleBlue->isChecked()) {
+                        pointColor = Qt::blue;
+                    } else if (ui.actionParticleWhite->isChecked()) {
+                        pointColor = Qt::white;
+                    } else if (ui.actionParticleHSV->isChecked()) {
+                        itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(i);
+                        pointColor = QColor(rgb[0], rgb[1], rgb[2]);
+                    }
+                    
+                    m_scene.addEllipse(x, y, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
                 }
-
-                m_scene.addEllipse(x, y, 1, 1, QPen(pointColor),
-                                   QBrush(pointColor, Qt::SolidPattern));
             }
         }
     }
+    
+//    QRectF sceneRect = ui.graphicsView->sceneRect();
+//    cout << "Rect [" << sceneRect.top() << "," << sceneRect.bottom() << "," << sceneRect.left() << "," << sceneRect.right() << endl;
 }
 
 
@@ -324,7 +331,7 @@ void MainWindow::on_animationTimeout() {
         // this is not an optimal implementation because this will update every images together
         updateScene();
         ui.statusbar->showMessage(QString("%1 frame played...").arg(g_AnimFrame));        
-        g_AnimFrame++;
+        g_AnimFrame += m_Props.GetInt("animationInterleave", 10);
     } else if (ui.tabWidget->currentWidget() == ui.modelTab) {
         vtkPolyData* poly = m_PropScene.FindPolyData("mainSurface");
         if (poly == NULL) {
@@ -349,6 +356,7 @@ void MainWindow::on_animationTimeout() {
             m_Interactor->Render();
         }
     }
+    
 }
 
 void MainWindow::on_actionRandomParticlesInit_triggered() {
@@ -359,6 +367,7 @@ void MainWindow::on_actionRandomParticlesInit_triggered() {
     g_imageParticlesAlgo->SetImageList(&m_ImageList);
     g_imageParticlesAlgo->SetEventCallback(this);
     g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
+    g_imageParticlesAlgo->SetSliceMarker(ui.sliceIndex->value());
     updateScene();
 }
 

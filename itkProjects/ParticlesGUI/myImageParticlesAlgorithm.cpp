@@ -8,6 +8,7 @@
 #include "myImageParticlesAlgorithm.h"
 #include "iostream"
 #include "vnl/vnl_matrix.h"
+#include "vnl/algo/vnl_symmetric_eigensystem.h"
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 #include "itkRescaleIntensityImageFilter.h"
 #include "itkLinearInterpolateImageFunction.h"
@@ -237,20 +238,16 @@ public:
 		return exp(-(dxi * dxi) / (2 * si * si)) / (sqrt(2 * M_PI) * si);
 	}
 
-    void SetNumberOfParameters(int m) {
-        m_nVars = m;
-    }
-
-    void SetNumberOfPoints(int n) {
-        m_nPoints = n;
-    }
-
-    void SetNumberOfSubjects(int n) {
-        m_nSubjects = n;
+    void SetNumberOfParameters(int nSubjects, int nPoints, int nTotalVars) {
+        m_nVars = nPoints * Dimensions;
+        m_nPoints = nPoints;
+        m_nSubjects = nSubjects;
+        m_nTotalVars = nTotalVars;
+        
     }
 
 	virtual unsigned int GetNumberOfParameters() const {
-		return m_nVars;
+		return m_nTotalVars;
 	}
 
 	/** This method returns the value of the cost function corresponding
@@ -320,6 +317,21 @@ public:
 			MeasureType & value, DerivativeType & derivative) const {
         // cout << "# points: " << m_nPoints << "; # vars: " << m_nVars << "; # subjects: " << m_nSubjects << endl;
         value = 0;
+        
+        MatrixType ensembleDeriv;
+        MeasureType ensembleCost = 0;
+        
+        if (m_EnsembleFactor > 0) {
+        	ComputeEnsembleEntropies(p, ensembleCost, ensembleDeriv);
+            int k = 0;
+            for (int i = 0; i < ensembleDeriv.rows(); i++) {
+                for (int j = 0; j < ensembleDeriv.cols(); j++) {
+                    derivative[k] = m_EnsembleFactor * ensembleDeriv[i][j];
+                    k++;
+                }
+            }
+        }
+        
         for (int n = 0; n < m_nSubjects; n++) {
             const unsigned nOffset = m_nVars * n;
             MatrixType entropies(m_nPoints, m_nPoints + 1);
@@ -378,38 +390,24 @@ public:
                             derivative[nOffset + i * 2 + k] = -(entropies[i][m_nPoints] * normalizedGradient[k]);
                             // cout << derivative[nOffset+i*2+k] << "[" << i << "; " << dist << "]";
                         }
-                    } else if (dist < 0) {
+                    } else if (dist == 0) {
                         SliceType::IndexType gIdx;
                         gIdx[0] = ::round(p[nOffset + 2 * i]);
                         gIdx[1] = ::round(p[nOffset + 2 * i + 1]);
                         OffsetVectorType gradientPixel(m_DistanceVectorMaps[n]->GetPixel(gIdx).GetOffset(), ImageType::OffsetType::GetOffsetDimension());
                         OffsetVectorType normalizedGradient = gradientPixel.normalize();
                         for (int k = 0; k < 2; k++) {
-                            derivative[nOffset + i * 2 + k] -= (entropies[i][m_nPoints] * normalizedGradient[k]);
+                            derivative[nOffset + i * 2 + k] -= (1 - m_EnsembleFactor) * (entropies[i][m_nPoints] * normalizedGradient[k]);
                         }
                     }
                 }
             }
             value += cost;
         }
-
-        if (m_EnsembleFactor > 0) {
-        	MeasureType ensembleCost = 0;
-        	const MatrixType ensembleDeriv = ComputeEnsembleEntropies(p, ensembleCost);
-        	int k = 0;
-        	for (int j = 0; j < (int) ensembleDeriv.rows(); j++) {
-        		for (int i = 0; i < (int) ensembleDeriv.cols(); i++) {
-        			derivative[k] = ((1 - m_EnsembleFactor) * derivative[k] + m_EnsembleFactor * ensembleDeriv[j][i]);
-        			k++;
-        		}
-        	}
-
-        	value += (m_EnsembleFactor * ensembleCost);
-        }
 	}
 
-    MatrixType ComputeEnsembleEntropies(const ParametersType& p, MeasureType& entropy) const {
-        MatrixType P;
+    void ComputeEnsembleEntropies(const ParametersType& p, MeasureType& ensembleCost, MatrixType& ensembleDeriv) const {
+        MatrixType P(m_nSubjects, m_nVars);
         P.fill(0);
         for (int i = 0; i < m_nVars; i++) {
             for (int j = 0; j  < m_nSubjects; j++) {
@@ -430,10 +428,16 @@ public:
 
         // SxS matrix
         MatrixType YYt = Y * Y.transpose();
+        
+        vnl_symmetric_eigensystem<double> eigen(YYt);
+        double sum = 0;
+        for (int i = 0; i < YYt.cols(); i++) {
+            sum += eigen.get_eigenvalue(i);
+        }
+        ensembleCost = sum;
 
         // S*V matrix
-        MatrixType YYtY = YYt * Y;
-        return YYtY;
+        ensembleDeriv = YYt * Y;
     }
 
 	/** This method returns the value and derivative of the cost function corresponding
@@ -468,6 +472,7 @@ protected:
         m_nSubjects = 0;
         m_nVars = 0;
         m_nPoints = 0;
+        m_nTotalVars = 0;
 	}
 
 	virtual ~ImageEntropyCostFunction() {
@@ -485,6 +490,7 @@ private:
     int m_nSubjects;
     int m_nVars;
     int m_nPoints;
+    int m_nTotalVars;
 
     ImageList m_KappaMaps;
     ImageList m_DistanceMaps;
@@ -574,9 +580,8 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
     std::random_shuffle(indexes.begin(), indexes.end());
     for (int l = 0; l < m_ImageList->size(); l++) {
         for (int i = 0; i < nPoints; i++) {
-            int k = i * Dims;
             for (int j = 0; j < Dims; j++) {
-                initial[k+j] = indexes[i][j];
+                initial[l*m_nParams+i*Dims+j] = indexes[i][j];
             }
         }
     }
@@ -634,11 +639,11 @@ void ImageParticlesAlgorithm::RunOptimization() {
 
 
     for (int i = 0; i < m_nSubjects; i++) {
+        m_ImageList->at(i)->SetSliceIndex(m_ViewingDimension, m_Slice);
+        cout << "AddSubject(" << m_ImageList->at(i)->GetName() << ");" << endl;
         costFunc->AddSubjects(m_ImageList->at(i));
     }
-    costFunc->SetNumberOfParameters(m_CurrentParams.GetSize());
-    costFunc->SetNumberOfSubjects(m_nSubjects);
-    costFunc->SetNumberOfPoints(m_nPoints);
+    costFunc->SetNumberOfParameters(m_nSubjects, m_nPoints, m_nTotalParams);
 
     m_Traces.clear();
     ContinueOptimization();

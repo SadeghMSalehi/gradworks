@@ -59,6 +59,18 @@ public:
     int GetNumberOfTraces() { return m_Traces.size(); }
     void SetEventCallback(EventCallback* callback) { m_EventCallback = callback; }
     
+    
+    // i don't like this marker but this is required to correctly render particles
+    // particles are shown for each image and determined by viewing plane and slice index
+    void SetSliceMarker(int slice) {
+        m_Slice = slice;
+        // m_ImageId = imageId;
+    }
+    
+    bool IsMarkerValid(int dir, int slice) {
+        return m_ViewingDimension == dir && m_Slice == slice;
+    }
+    
 protected:
 	ImageParticlesAlgorithm();
 	virtual ~ImageParticlesAlgorithm();
@@ -75,6 +87,10 @@ private:
     int m_nPoints;
     int m_nParams;
     int m_nTotalParams;
+    
+    int m_Dim;
+    int m_Slice;
+    int m_ImageId;
 
     CostFunctionType::Pointer m_CostFunc;
 	ImageContainer::List* m_ImageList;
