@@ -24,12 +24,17 @@
 static int g_AnimFrame = 0;
 static bool g_showTraceParticles = false;
 
-ParametersVectorType g_Params;
+surface::ParametersVectorType g_Params;
 ImageParticlesAlgorithm::Pointer g_imageParticlesAlgo;
+surface::ParticleAlgorithm::Pointer g_ParticleAlgo;
+
 
 MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this) {
     ui.setupUi(this);
 
+    ui.toolBar->addWidget(ui.zoomLabel);
+    ui.toolBar->addWidget(ui.zoomRatio);
+    
     m_Renderer = vtkRenderer::New();
     m_PropScene.SetRenderer(m_Renderer);
 
@@ -56,6 +61,7 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this) {
     QObject::connect(ui.showGray, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showLabel, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showDerived, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.particlesInitialization, SIGNAL(clicked()), this, SLOT(on_actionRandomParticlesInit_triggered()));
     
 	ui.graphicsView->setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
     m_ParticleColors.addAction(ui.actionParticleBlack);
@@ -104,8 +110,9 @@ void MainWindow::EventRaised(int eventId, int eventCode, const void* src, void* 
 void MainWindow::ReadyToExperiments() {
     LoadImage("/data/Particles/00.T2.nrrd");
     LoadLabel("/data/Particles/00.Label.nrrd");
-    LoadImage("/data/Particles/16.T2.nrrd");
-    LoadLabel("/data/Particles/16.Label.nrrd");
+//    LoadImage("/data/Particles/16.T2.nrrd");
+//    LoadLabel("/data/Particles/16.Label.nrrd");
+    LoadSurface("/data/Particles/00.vtk");
     on_actionRandomParticlesInit_triggered();
 }
 
@@ -171,6 +178,17 @@ void MainWindow::LoadLabel(QString fileName) {
     g_imageParticlesAlgo = ImageParticlesAlgorithm::Pointer();    
 }
 
+void MainWindow::LoadSurface(QString fileName) {
+    vtkPolyData* poly = m_PropScene.LoadPolyData(fileName.toUtf8().data());
+    m_PropScene.AddPolyData("mainSurface", poly);
+    m_PropScene.SetColor(1, 0, 0);
+    m_PropScene.SetRepresentation(0);
+
+    m_Renderer->ResetCamera();
+    m_Interactor->Render();
+    
+
+}
 void MainWindow::on_actionAddImage_triggered() {
     QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                     "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));
@@ -197,20 +215,7 @@ void MainWindow::on_actionOpenSurface_triggered() {
         return;
     }
 
-    vtkPolyData* poly = m_PropScene.LoadPolyData(fileName.toUtf8().data());
-    m_PropScene.AddPolyData("mainSurface", poly);
-    m_PropScene.SetColor(1, 0, 0);
-    m_PropScene.SetRepresentation(0);
-
-    vtkPolyData* disk = m_PropScene.CreateDisk(0, 10);
-    m_PropScene.AddPolyData("disk", disk);
-    m_PropScene.SetColor(0, 0, 1);
-    m_PropScene.SetRepresentation(1);
-
-
-    m_Renderer->ResetCamera();
-    m_Interactor->Render();
-
+    LoadSurface(fileName);
 //    ParticleAlgorithm::Pointer algo = ParticleAlgorithm::New();
 //    algo->SetPropertyAccess(m_Props);
 //    algo->SetInitialParticles(poly);
@@ -222,6 +227,22 @@ void MainWindow::on_actionOpenSurface_triggered() {
     //
     //    vtkPointSet* result = algo->GetResultPoints();
     //    poly2->SetPoints(result->GetPoints());
+}
+
+void MainWindow::on_actionSurfaceSmoothing_triggered() {
+    // surface smoothing assumes the first image and label is matched with the current surface model
+    // apply the surface entropy minimization smoothing with labelmap restriction
+    g_ParticleAlgo = surface::ParticleAlgorithm::New();
+    g_ParticleAlgo->SetPropertyAccess(m_Props);
+    g_ParticleAlgo->SetImageList(&m_ImageList);
+    g_ParticleAlgo->SetModelScene(&m_PropScene);
+    g_ParticleAlgo->RunOptimization();
+}
+
+void MainWindow::on_actionSurfaceSmoothingContinue_triggered() {
+    if (g_ParticleAlgo.IsNull()) {
+        return;
+    }
 }
 
 void MainWindow::on_actionTest_triggered() {
@@ -429,17 +450,21 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
 
     cout << p.x() << "," << p.y() << endl;
 
-    int xyRes = 10; //::round(::sqrt(m_Props.GetInt("numberOfPoints", 100)));
-    vtkPolyData* plane = m_PropScene.CreatePlane(xyRes, xyRes, p.x(), p.y());
-    plane->Print(cout);
-
-    m_PropScene.AddPolyData("plane", plane);
-    m_PropScene.SetColor(0, 0, 1);
-    m_PropScene.SetRepresentation(1);
-    m_Renderer->ResetCamera();
-    m_Interactor->Render();
-
-    cout << "Render a plane ..." << endl;
+    if (ui.derivedImages->currentIndex() > 0) {
+        // g_imageParticlesAlgo->ProbeDerivedImage(ui.derivedImages->currentText().toUtf8().data());
+    }
+    
+//    int xyRes = 10; //::round(::sqrt(m_Props.GetInt("numberOfPoints", 100)));
+//    vtkPolyData* plane = m_PropScene.CreatePlane(xyRes, xyRes, p.x(), p.y());
+//    plane->Print(cout);
+//
+//    m_PropScene.AddPolyData("plane", plane);
+//    m_PropScene.SetColor(0, 0, 1);
+//    m_PropScene.SetRepresentation(1);
+//    m_Renderer->ResetCamera();
+//    m_Interactor->Render();
+//
+//    cout << "Render a plane ..." << endl;
 
 //    g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
 //    g_imageParticlesAlgo->SetPropertyAccess(m_Props);

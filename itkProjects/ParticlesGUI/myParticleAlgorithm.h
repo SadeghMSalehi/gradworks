@@ -13,79 +13,80 @@
 #include "itkLightObject.h"
 #include "myImageContainer.h"
 #include "PropertyAccess.h"
+#include "vtkPropScene.h"
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 #include "itkSingleValuedNonLinearOptimizer.h"
+#include "itkOptimizerCommon.h"
 
-typedef itk::SingleValuedNonLinearOptimizer OptimizerType;
-typedef itk::SingleValuedNonLinearOptimizer::ParametersType OptimizerParametersType;
-typedef itk::SignedDanielssonDistanceMapImageFilter<LabelType, ImageType> DistanceMapFilter;
-typedef DistanceMapFilter::VectorImageType DistanceVectorImageType;
-typedef std::vector<OptimizerParametersType> ParametersVectorType;
-
-class vtkPolyData;
 class vtkPointSet;
+class vtkPolyData;
 
-class ParticleAlgorithm: public itk::LightObject {
-public:
-    typedef ParticleAlgorithm Self;
-    typedef itk::LightObject Superclass;
-    typedef itk::SmartPointer<ParticleAlgorithm> Pointer;
-    typedef itk::SmartPointer<const ParticleAlgorithm> ConstPointer;
+namespace surface {
+    typedef itk::SignedDanielssonDistanceMapImageFilter<LabelType, ImageType> DistanceMapFilter;
+    typedef DistanceMapFilter::VectorImageType DistanceVectorImageType;
+    typedef std::vector<OptimizerParametersType> ParametersVectorType;
 
-    itkNewMacro(Self);
-    itkTypeMacro(ParticleAlgorithm, itk::LightObject);
+    class ParticleAlgorithm: public itk::LightObject {
+    public:
+        typedef ParticleAlgorithm Self;
+        typedef itk::LightObject Superclass;
+        typedef itk::SmartPointer<ParticleAlgorithm> Pointer;
+        typedef itk::SmartPointer<const ParticleAlgorithm> ConstPointer;
 
-    inline const int GetDimensions() const {
-        return m_Dims;
-    }
+        itkNewMacro(Self);
+        itkTypeMacro(ParticleAlgorithm, itk::LightObject);
 
-    inline const int GetNumberOfPoints() const {
-        return m_NumberOfPoints;
-    }
+        inline const int GetDimensions() const {
+            return m_Dims;
+        }
 
-    ParametersVectorType GetParameterTrace() {
-        return m_ParameterHistory;
-    }
+        inline const int GetNumberOfPoints() const {
+            return m_NumberOfPoints;
+        }
 
-    /**
-     * Define where particles are constrained
-     */
-    void SetImplicitSurface(LabelType::Pointer image);
+        ParametersVectorType GetParameterTrace() {
+            return m_ParameterHistory;
+        }
 
-    /**
-     * Provide initial particles' coordinates
-     */
-    void SetInitialParticles(vtkPointSet* poly);
 
-    void RunOptimization();
-    void ContinueOptimization();
-    vtkPointSet* GetResultPoints() const;
-    void ReportParameters(const OptimizerParametersType& params);
-    inline void SetPropertyAccess(PropertyAccess prop) { m_Props = prop; }
+        void SetModelScene(vtkPropScene* scene);
 
-protected:
-    ParticleAlgorithm() {
-    	m_Points = NULL;
-    	m_ResultPoints = NULL;
-    	m_NumberOfPoints = 0;
+        void SetImageList(ImageContainer::List* imageList);
+
+        void RunOptimization();
+        void ContinueOptimization();
+        vtkPointSet* GetResultPoints() const;
+        void ReportParameters(const OptimizerParametersType& params);
+        inline void SetPropertyAccess(PropertyAccess prop) { m_Props = prop; }
+
+    protected:
+        ParticleAlgorithm() {
+            m_Points = NULL;
+            m_ResultPoints = NULL;
+            m_NumberOfPoints = 0;
+            m_Scene = NULL;
+            m_ImageList = NULL;
+        };
+        virtual ~ParticleAlgorithm() {};
+
+
+    private:
+        ParticleAlgorithm(const Self &); //purposely not implemented
+        void operator=(const Self &);  //purposely not implemented
+
+        LabelType::Pointer m_ImplicitSurface;
+        ImageType::Pointer m_DistanceValueMap;
+        DistanceVectorImageType::Pointer m_DistanceVectorMap;
+        vtkPointSet* m_Points;
+        vtkPointSet* m_ResultPoints;
+        int m_NumberOfPoints;
+        const static int m_Dims = 3;
+        OptimizerParametersType m_InitialParameters;
+        ParametersVectorType m_ParameterHistory;
+        PropertyAccess m_Props;
+        vtkPropScene* m_Scene;
+        ImageContainer::List* m_ImageList;
     };
-    virtual ~ParticleAlgorithm() {};
-
-
-private:
-    ParticleAlgorithm(const Self &); //purposely not implemented
-    void operator=(const Self &);  //purposely not implemented
-
-    LabelType::Pointer m_ImplicitSurface;
-    ImageType::Pointer m_DistanceValueMap;
-    DistanceVectorImageType::Pointer m_DistanceVectorMap;
-    vtkPointSet* m_Points;
-    vtkPointSet* m_ResultPoints;
-    int m_NumberOfPoints;
-    const static int m_Dims = 3;
-    OptimizerParametersType m_InitialParameters;
-    ParametersVectorType m_ParameterHistory;
-    PropertyAccess m_Props;
-};
+}
 
 #endif /* defined(__laplacePDE__myParticleAlgorithm__) */

@@ -18,9 +18,9 @@ add_definitions(${QT_DEFINITIONS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-SET (MY_SOURCES myImageContainer.h myImageContainer.cpp myParticleAlgorithm.h myParticleAlgorithm.cpp vtkPropScene.h vtkPropScene.cpp PropertyAccess.h PropertyAccess.cpp myImageParticlesAlgorithm.h myImageParticlesAlgorithm.cpp)
+SET (MY_SOURCES myImageContainer.h myImageContainer.cpp myParticleAlgorithm.h myParticleAlgorithm.cpp vtkPropScene.h vtkPropScene.cpp PropertyAccess.h PropertyAccess.cpp myImageParticlesAlgorithm.h myImageParticlesAlgorithm.cpp myImplicitSurfaceConstraint.h myImplicitSurfaceConstraint.cpp)
 
-FILE(GLOB ITK_HEADERS "itk*.h" "itk*.hxx")
+FILE(GLOB ITK_SOURCES "itk*.h" "itk*.hxx" "itk*.cxx")
 
-ADD_EXECUTABLE(particlesRun particlesMain.cpp ${MY_SOURCES} ${ITK_HEADERS} ${QT_HEADERS} ${QT_SOURCES} ${QT_MOC_HEADERS} ${QT_UI_FILES})
+ADD_EXECUTABLE(particlesRun particlesMain.cpp ${MY_SOURCES} ${ITK_SOURCES} ${QT_HEADERS} ${QT_SOURCES} ${QT_MOC_HEADERS} ${QT_UI_FILES})
 TARGET_LINK_LIBRARIES(particlesRun ${ITK_LIBRARIES} ${VTK_LIBRARIES} ${QT_LIBRARIES})

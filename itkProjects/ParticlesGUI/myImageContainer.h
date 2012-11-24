@@ -12,6 +12,7 @@
 #include <iostream>
 #include "itkImage.h"
 #include "itkImageRegionIteratorWithIndex.h"
+#include "itkLinearInterpolateImageFunction.h"
 #include "itkRGBAPixel.h"
 #include "vector"
 #include "map"
@@ -24,6 +25,7 @@ const int SDim = 2;
 
 typedef itk::Image<double, VDim> ImageType;
 typedef itk::Image<double, SDim> SliceType;
+typedef itk::LinearInterpolateImageFunction<SliceType> SliceInterpolatorType;
 typedef itk::RGBAPixel<unsigned char> RGBAPixel;
 typedef itk::Image<RGBAPixel, SDim> RGBAImageType;
 typedef itk::Image<unsigned short, VDim> LabelType;

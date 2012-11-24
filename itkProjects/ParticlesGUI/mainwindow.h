@@ -13,6 +13,7 @@
 #include "vtkPropScene.h"
 #include "PropertyAccess.h"
 #include "myEventCallback.h"
+#include "itkOptimizerCommon.h"
 
 class vtkPolyData;
 class vtkGenericOpenGLRenderWindow;
@@ -32,6 +33,8 @@ public slots:
     void on_actionAddImage_triggered();
     void on_actionAddLabel_triggered();
     void on_actionOpenSurface_triggered();
+    void on_actionSurfaceSmoothing_triggered();
+    void on_actionSurfaceSmoothingContinue_triggered();
     void on_actionTest_triggered();
     void on_actionRunImageParticles_triggered();
     void on_actionAnimation_triggered();
@@ -52,6 +55,7 @@ private:
 //    void RemoveAllPolyData();
     void LoadImage(QString fileName);
     void LoadLabel(QString fileName);
+    void LoadSurface(QString fileName);
 
     inline bool IsSourceAvailable() { return m_ImageList.size() > 0 && m_ImageList[0].IsNotNull(); }
     inline bool IsTargetAvailable() { return m_ImageList.size() > 1 && m_ImageList[1].IsNotNull(); }
@@ -67,7 +71,7 @@ private:
     typedef std::map<std::string, vtkProp*> PropMapType;
     typedef std::pair<std::string, vtkProp*> NamedProp;
     PropMapType m_PropMap;
-    
+
     vtkPropScene m_PropScene;
     QGraphicsScene m_scene;
     ImageContainer::List m_ImageList;

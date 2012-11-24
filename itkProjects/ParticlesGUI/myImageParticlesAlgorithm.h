@@ -12,30 +12,27 @@
 #include <itkSmartPointer.h>
 #include <itkObjectFactory.h>
 #include "myImageContainer.h"
+#include "myImplicitSurfaceConstraint.h"
 #include "myEventCallback.h"
 #include "itkSingleValuedNonLinearOptimizer.h"
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 #include "itkLinearInterpolateImageFunction.h"
 #include "PropertyAccess.h"
-
+#include "itkOptimizerCommon.h"
 
 class vtkPoints;
 
-class ImageParticlesAlgorithm: public itk::LightObject {
+class ImageParticlesAlgorithm: public itk::SingleValuedCostFunction {
 public:
-    typedef itk::SingleValuedCostFunction CostFunctionType;
-	typedef itk::SingleValuedNonLinearOptimizer OptimizerType;
-	typedef OptimizerType::ParametersType OptimizerParametersType;
 	typedef std::vector<OptimizerParametersType> ParametersList;
-
 	typedef ImageParticlesAlgorithm Self;
-	typedef itk::LightObject Superclass;
+	typedef itk::SingleValuedCostFunction Superclass;
 	typedef itk::SmartPointer<Self> Pointer;
 	typedef itk::SmartPointer<const Self> ConstPointer;
 
     const static int Dims = 2;
 
-	itkTypeMacro(ImageParticlesAlgorithm, itk::LightObject);
+	itkTypeMacro(ImageParticlesAlgorithm, itk::SingleValuedCostFunction);
 	itkNewMacro(ImageParticlesAlgorithm);
 
     void SetViewingDimension(int n) { m_ViewingDimension = n; }
@@ -71,6 +68,8 @@ public:
     bool IsMarkerValid(int dir, int slice) {
         return m_ViewingDimension == dir && m_Slice == slice;
     }
+
+    void ProbeDerivedImage(const char* fname);
     
 protected:
 	ImageParticlesAlgorithm();
@@ -93,11 +92,13 @@ private:
     int m_Slice;
     int m_ImageId;
 
-    CostFunctionType::Pointer m_CostFunc;
-	ImageContainer::List* m_ImageList;
 	ParametersList m_InitialPoints;
     OptimizerParametersType m_CurrentParams;
     PropertyAccess m_Props;
+
+	ImageContainer::List* m_ImageList;
+    myImplicitSurfaceConstraint m_Constraint;
+
 	bool m_Running;
     EventCallback* m_EventCallback;
 

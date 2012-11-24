@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>842</width>
-    <height>677</height>
+    <height>716</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -103,6 +103,8 @@
      <string>&amp;Surfaces</string>
     </property>
     <addaction name="actionOpenSurface"/>
+    <addaction name="actionSurfaceSmoothing"/>
+    <addaction name="actionSurfaceSmoothingContinue"/>
     <addaction name="actionTest"/>
     <addaction name="separator"/>
     <addaction name="actionAnimation"/>
@@ -173,15 +175,15 @@
      <item>
       <widget class="QToolBox" name="toolBox">
        <property name="currentIndex">
-        <number>2</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="imageSettings">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>196</width>
-          <height>277</height>
+          <width>220</width>
+          <height>520</height>
          </rect>
         </property>
         <attribute name="label">
@@ -349,7 +351,7 @@
           </widget>
          </item>
          <item row="4" column="0">
-          <widget class="QLabel" name="label_4">
+          <widget class="QLabel" name="zoomLabel">
            <property name="text">
             <string>Zoom</string>
            </property>
@@ -388,8 +390,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>98</width>
-          <height>28</height>
+          <width>220</width>
+          <height>520</height>
          </rect>
         </property>
         <attribute name="label">
@@ -417,7 +419,7 @@
           <x>0</x>
           <y>0</y>
           <width>220</width>
-          <height>481</height>
+          <height>520</height>
          </rect>
         </property>
         <attribute name="label">
@@ -436,7 +438,7 @@
          <property name="bottomMargin">
           <number>0</number>
          </property>
-         <item row="1" column="2">
+         <item row="2" column="2">
           <widget class="QSpinBox" name="numberOfPoints">
            <property name="minimum">
             <number>10</number>
@@ -452,14 +454,14 @@
            </property>
           </widget>
          </item>
-         <item row="6" column="0">
+         <item row="7" column="0">
           <widget class="QLabel" name="label_8">
            <property name="text">
             <string>Cutoff</string>
            </property>
           </widget>
          </item>
-         <item row="6" column="2">
+         <item row="7" column="2">
           <widget class="QDoubleSpinBox" name="cutoffDistance">
            <property name="minimum">
             <double>1.000000000000000</double>
@@ -475,7 +477,7 @@
            </property>
           </widget>
          </item>
-         <item row="4" column="2">
+         <item row="5" column="2">
           <widget class="QDoubleSpinBox" name="sigma">
            <property name="minimum">
             <double>1.000000000000000</double>
@@ -491,35 +493,35 @@
            </property>
           </widget>
          </item>
-         <item row="5" column="0" colspan="2">
+         <item row="6" column="0" colspan="2">
           <widget class="QLabel" name="label_9">
            <property name="text">
             <string>Gradient Sigma</string>
            </property>
           </widget>
          </item>
-         <item row="7" column="0" colspan="2">
+         <item row="8" column="0" colspan="2">
           <widget class="QLabel" name="label_11">
            <property name="text">
             <string>Ensemble Factor</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="0">
+         <item row="4" column="0">
           <widget class="QLabel" name="label_5">
            <property name="text">
             <string>Max Kappa</string>
            </property>
           </widget>
          </item>
-         <item row="2" column="0">
+         <item row="3" column="0">
           <widget class="QLabel" name="label_2">
            <property name="text">
             <string>Iterations</string>
            </property>
           </widget>
          </item>
-         <item row="2" column="2">
+         <item row="3" column="2">
           <widget class="QSpinBox" name="numberOfIterations">
            <property name="minimum">
             <number>10</number>
@@ -535,14 +537,14 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="0">
+         <item row="1" column="0">
           <widget class="QLabel" name="label_10">
            <property name="text">
             <string>Optimizer</string>
            </property>
           </widget>
          </item>
-         <item row="5" column="2">
+         <item row="6" column="2">
           <widget class="QDoubleSpinBox" name="gradientSigma">
            <property name="minimum">
             <double>0.000000000000000</double>
@@ -558,7 +560,7 @@
            </property>
           </widget>
          </item>
-         <item row="3" column="2">
+         <item row="4" column="2">
           <widget class="QDoubleSpinBox" name="maxKappa">
            <property name="minimum">
             <double>1.000000000000000</double>
@@ -574,14 +576,14 @@
            </property>
           </widget>
          </item>
-         <item row="4" column="0">
+         <item row="5" column="0">
           <widget class="QLabel" name="label_7">
            <property name="text">
             <string>Sigma</string>
            </property>
           </widget>
          </item>
-         <item row="7" column="2">
+         <item row="8" column="2">
           <widget class="QDoubleSpinBox" name="ensembleFactor">
            <property name="minimum">
             <double>0.000000000000000</double>
@@ -597,7 +599,7 @@
            </property>
           </widget>
          </item>
-         <item row="8" column="1">
+         <item row="9" column="1">
           <spacer name="verticalSpacer_3">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
@@ -610,7 +612,7 @@
            </property>
           </spacer>
          </item>
-         <item row="0" column="2">
+         <item row="1" column="2">
           <widget class="QComboBox" name="optimizerType">
            <property name="maximumSize">
             <size>
@@ -635,10 +637,17 @@
            </item>
           </widget>
          </item>
-         <item row="1" column="0" colspan="2">
+         <item row="2" column="0" colspan="2">
           <widget class="QLabel" name="label_6">
            <property name="text">
             <string>Particles Count</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0" colspan="3">
+          <widget class="QPushButton" name="particlesInitialization">
+           <property name="text">
+            <string>Particles Initialization</string>
            </property>
           </widget>
          </item>
@@ -660,6 +669,9 @@
   <action name="actionOpenSurface">
    <property name="text">
     <string>Open Surface</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
   <action name="actionCreateTargetSurface">
@@ -775,6 +787,22 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+T</string>
+   </property>
+  </action>
+  <action name="actionSurfaceSmoothing">
+   <property name="text">
+    <string>Surface Smoothing</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionSurfaceSmoothingContinue">
+   <property name="text">
+    <string>Surface Smoothing Continue</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
    </property>
   </action>
  </widget>
