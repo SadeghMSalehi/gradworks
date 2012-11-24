@@ -518,6 +518,27 @@ ImageParticlesAlgorithm::~ImageParticlesAlgorithm() {
 }
 
 
+/** This method returns the value of the cost function corresponding
+ * to the specified parameters.    */
+ImageParticlesAlgorithm::MeasureType ImageParticlesAlgorithm::GetValue(const ParametersType & parameters) const {
+    MeasureType value;
+    DerivativeType derivative;
+    derivative.SetSize(GetNumberOfParameters());
+    GetValueAndDerivative(parameters, value, derivative);
+    return value;
+}
+
+/** This method returns the derivative of the cost function corresponding
+ * to the specified parameters.   */
+void ImageParticlesAlgorithm::GetDerivative(const ParametersType & parameters,
+                           DerivativeType & derivative) const {
+    MeasureType value;
+    GetValueAndDerivative(parameters, value, derivative);
+}
+
+
+
+
 /**
  * Assume that images are already set up by SetImageList
  * Actual subjects to be processed are determined by this initial points
@@ -625,7 +646,7 @@ void ImageParticlesAlgorithm::PrepareOptimization() {
 /**
  * Create the instance of the optimizer will be used and set up appropriate parameters from a user
  */
-ImageParticlesAlgorithm::OptimizerType::Pointer ImageParticlesAlgorithm::CreateOptimizer() {
+OptimizerType::Pointer ImageParticlesAlgorithm::CreateOptimizer() {
     if (m_Props.GetBool("useCGOpti", false)) {
         CGOptimizerType::Pointer opti = CGOptimizerType::New();
         opti->SetUseUnitLengthGradient(m_Props.GetBool("useUnitLengthGradient", true));
@@ -646,14 +667,13 @@ ImageParticlesAlgorithm::OptimizerType::Pointer ImageParticlesAlgorithm::CreateO
  */
 void ImageParticlesAlgorithm::RunOptimization() {
     ImageEntropyCostFunction::Pointer costFunc = ImageEntropyCostFunction::New();
-    m_CostFunc = CostFunctionType::Pointer(dynamic_cast<CostFunctionType*>(costFunc.GetPointer()));
     m_iters = 0;
 
-    costFunc->SetCutoffDistance(m_Props.GetDouble("cutoffDistance", 15));
-    costFunc->SetMaxKappa(m_Props.GetDouble("maxKappa", 2));
-    costFunc->SetPhantomCutoffDistance(m_Props.GetDouble("phantomCutoff", 3));
-    costFunc->SetEnsembleFactor(m_Props.GetDouble("ensembleFactor", 0));
-    costFunc->SetGradientSigma(m_Props.GetDouble("gradientSigma", 0.5));
+    SetCutoffDistance(m_Props.GetDouble("cutoffDistance", 15));
+    SetMaxKappa(m_Props.GetDouble("maxKappa", 2));
+    SetPhantomCutoffDistance(m_Props.GetDouble("phantomCutoff", 3));
+    SetEnsembleFactor(m_Props.GetDouble("ensembleFactor", 0));
+    SetGradientSigma(m_Props.GetDouble("gradientSigma", 0.5));
 
 
     for (int i = 0; i < m_nSubjects; i++) {
@@ -675,10 +695,6 @@ void ImageParticlesAlgorithm::RunOptimization() {
  */
 void ImageParticlesAlgorithm::ContinueOptimization() {
     try {
-        if (m_CostFunc.IsNull()) {
-            return;
-        }
-
         ImageOptimizerProgress::Pointer progress = ImageOptimizerProgress::New();
         progress->SetReportCallback(this);
 
@@ -689,7 +705,7 @@ void ImageParticlesAlgorithm::ContinueOptimization() {
         scales.SetSize(m_nTotalParams);
         scales.Fill(1);
         opti->SetScales(scales);
-        opti->SetCostFunction(m_CostFunc);
+        opti->SetCostFunction(this);
         opti->SetInitialPosition(m_CurrentParams);
         opti->AddObserver(itk::IterationEvent(), progress);
         opti->StartOptimization();
@@ -711,7 +727,7 @@ void ImageParticlesAlgorithm::ReportParameters(const OptimizerParametersType &pa
     m_EventCallback->EventRaised(0xADDCEC, 0, this, iterCost);
 }
 
-const ImageParticlesAlgorithm::OptimizerParametersType* ImageParticlesAlgorithm::GetTraceParameters(int idx) {
+const OptimizerParametersType* ImageParticlesAlgorithm::GetTraceParameters(int idx) {
     if (idx < m_Traces.size()) {
         return &m_Traces[idx];
     } else {
