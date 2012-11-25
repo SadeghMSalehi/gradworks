@@ -17,11 +17,14 @@
 #include "itkLBFGSOptimizer.h"
 #include "itkFRPROptimizer.h"
 #include "itkRegularStepGradientDescentOptimizer.h"
+#include "vnl/vnl_vector.h"
+#include "vnl/vnl_matrix.h"
 
 typedef itk::SingleValuedNonLinearOptimizer OptimizerType;
 typedef itk::SingleValuedNonLinearOptimizer::ParametersType OptimizerParametersType;
 typedef itk::LBFGSOptimizer LBFGSOptimizerType;
 typedef itk::FRPROptimizer FRPROptimizerType;
 typedef itk::RegularStepGradientDescentOptimizer GDOptimizerType;
-
+typedef vnl_vector<double> VNLVector;
+typedef vnl_matrix<double> VNLMatrix;
 #endif

@@ -208,7 +208,11 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
     myEnsembleEntropy::MatrixType ensembleDeriv;
     double ensembleCost = 0;
 
-    m_EnsembleEntropy.Compute(p, ensembleCost, ensembleDeriv);
+    /**
+     * This positional ensemble computes transformation parameters 
+     * to match the positions into the master example (the first case)
+     */
+    m_EnsembleEntropy.ComputePositionalEnsemble(p, ensembleCost, ensembleDeriv);
 
     for (int n = 0; n < m_nSubjects; n++) {
         const unsigned nOffset = m_nParams * n;
@@ -546,7 +550,7 @@ void ImageParticlesAlgorithm::RunOptimization() {
     m_Traces.clear();
 
     m_EnsembleEntropy.SetImageList(m_ImageList);
-    m_EnsembleEntropy.SetInitialPositions(m_CurrentParams);
+    m_EnsembleEntropy.SetInitialPositions(m_CurrentParams, m_nSubjects, m_nPoints, m_nParams);
     // 3x3 image patch
     m_EnsembleEntropy.SetPatchSize(m_Props.GetInt("particlePatchSize", 3));
     m_EnsembleEntropy.SetTransformTypeToRigid();

@@ -140,7 +140,7 @@ public:
     static int GetCurrentLabel() { return g_CurrentLabel; }
 
 protected:
-    ImageContainer() : m_SliceDir(0), m_EventCallback(NULL) {
+    ImageContainer() : m_SliceDir(2), m_EventCallback(NULL) {
         m_Alpha = 255;
         m_LabelAlpha = 128;
         m_IntensityStats.Fill(0);

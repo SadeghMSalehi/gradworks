@@ -59,6 +59,15 @@ static void runTestCode() {
 
 }
 
+static void runQStringSplit() {
+    QRegExp sep("(\\s+|, )");
+    QStringList selectedPoints = QString("1,2,3,4,5").split(sep, QString::SkipEmptyParts);
+    cout << "splitList:" << selectedPoints.size() << endl;
+    for (int i = 0; i < selectedPoints.size(); i++) {
+        cout << "[" << selectedPoints[i].toStdString() << "]" << endl;
+    }
+}
+
 /**
  * Compute laplacian field from a given boundary condition map
  *
@@ -67,7 +76,7 @@ static void runTestCode() {
  */
 int main(int argc, char* argv[]) {
   if (argc < 3) {
-      // runTestCode();
+      runQStringSplit();
 
       MainApps apps(argc, argv);
       MainWindow w;
