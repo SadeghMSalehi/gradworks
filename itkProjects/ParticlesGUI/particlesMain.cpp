@@ -68,6 +68,14 @@ static void runQStringSplit() {
     }
 }
 
+static void runVNLCopyTest() {
+    double a[] = { 1.,2.,3.,4.};
+    vnl_matrix<double> A(a, 2, 2);
+    cout << A << endl;
+    A[0][0] = 5;
+    cout << a[0] << endl;
+}
+
 /**
  * Compute laplacian field from a given boundary condition map
  *
@@ -76,7 +84,7 @@ static void runQStringSplit() {
  */
 int main(int argc, char* argv[]) {
   if (argc < 3) {
-      runQStringSplit();
+      runVNLCopyTest();
 
       MainApps apps(argc, argv);
       MainWindow w;

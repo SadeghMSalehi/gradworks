@@ -33,8 +33,8 @@ void myEnsembleEntropy::SetInitialPositions(const OptimizerParametersType &param
 void myEnsembleEntropy::EstimateRigidParameters(MatrixType &transformParams, const OptimizerParametersType &params, int target, int source) const {
     const int Dim = 2;
     
-    const MatrixType targetPoints(&params[target * m_nParams], m_nPoints, Dim);
-    const MatrixType sourcePoints(&params[source * m_nParams], m_nPoints, Dim);
+    MatrixType targetPoints(&params[target * m_nParams], m_nPoints, Dim);
+    MatrixType sourcePoints(&params[source * m_nParams], m_nPoints, Dim);
     
     // make those centroid match
     VectorType targetCentroid(2), sourceCentroid(2);
@@ -49,19 +49,18 @@ void myEnsembleEntropy::EstimateRigidParameters(MatrixType &transformParams, con
     }
     targetCentroid /= m_nPoints;
     sourceCentroid /= m_nPoints;
-    
-    MatrixType targetCentered(m_nPoints, Dim), sourceCentered(m_nPoints, Dim);
+
     for (int i = 0; i < m_nPoints; i++) {
         for (int k = 0; k < Dim; k++) {
-            targetCentered[i][k] = targetPoints[i][k] - targetCentroid[k];
-            sourceCentered[i][k] = sourcePoints[i][k] - sourceCentroid[k];
+            targetPoints[i][k] = targetPoints[i][k] - targetCentroid[k];
+            sourcePoints[i][k] = sourcePoints[i][k] - sourceCentroid[k];
         }
     }
     
     double rotationParam;
     VectorType translationParam = targetCentroid - sourceCentroid;
     
-    MatrixType cov = targetCentered.transpose() * sourceCentered;
+    MatrixType cov = targetPoints.transpose() * sourcePoints;
     vnl_svd<double> svd(cov);
     MatrixType rotationMatrix = svd.V() * svd.U().transpose();
 
@@ -69,7 +68,7 @@ void myEnsembleEntropy::EstimateRigidParameters(MatrixType &transformParams, con
     
     transformParams[source][0] = translationParam[0];
     transformParams[source][1] = translationParam[1];
-    transformParams[source][2] = rotationParam * 180 / 3.141592;
+    transformParams[source][2] = rotationParam;
 }
 
 void myEnsembleEntropy::ComputePositionalEnsemble(const OptimizerParametersType &params, double &cost, MatrixType &deriv) const {
@@ -79,6 +78,23 @@ void myEnsembleEntropy::ComputePositionalEnsemble(const OptimizerParametersType 
     
     for (int i = 1; i < m_nSubjects; i++) {
         EstimateRigidParameters(transformParams, params, 0, i);
-        std::cout << "Estimated Transform: " << transformParams << std::endl;
+    }
+
+    const int Dim = 2;
+    MatrixType targetPoints(&params[0], m_nPoints, Dim);
+    for (int n = 1; n < m_nSubjects; n++) {
+        MatrixType rotationMatrix(2,2);
+        rotationMatrix[0][0] = ::cos(transformParams[n][2]);
+        rotationMatrix[0][1] = ::sin(transformParams[n][2]);
+        rotationMatrix[1][0] = -::sin(transformParams[n][2]);
+        rotationMatrix[1][1] = ::cos(transformParams[n][2]);
+
+        MatrixType sourcePoints(&params[n * m_nParams], m_nPoints, Dim);
+        MatrixType transformedPoints = sourcePoints * rotationMatrix;
+        for (int i = 0; i < m_nPoints; i++) {
+            transformedPoints[i][0] -= transformParams[n][0];
+            transformedPoints[i][1] -= transformParams[n][1];
+        }
+        
     }
 }
