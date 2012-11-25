@@ -18,7 +18,7 @@ add_definitions(${QT_DEFINITIONS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-SET (MY_SOURCES myImageContainer.h myImageContainer.cpp myParticleAlgorithm.h myParticleAlgorithm.cpp vtkPropScene.h vtkPropScene.cpp PropertyAccess.h PropertyAccess.cpp myImageParticlesAlgorithm.h myImageParticlesAlgorithm.cpp myImplicitSurfaceConstraint.h myImplicitSurfaceConstraint.cpp myEnsembleEntropy.h myEnsembleEntropy.cpp)
+SET (MY_SOURCES myImageContainer.h myImageContainer.cpp myParticleAlgorithm.h myParticleAlgorithm.cpp vtkPropScene.h vtkPropScene.cpp PropertyAccess.h PropertyAccess.cpp myImageParticlesAlgorithm.h myImageParticlesAlgorithm.cpp myImplicitSurfaceConstraint.h myImplicitSurfaceConstraint.cpp myEnsembleEntropy.h myEnsembleEntropy.cpp vnlCommon.h vnlCommon.cpp)
 
 FILE(GLOB ITK_SOURCES "itk*.h" "itk*.hxx" "itk*.cxx")
 

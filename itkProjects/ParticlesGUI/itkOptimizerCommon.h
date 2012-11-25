@@ -25,6 +25,5 @@ typedef itk::SingleValuedNonLinearOptimizer::ParametersType OptimizerParametersT
 typedef itk::LBFGSOptimizer LBFGSOptimizerType;
 typedef itk::FRPROptimizer FRPROptimizerType;
 typedef itk::RegularStepGradientDescentOptimizer GDOptimizerType;
-typedef vnl_vector<double> VNLVector;
-typedef vnl_matrix<double> VNLMatrix;
+
 #endif

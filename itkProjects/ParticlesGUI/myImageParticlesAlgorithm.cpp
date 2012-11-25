@@ -24,6 +24,7 @@
 #include "vtkPoints.h"
 #include "itkOptimizerCommon.h"
 #include "myEnsembleEntropy.h"
+#include "vnlCommon.h"
 
 
 using namespace std;
@@ -205,7 +206,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
     // cout << "# points: " << m_nPoints << "; # vars: " << m_nVars << "; # subjects: " << m_nSubjects << endl;
     value = 0;
 
-    myEnsembleEntropy::MatrixType ensembleDeriv;
+    VNLMatrix ensembleDeriv;
     double ensembleCost = 0;
 
     /**
@@ -216,7 +217,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
 
     for (int n = 0; n < m_nSubjects; n++) {
         const unsigned nOffset = m_nParams * n;
-        MatrixType entropies(m_nPoints, m_nPoints + 1);
+        VNLMatrix entropies(m_nPoints, m_nPoints + 1);
         double cost = 0;
         //#pragma omp parallel for
         for (int i = 0; i < m_nPoints; i++) {

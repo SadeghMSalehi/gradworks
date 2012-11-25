@@ -7,7 +7,9 @@
 //
 
 #include "myEnsembleEntropy.h"
+#include "vnl/algo/vnl_symmetric_eigensystem.h"
 
+const int Dim = 2;
 
 myEnsembleEntropy::myEnsembleEntropy() {
     
@@ -30,14 +32,20 @@ void myEnsembleEntropy::SetInitialPositions(const OptimizerParametersType &param
     m_nParams = nParams;
 }
 
-void myEnsembleEntropy::EstimateRigidParameters(MatrixType &transformParams, const OptimizerParametersType &params, int target, int source) const {
+void myEnsembleEntropy::SetVariableCounts(int s, int p, int np) {
+    m_nSubjects = s;
+    m_nPoints = p;
+    m_nParams = np;
+}
+
+void myEnsembleEntropy::EstimateRigidParameters(VNLMatrix &transformParams, const OptimizerParametersType &params, int target, int source) const {
     const int Dim = 2;
     
-    MatrixType targetPoints(&params[target * m_nParams], m_nPoints, Dim);
-    MatrixType sourcePoints(&params[source * m_nParams], m_nPoints, Dim);
+    VNLMatrix targetPoints(&params[target * m_nParams], m_nPoints, Dim);
+    VNLMatrix sourcePoints(&params[source * m_nParams], m_nPoints, Dim);
     
     // make those centroid match
-    VectorType targetCentroid(2), sourceCentroid(2);
+    VNLVector targetCentroid(2), sourceCentroid(2);
     targetCentroid.fill(0);
     sourceCentroid.fill(0);
     
@@ -58,11 +66,11 @@ void myEnsembleEntropy::EstimateRigidParameters(MatrixType &transformParams, con
     }
     
     double rotationParam;
-    VectorType translationParam = targetCentroid - sourceCentroid;
+    VNLVector translationParam = targetCentroid - sourceCentroid;
     
-    MatrixType cov = targetPoints.transpose() * sourcePoints;
+    VNLMatrix cov = targetPoints.transpose() * sourcePoints;
     vnl_svd<double> svd(cov);
-    MatrixType rotationMatrix = svd.V() * svd.U().transpose();
+    VNLMatrix rotationMatrix = svd.V() * svd.U().transpose();
 
     rotationParam = acos(rotationMatrix[0][0]);
     
@@ -71,30 +79,64 @@ void myEnsembleEntropy::EstimateRigidParameters(MatrixType &transformParams, con
     transformParams[source][2] = rotationParam;
 }
 
-void myEnsembleEntropy::ComputePositionalEnsemble(const OptimizerParametersType &params, double &cost, MatrixType &deriv) const {
+static void ComputeEnsembleEntropy(VNLMatrix& data, const VNLMatrixArray& jacobianList, double &cost, VNLMatrix& deriv) {
+    VNLMatrix cov = data * data.transpose();
     
-    MatrixType transformParams(m_nSubjects, m_nTransformParams);
+    // cost function is the sum of log of eigenvalues
+    vnl_symmetric_eigensystem<double> eigen(cov);
+    cost = 0;
+    for (int i = 0; i < eigen.D.size(); i++) {
+        if (eigen.D[i] > 0) {
+            cost += log(eigen.D[i]);
+        }
+    }
+
+    // relaxation parameter
+    double alpha = 1;
+    // gradient computation
+    for (int i = 0; i < cov.rows(); i++) {
+        cov[i][i] += alpha;
+    }
+    VNLMatrix grad = cov * data;
+    
+    // multiply jacobian of the function
+    const int nDim = jacobianList[1].cols();
+    const int nPoints = data.cols() / nDim;
+    for (int n = 1; n < data.rows(); n++) {
+        VNLVector v(nDim);
+        for (int i = 0; i < nPoints; i++) {
+            const int iOffset = i * nDim;
+            for (int k = 0; k < nDim; k++) {
+                v[k] = data[n][iOffset + k];
+            }
+            VNLVector w = jacobianList[n] * v;
+            for (int k = 0; k < nDim; k++) {
+                deriv[n][iOffset+k] = w[k];
+            }
+        }
+    }
+}
+
+void myEnsembleEntropy::ComputePositionalEnsemble(const OptimizerParametersType &params, double &cost, VNLMatrix &deriv) const {
+    
+    VNLMatrix transformParams(m_nSubjects, m_nTransformParams);
     transformParams.fill(0);
-    
+
+    const int nDim = 2;
+    VNLMatrixArray jacobianList;
+    jacobianList.push_back(VNLMatrix());
     for (int i = 1; i < m_nSubjects; i++) {
         EstimateRigidParameters(transformParams, params, 0, i);
+        VNLMatrix jacobian(nDim, nDim);
+        jacobian[0][0] = cos(transformParams[i][2]);
+        jacobian[0][1] = -sin(transformParams[i][2]);
+        jacobian[1][0] = sin(transformParams[i][2]);
+        jacobian[1][1] = cos(transformParams[i][2]);
+        jacobianList.push_back(jacobian);
     }
 
-    const int Dim = 2;
-    MatrixType targetPoints(&params[0], m_nPoints, Dim);
-    for (int n = 1; n < m_nSubjects; n++) {
-        MatrixType rotationMatrix(2,2);
-        rotationMatrix[0][0] = ::cos(transformParams[n][2]);
-        rotationMatrix[0][1] = ::sin(transformParams[n][2]);
-        rotationMatrix[1][0] = -::sin(transformParams[n][2]);
-        rotationMatrix[1][1] = ::cos(transformParams[n][2]);
-
-        MatrixType sourcePoints(&params[n * m_nParams], m_nPoints, Dim);
-        MatrixType transformedPoints = sourcePoints * rotationMatrix;
-        for (int i = 0; i < m_nPoints; i++) {
-            transformedPoints[i][0] -= transformParams[n][0];
-            transformedPoints[i][1] -= transformParams[n][1];
-        }
-        
-    }
+    VNLMatrix targetPoints(&params[0], m_nSubjects, m_nParams);
+    vnl_center(targetPoints);
+    
+    ComputeEnsembleEntropy(targetPoints, jacobianList, cost, deriv);
 }

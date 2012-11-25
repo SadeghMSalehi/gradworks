@@ -5,6 +5,7 @@
 #include "itkZeroImageFilter.h"
 #include "itkExceptionObject.h"
 #include "mainwindow.h"
+#include "myEnsembleEntropy.h"
 #include <QtGui>
 #include <QApplication>
 #include <iostream>
@@ -76,6 +77,22 @@ static void runVNLCopyTest() {
     cout << a[0] << endl;
 }
 
+static void runRigidEstimation() {
+    myEnsembleEntropy ent;
+    ent.SetVariableCounts(2, 5, 10);
+    OptimizerParametersType points;
+    points.SetSize(20);
+    for (int i = 0; i < 5; i++) {
+        points[2*i] = i;
+        points[2*i+1] = 0;
+        points[10+2*i] = 0;
+        points[10+2*i+1] = i;
+    }
+    VNLMatrix rigidTxf(2,3);
+    ent.EstimateRigidParameters(rigidTxf, points, 0, 1);
+    cout << rigidTxf << endl;
+}
+
 /**
  * Compute laplacian field from a given boundary condition map
  *
@@ -84,7 +101,7 @@ static void runVNLCopyTest() {
  */
 int main(int argc, char* argv[]) {
   if (argc < 3) {
-      runVNLCopyTest();
+      runRigidEstimation();
 
       MainApps apps(argc, argv);
       MainWindow w;
