@@ -15,6 +15,10 @@
 
 ImageContainer::SliceDictionary g_DerivedSliceDictionary;
 
+int ImageContainer::g_CurrentImage = 0;
+int ImageContainer::g_CurrentLabel = 0;
+int ImageContainer::g_CurrentView = 0;
+
 void ImageContainer::SetAlpha(int alpha) {
     if (alpha == m_Alpha) {
         return;

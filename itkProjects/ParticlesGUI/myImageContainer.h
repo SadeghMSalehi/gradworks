@@ -108,7 +108,7 @@ public:
     }
 
     LabelSliceType::Pointer GetLabelSlice() {
-        return m_LabelSlices[m_SliceDir];
+        return GetLabelSlice(m_SliceDir);
     }
 
     void SetSliceDir(int dir) {
@@ -126,6 +126,18 @@ public:
 
     // utility methods
     static RGBAImageType::Pointer CreateBitmap(SliceType::Pointer slice, int alpha = 255);
+
+    static int g_CurrentView;
+    static int g_CurrentImage;
+    static int g_CurrentLabel;
+
+    static void SetCurrentView(int v) { g_CurrentView = v; }
+    static void SetCurrentImage(int i) { g_CurrentImage = i; }
+    static void SetCurrentLabel(int l) { g_CurrentLabel = l; }
+    
+    static int GetCurrentView() { return g_CurrentView; }
+    static int GetCurrentImage() { return g_CurrentImage; }
+    static int GetCurrentLabel() { return g_CurrentLabel; }
 
 protected:
     ImageContainer() : m_SliceDir(0), m_EventCallback(NULL) {

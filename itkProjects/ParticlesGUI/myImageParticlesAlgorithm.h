@@ -21,6 +21,7 @@
 #include "itkOptimizerCommon.h"
 #include "itkCommand.h"
 #include "itkArray.h"
+#include "myEnsembleEntropy.h"
 
 class vtkPoints;
 
@@ -31,10 +32,24 @@ public:
 	typedef itk::SingleValuedCostFunction Superclass;
 	typedef itk::SmartPointer<Self> Pointer;
 	typedef itk::SmartPointer<const Self> ConstPointer;
+
     typedef double MeasureType;
     typedef Superclass::ParametersValueType ParametersValueType;
 	typedef itk::Array<ParametersValueType> DerivativeType;
+    // debug: type casting eleminate 0-1 double values to zero!!
+    typedef vnl_vector_fixed<double, 2> OffsetVectorType;
+    typedef vnl_vector<double> VectorType;
+	typedef vnl_matrix<double> MatrixType;
 
+    typedef itk::CovariantVector<double,2> GradientType;
+    typedef itk::Image<GradientType,2> GradientImageType;
+	typedef itk::LinearInterpolateImageFunction<SliceType,float> InterpolatorType;
+	typedef InterpolatorType::ContinuousIndexType ContinuousIndexType;
+	typedef std::vector<SliceType::Pointer> ImageList;
+	typedef std::vector<InterpolatorType::Pointer> InterpolatorList;
+    
+
+    
     const static int Dims = 2;
 
 	itkTypeMacro(ImageParticlesAlgorithm, itk::SingleValuedCostFunction);
@@ -59,6 +74,10 @@ public:
 	virtual void GetValueAndDerivative(const ParametersType & p,
                                        MeasureType & value, DerivativeType & derivative) const;
 
+    double computeEntropy(const ParametersType& p, int nOffset, int i, int j, double kappa = 1) const;
+    double computePhantomEntropy(const ParametersType& p, int n, int i) const;
+    void computeEnsembleEntropies(const ParametersType& p, MeasureType& ensembleCost, MatrixType& ensembleDeriv) const;
+    
     // connection information between imageList
     void SetViewingDimension(int n) { m_ViewingDimension = n; }
     
@@ -66,7 +85,6 @@ public:
     int GetNumberOfSubjects() const { return m_nSubjects; }
     // number of params per subject
     int GetNumberOfParams() const { return m_nParams; }
-    
     // number of points per subject
     int GetNumberOfPoints() const { return m_nPoints; }
     
@@ -74,8 +92,8 @@ public:
     const OptimizerParametersType& GetCurrentParams() const { return m_CurrentParams; }
     
     // mandatory methods to invoke before optimization
-    void SetPropertyAccess(PropertyAccess props) { m_Props = props; }
-	void SetImageList(ImageContainer::List* list) { m_ImageList = list; }
+    void SetPropertyAccess(PropertyAccess props);
+	void SetImageList(ImageContainer::List* list);
 	void AddInitialPoints(OptimizerParametersType& points);
     void CreateRandomInitialPoints(int nPoints);
     void CreateInitialPoints(vtkPoints* pointSet);
@@ -84,23 +102,14 @@ public:
 	void RunOptimization();
 	void ContinueOptimization();
     
-	bool IsRunning();
     void ReportParameters(const OptimizerParametersType& params, int iterNo, double cost);
     const OptimizerParametersType* GetTraceParameters(int idx);
     int GetNumberOfTraces() { return m_Traces.size(); }
     void SetEventCallback(EventCallback* callback) { m_EventCallback = callback; }
-    
-    
-    // i don't like this marker but this is required to correctly render particles
-    // particles are shown for each image and determined by viewing plane and slice index
-    void SetSliceMarker(int slice) {
-        m_Slice = slice;
-        // m_ImageId = imageId;
-    }
-    
-    bool IsMarkerValid(int dir, int slice) {
-        return m_ViewingDimension == dir && m_Slice == slice;
-    }
+
+
+    void SetCurrentSliceAndView(int view, int slice) { m_ViewingDimension = view; m_Slice = slice; }
+    bool IsCurrentSliceAndView(int view, int slice) { return m_ViewingDimension == view && m_Slice == slice; }
 
     void ProbeDerivedImage(const char* fname);
     
@@ -124,6 +133,7 @@ private:
     int m_Dim;
     int m_Slice;
     int m_ImageId;
+    int m_ViewingDimension;
 
 	ParametersList m_InitialPoints;
     OptimizerParametersType m_CurrentParams;
@@ -131,13 +141,15 @@ private:
 
 	ImageContainer::List* m_ImageList;
     myImplicitSurfaceConstraint m_Constraint;
+    myEnsembleEntropy m_EnsembleEntropy;
 
-	bool m_Running;
     EventCallback* m_EventCallback;
 
     // ui related field
-    int m_ViewingDimension;
     ParametersList m_Traces;
+
+    ImageList m_KappaMaps;
+    InterpolatorList m_KappaMapInterpolators;
     
     /**
      * Cost function parameters

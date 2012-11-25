@@ -360,7 +360,7 @@
          <item row="4" column="2">
           <widget class="QDoubleSpinBox" name="zoomRatio">
            <property name="maximum">
-            <double>4.000000000000000</double>
+            <double>16.000000000000000</double>
            </property>
            <property name="singleStep">
             <double>0.500000000000000</double>
@@ -390,8 +390,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>220</width>
-          <height>520</height>
+          <width>98</width>
+          <height>28</height>
          </rect>
         </property>
         <attribute name="label">
@@ -418,8 +418,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>220</width>
-          <height>520</height>
+          <width>200</width>
+          <height>313</height>
          </rect>
         </property>
         <attribute name="label">

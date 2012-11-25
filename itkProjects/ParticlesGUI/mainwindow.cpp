@@ -27,6 +27,7 @@ static bool g_showTraceParticles = false;
 surface::ParametersVectorType g_Params;
 ImageParticlesAlgorithm::Pointer g_imageParticlesAlgo;
 surface::ParticleAlgorithm::Pointer g_ParticleAlgo;
+myImplicitSurfaceConstraint g_constraint;
 
 
 MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this) {
@@ -110,10 +111,11 @@ void MainWindow::EventRaised(int eventId, int eventCode, const void* src, void* 
 void MainWindow::ReadyToExperiments() {
     LoadImage("/data/Particles/00.T2.nrrd");
     LoadLabel("/data/Particles/00.Label.nrrd");
-//    LoadImage("/data/Particles/16.T2.nrrd");
-//    LoadLabel("/data/Particles/16.Label.nrrd");
+    LoadImage("/data/Particles/16.T2.nrrd");
+    LoadLabel("/data/Particles/16.Label.nrrd");
     LoadSurface("/data/Particles/00.vtk");
     on_actionRandomParticlesInit_triggered();
+    g_constraint.SetImageList(&m_ImageList);
 }
 
 void MainWindow::selectImage(int idx) {
@@ -256,6 +258,17 @@ void MainWindow::on_actionTest_triggered() {
 
         m_Renderer->ResetCamera();
         m_Interactor->Render();
+    } else {
+
+
+        OptimizerParametersType p;
+        p.SetSize(100);
+        for (int i = 0; i < p.GetSize(); i++) {
+            p[i] = i;
+        }
+        vnl_matrix<double> mat(10, 10);
+        mat.set(p.data_block());
+        cout << mat << endl;
     }
 }
 
@@ -287,6 +300,11 @@ void MainWindow::updateScene() {
     int image = GetCurrentImage();
     int labelIdx = ui.labelImages->currentIndex();
 
+    ImageContainer::SetCurrentView(dim);
+    ImageContainer::SetCurrentImage(image);
+    ImageContainer::SetCurrentLabel(labelIdx);
+
+
     // Gray image rendering
     if (ui.derivedImages->currentIndex() > 0 && ui.showDerived->isChecked()) {
         m_scene.addPixmap(ImageContainer::GetDerivedViewPixmap(ui.derivedImages->currentText().toUtf8().data()));
@@ -308,7 +326,7 @@ void MainWindow::updateScene() {
 
     // Particles rendering
     if (g_imageParticlesAlgo.IsNotNull() && ui.actionShowParticles->isChecked()) {
-        if (g_imageParticlesAlgo->IsMarkerValid(dim, ui.sliceIndex->value())) {
+        if (g_imageParticlesAlgo->IsCurrentSliceAndView(dim, ui.sliceIndex->value())) {
             const OptimizerParametersType* particles = NULL;
             if (g_showTraceParticles) {
                 particles = g_imageParticlesAlgo->GetTraceParameters(g_AnimFrame);
@@ -401,23 +419,21 @@ void MainWindow::on_animationTimeout() {
             }
             m_PropScene.ModifyLastActor();
             ui.statusbar->showMessage(QString("%1 frame showing").arg(g_AnimFrame));
-            g_AnimFrame += m_Props.GetInt("animationInterleave", 10);
+            g_AnimFrame += m_Props.GetInt("animationInterleave", 1);
             m_Renderer->ResetCamera();
             m_Interactor->Render();
         }
     }
-    
 }
 
 void MainWindow::on_actionRandomParticlesInit_triggered() {
     ui.toolBox->setCurrentWidget(ui.optimizerSettings);
     g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
     g_imageParticlesAlgo->SetPropertyAccess(m_Props);
-    g_imageParticlesAlgo->SetViewingDimension(GetCurrentView());
+    g_imageParticlesAlgo->SetCurrentSliceAndView(GetCurrentView(), ui.sliceIndex->value());
     g_imageParticlesAlgo->SetImageList(&m_ImageList);
     g_imageParticlesAlgo->SetEventCallback(this);
     g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
-    g_imageParticlesAlgo->SetSliceMarker(ui.sliceIndex->value());
     updateScene();
 }
 
@@ -429,7 +445,6 @@ void MainWindow::on_actionRunImageParticles_triggered() {
         if (g_imageParticlesAlgo.IsNotNull()) {
             ImageContainer::ClearDerivedViews();
             g_imageParticlesAlgo->SetImageList(&m_ImageList);
-            // g_imageParticlesAlgo->SetPropertyAccess(m_Props);
             g_imageParticlesAlgo->RunOptimization();
         }
     }
@@ -452,6 +467,35 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
 
     if (ui.derivedImages->currentIndex() > 0) {
         // g_imageParticlesAlgo->ProbeDerivedImage(ui.derivedImages->currentText().toUtf8().data());
+
+    }
+
+    if (GetCurrentImage() > -1) {
+        myImplicitSurfaceConstraint::ContinuousIndexType idx;
+        idx[0] = p.x();
+        idx[1] = p.y();
+        SliceType::IndexType idx2;
+        idx2[0] = p.x(); idx2[1] = p.y();
+
+        if (!g_constraint.IsInsideRegion(GetCurrentImage(), idx)) {
+            return;
+        }
+
+        cout << "Distance: " << g_constraint.GetDistance(GetCurrentImage(), idx) << endl;
+        cout << "Inside Offset: " << g_constraint.GetInsideOffset(GetCurrentImage(), idx2) << endl;
+        cout << "Outside Offset: " << g_constraint.GetOutsideOffset(GetCurrentImage(), idx2) << endl;
+
+        if (g_constraint.GetDistance(GetCurrentImage(), idx) < 0) {
+            myImplicitSurfaceConstraint::DistanceVectorType offset = g_constraint.GetInsideOffset(GetCurrentImage(), idx2);
+            m_scene.addLine(idx[0], idx[1], idx[0] + offset[0], idx[1] + offset[1], QPen(Qt::white));
+        } else {
+            myImplicitSurfaceConstraint::DistanceVectorType offset = g_constraint.GetOutsideOffset(GetCurrentImage(), idx2);
+            m_scene.addLine(idx[0], idx[1], idx[0] + offset[0], idx[1] + offset[1], QPen(Qt::white));
+        }
+
+        myImplicitSurfaceConstraint::GradientPixelType gx = g_constraint.GetGradient(GetCurrentImage(), idx2);
+        cout << "Gradient: " << gx << endl;
+
     }
     
 //    int xyRes = 10; //::round(::sqrt(m_Props.GetInt("numberOfPoints", 100)));
@@ -474,5 +518,5 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
 //    // g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
 //    g_imageParticlesAlgo->CreateInitialPoints(plane->GetPoints());
 //    g_imageParticlesAlgo->SetSliceMarker(ui.sliceIndex->value());
-    updateScene();
+    // updateScene();
 }

@@ -14,21 +14,43 @@
 #include "myImageContainer.h"
 
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
+#include "itkDanielssonDistanceMapImageFilter.h"
+#include "itkNearestNeighborInterpolateImageFunction.h"
+#include "itkGradientImageFilter.h"
+#include "itkGradientRecursiveGaussianImageFilter.h"
+#include "itkCovariantVector.h"
 
 class myImplicitSurfaceConstraint {
 public:
-    typedef itk::SignedDanielssonDistanceMapImageFilter<SliceType, SliceType> DistanceMapFilterType;
+    typedef itk::SignedDanielssonDistanceMapImageFilter<LabelSliceType, SliceType> SignedDistanceMapFilterType;
+    typedef itk::DanielssonDistanceMapImageFilter<LabelSliceType, SliceType> DistanceMapFilterType;
     typedef DistanceMapFilterType::VectorImageType DistanceVectorImageType;
+    typedef DistanceVectorImageType::PixelType DistanceVectorType;
+    typedef itk::NearestNeighborInterpolateImageFunction<SliceType> InterpolatorType;
+    typedef InterpolatorType::ContinuousIndexType ContinuousIndexType;
+    typedef itk::CovariantVector<double,2> GradientVectorType;
+    typedef itk::Image<GradientVectorType,2> GradientImageType;
+    typedef itk::GradientRecursiveGaussianImageFilter<LabelSliceType, GradientImageType> GradientFilterType;
+    typedef GradientFilterType::OutputPixelType GradientPixelType;
 
-    void AddSurface(SliceType::Pointer labelMap);
-    double GetDistance(int subjId, SliceInterpolatorType::ContinuousIndexType& idx);
-    DistanceVectorImageType::PixelType GetDistanceVector(int subjId, SliceType::IndexType& idx);
-    void ApplyConstraint(OptimizerParametersType& params);
+    void SetImageList(ImageContainer::List* imageList);
 
-    inline int GetNumberOfSubjects() { return m_DistanceMaps.size(); }
+    bool IsInsideRegion(int subjId, SliceInterpolatorType::ContinuousIndexType& idx) const;
+    double GetDistance(int subjId, SliceInterpolatorType::ContinuousIndexType& idx) const;
+    DistanceVectorImageType::PixelType GetInsideOffset(int subjId, SliceType::IndexType& idx) const;
+    DistanceVectorImageType::PixelType GetOutsideOffset(int subjId, SliceType::IndexType& idx) const;
+    GradientPixelType GetGradient(int subjId, SliceType::IndexType& idx) const;
+
+    void ApplyConstraint(OptimizerParametersType& params) const;
+
+    inline int GetNumberOfSubjects() const { return m_DistanceMaps.size(); }
+
+    void Clear();
 private:
     std::vector<SliceType::Pointer> m_DistanceMaps;
-    std::vector<SliceInterpolatorType::Pointer> m_DistanceMapInterpolators;
-    std::vector<DistanceVectorImageType::Pointer> m_DistanceVectorMaps;
+    std::vector<InterpolatorType::Pointer> m_DistanceMapInterpolators;
+    std::vector<DistanceVectorImageType::Pointer> m_InsideDistanceVectorMaps;
+    std::vector<DistanceVectorImageType::Pointer> m_OutsideDistanceVectorMaps;
+    std::vector<GradientFilterType::OutputImagePointer> m_GradientMaps;
 };
 #endif /* defined(__ParticlesGUI__myImplicitSurfaceConstraint__) */
