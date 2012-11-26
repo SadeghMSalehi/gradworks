@@ -141,7 +141,7 @@ private:
 
 	ImageContainer::List* m_ImageList;
     myImplicitSurfaceConstraint m_Constraint;
-    myEnsembleEntropy m_EnsembleEntropy;
+    myEnsembleEntropy::Pointer m_EnsembleEntropy;
 
     EventCallback* m_EventCallback;
 

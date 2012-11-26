@@ -21,5 +21,6 @@ typedef std::vector<VNLVector> VNLVectorRefArray;
 
 void vnl_center(VNLMatrix& A);
 bool vnl_row_mean(const VNLMatrix& A, VNLVector& b);
+bool vnl_has_nan(const VNLVector& v);
 
 #endif /* defined(__ParticlesGUI__vnlCommon__) */

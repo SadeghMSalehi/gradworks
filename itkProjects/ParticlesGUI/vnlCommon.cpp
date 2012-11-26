@@ -37,7 +37,18 @@ void vnl_center(VNLMatrix& A) {
             A[i][j] -= b[j];
         }
     }
+    
+    std::cout << "Mean: " << b << std::endl;
     return;
+}
+
+bool vnl_has_nan(const VNLVector& params) {
+    for (int i = 0; i < params.size(); i++) {
+        if (params[i] != params[i]) {
+            return true;
+        }
+    }
+    return false;
 }
 
 

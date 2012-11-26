@@ -206,15 +206,24 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
     // cout << "# points: " << m_nPoints << "; # vars: " << m_nVars << "; # subjects: " << m_nSubjects << endl;
     value = 0;
 
-    VNLMatrix ensembleDeriv;
+    DerivativeType ensembleDeriv(m_nSubjects * m_nParams);
     double ensembleCost = 0;
 
     /**
      * This positional ensemble computes transformation parameters 
      * to match the positions into the master example (the first case)
      */
-    m_EnsembleEntropy.ComputePositionalEnsemble(p, ensembleCost, ensembleDeriv);
-
+    m_EnsembleEntropy->GetValueAndDerivative(p, ensembleCost, ensembleDeriv);
+    value += ensembleCost;
+    
+    cout << ensembleCost << endl;
+//    
+//    for (int n = 0; n < m_nSubjects; n++) {
+//        for (int i = 0; i < m_nParams; i++) {
+//            derivative[n * m_nParams + i] = ensembleDeriv[n][i];
+//        }
+//    }
+    
     for (int n = 0; n < m_nSubjects; n++) {
         const unsigned nOffset = m_nParams * n;
         VNLMatrix entropies(m_nPoints, m_nPoints + 1);
@@ -325,6 +334,13 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
             }
 //            cout << "# of boundary particles: " << nBoundaryParticles << endl;
 
+        }
+        
+        for (int n = 0; n < m_nSubjects; n++) {
+            int nOffset = n * m_nParams;
+            for (int i = 0; i < m_nParams; i++) {
+                derivative[nOffset + i] = (1 - m_EnsembleFactor) * derivative[nOffset + i] + (m_EnsembleFactor) * ensembleDeriv[nOffset + i];
+            }
         }
         value += cost;
     }
@@ -550,11 +566,12 @@ void ImageParticlesAlgorithm::RunOptimization() {
     m_iters = 0;
     m_Traces.clear();
 
-    m_EnsembleEntropy.SetImageList(m_ImageList);
-    m_EnsembleEntropy.SetInitialPositions(m_CurrentParams, m_nSubjects, m_nPoints, m_nParams);
+    m_EnsembleEntropy = myEnsembleEntropy::New();
+    m_EnsembleEntropy->SetImageList(m_ImageList);
+    m_EnsembleEntropy->SetInitialPositions(m_CurrentParams, m_nSubjects, m_nPoints, m_nParams);
     // 3x3 image patch
-    m_EnsembleEntropy.SetPatchSize(m_Props.GetInt("particlePatchSize", 3));
-    m_EnsembleEntropy.SetTransformTypeToRigid();
+    m_EnsembleEntropy->SetPatchSize(m_Props.GetInt("particlePatchSize", 3));
+    m_EnsembleEntropy->SetTransformTypeToRigid();
 
     ContinueOptimization();
 }
