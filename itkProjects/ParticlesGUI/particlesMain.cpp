@@ -80,17 +80,37 @@ static void runVNLCopyTest() {
 static void runRigidEstimation() {
     myEnsembleEntropy::Pointer ent = myEnsembleEntropy::New();
     ent->SetVariableCounts(2, 5, 10);
+
     OptimizerParametersType points;
     points.SetSize(20);
     for (int i = 0; i < 5; i++) {
-        points[2*i] = i;
+        points[2*i] = i - 2;
         points[2*i+1] = 0;
         points[10+2*i] = 0;
-        points[10+2*i+1] = i;
+        points[10+2*i+1] = 2*(i - 2);
     }
-    VNLMatrix rigidTxf(2,3);
-    ent->EstimateRigidParameters(rigidTxf, points, 0, 1);
-    cout << rigidTxf << endl;
+    // debug: rigid transform estimation
+//    VNLMatrix rigidTxf(2,3);
+//    rigidTxf.fill(0);
+//    ent->EstimateRigidParameters(rigidTxf, points, 0, 1);
+
+    for (int i = 0; i < 100; i++) {
+        double value = 0;
+        myEnsembleEntropy::DerivativeType deriv;
+        deriv.SetSize(20);
+        ent->GetValueAndDerivative(points, value, deriv);
+
+        OptimizerParametersType afterPoints;
+        afterPoints.SetSize(points.GetSize());
+        for (int i = 0; i < points.GetSize(); i++) {
+            afterPoints[i] = points[i] - deriv[i];
+        }
+
+//        cout << "Deriv: " << deriv << endl;
+        cout << "Points: " << afterPoints << endl;
+//        cout << "Cost: " << value << endl;
+        points = afterPoints;
+    }
 }
 
 /**
@@ -101,7 +121,10 @@ static void runRigidEstimation() {
  */
 int main(int argc, char* argv[]) {
   if (argc < 3) {
-      runRigidEstimation();
+      if (false) {
+          runRigidEstimation();
+          return 0;
+      }
 
       MainApps apps(argc, argv);
       MainWindow w;

@@ -37,8 +37,9 @@ void vnl_center(VNLMatrix& A) {
             A[i][j] -= b[j];
         }
     }
-    
-    std::cout << "Mean: " << b << std::endl;
+
+    // debug: check row mean b is correct
+//    std::cout << "Mean: " << b << std::endl;
     return;
 }
 

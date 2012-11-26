@@ -37,6 +37,10 @@ typedef itk::FixedArray<LabelSliceType::Pointer,VDim> LabelSliceTupleType;
 typedef itk::FixedArray<RGBAImageType::Pointer,VDim> RGBAImageTupleType;
 typedef itk::FixedArray<double,4> StatTupleType;
 typedef itk::FixedArray<int,VDim> IntTupleType;
+typedef itk::CovariantVector<double,2> GradientType;
+typedef itk::Image<GradientType,2> GradientImageType;
+typedef SliceInterpolatorType::ContinuousIndexType ContinuousIndexType;
+
 
 class ImageContainer: public itk::LightObject {
 public:

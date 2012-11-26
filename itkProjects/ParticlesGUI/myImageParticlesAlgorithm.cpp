@@ -216,7 +216,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
     m_EnsembleEntropy->GetValueAndDerivative(p, ensembleCost, ensembleDeriv);
     value += ensembleCost;
     
-    cout << ensembleCost << endl;
+
 //    
 //    for (int n = 0; n < m_nSubjects; n++) {
 //        for (int i = 0; i < m_nParams; i++) {
@@ -335,11 +335,17 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
 //            cout << "# of boundary particles: " << nBoundaryParticles << endl;
 
         }
-        
-        for (int n = 0; n < m_nSubjects; n++) {
+
+        cout << "Ensemble Cost: " << ensembleCost << endl;
+        cout << "Ensemble Factor: " << m_EnsembleFactor << endl;
+//        cout << "ensembleDeriv: " << ensembleDeriv << endl;
+        for (int n = 1; n < m_nSubjects; n++) {
             int nOffset = n * m_nParams;
+            VNLVector deriv(&ensembleDeriv[nOffset], m_nParams);
+            VNLVector normalizedDeriv = deriv.normalize();
+            cout << normalizedDeriv << endl;
             for (int i = 0; i < m_nParams; i++) {
-                derivative[nOffset + i] = (1 - m_EnsembleFactor) * derivative[nOffset + i] + (m_EnsembleFactor) * ensembleDeriv[nOffset + i];
+                derivative[nOffset + i] = (1 - m_EnsembleFactor) * derivative[nOffset + i] + (m_EnsembleFactor) * 10 * normalizedDeriv[i];
             }
         }
         value += cost;
@@ -583,6 +589,7 @@ void ImageParticlesAlgorithm::RunOptimization() {
  */
 void ImageParticlesAlgorithm::ContinueOptimization() {
     try {
+        m_EnsembleEntropy->SetGradientScale(m_Props.GetDouble("ensembleGradientRatio", 0), m_Props.GetDouble("ensembleGradientScale", 0));
         ImageOptimizerProgress::Pointer progress = ImageOptimizerProgress::New();
         progress->SetReportCallback(this);
 
