@@ -50,16 +50,15 @@ ParticleSystem::ParticleSystem(const int nSubj, const int nParticles): m_nDim(2)
     m_Cutoff = 15;
     m_Sigma2 = 3;
     m_Mu = 0;
-    m_Status.set_size(nParticles * m_nDim * 2);
-    m_Status.fill(0);
-
-    m_Pos = VNLMatrixRef(m_nSubject, m_nParams, m_Status.data_block());
-    m_Vel = VNLMatrixRef(m_nSubject, m_nParams, m_Status.data_block() + m_nSubject * m_nParams);
     m_Force.set_size(m_nSubject, m_nParams);
 }
 
 void ParticleSystem::SetPositions(OptimizerParametersType* params) {
-    m_Pos.copy_in(params->data_block());
+    m_Status.set_size(m_nSubject*m_nParams*2);
+    m_Status.fill(0);
+    params->copy_out(m_Status.data_block());
+    m_Pos = VNLMatrixRef(m_nSubject, m_nParams, m_Status.data_block());
+    m_Vel = VNLMatrixRef(m_nSubject, m_nParams, m_Status.data_block() + m_nSubject * m_nParams);
 }
 
 void ParticleSystem::GetPositions(OptimizerParametersType* params) {
@@ -125,7 +124,18 @@ void ParticleSystem::UpdateConstraint() {
 }
 
 void ParticleSystem::operator()(const VNLVector &x, VNLVector& dxdt, const double t) {
+    VNLMatrixRef pos(m_nSubject, m_nParams, m_Status.data_block());
+    VNLMatrixRef vel(m_nSubject, m_nParams, m_Status.data_block()+m_nSubject*m_nParams);
 
+    VNLMatrixRef dpdt(m_nSubject, m_nParams, dxdt.data_block());
+    VNLMatrixRef dvdt(m_nSubject, m_nParams, dxdt.data_block()+m_nSubject*m_nParams);
+
+    // dP/dt = V
+    dpdt.copy_in(pos.data_block());
+
+    // dV/dt = F/m
+    UpdateForce();
+    dvdt.copy_in(m_Force.data_block());
 }
 
 void ParticleSystem::operator()(const VNLVector &x, const double t) {
