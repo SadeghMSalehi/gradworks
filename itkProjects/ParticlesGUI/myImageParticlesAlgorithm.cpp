@@ -128,6 +128,33 @@ ImageParticlesAlgorithm::~ImageParticlesAlgorithm() {
 }
 
 
+// currently ignore; might not be necessary
+void ImageParticlesAlgorithm::GetIndex(SliceInterpolatorType::ContinuousIndexType& idxOut, const OptimizerParametersType* params, const int subj, const int point) const {
+    for (int k = 0; k < m_Dim; k++) {
+        idxOut[k] = params->GetElement(subj*m_nParams + point*m_Dim + k);
+    }
+}
+
+
+
+bool ImageParticlesAlgorithm::IsInsideBoundary(const OptimizerParametersType* params, int subj, int point) const {
+    if (subj < m_nSubjects) {
+        return false;
+    }
+    SliceInterpolatorType::ContinuousIndexType idx;
+    GetIndex(idx, params, subj, point);
+    return m_KappaMapInterpolators[subj]->IsInsideBuffer(idx) && m_Constraint.GetDistance(subj, idx) <= 0;
+}
+
+bool ImageParticlesAlgorithm::IsOutsideBoundary(const OptimizerParametersType* params, int subj, int point) const {
+    if (subj < m_nSubjects) {
+        return false;
+    }
+    SliceInterpolatorType::ContinuousIndexType idx;
+    GetIndex(idx, params, subj, point);
+    return m_KappaMapInterpolators[subj]->IsInsideBuffer(idx) && m_Constraint.GetDistance(subj, idx) > 0;
+}
+
 unsigned int ImageParticlesAlgorithm::GetNumberOfParameters() const {
     return m_nTotalParams;
 }
@@ -265,16 +292,36 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
         int nBoundaryParticles = 0;
         
         //#pragma omp parallel for
-        for (int i = 0; i < m_nPoints; i++) {
-            for (int j = 0; j < m_nPoints; j++) {
-                if (i == j) {
-                    continue;
-                }
-                for (int k = 0; k < 2; k++) {
-                    derivative[nOffset + i * 2 + k] -= entropies[i][j] * (p[nOffset + 2 * i + k] - p[nOffset + 2 * j + k]);
+        bool applySurfaceEntropy = n == 0;
+        if (applySurfaceEntropy) {
+            for (int i = 0; i < m_nPoints; i++) {
+                for (int j = 0; j < m_nPoints; j++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    for (int k = 0; k < 2; k++) {
+                        derivative[nOffset + i * 2 + k] -= entropies[i][j] * (p[nOffset + 2 * i + k] - p[nOffset + 2 * j + k]);
+                    }
                 }
             }
+        }
 
+
+        bool applyEnsembleEntropy = true;
+        if (applyEnsembleEntropy && n > 0) {
+            cout << "Ensemble Cost: " << ensembleCost << endl;
+            cout << "Ensemble Factor: " << m_EnsembleFactor << endl;
+            //        cout << "ensembleDeriv: " << ensembleDeriv << endl;
+
+            VNLVector deriv(&ensembleDeriv[nOffset], m_nParams);
+            VNLVector normalizedDeriv = deriv.normalize();
+            cout << normalizedDeriv << endl;
+            for (int i = 0; i < m_nParams; i++) {
+                derivative[nOffset + i] = (1 - m_EnsembleFactor) * derivative[nOffset + i] + (m_EnsembleFactor) * 10 * normalizedDeriv[i];
+            }
+        }
+
+        for (int i = 0; i < m_nPoints; i++) {
             SliceType::IndexType idx1;
             SliceInterpolatorType::ContinuousIndexType idx2;
             idx2[0] = p[nOffset + i * 2];
@@ -296,11 +343,11 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                 if (boundaryDistance > 0) {
                     myImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetOutsideOffset(n, idx1);
                     // what if the repulsion is not weighted; particles will move to boundary next step
-//                    OffsetVectorType gradientPixel;
-//                    for (int k = 0; k < m_Dim; k++) {
-//                        gradientPixel[k] = offset[k];
-//                    }
-//                    OffsetVectorType normalizedGradient = gradientPixel.normalize();
+                    //                    OffsetVectorType gradientPixel;
+                    //                    for (int k = 0; k < m_Dim; k++) {
+                    //                        gradientPixel[k] = offset[k];
+                    //                    }
+                    //                    OffsetVectorType normalizedGradient = gradientPixel.normalize();
                     // cout << normalizedGradient << endl;
                     for (int k = 0; k < m_Dim; k++) {
                         derivative[nOffset + i * 2 + k] = -offset[k];
@@ -317,7 +364,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                     for (int k = 0; k < m_Dim; k++) {
                         derivative[nOffset + i * 2 + k] += entropies[i][m_nPoints] * normalizedGradient[k];
                     }
-                } else if (false && boundaryDistance < -1) {
+                } else if (boundaryDistance < -1) {
                     myImplicitSurfaceConstraint::GradientPixelType grad = m_Constraint.GetGradient(n, idx1);
                     VectorType gradVector(grad.GetDataPointer(), m_Dim);
                     VectorType forceVector(&derivative[nOffset + i * 2], m_Dim);
@@ -332,22 +379,11 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                     // cout << boundaryDistance << "," << resultVector << "; subject: " << n << endl;
                 }
             }
-//            cout << "# of boundary particles: " << nBoundaryParticles << endl;
-
+            //            cout << "# of boundary particles: " << nBoundaryParticles << endl;
+            
         }
+        
 
-        cout << "Ensemble Cost: " << ensembleCost << endl;
-        cout << "Ensemble Factor: " << m_EnsembleFactor << endl;
-//        cout << "ensembleDeriv: " << ensembleDeriv << endl;
-        for (int n = 1; n < m_nSubjects; n++) {
-            int nOffset = n * m_nParams;
-            VNLVector deriv(&ensembleDeriv[nOffset], m_nParams);
-            VNLVector normalizedDeriv = deriv.normalize();
-            cout << normalizedDeriv << endl;
-            for (int i = 0; i < m_nParams; i++) {
-                derivative[nOffset + i] = (1 - m_EnsembleFactor) * derivative[nOffset + i] + (m_EnsembleFactor) * 10 * normalizedDeriv[i];
-            }
-        }
         value += cost;
     }
 //    cout << "Value: " << value << endl;

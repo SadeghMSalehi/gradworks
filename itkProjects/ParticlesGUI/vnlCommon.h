@@ -17,7 +17,7 @@
 typedef vnl_vector<double> VNLVector;
 typedef vnl_matrix<double> VNLMatrix;
 typedef std::vector<VNLMatrix> VNLMatrixArray;
-typedef std::vector<VNLVector> VNLVectorRefArray;
+typedef std::vector<VNLVector> VNLVectorArray;
 
 void vnl_center(VNLMatrix& A);
 bool vnl_row_mean(const VNLMatrix& A, VNLVector& b);

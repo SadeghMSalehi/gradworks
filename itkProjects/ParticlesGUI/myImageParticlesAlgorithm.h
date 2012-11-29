@@ -112,6 +112,13 @@ public:
     bool IsCurrentSliceAndView(int view, int slice) { return m_ViewingDimension == view && m_Slice == slice; }
 
     void ProbeDerivedImage(const char* fname);
+
+    /**
+     * Particle and image association functions
+     */
+    void GetIndex(SliceInterpolatorType::ContinuousIndexType& idxOut, const OptimizerParametersType* params, int nsubj, int npoint) const;
+    bool IsInsideBoundary(const OptimizerParametersType* params, int subj, int point) const;
+    bool IsOutsideBoundary(const OptimizerParametersType* params, int subj, int point) const;
     
 protected:
 	ImageParticlesAlgorithm();
