@@ -22,8 +22,13 @@ public:
     void GetPositions(OptimizerParametersType* params);
     void UpdateForce();
     void UpdateConstraint();
-    void UpdateDerivative();
     void Integrate();
+
+    // functor for integration
+    void operator()(const VNLVector &x, VNLVector& dxdt, const double t);
+
+    // functor for observer
+    void operator()(const VNLVector &x, const double t);
 
 private:
     const int m_nDim;
@@ -33,10 +38,12 @@ private:
     double m_Cutoff;
     double m_Sigma2;
     double m_Viscosity;
+    double m_Mu;
     int m_TimeStep;
-    
-    VNLMatrix m_Pos;
-    VNLMatrix m_Vel;
+
+    VNLVector m_Status;
+    VNLMatrixRef m_Pos;
+    VNLMatrixRef m_Vel;
     VNLMatrix m_Force;
     VNLMatrixArray m_PosArray;
 };

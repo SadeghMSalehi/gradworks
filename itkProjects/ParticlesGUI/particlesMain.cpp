@@ -10,6 +10,8 @@
 #include <QApplication>
 #include <iostream>
 #include <exception>
+#include "vnlCommon.h"
+#include "myParticleSolver.h"
 
 typedef itk::CastImageFilter<LabelType,ImageType> CastFilterType;
 typedef itk::PropagateBCFilter<LabelType> PropagateBCFilterType;
@@ -75,6 +77,19 @@ static void runVNLCopyTest() {
     cout << A << endl;
     A[0][0] = 5;
     cout << a[0] << endl;
+
+    VNLMatrixRef B(2,2,a);
+    B[0][0] = 5;
+    cout << B << endl;
+    cout << a[0] << endl;
+
+    VNLVector X(4);
+    X[0] = 1; X[1] = 2; X[2] = 3; X[3] = 4;
+    cout << X << endl;
+
+    VNLMatrixRef Y(2,2,X.data_block());
+    Y[0][0] = 4;
+    cout << X << endl;
 }
 
 static void runRigidEstimation() {
@@ -121,8 +136,10 @@ static void runRigidEstimation() {
  */
 int main(int argc, char* argv[]) {
   if (argc < 3) {
-      if (false) {
-          runRigidEstimation();
+      if (true) {
+          //runRigidEstimation();
+//          runVNLCopyTest();
+          my::runODETest();
           return 0;
       }
 
