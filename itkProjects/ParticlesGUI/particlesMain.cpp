@@ -136,7 +136,7 @@ static void runRigidEstimation() {
  */
 int main(int argc, char* argv[]) {
   if (argc < 3) {
-      if (true) {
+      if (false) {
           //runRigidEstimation();
 //          runVNLCopyTest();
           my::runODETest();

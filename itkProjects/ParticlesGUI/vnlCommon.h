@@ -17,6 +17,7 @@
 #include "vnl/vnl_matrix.h"
 #include "vnl/vnl_diag_matrix.h"
 #include "vnl/vnl_matrix_ref.h"
+#include "vnl/vnl_c_vector.h"
 
 #include "vector"
 
@@ -29,6 +30,8 @@ typedef vnl_vector_fixed<double, 2> VNLVec2;
 typedef vnl_vector_fixed_ref<double, 2> VNLVec2Ref;
 typedef vnl_vector_fixed_ref<double, 3> VNLVec3Ref;
 typedef vnl_matrix_ref<double> VNLMatrixRef;
+typedef vnl_c_vector<double> VNLCVector;
+
 typedef std::vector<VNLMatrix> VNLMatrixArray;
 typedef std::vector<VNLVector> VNLVectorArray;
 typedef std::vector<VNLVectorRef> VNLVectorRefArray;

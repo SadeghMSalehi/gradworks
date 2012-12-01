@@ -25,6 +25,7 @@
 #include "itkOptimizerCommon.h"
 #include "myEnsembleEntropy.h"
 #include "vnlCommon.h"
+#include "myParticleDynamics.h"
 
 
 using namespace std;
@@ -227,7 +228,7 @@ double ImageParticlesAlgorithm::computePhantomEntropy(const ParametersType& p, i
 
 void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                                                     MeasureType & value, DerivativeType & derivative) const {
-    const bool useDomainConstraint = true;
+    const bool useDomainConstraint = false;
     const bool useKappa = useDomainConstraint && true;
 
     // cout << "# points: " << m_nPoints << "; # vars: " << m_nVars << "; # subjects: " << m_nSubjects << endl;
@@ -236,13 +237,19 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
     DerivativeType ensembleDeriv(m_nSubjects * m_nParams);
     double ensembleCost = 0;
 
-    /**
-     * This positional ensemble computes transformation parameters 
-     * to match the positions into the master example (the first case)
-     */
-    m_EnsembleEntropy->GetValueAndDerivative(p, ensembleCost, ensembleDeriv);
-    value += ensembleCost;
-    
+    bool applyEnsembleEntropy = false;
+    if (applyEnsembleEntropy) {
+        /**
+         * This positional ensemble computes transformation parameters
+         * to match the positions into the master example (the first case)
+         */
+        m_EnsembleEntropy->GetValueAndDerivative(p, ensembleCost, ensembleDeriv);
+        value += ensembleCost;
+        cout << "Ensemble Cost: " << ensembleCost << endl;
+        cout << "Ensemble Factor: " << m_EnsembleFactor << endl;
+        //        cout << "ensembleDeriv: " << ensembleDeriv << endl;
+    }
+
 
 //    
 //    for (int n = 0; n < m_nSubjects; n++) {
@@ -292,7 +299,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
         int nBoundaryParticles = 0;
         
         //#pragma omp parallel for
-        bool applySurfaceEntropy = n == 0;
+        bool applySurfaceEntropy = (n == 0);
         if (applySurfaceEntropy) {
             for (int i = 0; i < m_nPoints; i++) {
                 for (int j = 0; j < m_nPoints; j++) {
@@ -306,13 +313,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
             }
         }
 
-
-        bool applyEnsembleEntropy = true;
         if (applyEnsembleEntropy && n > 0) {
-            cout << "Ensemble Cost: " << ensembleCost << endl;
-            cout << "Ensemble Factor: " << m_EnsembleFactor << endl;
-            //        cout << "ensembleDeriv: " << ensembleDeriv << endl;
-
             VNLVector deriv(&ensembleDeriv[nOffset], m_nParams);
             VNLVector normalizedDeriv = deriv.normalize();
             cout << normalizedDeriv << endl;
@@ -321,66 +322,69 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
             }
         }
 
-        for (int i = 0; i < m_nPoints; i++) {
-            SliceType::IndexType idx1;
-            SliceInterpolatorType::ContinuousIndexType idx2;
-            idx2[0] = p[nOffset + i * 2];
-            idx2[1] = p[nOffset + i * 2 + 1];
-            idx1[0] = ::round(idx2[0]);
-            idx1[1] = ::round(idx2[1]);
+        bool applyBoundaryConstraint = false;
+        if (applyBoundaryConstraint) {
+            for (int i = 0; i < m_nPoints; i++) {
+                SliceType::IndexType idx1;
+                SliceInterpolatorType::ContinuousIndexType idx2;
+                idx2[0] = p[nOffset + i * 2];
+                idx2[1] = p[nOffset + i * 2 + 1];
+                idx1[0] = ::round(idx2[0]);
+                idx1[1] = ::round(idx2[1]);
 
-            double boundaryDistance = m_Constraint.GetDistance(n, idx2);
-            // debug: boundaryDistance should be less than zero for correct domain
-            // cout << "Boundary Distance: " << boundaryDistance << endl;
+                double boundaryDistance = m_Constraint.GetDistance(n, idx2);
+                // debug: boundaryDistance should be less than zero for correct domain
+                // cout << "Boundary Distance: " << boundaryDistance << endl;
 
 
-            const bool boundsCheck = useDomainConstraint && m_Constraint.IsInsideRegion(n, idx2);
-            if (!m_Constraint.IsInsideRegion(n, idx2)) {
-                for (int k = 0; k < m_Dim; k++) {
-                    derivative[nOffset + i*2 + k] = 0;
-                }
-            } else if (boundsCheck) {
-                if (boundaryDistance > 0) {
-                    myImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetOutsideOffset(n, idx1);
-                    // what if the repulsion is not weighted; particles will move to boundary next step
-                    //                    OffsetVectorType gradientPixel;
-                    //                    for (int k = 0; k < m_Dim; k++) {
-                    //                        gradientPixel[k] = offset[k];
-                    //                    }
-                    //                    OffsetVectorType normalizedGradient = gradientPixel.normalize();
-                    // cout << normalizedGradient << endl;
+                const bool boundsCheck = useDomainConstraint && m_Constraint.IsInsideRegion(n, idx2);
+                if (!m_Constraint.IsInsideRegion(n, idx2)) {
                     for (int k = 0; k < m_Dim; k++) {
-                        derivative[nOffset + i * 2 + k] = -offset[k];
+                        derivative[nOffset + i*2 + k] = 0;
                     }
-                } else if (boundaryDistance <= 0 && boundaryDistance > -1) {
-                    // test: if there is no repulsion term
-                    // debug: boundary check to prevent runtime exception
-                    myImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetInsideOffset(n, idx1);
-                    OffsetVectorType gradientPixel;
-                    gradientPixel[0] = offset[0];
-                    gradientPixel[1] = offset[1];
-                    OffsetVectorType normalizedGradient = gradientPixel.normalize();
-                    //                    cout << "offset: " << offset.GetOffset()[0] << "," << offset.GetOffset()[1] << "; grad: " << gradientPixel << "; deriv:" << normalizedGradient << endl;
-                    for (int k = 0; k < m_Dim; k++) {
-                        derivative[nOffset + i * 2 + k] += entropies[i][m_nPoints] * normalizedGradient[k];
-                    }
-                } else if (boundaryDistance < -1) {
-                    myImplicitSurfaceConstraint::GradientPixelType grad = m_Constraint.GetGradient(n, idx1);
-                    VectorType gradVector(grad.GetDataPointer(), m_Dim);
-                    VectorType forceVector(&derivative[nOffset + i * 2], m_Dim);
-                    double gf = dot_product(gradVector, forceVector);
-                    if (gf > 0) {
-                        VectorType resultVector = forceVector - gf * (gradVector);
+                } else if (boundsCheck) {
+                    if (boundaryDistance > 0) {
+                        myImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetOutsideOffset(n, idx1);
+                        // what if the repulsion is not weighted; particles will move to boundary next step
+                        //                    OffsetVectorType gradientPixel;
+                        //                    for (int k = 0; k < m_Dim; k++) {
+                        //                        gradientPixel[k] = offset[k];
+                        //                    }
+                        //                    OffsetVectorType normalizedGradient = gradientPixel.normalize();
+                        // cout << normalizedGradient << endl;
                         for (int k = 0; k < m_Dim; k++) {
-                            derivative[nOffset + i * 2 + k] = resultVector[k];
+                            derivative[nOffset + i * 2 + k] = -offset[k];
                         }
-                        nBoundaryParticles ++;
+                    } else if (boundaryDistance <= 0 && boundaryDistance > -1) {
+                        // test: if there is no repulsion term
+                        // debug: boundary check to prevent runtime exception
+                        myImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetInsideOffset(n, idx1);
+                        OffsetVectorType gradientPixel;
+                        gradientPixel[0] = offset[0];
+                        gradientPixel[1] = offset[1];
+                        OffsetVectorType normalizedGradient = gradientPixel.normalize();
+                        //                    cout << "offset: " << offset.GetOffset()[0] << "," << offset.GetOffset()[1] << "; grad: " << gradientPixel << "; deriv:" << normalizedGradient << endl;
+                        for (int k = 0; k < m_Dim; k++) {
+                            derivative[nOffset + i * 2 + k] += entropies[i][m_nPoints] * normalizedGradient[k];
+                        }
+                    } else if (boundaryDistance < -1) {
+                        myImplicitSurfaceConstraint::GradientPixelType grad = m_Constraint.GetGradient(n, idx1);
+                        VectorType gradVector(grad.GetDataPointer(), m_Dim);
+                        VectorType forceVector(&derivative[nOffset + i * 2], m_Dim);
+                        double gf = dot_product(gradVector, forceVector);
+                        if (gf > 0) {
+                            VectorType resultVector = forceVector - gf * (gradVector);
+                            for (int k = 0; k < m_Dim; k++) {
+                                derivative[nOffset + i * 2 + k] = resultVector[k];
+                            }
+                            nBoundaryParticles ++;
+                        }
+                        // cout << boundaryDistance << "," << resultVector << "; subject: " << n << endl;
                     }
-                    // cout << boundaryDistance << "," << resultVector << "; subject: " << n << endl;
                 }
+                //            cout << "# of boundary particles: " << nBoundaryParticles << endl;
+                
             }
-            //            cout << "# of boundary particles: " << nBoundaryParticles << endl;
-            
         }
         
 
@@ -651,6 +655,18 @@ void ImageParticlesAlgorithm::ContinueOptimization() {
 
 }
 
+void ImageParticlesAlgorithm::RunODE() {
+    ParticleSystem system(m_nSubjects, m_nPoints);
+    system.SetHistoryVector(&m_Traces);
+    system.SetConstraint(&m_Constraint);
+    system.SetPositions(&m_CurrentParams);
+    system.Integrate();
+    system.GetPositions(&m_CurrentParams);
+}
+
+void ImageParticlesAlgorithm::ContinueODE() {
+
+}
 
 void ImageParticlesAlgorithm::ReportParameters(const OptimizerParametersType &params, int iterNo, double cost) {
     m_Traces.push_back(params);
@@ -658,7 +674,7 @@ void ImageParticlesAlgorithm::ReportParameters(const OptimizerParametersType &pa
     m_EventCallback->EventRaised(0xADDCEC, 0, this, iterCost);
 }
 
-const OptimizerParametersType* ImageParticlesAlgorithm::GetTraceParameters(int idx) {
+const VNLVector* ImageParticlesAlgorithm::GetTraceParameters(int idx) {
     if (idx < m_Traces.size()) {
         return &m_Traces[idx];
     } else {

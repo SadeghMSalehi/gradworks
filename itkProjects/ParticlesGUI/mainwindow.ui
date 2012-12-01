@@ -137,6 +137,7 @@
     <addaction name="separator"/>
     <addaction name="actionShowParticles"/>
     <addaction name="menuParticle_Colors"/>
+    <addaction name="actionUseODESolver"/>
    </widget>
    <addaction name="menuImages"/>
    <addaction name="menu_Surface"/>
@@ -175,7 +176,7 @@
      <item>
       <widget class="QToolBox" name="toolBox">
        <property name="currentIndex">
-        <number>0</number>
+        <number>2</number>
        </property>
        <widget class="QWidget" name="imageSettings">
         <property name="geometry">
@@ -557,7 +558,7 @@
          <item row="3" column="2">
           <widget class="QSpinBox" name="numberOfPoints">
            <property name="minimum">
-            <number>10</number>
+            <number>1</number>
            </property>
            <property name="maximum">
             <number>3000</number>
@@ -864,6 +865,17 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="actionUseODESolver">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use ODE Solver</string>
    </property>
   </action>
  </widget>

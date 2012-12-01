@@ -27,7 +27,6 @@ class vtkPoints;
 
 class ImageParticlesAlgorithm: public itk::SingleValuedCostFunction {
 public:
-	typedef std::vector<OptimizerParametersType> ParametersList;
 	typedef ImageParticlesAlgorithm Self;
 	typedef itk::SingleValuedCostFunction Superclass;
 	typedef itk::SmartPointer<Self> Pointer;
@@ -103,7 +102,7 @@ public:
 	void ContinueOptimization();
     
     void ReportParameters(const OptimizerParametersType& params, int iterNo, double cost);
-    const OptimizerParametersType* GetTraceParameters(int idx);
+    const VNLVector* GetTraceParameters(int idx);
     int GetNumberOfTraces() { return m_Traces.size(); }
     void SetEventCallback(EventCallback* callback) { m_EventCallback = callback; }
 
@@ -119,6 +118,12 @@ public:
     void GetIndex(SliceInterpolatorType::ContinuousIndexType& idxOut, const OptimizerParametersType* params, int nsubj, int npoint) const;
     bool IsInsideBoundary(const OptimizerParametersType* params, int subj, int point) const;
     bool IsOutsideBoundary(const OptimizerParametersType* params, int subj, int point) const;
+
+    /**
+     * ODE-based particle solution
+     */
+    void RunODE();
+    void ContinueODE();
     
 protected:
 	ImageParticlesAlgorithm();
@@ -142,7 +147,7 @@ private:
     int m_ImageId;
     int m_ViewingDimension;
 
-	ParametersList m_InitialPoints;
+	VNLVectorArray m_InitialPoints;
     OptimizerParametersType m_CurrentParams;
     PropertyAccess m_Props;
 
@@ -153,7 +158,7 @@ private:
     EventCallback* m_EventCallback;
 
     // ui related field
-    ParametersList m_Traces;
+    VNLVectorArray m_Traces;
 
     ImageList m_KappaMaps;
     InterpolatorList m_KappaMapInterpolators;

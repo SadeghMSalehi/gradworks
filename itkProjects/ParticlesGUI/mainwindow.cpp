@@ -134,22 +134,29 @@ void MainWindow::selectLabel(int idx) {
 }
 
 void MainWindow::LoadImage(QString fileName) {
-    ImageContainer::Pointer image;
+    ImageContainer::Pointer image(NULL);
     for (int i = 0; i < (int) m_ImageList.size(); i++) {
         if (!m_ImageList[i]->HasImage()) {
             image = m_ImageList[i];
         }
     }
+    cout << "Loading 1: " << fileName.toStdString() << endl;
     if (image.IsNull()) {
+        cout << "Image is null" << endl;
         image = ImageContainer::New();
+        cout << "ImageContainer::New()" << endl;
         image->SetEventCallback(this);
+        cout << "SetEventCallback(this);" << endl;
         m_ImageList.push_back(image);
     }
+    cout << "Loading 2: " << fileName.toStdString() << endl;
     image->LoadImage(fileName.toUtf8().data());
+
     if (!image->HasLabel()) {
         ui.sliceIndex->setMaximum(image->GetSize()[0]);
         ui.sliceIndex->setValue(image->GetSliceIndex()[0]);
     }
+    cout << "Loading 3: " << fileName.toStdString() << endl;
     updateScene();
     ui.tabWidget->setCurrentWidget(ui.imageTab);
     ui.toolBox->setCurrentWidget(ui.imageSettings);
@@ -343,13 +350,13 @@ void MainWindow::updateScene() {
     // Particles rendering
     if (g_imageParticlesAlgo.IsNotNull() && ui.actionShowParticles->isChecked()) {
         if (g_imageParticlesAlgo->IsCurrentSliceAndView(dim, ui.sliceIndex->value())) {
-            const OptimizerParametersType* particles = NULL;
+            const VNLVector* particles = NULL;
             if (g_showTraceParticles) {
                 particles = g_imageParticlesAlgo->GetTraceParameters(g_AnimFrame);
             } else {
                 particles = &(g_imageParticlesAlgo->GetCurrentParams());
             }
-            if (particles != NULL && particles->GetSize() >= (image+1)*g_imageParticlesAlgo->GetNumberOfParams()) {
+            if (particles != NULL && particles->size() >= (image+1)*g_imageParticlesAlgo->GetNumberOfParams()) {
                 //            const int nSubj = g_imageParticlesAlgo->GetNumberOfSubjects();
                 const int nPoints = g_imageParticlesAlgo->GetNumberOfPoints();
                 const int nParams = g_imageParticlesAlgo->GetNumberOfParams();
@@ -366,8 +373,8 @@ void MainWindow::updateScene() {
                         }
                         VNLMatrix xyVector(m_ImageList.size(), nDims);
                         for (int n = 0; n < m_ImageList.size(); n++) {
-                            double x = particles->GetElement(n * nParams + nDims * i);
-                            double y = particles->GetElement(n * nParams + nDims * i + 1);
+                            double x = particles->get(n * nParams + nDims * i);
+                            double y = particles->get(n * nParams + nDims * i + 1);
                             xyVector[n][0] = x;
                             xyVector[n][1] = y;
                             
@@ -397,8 +404,8 @@ void MainWindow::updateScene() {
                     colorFunc->SetMaximumInputValue(nPoints);
                     
                     for (int i = 0; i < nPoints; i++) {
-                        double x = particles->GetElement(image * nParams + nDims * i);
-                        double y = particles->GetElement(image * nParams + nDims * i + 1);
+                        double x = particles->get(image * nParams + nDims * i);
+                        double y = particles->get(image * nParams + nDims * i + 1);
                         
                         QColor pointColor = Qt::black;
                         if (ui.actionParticleRed->isChecked()) {
@@ -465,7 +472,7 @@ void MainWindow::on_animationTimeout() {
 //                return;
 //            }
         if (g_AnimFrame < (int) g_imageParticlesAlgo->GetNumberOfTraces()) {
-            const OptimizerParametersType *param = g_imageParticlesAlgo->GetTraceParameters(g_AnimFrame);
+            const VNLVector *param = g_imageParticlesAlgo->GetTraceParameters(g_AnimFrame);
             int nPoints = poly->GetNumberOfPoints();
             int nOffset = imageIdx * (nPoints * 2);
             for (int i = 0; i < nPoints; i++) {
@@ -493,6 +500,7 @@ void MainWindow::on_actionRandomParticlesInit_triggered() {
 
 
 void MainWindow::on_actionRunImageParticles_triggered() {
+    // run optimization via itk-optimizers or ODE system
     ui.toolBox->setCurrentWidget(ui.optimizerSettings);
     ui.costPlot->graph()->clearData();
     if (IsImageAvailable(0)) {
@@ -500,6 +508,13 @@ void MainWindow::on_actionRunImageParticles_triggered() {
             ImageContainer::ClearDerivedViews();
             g_imageParticlesAlgo->SetImageList(&m_ImageList);
             g_imageParticlesAlgo->SetPropertyAccess(m_Props);
+        }
+    }
+
+    if (g_imageParticlesAlgo.IsNotNull()) {
+        if (ui.actionUseODESolver->isChecked()) {
+            g_imageParticlesAlgo->RunODE();
+        } else {
             g_imageParticlesAlgo->RunOptimization();
         }
     }
@@ -509,9 +524,14 @@ void MainWindow::on_actionRunImageParticles_triggered() {
 void MainWindow::on_actionContinue_triggered() {
     ui.toolBox->setCurrentWidget(ui.optimizerSettings);
     if (g_imageParticlesAlgo.IsNotNull()) {
-        g_imageParticlesAlgo->SetPropertyAccess(m_Props);
-        g_imageParticlesAlgo->ContinueOptimization();
-        updateScene();
+        if (ui.actionUseODESolver->isChecked()) {
+            g_imageParticlesAlgo->RunODE();
+            updateScene();
+        } else {
+            g_imageParticlesAlgo->SetPropertyAccess(m_Props);
+            g_imageParticlesAlgo->ContinueOptimization();
+            updateScene();
+        }
     }
 }
 
