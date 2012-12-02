@@ -120,7 +120,7 @@ void MainWindow::ReadyToExperiments() {
     LoadLabel("/data/Particles/Image001.nrrd");
     LoadImage("/data/Particles/Image002.nrrd");
     LoadLabel("/data/Particles/Image002.nrrd");
-    
+
     on_actionRandomParticlesInit_triggered();
     g_constraint.SetImageList(&m_ImageList);
 }
@@ -140,28 +140,28 @@ void MainWindow::LoadImage(QString fileName) {
             image = m_ImageList[i];
         }
     }
-    cout << "Loading 1: " << fileName.toStdString() << endl;
+//    cout << "Loading 1: " << fileName.toStdString() << endl;
     if (image.IsNull()) {
-        cout << "Image is null" << endl;
+//        cout << "Image is null" << endl;
         image = ImageContainer::New();
-        cout << "ImageContainer::New()" << endl;
+//        cout << "ImageContainer::New()" << endl;
         image->SetEventCallback(this);
-        cout << "SetEventCallback(this);" << endl;
+//        cout << "SetEventCallback(this);" << endl;
         m_ImageList.push_back(image);
     }
-    cout << "Loading 2: " << fileName.toStdString() << endl;
+//    cout << "Loading 2: " << fileName.toStdString() << endl;
     image->LoadImage(fileName.toUtf8().data());
 
     if (!image->HasLabel()) {
         ui.sliceIndex->setMaximum(image->GetSize()[0]);
         ui.sliceIndex->setValue(image->GetSliceIndex()[0]);
     }
-    cout << "Loading 3: " << fileName.toStdString() << endl;
+//    cout << "Loading 3: " << fileName.toStdString() << endl;
     updateScene();
     ui.tabWidget->setCurrentWidget(ui.imageTab);
     ui.toolBox->setCurrentWidget(ui.imageSettings);
     ui.grayImages->addItem(fileName);
-    g_imageParticlesAlgo = ImageParticlesAlgorithm::Pointer();
+    g_imageParticlesAlgo = ImageParticlesAlgorithm::Pointer(NULL);
 }
 
 /**
@@ -169,7 +169,7 @@ void MainWindow::LoadImage(QString fileName) {
  * Handles label selection combobox
  */
 void MainWindow::LoadLabel(QString fileName) {
-    ImageContainer::Pointer image;
+    ImageContainer::Pointer image(NULL);
     for (int i = 0; i < (int) m_ImageList.size(); i++) {
         if (!m_ImageList[i]->HasLabel()) {
             image = m_ImageList[i];
@@ -191,7 +191,7 @@ void MainWindow::LoadLabel(QString fileName) {
     ui.tabWidget->setCurrentWidget(ui.imageTab);
     ui.toolBox->setCurrentWidget(ui.imageSettings);
     ui.labelImages->addItem(fileName);
-    g_imageParticlesAlgo = ImageParticlesAlgorithm::Pointer();    
+    g_imageParticlesAlgo = ImageParticlesAlgorithm::Pointer(NULL);
 }
 
 void MainWindow::LoadSurface(QString fileName) {
@@ -514,6 +514,7 @@ void MainWindow::on_actionRunImageParticles_triggered() {
     if (g_imageParticlesAlgo.IsNotNull()) {
         if (ui.actionUseODESolver->isChecked()) {
             g_imageParticlesAlgo->RunODE();
+
         } else {
             g_imageParticlesAlgo->RunOptimization();
         }
@@ -569,7 +570,7 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
             m_scene.addLine(idx[0], idx[1], idx[0] + offset[0], idx[1] + offset[1], QPen(Qt::white));
         }
 
-        myImplicitSurfaceConstraint::GradientPixelType gx = g_constraint.GetGradient(GetCurrentImage(), idx2);
+        myImplicitSurfaceConstraint::GradientPixelType gx = g_constraint.GetGradient(GetCurrentImage(), idx);
         cout << "Gradient: " << gx << endl;
 
     }

@@ -9,6 +9,10 @@
 #include "myImplicitSurfaceConstraint.h"
 #include "itkUnaryFunctorImageFilter.h"
 #include "myImageContainer.h"
+#include "itkVectorMagnitudeImageFilter.h"
+
+
+typedef itk::VectorMagnitudeImageFilter<GradientImageType, SliceType> GradientMagnitudeFilterType;
 
 template <class TIn, class TOut>
 class InvertLabel {
@@ -72,6 +76,27 @@ void myImplicitSurfaceConstraint::SetImageList(ImageContainer::List* imageList) 
         gradient->SetSigma(.5);
         gradient->Update();
         m_GradientMaps.push_back(gradient->GetOutput());
+
+        GradientInterpolatorType::Pointer gradientInterpolator = GradientInterpolatorType::New();
+        gradientInterpolator->SetInputImage(gradient->GetOutput());
+        m_GradientInterpolators.push_back(gradientInterpolator);
+
+        GradientMagnitudeFilterType::Pointer magnitudeFilter = GradientMagnitudeFilterType::New();
+        magnitudeFilter->SetInput(gradient->GetOutput());
+        magnitudeFilter->Update();
+
+        SliceToRGBAImageFilterType::Pointer rgbFilter = SliceToRGBAImageFilterType::New();
+        rgbFilter->SetInput(magnitudeFilter->GetOutput());
+        rgbFilter->SetUseInputImageExtremaForScaling(true);
+        rgbFilter->Update();
+        imageList->at(i)->AddDerivedView(imageList->at(i)->GetName() + "/gradientMagnitude", rgbFilter->GetOutput());
+
+        SliceToRGBAImageFilterType::Pointer rgbFilter2 = SliceToRGBAImageFilterType::New();
+        rgbFilter2->SetInput(m_DistanceMaps.at(i));
+        rgbFilter2->SetUseInputImageExtremaForScaling(true);
+        rgbFilter2->Update();
+        imageList->at(i)->AddDerivedView(imageList->at(i)->GetName() + "/distanceMap", rgbFilter2->GetOutput());
+
     }
 }
 
@@ -86,6 +111,13 @@ bool myImplicitSurfaceConstraint::IsInsideRegion(int subjId, SliceInterpolatorTy
     return false;
 }
 
+bool myImplicitSurfaceConstraint::IsInsideRegion(int subjId, SliceInterpolatorType::IndexType& idx) const {
+    if (subjId < m_DistanceMaps.size()) {
+        return m_DistanceMapInterpolators[subjId]->IsInsideBuffer(subjId);
+    }
+    return false;
+}
+
 myImplicitSurfaceConstraint::DistanceVectorImageType::PixelType myImplicitSurfaceConstraint::GetInsideOffset(int subjId, SliceType::IndexType& idx) const {
     return m_InsideDistanceVectorMaps[subjId]->GetPixel(idx);
 }
@@ -94,8 +126,9 @@ myImplicitSurfaceConstraint::DistanceVectorImageType::PixelType myImplicitSurfac
     return m_OutsideDistanceVectorMaps[subjId]->GetPixel(idx);
 }
 
-myImplicitSurfaceConstraint::GradientPixelType myImplicitSurfaceConstraint::GetGradient(int subjId, SliceType::IndexType& idx) const {
-    return m_GradientMaps[subjId]->GetPixel(idx);
+myImplicitSurfaceConstraint::GradientPixelType myImplicitSurfaceConstraint::GetGradient(int subjId, GradientInterpolatorType::ContinuousIndexType& idx) const {
+//    return m_GradientMaps[subjId]->GetPixel(idx);
+    return m_GradientInterpolators[subjId]->EvaluateAtContinuousIndex(idx);
 }
 
 void myImplicitSurfaceConstraint::ApplyConstraint(OptimizerParametersType& params) const {

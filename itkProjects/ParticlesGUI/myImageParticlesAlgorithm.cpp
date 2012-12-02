@@ -228,8 +228,8 @@ double ImageParticlesAlgorithm::computePhantomEntropy(const ParametersType& p, i
 
 void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                                                     MeasureType & value, DerivativeType & derivative) const {
-    const bool useDomainConstraint = false;
-    const bool useKappa = useDomainConstraint && true;
+    const bool useDomainConstraint = true;
+    const bool useKappa = useDomainConstraint && false;
 
     // cout << "# points: " << m_nPoints << "; # vars: " << m_nVars << "; # subjects: " << m_nSubjects << endl;
     value = 0;
@@ -299,7 +299,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
         int nBoundaryParticles = 0;
         
         //#pragma omp parallel for
-        bool applySurfaceEntropy = (n == 0);
+        bool applySurfaceEntropy = (n >= 0);
         if (applySurfaceEntropy) {
             for (int i = 0; i < m_nPoints; i++) {
                 for (int j = 0; j < m_nPoints; j++) {
@@ -322,7 +322,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
             }
         }
 
-        bool applyBoundaryConstraint = false;
+        bool applyBoundaryConstraint = true;
         if (applyBoundaryConstraint) {
             for (int i = 0; i < m_nPoints; i++) {
                 SliceType::IndexType idx1;
@@ -368,7 +368,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                             derivative[nOffset + i * 2 + k] += entropies[i][m_nPoints] * normalizedGradient[k];
                         }
                     } else if (boundaryDistance < -1) {
-                        myImplicitSurfaceConstraint::GradientPixelType grad = m_Constraint.GetGradient(n, idx1);
+                        myImplicitSurfaceConstraint::GradientPixelType grad = m_Constraint.GetGradient(n, idx2);
                         VectorType gradVector(grad.GetDataPointer(), m_Dim);
                         VectorType forceVector(&derivative[nOffset + i * 2], m_Dim);
                         double gf = dot_product(gradVector, forceVector);
@@ -483,21 +483,25 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
         }
     }
 
-    std::random_shuffle(indexes.begin(), indexes.end());
+    if (indexes.size() > 0) {
+        std::random_shuffle(indexes.begin(), indexes.end());
 
-    // random pick up
-    OptimizerParametersType initial;
-    initial.SetSize(m_nTotalParams);
-    std::random_shuffle(indexes.begin(), indexes.end());
-    for (int l = 0; l < m_ImageList->size(); l++) {
-        for (int i = 0; i < nPoints; i++) {
-            for (int j = 0; j < Dims; j++) {
-                initial[l*m_nParams+i*Dims+j] = indexes[i][j];
+        // debug: failed to load 3d volumes
+        cout << "Common voxels: " << indexes.size();
+
+        // random pick up
+        OptimizerParametersType initial;
+        initial.SetSize(m_nTotalParams);
+        std::random_shuffle(indexes.begin(), indexes.end());
+        for (int l = 0; l < m_ImageList->size(); l++) {
+            for (int i = 0; i < nPoints; i++) {
+                for (int j = 0; j < Dims; j++) {
+                    initial[l*m_nParams+i*Dims+j] = indexes[i][j];
+                }
             }
         }
+        m_CurrentParams = initial;
     }
-
-    m_CurrentParams = initial;
 }
 
 
@@ -596,7 +600,7 @@ void ImageParticlesAlgorithm::SetImageList(ImageContainer::List *list) {
         image->AddDerivedView(image->GetName() + "/kappaMap", ImageContainer::CreateBitmap(kappaMap));
 
         // adding attribute map
-        InterpolatorType::Pointer kappaInterpolator = InterpolatorType::New();
+        SliceInterpolatorType::Pointer kappaInterpolator = SliceInterpolatorType::New();
         kappaInterpolator->SetInputImage(kappaMap);
         m_KappaMapInterpolators.push_back(kappaInterpolator);
         m_KappaMaps.push_back(kappaMap);
@@ -657,9 +661,12 @@ void ImageParticlesAlgorithm::ContinueOptimization() {
 
 void ImageParticlesAlgorithm::RunODE() {
     ParticleSystem system(m_nSubjects, m_nPoints);
+    system.SetContext(this);
     system.SetHistoryVector(&m_Traces);
+    system.SetCostHistoryVector(&m_CostTraces);
     system.SetConstraint(&m_Constraint);
     system.SetPositions(&m_CurrentParams);
+    system.SetEventCallback(m_EventCallback);
     system.Integrate();
     system.GetPositions(&m_CurrentParams);
 }

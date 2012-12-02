@@ -51,5 +51,3 @@ bool vnl_has_nan(const VNLVector& params) {
     }
     return false;
 }
-
-

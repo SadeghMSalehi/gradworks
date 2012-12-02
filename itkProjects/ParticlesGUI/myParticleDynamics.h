@@ -13,6 +13,9 @@
 #include "vnlCommon.h"
 #include "itkOptimizerCommon.h"
 #include "myImplicitSurfaceConstraint.h"
+#include "myEventCallback.h"
+
+class ImageParticlesAlgorithm;
 
 class ParticleSystem {
     friend class ParticleSystemObserver;
@@ -25,6 +28,9 @@ public:
     void GetPositions(OptimizerParametersType* params);
     void SetConstraint(myImplicitSurfaceConstraint* constraint);
     void SetHistoryVector(VNLVectorArray* systemHistory);
+    void SetCostHistoryVector(STDDoubleArray* costHistory);
+    void SetEventCallback(EventCallback* callback);
+    void SetContext(ImageParticlesAlgorithm* ctx);
 
     void Integrate();
 
@@ -33,20 +39,31 @@ public:
 
     // functor for observer
     // moved to observer
-    // void operator()(const VNLVector &x, const double t);
+    void operator()(const VNLVector &x, const double t);
 
 private:
-    ParticleSystem() : m_nDim(0), m_nSubject(0), m_nParticles(0), m_nParams(0) {};
+    ParticleSystem() : m_nDim(0), m_nSubjects(0), m_nParticles(0), m_nParams(0) {};
 
+    // estimate rigid transformation
+    void EstimateRigidTransform(VNLMatrixRef& gPos, VNLMatrixArray& transforms, VNLMatrixArray& jacobians);
+
+    void ApplyMatrixOperation(const double* posIn, const VNLMatrix& matrix, double* posOut);
     
+    // apply global transform
     // compute forces between particles
-    void UpdateForce(VNLMatrixRef& pos, VNLMatrixRef& vel, VNLMatrix& force);
+    void UpdateSurfaceForce(VNLMatrixRef& pos, VNLMatrixRef& vel, VNLMatrix& force);
+
+    // test code for gravity physics
+    void UpdateGravityForce(VNLMatrixRef& pos, VNLMatrixRef& vel, VNLMatrix& force);
+
+    // apply ensemble constraint
+    void UpdateEnsembleForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, VNLMatrix& gForce);
 
     // apply constraint on implicit boundaries
-    void UpdateConstraint(const VNLVector &x, VNLMatrixRef& dpdt, VNLMatrixRef& dvdt, VNLMatrix& gForce);
+    void ApplyBoundaryConditions(const VNLVector &x, const VNLMatrix& gForce, VNLMatrixRef& dpdt, VNLMatrixRef& dvdt);
 
     const int m_nDim;
-    const int m_nSubject;
+    const int m_nSubjects;
     const int m_nParticles;
     const int m_nParams;
     
@@ -60,18 +77,12 @@ private:
 
     VNLVector m_Status;
     VNLMatrix m_Force;
+    EventCallback* m_Callback;
 
-    VNLVectorArray* m_StatusHistory;
+    ImageParticlesAlgorithm* m_Context;
     myImplicitSurfaceConstraint* m_Constraint;
-};
-
-class ParticleSystemObserver {
-public:
-    ParticleSystemObserver(ParticleSystem* system) : m_System(system) {
-    }
-    void operator()(const VNLVector &x, const double t);
-private:
-    ParticleSystem* m_System;
+    VNLVectorArray* m_StatusHistory;
+    STDDoubleArray* m_CostHistory;
 };
 
 

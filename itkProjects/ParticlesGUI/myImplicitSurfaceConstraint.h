@@ -19,6 +19,8 @@
 #include "itkGradientImageFilter.h"
 #include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkCovariantVector.h"
+#include "itkVectorLinearInterpolateImageFunction.h"
+
 
 class myImplicitSurfaceConstraint {
 public:
@@ -32,14 +34,17 @@ public:
     typedef itk::Image<GradientVectorType,2> GradientImageType;
     typedef itk::GradientRecursiveGaussianImageFilter<LabelSliceType, GradientImageType> GradientFilterType;
     typedef GradientFilterType::OutputPixelType GradientPixelType;
+    typedef itk::VectorLinearInterpolateImageFunction<GradientImageType> GradientInterpolatorType;
+    typedef DistanceVectorImageType::PixelType OffsetType;
 
     void SetImageList(ImageContainer::List* imageList);
 
     bool IsInsideRegion(int subjId, SliceInterpolatorType::ContinuousIndexType& idx) const;
+    bool IsInsideRegion(int subjId, SliceInterpolatorType::IndexType& idx) const;
     double GetDistance(int subjId, SliceInterpolatorType::ContinuousIndexType& idx) const;
     DistanceVectorImageType::PixelType GetInsideOffset(int subjId, SliceType::IndexType& idx) const;
     DistanceVectorImageType::PixelType GetOutsideOffset(int subjId, SliceType::IndexType& idx) const;
-    GradientPixelType GetGradient(int subjId, SliceType::IndexType& idx) const;
+    GradientPixelType GetGradient(int subjId, GradientInterpolatorType::ContinuousIndexType& idx) const;
 
     void ApplyConstraint(OptimizerParametersType& params) const;
 
@@ -52,5 +57,6 @@ private:
     std::vector<DistanceVectorImageType::Pointer> m_InsideDistanceVectorMaps;
     std::vector<DistanceVectorImageType::Pointer> m_OutsideDistanceVectorMaps;
     std::vector<GradientFilterType::OutputImagePointer> m_GradientMaps;
+    std::vector<GradientInterpolatorType::Pointer> m_GradientInterpolators;
 };
 #endif /* defined(__ParticlesGUI__myImplicitSurfaceConstraint__) */

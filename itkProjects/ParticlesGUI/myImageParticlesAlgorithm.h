@@ -42,10 +42,9 @@ public:
 
     typedef itk::CovariantVector<double,2> GradientType;
     typedef itk::Image<GradientType,2> GradientImageType;
-	typedef itk::LinearInterpolateImageFunction<SliceType,float> InterpolatorType;
-	typedef InterpolatorType::ContinuousIndexType ContinuousIndexType;
+
 	typedef std::vector<SliceType::Pointer> ImageList;
-	typedef std::vector<InterpolatorType::Pointer> InterpolatorList;
+	typedef std::vector<SliceInterpolatorType::Pointer> InterpolatorList;
     
 
     
@@ -124,6 +123,10 @@ public:
      */
     void RunODE();
     void ContinueODE();
+
+    InterpolatorList* GetAttributeInterpolators() {
+        return &m_KappaMapInterpolators;
+    }
     
 protected:
 	ImageParticlesAlgorithm();
@@ -159,6 +162,7 @@ private:
 
     // ui related field
     VNLVectorArray m_Traces;
+    STDDoubleArray m_CostTraces;
 
     ImageList m_KappaMaps;
     InterpolatorList m_KappaMapInterpolators;

@@ -10,6 +10,10 @@
 #define laplacePDE_itkScalarToARGBColormapImageFilter_h
 
 #include "itkARGBColorFunction.h"
+#include "itkImageToImageFilter.h"
+#include "itkImageRegionIterator.h"
+#include "itkImageRegionConstIterator.h"
+#include "itkProgressReporter.h"
 
 namespace itk {
     template< class TInputImage, class TOutputImage >

@@ -13,6 +13,7 @@
 #include "itkImage.h"
 #include "itkImageRegionIteratorWithIndex.h"
 #include "itkLinearInterpolateImageFunction.h"
+#include "itkScalarToARGBColormapImageFilter.h"
 #include "itkRGBAPixel.h"
 #include "vector"
 #include "map"
@@ -40,7 +41,7 @@ typedef itk::FixedArray<int,VDim> IntTupleType;
 typedef itk::CovariantVector<double,2> GradientType;
 typedef itk::Image<GradientType,2> GradientImageType;
 typedef SliceInterpolatorType::ContinuousIndexType ContinuousIndexType;
-
+typedef itk::ScalarToARGBColormapImageFilter<SliceType, RGBAImageType> SliceToRGBAImageFilterType;
 
 class ImageContainer: public itk::LightObject {
 public:
