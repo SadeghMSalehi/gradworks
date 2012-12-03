@@ -1,32 +1,70 @@
 #include <iostream>
-#include "itkImageCommon.h"
+#include "itkImageIOBase.h"
+#include "itkImage.h"
+
+#include "itkImageIO.h"
 
 typedef itk::Image<int, 3> IntImage;
-typedef itk::Image<float, 3> FloatImage;
 
 using namespace std;
 using namespace itkcmds;
 using namespace itk;
 
-int main(int argc, char* argv[]) {
-	cout << "itkinfo version 0.1" << endl;
-	if (argc < 1) {
-		cout << "usage: itkinfo filename" << endl;
-		return 0;
-	}
 
-	itkImageIO<FloatImage> imageFloatIO;
-	itkImageIO<IntImage> imageIntIO;
+#define forD(v) for (int v = 0; v < numDimensions; v++)
+static void printImageInformation(ImageIOBase::Pointer imageBase) {
+    cout << imageBase->GetNumberOfComponents() << "\t";
+    int numDimensions = imageBase->GetNumberOfDimensions();
+    cout << numDimensions << "\t";
+    forD(i) {
+        cout << imageBase->GetOrigin(i) << " ";
+    }
+    cout << "\t";
+    forD(i) {
+        cout << imageBase->GetSpacing(i) << " ";
+    }
+    cout << "\t";
+    cout << imageBase->GetPixelTypeAsString(imageBase->GetPixelType());
+    cout << "\t";
+    cout << imageBase->GetComponentTypeAsString(imageBase->GetComponentType());
+    // cout << "[" << imageBase->GetComponentType() << "]";
+    cout << "\t";
+    forD(i) {
+        if (i > 0) {
+            cout << ";";
+        }
+        forD(j) {
+            if (j > 0) {
+                cout << " ";
+            }
+            cout << imageBase->GetDirection(i)[j];
+        }
+    }
+    cout << "\t";
+    forD(i) {
+        if (i > 0) {
+            cout << " ";
+        }
+        cout << imageBase->GetDimensions(i);
+    }
+    cout << "\t";
+    forD(i) {
+        if (i > 0) {
+            cout << " ";
+        }
+        cout << (imageBase->GetDimensions(i)*imageBase->GetSpacing(i));
+    }
+    cout << "\n";
+    return;
+}
 
-	FloatImage::Pointer img = imageFloatIO.ReadImageT(argv[1]);
-	if (img.IsNull()) {
-		cout << "Failed in loading [" << argv[1] << "]" << endl;
-	} else {
-		cout << "Printing Image Information" << endl;
-		img->Print(cout);
-		cout << endl;
-	}
-
-
+int mainImageInfo(int argc, const char* argv[]) {
+    cout << "FileName\t#components\t#dimensions\torigin\tspacing\tpixel\tcomponent\tdirection\tsize\tFOV" << endl;
+    for (int i = 1; i < argc; i++) {
+        itkImageIO<IntImage> io;
+        ImageIOBase::Pointer imageBase = io.ReadImageInfo(argv[i]);
+        cout << argv[i] << "\t";
+        printImageInformation(imageBase);
+    }
 	return 0;
 }

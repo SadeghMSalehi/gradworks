@@ -5,10 +5,10 @@
 #include "QFont"
 #include "QPainterPath"
 
-ImageViewer::ImageViewer(QWidget *parent) :
-		QWidget(parent) {
+ImageViewer::ImageViewer(QWidget *parent) : QWidget(parent) {
 	_draw = false;
 	ui.setupUi(this);
+    _core = NULL;
 }
 
 ImageViewer::~ImageViewer() {
@@ -20,10 +20,12 @@ void ImageViewer::toggleDraw(void) {
 	update();
 }
 
-void ImageViewer::paintEvent(QPaintEvent* event) {
-	if (!_draw) {
-		return;
-	}
+void ImageViewer::drawSlice(QPaintEvent* event) {
+
+    
+}
+
+void ImageViewer::drawSample(QPaintEvent* event) {
 	QPainter painter(this);
 
 	painter.setRenderHint(QPainter::Antialiasing);
@@ -42,7 +44,7 @@ void ImageViewer::paintEvent(QPaintEvent* event) {
 
 	QPolygon polygon;
 	polygon << QPoint(130, 140) << QPoint(180, 170) << QPoint(180, 140)
-			<< QPoint(220, 110) << QPoint(140, 100);
+    << QPoint(220, 110) << QPoint(140, 100);
 	painter.drawPolygon(polygon);
 
 	painter.drawRect(250, 110, 60, 60);
@@ -55,4 +57,17 @@ void ImageViewer::paintEvent(QPaintEvent* event) {
 
 	painter.drawEllipse(140, 200, 60, 60);
 	painter.drawEllipse(240, 200, 90, 60);
+}
+
+
+void ImageViewer::paintEvent(QPaintEvent* event) {
+	if (!_draw) {
+		return;
+	}
+
+    if (_core == NULL) {
+        drawSample(event);
+    } else {
+        drawSlice(event);
+    }
 }

@@ -57,6 +57,9 @@ public:
 			_V[i] = v[i];
 		}
 	}
+    DVec(DVec<T,N> const &o) : length(N) {
+        o.copyInto(this);
+    }
 	DVec(DVec<T, N>* v) : length(N) {
 		copyFrom(v->_V);
 	}
@@ -164,6 +167,13 @@ public:
 	inline T z() const {
 		return _V[2];
 	}
+    DVec<T,N>& operator=(const DVec<T,N>& a) {
+        if (this == &a) {
+            return (*this);
+        }
+        copyFrom(a);
+        return (*this);
+    }
 	DVec<T, N> operator+(const DVec<T, N>& a) const {
 		DVec<T, N> o;
 		for (int i = 0; i < N; i++) {
@@ -398,9 +408,9 @@ public:
 			_V[i] = o._V[i];
 		}
 	}
-	inline void copyTo(const DVec<T, N>& o) {
+	inline void copyInto(DVec<T, N>* o) const {
 		for (int i = 0; i < N; i++) {
-			o._V[i] = _V[i];
+			o->_V[i] = _V[i];
 		}
 	}
 	inline void copyFrom(T* x) {
@@ -457,6 +467,9 @@ static const float _eps = 1e-6f;
 template<typename T, int N>
 class SquareMatrixR {
 public:
+    typedef DVec<T,N> VectorType;
+    typedef SquareMatrixR<T,N> MatrixType;
+
 	T _d[N * N];
 	T* _r[N];
 
@@ -615,6 +628,11 @@ public:
 			_r[i][i] = 1;
 		}
 	}
+    void negate() {
+        for (int i = 0; i < N * N; i++) {
+            _d[i] = -_d[i];
+        }
+    }
 	SquareMatrixR<T, N>& transpose() {
 		for (int j = 0; j < N; j++) {
 			for (int i = 0; i < N; i++) {
@@ -752,6 +770,37 @@ public:
 		}
 		return c;
 	}
+
+    void computeRotationMatrix(VectorType b, VectorType& a) {
+        double alpha = acos(a.dot(b));
+        computeRotationMatrix(b, a, alpha);
+    }
+    
+    void computeRotationMatrix(VectorType b, VectorType& a, double alpha) {
+        this->identity();
+        VectorType nb = b.normal();
+        double ab = nb.dot(a);
+        if (abs(ab - 1) < 1e-15) {
+            this->identity();
+            return;
+        }
+        if (abs(ab + 1) < 1e-15) {
+            this->identity();
+            this->negate();
+            return;
+        }
+        VectorType c;
+        for (int i = 0; i < N; i++) {
+            c[i] = b[i] - ab * a[i];
+        }
+
+        VectorType nc = c.normal();
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                _r[j][i] = _r[j][i] + sin(alpha)*(a[j]*nc[i] - nc[j]*a[i]) + (cos(alpha) - 1) * (a[j]*a[i] + c[j]*c[i]); //
+            }
+        }
+    }
 
 	friend ostream& operator<<(ostream& os, SquareMatrixR<T, N> &m) {
 		os << "[";

@@ -5,37 +5,33 @@ if(COMMAND cmake_policy)
 cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
-FIND_PACKAGE(ITK REQUIRED)
+FIND_PACKAGE(ITK 4 REQUIRED)
 INCLUDE(${USE_ITK_FILE})
 
 FIND_PACKAGE(VTK REQUIRED)
 INCLUDE(${USE_VTK_FILE})
 
-set(Boost_USE_STATIC_LIBS   ON)
-set(Boost_USE_MULTITHREADED ON)
-FIND_PACKAGE( Boost COMPONENTS program_options)
+#set(Boost_USE_STATIC_LIBS   ON)
+#set(Boost_USE_MULTITHREADED ON)
+#FIND_PACKAGE( Boost COMPONENTS program_options)
 
 FIND_PACKAGE(GenerateCLP REQUIRED)
 INCLUDE(${GenerateCLP_USE_FILE})
 
-SET(ITK_LIBRARIES ${ITK_LIBRARIES})
-
-SET(MATLAB_ROOT /opt/matlab2010a CACHE PATH "root directory where matlab is installed")
-
-OPTION(BUILD_MATAPPS "Build Matlab related applications")
-IF (BUILD_MATAPPS)
-	INCLUDE_DIRECTORIES(${MATLAB_ROOT}/extern/include)
-	LINK_DIRECTORIES(${MATLAB_ROOT}/bin/glnxa64)
-	SET(MATLAB_LIBS mx mat)
-ENDIF (BUILD_MATAPPS)
-
-
-IF (BUILD_MATAPPS)
-	ADD_EXECUTABLE(vtk2mat vtk2mat.cxx)
-	TARGET_LINK_LIBRARIES(vtk2mat ${MATLAB_LIBS} vtkIO)
-ENDIF(BUILD_MATAPPS)
-
+#SET(MATLAB_ROOT /opt/matlab2010a CACHE PATH "root directory where matlab is installed")
+#
+#OPTION(BUILD_MATAPPS "Build Matlab related applications")
+#IF (BUILD_MATAPPS)
+#	INCLUDE_DIRECTORIES(${MATLAB_ROOT}/extern/include)
+#	LINK_DIRECTORIES(${MATLAB_ROOT}/bin/glnxa64)
+#	SET(MATLAB_LIBS mx mat)
+#ENDIF (BUILD_MATAPPS)
+#IF (BUILD_MATAPPS)
+#	ADD_EXECUTABLE(vtk2mat vtk2mat.cxx)
+#	TARGET_LINK_LIBRARIES(vtk2mat ${MATLAB_LIBS} vtkIO)
+#ENDIF(BUILD_MATAPPS)
 #ADD_LIBRARY(sparse STATIC /tools/sparse/lib)
+
 ADD_EXECUTABLE(itkRandomWalk itkRandomWalker2.cxx)
 TARGET_LINK_LIBRARIES(itkRandomWalk ${ITK_LIBRARIES})
 
@@ -73,17 +69,17 @@ TARGET_LINK_LIBRARIES(itkSphereMeanSmoothing ${ITK_LIBRARIES} vtkCommon vtkFilte
 #ADD_EXECUTABLE(PixelMath PixelMath.cxx)
 #TARGET_LINK_LIBRARIES(PixelMath ${ITK_LIBRARIES} ${Boost_LIBRARIES} ${MathPresso_LIBRARIES}) 
 
-INCLUDE_DIRECTORIES(/biomed-resimg/work/joohwi/External/muparser_v2_2_0/include)
-LINK_DIRECTORIES(/biomed-resimg/work/joohwi/External/muparser_v2_2_0/lib)
-SET(muParser_LIBRARIES libmuparser.a)
-ADD_EXECUTABLE(PixelMath PixelMath.cxx PixelMathImageFilter.h)
-TARGET_LINK_LIBRARIES(PixelMath ${ITK_LIBRARIES} ${Boost_LIBRARIES} ${muParser_LIBRARIES}) 
+#INCLUDE_DIRECTORIES(/biomed-resimg/work/joohwi/External/muparser_v2_2_0/include)
+#LINK_DIRECTORIES(/biomed-resimg/work/joohwi/External/muparser_v2_2_0/lib)
+#SET(muParser_LIBRARIES libmuparser.a)
+#ADD_EXECUTABLE(PixelMath PixelMath.cxx PixelMathImageFilter.h)
+#TARGET_LINK_LIBRARIES(PixelMath ${ITK_LIBRARIES} ${Boost_LIBRARIES} ${muParser_LIBRARIES}) 
 
-ADD_EXECUTABLE(itkImageInfo itkImageInfo.cxx)
-TARGET_LINK_LIBRARIES(itkImageInfo ${ITK_LIBRARIES} ${Boost_LIBRARIES}) 
+#ADD_EXECUTABLE(itkImageInfo itkImageInfo.cxx)
+#TARGET_LINK_LIBRARIES(itkImageInfo ${ITK_LIBRARIES} ${Boost_LIBRARIES}) 
 
-ADD_EXECUTABLE(itkRigidTransform itkRigidTransform.cxx)
-TARGET_LINK_LIBRARIES(itkRigidTransform ${ITK_LIBRARIES} ${Boost_LIBRARIES}) 
+#ADD_EXECUTABLE(itkRigidTransform itkRigidTransform.cxx)
+#TARGET_LINK_LIBRARIES(itkRigidTransform ${ITK_LIBRARIES} ${Boost_LIBRARIES}) 
 
 ADD_EXECUTABLE(itkImageCompress itkImageCompress.cxx)
 TARGET_LINK_LIBRARIES(itkImageCompress ${ITK_LIBRARIES}) 
@@ -106,16 +102,16 @@ TARGET_LINK_LIBRARIES(itkKmeansFilter ${ITK_LIBRARIES})
 ADD_EXECUTABLE(itkEdgePreprocessing itkEdgePreprocessing.cxx EdgePreprocessingSettings.cxx)
 TARGET_LINK_LIBRARIES(itkEdgePreprocessing ${ITK_LIBRARIES})
 
-SET(dtiCaseMeasure_SRC dtiCaseMeasure.cxx)
-GENERATECLP(dtiCaseMeasure_SRC dtiCaseMeasure.xml)
-ADD_EXECUTABLE(dtiCaseMeasure ${dtiCaseMeasure_SRC})
-TARGET_LINK_LIBRARIES(dtiCaseMeasure ${ITK_LIBRARIES} ${Boost_LIBRARIES}) 
+#SET(dtiCaseMeasure_SRC dtiCaseMeasure.cxx)
+#GENERATECLP(dtiCaseMeasure_SRC dtiCaseMeasure.xml)
+#ADD_EXECUTABLE(dtiCaseMeasure ${dtiCaseMeasure_SRC})
+#TARGET_LINK_LIBRARIES(dtiCaseMeasure ${ITK_LIBRARIES} ${Boost_LIBRARIES}) 
 
 ADD_EXECUTABLE(itkTextToImage itkTextToImage.cxx itkImageCommon.h)
 TARGET_LINK_LIBRARIES(itkTextToImage ${ITK_LIBRARIES}) 
 
-ADD_EXECUTABLE(itkImageToVTI itkImageToVTI.cxx itkImageCommon.h)
-TARGET_LINK_LIBRARIES(itkImageToVTI ${ITK_LIBRARIES} vtkCommon vtkFiltering vtkIO ${Boost_LIBRARIES}) 
+#ADD_EXECUTABLE(itkImageToVTI itkImageToVTI.cxx itkImageCommon.h)
+#TARGET_LINK_LIBRARIES(itkImageToVTI ${ITK_LIBRARIES} vtkCommon vtkFiltering vtkIO ${Boost_LIBRARIES}) 
 
 #ADD_EXECUTABLE(vtkImageToITK vtkImageToITK.cxx itkImageCommon.h)
 #TARGET_LINK_LIBRARIES(vtkImageToITK ${ITK_LIBRARIES} vtkCommon vtkFiltering vtkIO ${Boost_LIBRARIES}) 
@@ -150,8 +146,8 @@ TARGET_LINK_LIBRARIES(itkSphericalComponent ${ITK_LIBRARIES})
 ADD_EXECUTABLE(itkRotationSample itkRotationSample.cxx itkImageCommon.h)
 TARGET_LINK_LIBRARIES(itkRotationSample ${ITK_LIBRARIES}) 
 
-ADD_EXECUTABLE(rgseg MainSegmentationByRegionGrowing.cxx itkImageCommon.h itkRegionGrowingAlgorithm.h)
-TARGET_LINK_LIBRARIES(rgseg ${ITK_LIBRARIES} ${Boost_LIBRARIES}) 
+#ADD_EXECUTABLE(rgseg MainSegmentationByRegionGrowing.cxx itkImageCommon.h itkRegionGrowingAlgorithm.h)
+#TARGET_LINK_LIBRARIES(rgseg ${ITK_LIBRARIES} ${Boost_LIBRARIES}) 
 
 ADD_EXECUTABLE(inp inp.cxx itkImageCommon.h itkRegionGrowingAlgorithm.h)
 TARGET_LINK_LIBRARIES(inp ${ITK_LIBRARIES}) 
@@ -174,8 +170,8 @@ TARGET_LINK_LIBRARIES(itkRescaleFilter ${ITK_LIBRARIES})
 ADD_EXECUTABLE(itkAdaptiveHistogramEqualizer itkAdaptiveHistogramEqualizer.cxx)
 TARGET_LINK_LIBRARIES(itkAdaptiveHistogramEqualizer ${ITK_LIBRARIES})
 
-ADD_EXECUTABLE(itkVectorProbe itkVectorProbe.cxx)
-TARGET_LINK_LIBRARIES(itkVectorProbe ${ITK_LIBRARIES} ${Boost_LIBRARIES} vtkCommon vtkFiltering vtkIO)
+#ADD_EXECUTABLE(itkVectorProbe itkVectorProbe.cxx)
+#TARGET_LINK_LIBRARIES(itkVectorProbe ${ITK_LIBRARIES} ${Boost_LIBRARIES} vtkCommon vtkFiltering vtkIO)
 
 ADD_EXECUTABLE(itkVectorSeg itkVectorSeg.cxx)
 TARGET_LINK_LIBRARIES(itkVectorSeg ${ITK_LIBRARIES})
@@ -224,3 +220,15 @@ SET(itkSampleMesh_SRC itkSampleMesh.cxx vtkPolyDataToitkMesh.cxx vtkPolyDataConn
 GENERATECLP(itkSampleMesh_SRC itkSampleMesh.xml)
 ADD_EXECUTABLE(itkSampleMesh ${itkSampleMesh_SRC})
 TARGET_LINK_LIBRARIES(itkSampleMesh ${ITK_LIBRARIES} vtkIO vtkCommon vtkFiltering)
+
+ADD_EXECUTABLE(itkcmds itkcmds.cxx itkImageIO.h)
+TARGET_LINK_LIBRARIES(itkcmds ${ITK_LIBRARIES})
+
+ADD_EXECUTABLE(itkImageMatch itkImageMatch.cxx itkImageIO.h)
+TARGET_LINK_LIBRARIES(itkImageMatch ${ITK_LIBRARIES})
+
+ADD_EXECUTABLE(itkTransformToMatrix itkTransformToMatrix.cpp)
+TARGET_LINK_LIBRARIES(itkTransformToMatrix ${ITK_LIBRARIES})
+
+ADD_EXECUTABLE(itkLaplaceField itkLaplaceField.cpp)
+TARGET_LINK_LIBRARIES(itkLaplaceField ${ITK_LIBRARIES})

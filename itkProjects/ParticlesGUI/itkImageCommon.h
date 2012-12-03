@@ -1,4 +1,4 @@
-#ifndef __ITK_IMAGE_COMMON_H__
+    #ifndef __ITK_IMAGE_COMMON_H__
 #define __ITK_IMAGE_COMMON_H__
 
 #include "itkImage.h"

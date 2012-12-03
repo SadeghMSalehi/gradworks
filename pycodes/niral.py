@@ -12,6 +12,7 @@ import os, os.path
 import fnmatch 
 import json
 import logging
+import numpy as np
 
 logLevel = os.environ.get("LOGLEVEL","")
 if (logLevel == ""):
@@ -26,6 +27,11 @@ def yellow(t): return colorize(t, "\033[1m\033[33m")
 def blue(t): return colorize(t, "\033[1m\033[34m")
 def darkblue(t): return colorize(t, "\033[34m")
 def pur(t): return colorize(t, "\033[1m\033[35m")
+
+
+def colors(i):
+  colors = { 0: (0,68,153), 1: (238,238,0), 2: (0,204,0), 3: (221,0,0), 4: (238,238,187), 5: (85,136,0), 6: (255,187,0), 7: (0,187,255) }
+  return colors[i]
 
 def findFilesByName(dir, fargs):
   "find all files under the dir with given name list"
@@ -172,4 +178,11 @@ def writeIntoFile(fname, contents):
 def getLogger():
 	logger = logging.getLogger('')
 	return logger
+
+def np2vtk(data):
+  vtkMat = vtkMatrix4x4()
+  for i in range(0,data.shape[0]):
+    for j in range(0,data.shape[1]):
+      vtkMat.SetElement(i, j, data[i,j])
+  return vtkMat
 

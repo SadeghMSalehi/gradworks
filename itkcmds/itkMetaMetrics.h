@@ -45,8 +45,22 @@ public:
     void AddMetric(typename MetricType::Pointer metric) {
         _metrics.push_back(metric);
         _metricParamterIndex.push_back(metric->GetNumberOfParameters());
+        metric->ComputeCenterOfRotation();
     }
 
+    typename MetricType::Pointer GetMetricPointer(int i) {
+        return _metrics[i];
+    }
+
+    ParametersType GetInitialParameters() {
+        int nParams = this->GetNumberOfParameters();
+        ParametersType initialParams;
+        initialParams.SetSize(nParams);
+
+        for (unsigned int i = 0; i < _metrics.size(); i++) {
+                
+        }
+    }
 
     /** Return the number of parameters required to compute
      *  this cost function.
@@ -102,11 +116,35 @@ public:
     /** This method returns the value and derivative of the cost function corresponding
      * to the specified parameters    */
     virtual void GetValueAndDerivative(const ParametersType & parameters,
-                                       MeasureType & value,
-                                       DerivativeType & derivative) const
+                                       MeasureType & valueOut,
+                                       DerivativeType & derivativeOut) const
     {
-        value = this->GetValue(parameters);
-        this->GetDerivative(parameters, derivative);
+        int nOffset = 0;
+        for (typename MetricArrayType::size_type i = 0; i < _metrics.size(); i++) {
+            int nParam = _metrics[i]->GetNumberOfParameters();
+            typename MetricType::ParametersType metricParam;
+            metricParam.SetSize(nParam);
+            for (int j = 0; j < nParam; j++) {
+                metricParam[j] = parameters[nOffset + j];
+            }
+            typename MetricType::DerivativeType deriv;
+            MeasureType metricValue;
+            DerivativeType metricDeriv;
+            _metrics[i]->GetValueAndDerivative(metricParam, metricValue, metricDeriv);
+            if (i == 0) {
+                valueOut = metricValue;
+                for (int j = 0; j < nParam; j++) {
+                    derivativeOut[nOffset + j] = metricDeriv[j];
+                }
+            } else {
+                valueOut += metricValue;
+                for (int j = 0; j < nParam; j++) {
+                    derivativeOut[nOffset + j] += metricDeriv[j];
+                }
+            }
+
+            nOffset += nParam;
+        }
     }
 
 
@@ -116,5 +154,7 @@ protected:
 private:
     MetaMetrics(const Self &); //purposely not implemented
     void operator=(const Self &);           //purposely not implemented
+
+    ParametersType _fixedParameters;
 };
 

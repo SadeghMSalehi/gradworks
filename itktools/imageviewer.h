@@ -5,6 +5,7 @@
 #include "QPaintEvent"
 
 #include "ui_imageviewer.h"
+#include "itkMyCore.h"
 
 class ImageViewer : public QWidget
 {
@@ -19,10 +20,12 @@ public slots:
 
 protected:
     void paintEvent(QPaintEvent* event);
-
+    void drawSample(QPaintEvent* event);
+    void drawSlice(QPaintEvent* event);
 private:
     Ui::ImageViewerClass ui;
     bool _draw;
+    itkMyCore* _core;
 };
 
 #endif // IMAGEVIEWER_H

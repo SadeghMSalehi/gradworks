@@ -25,275 +25,227 @@
 #include "itkImageIterator.h"
 #include "vnl/vnl_math.h"
 
-namespace itk
-{
-    /**
-     * Constructor
-     */
-    template <class TFixedImage, class TMovingImage>
-    MyMetric<TFixedImage, TMovingImage>
-    ::MyMetric()
-    {
-        this->SetComputeGradient(true);
+namespace itk {
+/**
+ * Constructor
+ */
+template<class TFixedImage, class TMovingImage>
+MyMetric<TFixedImage, TMovingImage>::MyMetric() {
+	this->SetComputeGradient(true);
 
-        m_PerThread = NULL;
-        this->m_WithinThreadPreProcess = false;
-        this->m_WithinThreadPostProcess = false;
+	m_PerThread = NULL;
+	this->m_WithinThreadPreProcess = false;
+	this->m_WithinThreadPostProcess = false;
 
-        //  For backward compatibility, the default behavior is to use all the pixels
-        //  in the fixed image.
-        //  This should be fixed in ITKv4 so that this metric behaves as the others.
-        this->SetUseAllPixels(true);
-    }
+	//  For backward compatibility, the default behavior is to use all the pixels
+	//  in the fixed image.
+	//  This should be fixed in ITKv4 so that this metric behaves as the others.
+	this->SetUseAllPixels(true);
+}
 
-    template <class TFixedImage, class TMovingImage>
-    MyMetric<TFixedImage, TMovingImage>
-    ::~MyMetric()
-    {
-        // C++ says if NULL is passed to delete, nothing should happend
-        delete[] m_PerThread;
-        m_PerThread = NULL;
-    }
+template<class TFixedImage, class TMovingImage>
+MyMetric<TFixedImage, TMovingImage>::~MyMetric() {
+	// C++ says if NULL is passed to delete, nothing should happend
+	delete[] m_PerThread;
+	m_PerThread = NULL;
+}
 
-    /**
-     * Print out internal information about this class
-     */
-    template <class TFixedImage, class TMovingImage>
-    void
-    MyMetric<TFixedImage, TMovingImage>
-    ::PrintSelf(std::ostream & os, Indent indent) const
-    {
-        Superclass::PrintSelf(os, indent);
-    }
+/**
+ * Print out internal information about this class
+ */
+template<class TFixedImage, class TMovingImage>
+void MyMetric<TFixedImage, TMovingImage>::PrintSelf(std::ostream & os,
+		Indent indent) const {
+	Superclass::PrintSelf(os, indent);
+}
 
-    /**
-     * Initialize
-     */
-    template <class TFixedImage, class TMovingImage>
-    void
-    MyMetric<TFixedImage, TMovingImage>
-    ::Initialize(void)
-    throw ( ExceptionObject )
-    {
-        this->Superclass::Initialize();
-        this->Superclass::MultiThreadingInitialize();
+/**
+ * Initialize
+ */
+template<class TFixedImage, class TMovingImage>
+void MyMetric<TFixedImage, TMovingImage>::Initialize(void)
+		throw (ExceptionObject) {
+	this->Superclass::Initialize();
+	this->Superclass::MultiThreadingInitialize();
 
-        delete[] m_PerThread;
+	delete[] m_PerThread;
 
-        m_PerThread = new AlignedPerThreadType[this->m_NumberOfThreads];
+	m_PerThread = new AlignedPerThreadType[this->m_NumberOfThreads];
 
-        for( ThreadIdType threadID = 0; threadID < this->m_NumberOfThreads; threadID++ )
-        {
-            m_PerThread[threadID].m_MSEDerivative.SetSize(this->m_NumberOfParameters);
-        }
-    }
+	for (ThreadIdType threadID = 0; threadID < this->m_NumberOfThreads;
+			threadID++) {
+		m_PerThread[threadID].m_MSEDerivative.SetSize(
+				this->m_NumberOfParameters);
+	}
+}
 
-    template <class TFixedImage, class TMovingImage>
-    inline bool
-    MyMetric<TFixedImage, TMovingImage>
-    ::GetValueThreadProcessSample(ThreadIdType threadID,
-                                  SizeValueType fixedImageSample,
-                                  const MovingImagePointType & itkNotUsed(mappedPoint),
-                                  double movingImageValue) const
-    {
-        double diff = movingImageValue - this->m_FixedImageSamples[fixedImageSample].value;
+template<class TFixedImage, class TMovingImage>
+inline bool MyMetric<TFixedImage, TMovingImage>::GetValueThreadProcessSample(
+		ThreadIdType threadID, SizeValueType fixedImageSample,
+		const MovingImagePointType & itkNotUsed(mappedPoint),
+		double movingImageValue) const {
+	double diff = movingImageValue
+			- this->m_FixedImageSamples[fixedImageSample].value;
 
-        m_PerThread[threadID].m_MSE += diff * diff;
+	m_PerThread[threadID].m_MSE += diff * diff;
 
-        return true;
-    }
+	return true;
+}
 
-    template <class TFixedImage, class TMovingImage>
-    typename MyMetric<TFixedImage, TMovingImage>::MeasureType
-    MyMetric<TFixedImage, TMovingImage>::GetValue(const ParametersType & parameters) const
-    {
-        itkDebugMacro("GetValue( " << parameters << " ) ");
+template<class TFixedImage, class TMovingImage>
+typename MyMetric<TFixedImage, TMovingImage>::MeasureType MyMetric<TFixedImage,
+		TMovingImage>::GetValue(const ParametersType & parameters) const {
+	itkDebugMacro("GetValue( " << parameters << " ) ");
 
-        if( !this->m_FixedImage )
-        {
-            itkExceptionMacro(<< "Fixed image has not been assigned");
-        }
+	if (!this->m_FixedImage) {
+		itkExceptionMacro(<< "Fixed image has not been assigned");
+	}
 
-        for( unsigned int i = 0; i < this->m_NumberOfThreads; ++i )
-        {
-            m_PerThread[i].m_MSE = NumericTraits<MeasureType>::ZeroValue();
-        }
+	for (unsigned int i = 0; i < this->m_NumberOfThreads; ++i) {
+		m_PerThread[i].m_MSE = NumericTraits<MeasureType>::ZeroValue();
+	}
 
-        // Set up the parameters in the transform
-        this->m_Transform->SetParameters(parameters);
+	// Set up the parameters in the transform
+	this->m_Transform->SetParameters(parameters);
 
-        // MUST BE CALLED TO INITIATE PROCESSING
-        this->GetValueMultiThreadedInitiate();
+	// MUST BE CALLED TO INITIATE PROCESSING
+	this->GetValueMultiThreadedInitiate();
 
-        itkDebugMacro("Ratio of voxels mapping into moving image buffer: "
-                      << this->m_NumberOfPixelsCounted << " / "
-                      << this->m_NumberOfFixedImageSamples
-                      << std::endl);
+	itkDebugMacro(
+			"Ratio of voxels mapping into moving image buffer: " << this->m_NumberOfPixelsCounted << " / " << this->m_NumberOfFixedImageSamples << " / " << parameters << std::endl);
 
-        if( this->m_NumberOfPixelsCounted <
-           this->m_NumberOfFixedImageSamples / 4 )
-        {
-            itkExceptionMacro("Too many samples map outside moving image buffer: "
-                              << this->m_NumberOfPixelsCounted << " / "
-                              << this->m_NumberOfFixedImageSamples
-                              << std::endl);
-        }
+	if (this->m_NumberOfPixelsCounted < this->m_NumberOfFixedImageSamples / 4) {
+		// cout << "Transform Parameters: " << this->m_Transform->GetParameters() << endl;
+		itkExceptionMacro("Too many samples map outside moving image buffer: " << this->m_NumberOfPixelsCounted << " / " << this->m_NumberOfFixedImageSamples << " / " << parameters << std::endl);
+	}
 
-        double mse = m_PerThread[0].m_MSE;
-        for( unsigned int t = 1; t < this->m_NumberOfThreads; t++ )
-        {
-            mse += m_PerThread[t].m_MSE;
-        }
-        mse /= this->m_NumberOfPixelsCounted;
+	double mse = m_PerThread[0].m_MSE;
+	for (unsigned int t = 1; t < this->m_NumberOfThreads; t++) {
+		mse += m_PerThread[t].m_MSE;
+	}
+	mse /= this->m_NumberOfPixelsCounted;
 
-        return mse;
-    }
+	return mse;
+}
 
-    template <class TFixedImage, class TMovingImage>
-    inline bool
-    MyMetric<TFixedImage, TMovingImage>
-    ::GetValueAndDerivativeThreadProcessSample(ThreadIdType threadID,
-                                               SizeValueType fixedImageSample,
-                                               const MovingImagePointType & itkNotUsed(mappedPoint),
-                                               double movingImageValue,
-                                               const ImageDerivativesType &
-                                               movingImageGradientValue) const
-    {
-        double diff = movingImageValue - this->m_FixedImageSamples[fixedImageSample].value;
+template<class TFixedImage, class TMovingImage>
+inline bool MyMetric<TFixedImage, TMovingImage>::GetValueAndDerivativeThreadProcessSample(
+		ThreadIdType threadID, SizeValueType fixedImageSample,
+		const MovingImagePointType & itkNotUsed(mappedPoint),
+		double movingImageValue,
+		const ImageDerivativesType & movingImageGradientValue) const {
+	double diff = movingImageValue
+			- this->m_FixedImageSamples[fixedImageSample].value;
 
-        AlignedPerThreadType &threadS =  m_PerThread[threadID];
+	AlignedPerThreadType &threadS = m_PerThread[threadID];
 
-        threadS.m_MSE += diff * diff;
+	threadS.m_MSE += diff * diff;
 
-        FixedImagePointType fixedImagePoint = this->m_FixedImageSamples[fixedImageSample].point;
+	FixedImagePointType fixedImagePoint =
+			this->m_FixedImageSamples[fixedImageSample].point;
 
-        // Need to use one of the threader transforms if we're
-        // not in thread 0.
-        //
-        // Use a raw pointer here to avoid the overhead of smart pointers.
-        // For instance, Register and UnRegister have mutex locks around
-        // the reference counts.
-        TransformType *transform;
+	// Need to use one of the threader transforms if we're
+	// not in thread 0.
+	//
+	// Use a raw pointer here to avoid the overhead of smart pointers.
+	// For instance, Register and UnRegister have mutex locks around
+	// the reference counts.
+	TransformType *transform;
 
-        if( threadID > 0 )
-        {
-            transform = this->m_ThreaderTransform[threadID - 1];
-        }
-        else
-        {
-            transform = this->m_Transform;
-        }
+	if (threadID > 0) {
+		transform = this->m_ThreaderTransform[threadID - 1];
+	} else {
+		transform = this->m_Transform;
+	}
 
-        // Jacobian should be evaluated at the unmapped (fixed image) point.
-        transform->ComputeJacobianWithRespectToParameters(fixedImagePoint,threadS.m_Jacobian);
-        for( unsigned int par = 0; par < this->m_NumberOfParameters; par++ )
-        {
-            double sum = 0.0;
-            for( unsigned int dim = 0; dim < MovingImageDimension; dim++ )
-            {
-                sum += 2.0 *diff *threadS.m_Jacobian(dim, par) * movingImageGradientValue[dim];
-            }
-            threadS.m_MSEDerivative[par] += sum;
-        }
+	// Jacobian should be evaluated at the unmapped (fixed image) point.
+	transform->ComputeJacobianWithRespectToParameters(fixedImagePoint, threadS.m_Jacobian);
+	for (unsigned int par = 0; par < this->m_NumberOfParameters; par++) {
+		double sum = 0.0;
+		for (unsigned int dim = 0; dim < MovingImageDimension; dim++) {
+			sum += 2.0 * diff * threadS.m_Jacobian(dim, par) * movingImageGradientValue[dim];
+		}
+		threadS.m_MSEDerivative[par] += sum;
+	}
 
-        return true;
-    }
+	return true;
+}
 
-    /**
-     * Get the both Value and Derivative Measure
-     */
-    template <class TFixedImage, class TMovingImage>
-    void
-    MyMetric<TFixedImage, TMovingImage>
-    ::GetValueAndDerivative(const ParametersType & parameters,
-                            MeasureType & value,
-                            DerivativeType & derivative) const
-    {
-        if( !this->m_FixedImage )
-        {
-            itkExceptionMacro(<< "Fixed image has not been assigned");
-        }
+/**
+ * Get the both Value and Derivative Measure
+ */
+template<class TFixedImage, class TMovingImage>
+void MyMetric<TFixedImage, TMovingImage>::GetValueAndDerivative(
+		const ParametersType & parameters, MeasureType & value,
+		DerivativeType & derivative) const {
+	if (!this->m_FixedImage) {
+		itkExceptionMacro(<< "Fixed image has not been assigned");
+	}
 
-        // Set up the parameters in the transform
-        this->m_Transform->SetParameters(parameters);
+	// Set up the parameters in the transform
+	this->m_Transform->SetParameters(parameters);
 
-        // Reset the joint pdfs to zero
-        for( unsigned int i = 0; i < this->m_NumberOfThreads; ++i )
-        {
-            m_PerThread[i].m_MSE = NumericTraits<MeasureType>::ZeroValue();
-        }
+	// Reset the joint pdfs to zero
+	for (unsigned int i = 0; i < this->m_NumberOfThreads; ++i) {
+		m_PerThread[i].m_MSE = NumericTraits<MeasureType>::ZeroValue();
+	}
 
-        // Set output values to zero
-        if( derivative.GetSize() != this->m_NumberOfParameters )
-        {
-            derivative = DerivativeType(this->m_NumberOfParameters);
-        }
-        memset( derivative.data_block(),
-               0,
-               this->m_NumberOfParameters * sizeof( double ) );
-        for( ThreadIdType threadID = 0; threadID < this->m_NumberOfThreads; threadID++ )
-        {
-            memset( m_PerThread[threadID].m_MSEDerivative.data_block(),
-                   0,
-                   this->m_NumberOfParameters * sizeof( double ) );
-        }
+	// Set output values to zero
+	if (derivative.GetSize() != this->m_NumberOfParameters) {
+		derivative = DerivativeType(this->m_NumberOfParameters);
+	}
+	memset(derivative.data_block(), 0,
+			this->m_NumberOfParameters * sizeof(double));
+	for (ThreadIdType threadID = 0; threadID < this->m_NumberOfThreads;
+			threadID++) {
+		memset(m_PerThread[threadID].m_MSEDerivative.data_block(), 0,
+				this->m_NumberOfParameters * sizeof(double));
+	}
 
+	// MUST BE CALLED TO INITIATE PROCESSING
+	this->GetValueAndDerivativeMultiThreadedInitiate();
 
-        // MUST BE CALLED TO INITIATE PROCESSING
-        this->GetValueAndDerivativeMultiThreadedInitiate();
+	itkDebugMacro(
+			"Ratio of voxels mapping into moving image buffer: " << this->m_NumberOfPixelsCounted << " / " << this->m_NumberOfFixedImageSamples << std::endl);
 
-        itkDebugMacro("Ratio of voxels mapping into moving image buffer: "
-                      << this->m_NumberOfPixelsCounted << " / "
-                      << this->m_NumberOfFixedImageSamples
-                      << std::endl);
+	if (this->m_NumberOfPixelsCounted < this->m_NumberOfFixedImageSamples / 4) {
+		cout << "Transform Parameters: " << this->m_Transform->GetParameters()
+				<< endl;
+		itkExceptionMacro(
+                          "Too many samples map outside moving image buffer: " << this->m_NumberOfPixelsCounted << " / " << this->m_NumberOfFixedImageSamples << std::endl << "Parameters: " << parameters << std::endl);
+	}
 
-        if( this->m_NumberOfPixelsCounted <
-           this->m_NumberOfFixedImageSamples / 4 )
-        {
-            itkExceptionMacro("Too many samples map outside moving image buffer: "
-                              << this->m_NumberOfPixelsCounted << " / "
-                              << this->m_NumberOfFixedImageSamples
-                              << std::endl);
-        }
+	value = 0;
+	for (unsigned int t = 0; t < this->m_NumberOfThreads; t++) {
+		value += m_PerThread[t].m_MSE;
+		for (unsigned int parameter = 0; parameter < this->m_NumberOfParameters;
+				parameter++) {
+			derivative[parameter] += m_PerThread[t].m_MSEDerivative[parameter];
+		}
+	}
 
-        value = 0;
-        for( unsigned int t = 0; t < this->m_NumberOfThreads; t++ )
-        {
-            value += m_PerThread[t].m_MSE;
-            for( unsigned int parameter = 0; parameter < this->m_NumberOfParameters;
-                parameter++ )
-            {
-                derivative[parameter] += m_PerThread[t].m_MSEDerivative[parameter];
-            }
-        }
+	value /= this->m_NumberOfPixelsCounted;
+	for (unsigned int parameter = 0; parameter < this->m_NumberOfParameters;
+			parameter++) {
+		derivative[parameter] /= this->m_NumberOfPixelsCounted;
+	}
+}
 
-        value /= this->m_NumberOfPixelsCounted;
-        for( unsigned int parameter = 0; parameter < this->m_NumberOfParameters;
-            parameter++ )
-        {
-            derivative[parameter] /= this->m_NumberOfPixelsCounted;
-        }
-    }
+/**
+ * Get the match measure derivative
+ */
+template<class TFixedImage, class TMovingImage>
+void MyMetric<TFixedImage, TMovingImage>::GetDerivative(
+		const ParametersType & parameters, DerivativeType & derivative) const {
+	if (!this->m_FixedImage) {
+		itkExceptionMacro(<< "Fixed image has not been assigned");
+	}
 
-    /**
-     * Get the match measure derivative
-     */
-    template <class TFixedImage, class TMovingImage>
-    void
-    MyMetric<TFixedImage, TMovingImage>
-    ::GetDerivative(const ParametersType & parameters,
-                    DerivativeType & derivative) const
-    {
-        if( !this->m_FixedImage )
-        {
-            itkExceptionMacro(<< "Fixed image has not been assigned");
-        }
-        
-        MeasureType value;
-        // call the combined version
-        this->GetValueAndDerivative(parameters, value, derivative);
-    }
-    
+	MeasureType value;
+	// call the combined version
+	this->GetValueAndDerivative(parameters, value, derivative);
+}
+
 } // end namespace itk
 
 #endif
