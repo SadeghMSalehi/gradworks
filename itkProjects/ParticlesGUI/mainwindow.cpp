@@ -49,7 +49,7 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this) {
 
 
     QObject::connect(&m_Timer, SIGNAL(timeout()), this, SLOT(on_animationTimeout()));
-    QObject::connect(ui.sliceIndex, SIGNAL(sliderMoved(int)), this, SLOT(updateScene()));
+    QObject::connect(ui.sliceIndex, SIGNAL(sliderMoved(int)), this, SLOT(chooseSlice()));
     QObject::connect(ui.showXY, SIGNAL(toggled(bool)), this, SLOT(chooseSlice()));
     QObject::connect(ui.showYZ, SIGNAL(toggled(bool)), this, SLOT(chooseSlice()));
     QObject::connect(ui.showZX, SIGNAL(toggled(bool)), this, SLOT(chooseSlice()));
@@ -111,15 +111,15 @@ void MainWindow::EventRaised(int eventId, int eventCode, const void* src, void* 
 }
 
 void MainWindow::ReadyToExperiments() {
-//    LoadImage("/data/Particles/00.T2.nrrd");
-//    LoadLabel("/data/Particles/00.Label.nrrd");
-//    LoadImage("/data/Particles/16.T2.nrrd");
-//    LoadLabel("/data/Particles/16.Label.nrrd");
+    LoadImage("/data/Particles/00.T2.half.nrrd");
+    LoadLabel("/data/Particles/00.Label.half.nrrd");
+    LoadImage("/data/Particles/16.T2.half.nrrd");
+    LoadLabel("/data/Particles/16.Label.half.nrrd");
 //    LoadSurface("/data/Particles/00.vtk");
-    LoadImage("/data/Particles/Image001.nrrd");
-    LoadLabel("/data/Particles/Image001.nrrd");
-    LoadImage("/data/Particles/Image002.nrrd");
-    LoadLabel("/data/Particles/Image002.nrrd");
+//    LoadImage("/data/Particles/Image001.nrrd");
+//    LoadLabel("/data/Particles/Image001.nrrd");
+//    LoadImage("/data/Particles/Image002.nrrd");
+//    LoadLabel("/data/Particles/Image002.nrrd");
 
     on_actionRandomParticlesInit_triggered();
     g_constraint.SetImageList(&m_ImageList);
@@ -154,7 +154,7 @@ void MainWindow::LoadImage(QString fileName) {
 
     if (!image->HasLabel()) {
         ui.sliceIndex->setMaximum(image->GetSize()[0]);
-        ui.sliceIndex->setValue(image->GetSliceIndex()[0]);
+        ui.sliceIndex->setValue(image->GetSliceIndex()[0] > 1 ? image->GetSliceIndex()[0] / 2 : 0);
     }
 //    cout << "Loading 3: " << fileName.toStdString() << endl;
     updateScene();
@@ -299,17 +299,19 @@ void MainWindow::chooseSlice() {
         m_ImageList[i]->SetSliceDir(sliceView);
     }
     updateScene();
+    // manage current view status
+    int dim = GetCurrentView();
+    int image = GetCurrentImage();
+    int labelIdx = ui.labelImages->currentIndex();
+    ImageContainer::SetCurrentView(dim);
+    ImageContainer::SetCurrentImage(image);
+    ImageContainer::SetCurrentLabel(labelIdx);
+    // g_constraint.SetImageList(&m_ImageList);
     g_imageParticlesAlgo = ImageParticlesAlgorithm::Pointer(NULL);
 }
 
 void MainWindow::updateScene() {
-    m_scene.clear();
-
-
-    QTransform viewTransform;
-    viewTransform.scale(m_Props.GetDouble("zoomRatio", 1), m_Props.GetDouble("zoomRatio", 1));
-    ui.graphicsView->setTransform(viewTransform);
-
+    // manage current view status
     int dim = GetCurrentView();
     int image = GetCurrentImage();
     int labelIdx = ui.labelImages->currentIndex();
@@ -318,14 +320,32 @@ void MainWindow::updateScene() {
     ImageContainer::SetCurrentImage(image);
     ImageContainer::SetCurrentLabel(labelIdx);
 
+    // remove previous drawings
+    m_scene.clear();
+    QTransform viewTransform;
+
+    // flip y-axis if viewing plane is XY or YZ
+    if (dim == 0 || dim == 1) {
+        viewTransform.scale(m_Props.GetDouble("zoomRatio", 1), -m_Props.GetDouble("zoomRatio", 1));
+
+    } else {
+        viewTransform.scale(m_Props.GetDouble("zoomRatio", 1), m_Props.GetDouble("zoomRatio", 1));
+
+    }
+    ui.graphicsView->setTransform(viewTransform);
+
+    // 
 
     // Gray image rendering
     if (ui.derivedImages->currentIndex() > 0 && ui.showDerived->isChecked()) {
+        
         m_scene.addPixmap(ImageContainer::GetDerivedViewPixmap(ui.derivedImages->currentText().toUtf8().data()));
     } else {
         if (m_ImageList.size() > image && ui.showGray->isChecked()) {
             ui.sliceIndex->setMaximum(m_ImageList[image]->GetSize()[dim]);
-            m_ImageList[image]->SetSliceIndex(dim, ui.sliceIndex->value());
+            for (int i = 0; i < m_ImageList.size(); i++) {
+                m_ImageList[i]->SetSliceIndex(dim, ui.sliceIndex->value());
+            }
             QGraphicsPixmapItem* item = m_scene.addPixmap(m_ImageList[image]->GetPixmap(dim));
             ui.graphicsView->centerOn((const QGraphicsItem*) item);
         }
@@ -495,6 +515,7 @@ void MainWindow::on_actionRandomParticlesInit_triggered() {
     g_imageParticlesAlgo->SetImageList(&m_ImageList);
     g_imageParticlesAlgo->SetEventCallback(this);
     g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
+    g_constraint.SetImageList(&m_ImageList);
     updateScene();
 }
 
@@ -503,11 +524,16 @@ void MainWindow::on_actionRunImageParticles_triggered() {
     // run optimization via itk-optimizers or ODE system
     ui.toolBox->setCurrentWidget(ui.optimizerSettings);
     ui.costPlot->graph()->clearData();
+
+    // prepare image particles algorithm
     if (IsImageAvailable(0)) {
         if (g_imageParticlesAlgo.IsNotNull()) {
             ImageContainer::ClearDerivedViews();
             g_imageParticlesAlgo->SetImageList(&m_ImageList);
             g_imageParticlesAlgo->SetPropertyAccess(m_Props);
+
+            // for viewing purpose
+            g_constraint.SetImageList(&m_ImageList);
         }
     }
 
@@ -535,6 +561,26 @@ void MainWindow::on_actionContinue_triggered() {
         }
     }
 }
+
+
+// apply TPS transform using current particle positions
+void MainWindow::on_actionTPS_triggered() {
+    // must after particles run
+    if (g_imageParticlesAlgo.IsNull()) {
+        return;
+    }
+    g_imageParticlesAlgo->ApplyTPSorEBSTransform(0);
+}
+
+// apply TPS transform using current particle positions
+void MainWindow::on_actionEBS_triggered() {
+    // must after particles run
+    if (g_imageParticlesAlgo.IsNull()) {
+        return;
+    }
+    g_imageParticlesAlgo->ApplyTPSorEBSTransform(1);
+}
+
 
 void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
     QPoint o = event->pos();
@@ -573,6 +619,9 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
         myImplicitSurfaceConstraint::GradientPixelType gx = g_constraint.GetGradient(GetCurrentImage(), idx);
         cout << "Gradient: " << gx << endl;
 
+        if (g_imageParticlesAlgo.IsNotNull()) {
+            g_imageParticlesAlgo->OnClick(p.x(), p.y(), GetCurrentImage());
+        }
     }
     
 //    int xyRes = 10; //::round(::sqrt(m_Props.GetInt("numberOfPoints", 100)));

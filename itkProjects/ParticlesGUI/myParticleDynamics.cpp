@@ -14,7 +14,10 @@
 
 
 // experiment options
-const static bool applyToFirstOnly = false;
+const static bool applySurfaceEntropyToFirstOnly = false;
+const static bool applyBoundaryConditionToFirstOnly = false;
+const static bool useEnsembleForce = false;
+const static bool useParticlePhysics = true;
 
 
 using namespace std;
@@ -102,12 +105,16 @@ void ParticleSystem::SetEventCallback(EventCallback* callback) {
 
 void ParticleSystem::SetContext(ImageParticlesAlgorithm* context) {
     m_Context = context;
+
+    m_Cutoff = context->GetProperty().GetDouble("cutoffDistance", 15.0);
+    m_Sigma2  = context->GetProperty().GetDouble("sigma", 3.0);
+    m_Sigma2 *= m_Sigma2;
 }
 
 void ParticleSystem::UpdateSurfaceForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, VNLMatrix& gForce) {
     const int nDim = 2;//vec::SIZE;
 
-    int nSubj = (applyToFirstOnly ? 1 : m_nSubjects);
+    int nSubj = (applySurfaceEntropyToFirstOnly ? 1 : m_nSubjects);
 
     // compute forces between particles
     VNLVector weights(m_nParticles);
@@ -115,14 +122,15 @@ void ParticleSystem::UpdateSurfaceForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, 
         SliceInterpolatorType::Pointer kappaIntp = m_Context->GetAttributeInterpolators()->at(n);
         for (int i = 0; i < m_nParticles; i++) {
             // reference data
-            VNLVectorRef force(nDim, &gForce[n][nDim*i]);
-            VNLVectorRef vel(nDim, &gVel[n][nDim*i]);
-            VNLVectorRef pos(nDim, &gPos[n][nDim*i]);
+            VNLVectorRef iForce(nDim, &gForce[n][nDim*i]);
+            VNLVectorRef iVel(nDim, &gVel[n][nDim*i]);
+            VNLVectorRef iPos(nDim, &gPos[n][nDim*i]);
             
             ContinuousIndexType iIdx;
-            iIdx[0] = pos[0];
-            iIdx[1] = pos[1];
+            iIdx[0] = iPos[0];
+            iIdx[1] = iPos[1];
 
+  
             // iteration over particles
             // may reduce use symmetric properties
             for (int j = 0; j < m_nParticles; j++) {
@@ -130,13 +138,22 @@ void ParticleSystem::UpdateSurfaceForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, 
                     // there's no self interaction
                     weights[j] = 0;
                 } else {
-                    VNLVectorRef posj(2, &gPos[n][nDim*j]);
-                    double dij = (pos-posj).two_norm();
+                    // kappa should use jPos
+                    VNLVectorRef jPos(2, &gPos[n][nDim*j]);
+                    ContinuousIndexType jIdx;
+                    jIdx[0] = jPos[0];
+                    jIdx[1] = jPos[1];
+                    double kappa = kappaIntp->EvaluateAtContinuousIndex(jIdx);
+                    kappa *= kappa;
+                    double dij = (iPos-jPos).two_norm();
                     if (dij > m_Cutoff) {
                         weights[j] = 0;
                     } else {
-                        double kappa = kappaIntp->EvaluateAtContinuousIndex(iIdx);
                         weights[j] = exp(-dij*dij*kappa/(m_Sigma2));
+                        // debug: check kappa is different between neighbors
+//                        if (i == 10) {
+//                            cout << "Distance: " << dij << "; Kappa: " << kappa << endl;
+//                        }
                     }
                 }
             }
@@ -152,15 +169,14 @@ void ParticleSystem::UpdateSurfaceForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, 
                 if (i == j || weights[j] == 0) {
                     continue;
                 }
-                VNLVectorRef posj(nDim, &gPos[n][nDim*j]);
-                VNLCVector::subtract(pos.data_block(), posj.data_block(), xixj.data_block(), nDim);
+                VNLVectorRef jPos(nDim, &gPos[n][nDim*j]);
+                VNLCVector::subtract(iPos.data_block(), jPos.data_block(), xixj.data_block(), nDim);
                 xixj.normalize();
-                force += (weights[j] * xixj);
+                iForce += (weights[j] * xixj);
             }
 
             // dragging force
-            force -= (m_Mu * vel);
-
+            iForce -= (m_Mu * iVel);
         }
     }
 }
@@ -341,7 +357,7 @@ void ParticleSystem::ApplyBoundaryConditions(const VNLVector &x, const VNLMatrix
     VNLMatrixRef gPos(m_nSubjects, m_nParams, (double*) x.data_block());
     VNLMatrixRef gVel(m_nSubjects, m_nParams, (double*) x.data_block()+m_nSubjects*m_nParams);
 
-    int nSubj = applyToFirstOnly ? 1 : m_nSubjects;
+    int nSubj = applyBoundaryConditionToFirstOnly ? 1 : m_nSubjects;
     nSubj = m_nSubjects;
     for (int n = 0; n < nSubj; n++) {
         for (int i = 0; i < m_nParticles; i++) {
@@ -436,13 +452,13 @@ void ParticleSystem::operator()(const VNLVector &x, VNLVector& dxdt, const doubl
     m_Force.fill(0);
 
     // update forces at time t
-    UpdateEnsembleForce(pos, vel, m_Force);
+    if (useEnsembleForce) {
+        UpdateEnsembleForce(pos, vel, m_Force);
+    }
     UpdateSurfaceForce(pos, vel, m_Force);
     // UpdateGravityForce(pos, vel, m_Force);
 
-    bool useParticlePhysics = true;
     if (useParticlePhysics) {
-
         // dP/dt = V
         dpdt.copy_in(vel.data_block());
         // dV/dt = F/m
@@ -516,21 +532,22 @@ void ParticleSystem::Integrate() {
     const int EULER = 1;
     const int RKF45 = 0;
 
+    double dt = 0.1;
     double t0 = 0;
-    double t1 = 50;
+    double t1 = t0 + m_Context->GetProperty().GetInt("numberOfIterations", 100) * dt;
     
     int odeMethod = EULER;
     boost::numeric::odeint::euler<VNLVector> eulerStepper;
     boost::numeric::odeint::runge_kutta4<VNLVector> rk4Stepper;
     switch (odeMethod) {
         case RKF45:
-            boost::numeric::odeint::integrate((*this), m_Status, t0, t1, .1, (*this));
+            boost::numeric::odeint::integrate((*this), m_Status, t0, t1, dt, (*this));
             break;
         case EULER:
-            boost::numeric::odeint::integrate_const(eulerStepper, (*this), m_Status, t0, t1, .1, (*this));
+            boost::numeric::odeint::integrate_const(eulerStepper, (*this), m_Status, t0, t1, dt, (*this));
             break;
         case RK4:
-            boost::numeric::odeint::integrate_const(rk4Stepper, (*this), m_Status, t0, t1, .1, (*this));
+            boost::numeric::odeint::integrate_const(rk4Stepper, (*this), m_Status, t0, t1, dt, (*this));
             break;
         default:
             break;

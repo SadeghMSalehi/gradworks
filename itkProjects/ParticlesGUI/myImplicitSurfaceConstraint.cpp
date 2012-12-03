@@ -10,8 +10,10 @@
 #include "itkUnaryFunctorImageFilter.h"
 #include "myImageContainer.h"
 #include "itkVectorMagnitudeImageFilter.h"
+#include "itkBinaryThresholdImageFilter.h"
 
 
+typedef itk::BinaryThresholdImageFilter<LabelSliceType, LabelSliceType> BinaryThresholdFilterType;
 typedef itk::VectorMagnitudeImageFilter<GradientImageType, SliceType> GradientMagnitudeFilterType;
 
 template <class TIn, class TOut>
@@ -39,23 +41,44 @@ void myImplicitSurfaceConstraint::Clear() {
     m_DistanceMapInterpolators.clear();
     m_InsideDistanceVectorMaps.clear();
     m_OutsideDistanceVectorMaps.clear();
+    m_GradientInterpolators.clear();
+    m_GradientMaps.clear();
 }
 
 void myImplicitSurfaceConstraint::SetImageList(ImageContainer::List* imageList) {
     int nSubj = imageList->size();
+    Clear();
     for (int i = 0; i < nSubj; i++) {
+        // every image must have corresponding label images
+        if (!imageList->at(i)->HasLabel()) {
+            return;
+        }
+
         LabelSliceType::Pointer labelMap = imageList->at(i)->GetLabelSlice();
+
+        // create binary image for a mask for a correct distance map
+        BinaryThresholdFilterType::Pointer binThreshFilter = BinaryThresholdFilterType::New();
+        binThreshFilter->SetInput(labelMap);
+        binThreshFilter->SetInsideValue(1);
+        binThreshFilter->SetOutsideValue(0);
+        binThreshFilter->SetLowerThreshold(1);
+        binThreshFilter->SetUpperThreshold(255);
+        LabelSliceType::Pointer binaryMap = binThreshFilter->GetOutput();
+
+        // construct signed distance filter
         SignedDistanceMapFilterType::Pointer distmapFilter = SignedDistanceMapFilterType::New();
-        distmapFilter->SetInput(labelMap);
+        distmapFilter->SetInput(binaryMap);
         distmapFilter->Update();
         m_DistanceMaps.push_back(distmapFilter->GetOutput());
         m_OutsideDistanceVectorMaps.push_back(distmapFilter->GetVectorDistanceMap());
 
+        // to compute inside offset correctly, invert the label map
         typedef itk::UnaryFunctorImageFilter<LabelSliceType, LabelSliceType, InvertLabel<LabelSliceType::PixelType, LabelSliceType::PixelType> > InvertImageFilterType;
         InvertImageFilterType::Pointer invertFilter = InvertImageFilterType::New();
-        invertFilter->SetInput(labelMap);
+        invertFilter->SetInput(binaryMap);
         invertFilter->Update();
 
+        // compute inside offset using inverted image
         DistanceMapFilterType::Pointer insideDistmapFilter = DistanceMapFilterType::New();
         insideDistmapFilter->SetInput(invertFilter->GetOutput());
         insideDistmapFilter->Update();
@@ -65,14 +88,9 @@ void myImplicitSurfaceConstraint::SetImageList(ImageContainer::List* imageList) 
         interpol->SetInputImage(m_DistanceMaps.back());
         m_DistanceMapInterpolators.push_back(interpol);
 
-        typedef itk::UnaryFunctorImageFilter<LabelSliceType, LabelSliceType, BinaryThreshold<LabelSliceType::PixelType, LabelSliceType::PixelType> > BinaryLabelFilterType;
-
-        BinaryLabelFilterType::Pointer binaryFilter = BinaryLabelFilterType::New();
-        binaryFilter->SetInput(labelMap);
-        binaryFilter->Update();
-
+        // compute gradient for outside boundary
         GradientFilterType::Pointer gradient = GradientFilterType::New();
-        gradient->SetInput(binaryFilter->GetOutput());
+        gradient->SetInput(binaryMap);
         gradient->SetSigma(.5);
         gradient->Update();
         m_GradientMaps.push_back(gradient->GetOutput());
@@ -85,19 +103,22 @@ void myImplicitSurfaceConstraint::SetImageList(ImageContainer::List* imageList) 
         magnitudeFilter->SetInput(gradient->GetOutput());
         magnitudeFilter->Update();
 
+        // prepare gradient magnitude attribute image
         SliceToRGBAImageFilterType::Pointer rgbFilter = SliceToRGBAImageFilterType::New();
         rgbFilter->SetInput(magnitudeFilter->GetOutput());
         rgbFilter->SetUseInputImageExtremaForScaling(true);
         rgbFilter->Update();
         imageList->at(i)->AddDerivedView(imageList->at(i)->GetName() + "/gradientMagnitude", rgbFilter->GetOutput());
 
+        // prepare distance map as an attribute image
         SliceToRGBAImageFilterType::Pointer rgbFilter2 = SliceToRGBAImageFilterType::New();
         rgbFilter2->SetInput(m_DistanceMaps.at(i));
         rgbFilter2->SetUseInputImageExtremaForScaling(true);
         rgbFilter2->Update();
         imageList->at(i)->AddDerivedView(imageList->at(i)->GetName() + "/distanceMap", rgbFilter2->GetOutput());
-
     }
+
+    std::cout << "surface constraint updated: " << imageList->at(0)->GetSliceIndex() << std::endl;
 }
 
 double myImplicitSurfaceConstraint::GetDistance(int subjId, SliceInterpolatorType::ContinuousIndexType &idx) const {

@@ -113,8 +113,16 @@
     <property name="title">
      <string>Images</string>
     </property>
+    <widget class="QMenu" name="menuTransform">
+     <property name="title">
+      <string>Transform</string>
+     </property>
+     <addaction name="actionTPS"/>
+     <addaction name="actionEBS"/>
+    </widget>
     <addaction name="actionAddImage"/>
     <addaction name="actionAddLabel"/>
+    <addaction name="menuTransform"/>
    </widget>
    <widget class="QMenu" name="menuParticles">
     <property name="title">
@@ -154,6 +162,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionRandomParticlesInit"/>
    <addaction name="actionRunImageParticles"/>
    <addaction name="actionContinue"/>
    <addaction name="actionAnimation"/>
@@ -614,13 +623,13 @@
             <double>1.000000000000000</double>
            </property>
            <property name="maximum">
-            <double>10.000000000000000</double>
+            <double>100.000000000000000</double>
            </property>
            <property name="singleStep">
             <double>0.100000000000000</double>
            </property>
            <property name="value">
-            <double>2.000000000000000</double>
+            <double>3.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -770,7 +779,7 @@
   </action>
   <action name="actionRandomParticlesInit">
    <property name="text">
-    <string>Random Initialization</string>
+    <string>New Particles</string>
    </property>
   </action>
   <action name="actionShowParticles">
@@ -876,6 +885,16 @@
    </property>
    <property name="text">
     <string>Use ODE Solver</string>
+   </property>
+  </action>
+  <action name="actionTPS">
+   <property name="text">
+    <string>Thin Plate Spline</string>
+   </property>
+  </action>
+  <action name="actionEBS">
+   <property name="text">
+    <string>Elastic Body Spline</string>
    </property>
   </action>
  </widget>

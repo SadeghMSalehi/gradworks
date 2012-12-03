@@ -123,10 +123,20 @@ public:
      */
     void RunODE();
     void ContinueODE();
+    PropertyAccess GetProperty();
 
     InterpolatorList* GetAttributeInterpolators() {
         return &m_KappaMapInterpolators;
     }
+
+    // Apply TPS transform
+    void ApplyTPSorEBSTransform(int type);
+
+    /**
+     * UI Event handling
+     */
+    void OnClick(double x, double y, int imageIdx);
+
     
 protected:
 	ImageParticlesAlgorithm();

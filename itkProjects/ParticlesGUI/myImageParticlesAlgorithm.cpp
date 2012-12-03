@@ -26,6 +26,9 @@
 #include "myEnsembleEntropy.h"
 #include "vnlCommon.h"
 #include "myParticleDynamics.h"
+#include "itkThinPlateSplineKernelTransform.h"
+#include "itkElasticBodySplineKernelTransform.h"
+#include "itkResampleImageFilter.h"
 
 
 using namespace std;
@@ -33,6 +36,12 @@ const static int Dimensions = 2;
 
 typedef itk::GradientRecursiveGaussianImageFilter<SliceType,ImageParticlesAlgorithm::GradientImageType> GradientImageFilter;
 typedef itk::VectorMagnitudeImageFilter<ImageParticlesAlgorithm::GradientImageType,SliceType> VectorMagnitudeImageFilter;
+
+typedef itk::KernelTransform<double,2> KernelTransformType;
+typedef itk::ThinPlateSplineKernelTransform<double,2> TPSTransformType;
+typedef itk::ElasticBodySplineKernelTransform<double,2> EBSTransformType;
+typedef itk::ResampleImageFilter<SliceType,SliceType> ResampleImageFilterType;
+
 
 
 class ImageOptimizerProgress: public itk::Command {
@@ -128,6 +137,16 @@ ImageParticlesAlgorithm::~ImageParticlesAlgorithm() {
 	// TODO Auto-generated destructor stub
 }
 
+
+PropertyAccess ImageParticlesAlgorithm::GetProperty() {
+    return m_Props;
+}
+
+void ImageParticlesAlgorithm::OnClick(double x, double y, int imageIdx) {
+    ContinuousIndexType cIdx;
+    cIdx[0] = x; cIdx[1] = y;
+    cout << m_KappaMapInterpolators[imageIdx]->EvaluateAtContinuousIndex(cIdx) << endl;
+}
 
 // currently ignore; might not be necessary
 void ImageParticlesAlgorithm::GetIndex(SliceInterpolatorType::ContinuousIndexType& idxOut, const OptimizerParametersType* params, const int subj, const int point) const {
@@ -575,7 +594,6 @@ void ImageParticlesAlgorithm::SetImageList(ImageContainer::List *list) {
     m_nSubjects = list->size();
     m_KappaMaps.clear();
     m_KappaMapInterpolators.clear();
-    m_Constraint.Clear();
 
     for (int i = 0; i < m_nSubjects; i++) {
         ImageContainer::Pointer image = list->at(i);
@@ -686,6 +704,99 @@ const VNLVector* ImageParticlesAlgorithm::GetTraceParameters(int idx) {
         return &m_Traces[idx];
     } else {
         return NULL;
+    }
+}
+
+// TPS Transform from nSubj(>2) to template(nSubj=1)
+void ImageParticlesAlgorithm::ApplyTPSorEBSTransform(int type) {
+    // check if number of particles are bigger than 5
+    if (m_nPoints < 5) {
+        return;
+    }
+
+    VNLMatrixRef subjects(m_nSubjects, m_nParams, m_CurrentParams.data_block());
+
+    // copy target points
+    SliceType::Pointer targetSlice = m_ImageList->at(0)->GetSlice();
+    VNLMatrixRef target(m_nPoints, Dimensions, subjects[0]);
+    TPSTransformType::PointsContainer::Pointer targetPoints = TPSTransformType::PointsContainer::New();
+    for (int i = 0; i < m_nPoints; i++) {
+        ContinuousIndexType iIdx;
+        TPSTransformType::PointsContainer::Element iPoint;
+        iIdx[0] = iPoint[0] = target[i][0];
+        iIdx[1] = iPoint[1] = target[i][1];
+        targetSlice->TransformContinuousIndexToPhysicalPoint(iIdx, iPoint);
+        targetPoints->InsertElement(i, iPoint);
+    }
+
+    TPSTransformType::PointSetPointer targetPointSet = TPSTransformType::PointSetType::New();
+    targetPointSet->SetPoints(targetPoints.GetPointer());
+
+
+    // debug: validate point set
+//    for (int k = 0; k < m_nPoints; k++) {
+//        TPSTransformType::PointsContainer::Element kPoint;
+//        targetPointSet->GetPoint(k, &kPoint);
+//        cout << k << ": " << kPoint << endl;
+//    }
+
+    for (int n = 1; n < m_nSubjects; n++) {
+        // copy source points
+        SliceType::Pointer sourceSlice = m_ImageList->at(n)->GetSlice();
+        VNLMatrixRef source(m_nPoints, Dimensions, subjects[1]);
+        KernelTransformType::PointsContainer::Pointer sourcePoints = KernelTransformType::PointsContainer::New();
+        for (int i = 0; i < m_nPoints; i++) {
+            ContinuousIndexType iIdx;
+            KernelTransformType::PointsContainer::Element iPoint;
+            iIdx[0] = iPoint[0] = source[i][0];
+            iIdx[1] = iPoint[1] = source[i][1];
+            targetSlice->TransformContinuousIndexToPhysicalPoint(iIdx, iPoint);
+            sourcePoints->InsertElement(i, iPoint);
+        }
+        KernelTransformType::PointSetPointer srcPointSet = TPSTransformType::PointSetType::New();
+        srcPointSet->SetPoints(sourcePoints.GetPointer());
+
+
+        // debug: validate point set
+//        for (int k = 0; k < m_nPoints; k++) {
+//            KernelTransformType::PointsContainer::Element kPoint;
+//            srcPointSet->GetPoint(k, &kPoint);
+//            cout << k << ": " << kPoint << endl;
+//        }
+
+        // set up TPS transform
+        KernelTransformType::Pointer kernelTransform(NULL);
+        if (type == 0) {
+            TPSTransformType::Pointer tps = TPSTransformType::New();
+            tps->SetSourceLandmarks(srcPointSet.GetPointer());
+            tps->SetTargetLandmarks(targetPointSet.GetPointer());
+            cout << "Computing W ..." << endl;
+            tps->ComputeWMatrix();
+            cout << "Computing W done ..." << endl;
+            kernelTransform = tps;
+        } else if (type == 1) {
+            EBSTransformType::Pointer ebs = EBSTransformType::New();
+            ebs->SetSourceLandmarks(srcPointSet.GetPointer());
+            ebs->SetTargetLandmarks(targetPointSet.GetPointer());
+            cout << "Computing W ..." << endl;
+            ebs->ComputeWMatrix();
+            cout << "Computing W done ..." << endl;
+            kernelTransform = ebs;
+        }
+
+        SliceType::Pointer sourceImage = m_ImageList->at(n)->GetSlice();
+        ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
+        resampler->SetInput(targetSlice);
+        resampler->SetTransform(kernelTransform.GetPointer());
+        resampler->SetReferenceImage(sourceSlice);
+        resampler->UseReferenceImageOn();
+        resampler->Update();
+        SliceType::Pointer tpsTransformed = resampler->GetOutput();
+
+        // store transformed image as derived image
+        RGBAImageType::Pointer tpsTransformedRGBA = ImageContainer::CreateBitmap(tpsTransformed);
+        string sourceName = m_ImageList->at(n)->GetName();
+        m_ImageList->at(n)->AddDerivedView(sourceName + "/tpsTransformed", tpsTransformedRGBA);
     }
 }
 

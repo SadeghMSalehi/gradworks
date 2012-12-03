@@ -144,6 +144,7 @@ RGBAImageType::Pointer ImageContainer::CreateBitmap(SliceType::Pointer slice, in
     ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
     rgbFilter->SetInput(slice);
     rgbFilter->UseManualScalingOff();
+    rgbFilter->UseInputImageExtremaForScalingOn();
     rgbFilter->SetAlphaValue(alpha);
     rgbFilter->Update();
     return rgbFilter->GetOutput();
@@ -247,7 +248,12 @@ QPixmap ImageContainer::GetLabelPixmap(int dim) {
 }
 
 void ImageContainer::AddDerivedView(std::string name, RGBAImageType::Pointer slice) {
+//    cout << "Name: " << name << endl << slice << endl;
+
+    // debug: should always erase the previous key
+    g_DerivedSliceDictionary.erase(name);
     g_DerivedSliceDictionary.insert(NameSlicePair(name, slice));
+
     if (m_EventCallback != NULL) {
         m_EventCallback->EventRaised(0xADDCE, 0);
     }
@@ -255,6 +261,7 @@ void ImageContainer::AddDerivedView(std::string name, RGBAImageType::Pointer sli
 
 RGBAImageType::Pointer ImageContainer::GetDerivedView(std::string name) {
     RGBAImageType::Pointer slice = g_DerivedSliceDictionary[name];
+    // cout << "GetView: " << name << endl << slice << endl;
     return slice;
 }
 
