@@ -111,15 +111,19 @@ void MainWindow::EventRaised(int eventId, int eventCode, const void* src, void* 
 }
 
 void MainWindow::ReadyToExperiments() {
-    LoadImage("/data/Particles/00.T2.half.nrrd");
-    LoadLabel("/data/Particles/00.Label.half.nrrd");
-    LoadImage("/data/Particles/16.T2.half.nrrd");
-    LoadLabel("/data/Particles/16.Label.half.nrrd");
+//    LoadImage("/data/Particles/00.T2.half.nrrd");
+//    LoadLabel("/data/Particles/00.Label.half.nrrd");
+//    LoadImage("/data/Particles/16.T2.half.nrrd");
+//    LoadLabel("/data/Particles/16.Label.half.nrrd");
+//    LoadImage("/data/Particles/cs1_tex.nrrd");
+//    LoadLabel("/data/Particles/cs1.nrrd");
+//    LoadImage("/data/Particles/cs2_tex.nrrd");
+//    LoadLabel("/data/Particles/cs2.nrrd");
 //    LoadSurface("/data/Particles/00.vtk");
-//    LoadImage("/data/Particles/Image001.nrrd");
-//    LoadLabel("/data/Particles/Image001.nrrd");
-//    LoadImage("/data/Particles/Image002.nrrd");
-//    LoadLabel("/data/Particles/Image002.nrrd");
+    LoadImage("/data/Particles/Image001.nrrd");
+    LoadLabel("/data/Particles/Image001.nrrd");
+    LoadImage("/data/Particles/Image002.nrrd");
+    LoadLabel("/data/Particles/Image002.nrrd");
 
     on_actionRandomParticlesInit_triggered();
     g_constraint.SetImageList(&m_ImageList);

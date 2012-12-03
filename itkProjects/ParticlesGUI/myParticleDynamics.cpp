@@ -16,7 +16,7 @@
 // experiment options
 const static bool applySurfaceEntropyToFirstOnly = false;
 const static bool applyBoundaryConditionToFirstOnly = false;
-const static bool useEnsembleForce = false;
+const static bool useEnsembleForce = true;
 const static bool useParticlePhysics = true;
 
 
