@@ -67,7 +67,7 @@ public:
             metric->SetFixedImageRegion(_fixedImage->GetBufferedRegion());
             metric->UseAllPixelsOn();
             metric->SetInterpolator(interpolator);
-            metric->SetTransform(transform);
+            metric->SetTransform(dynamic_cast<SubMetricType::TransformType*>(transform.GetPointer()));
             metric->Initialize();
             _metaMetrics->AddMetric(metric);
             int nParam = transform->GetNumberOfParameters();
@@ -133,7 +133,7 @@ int mainCrop(int argc, char* argv[]) {
     ImageType::Pointer moving = imageIO.ReadImageT(argv[2]);
 
     metric->SetInterpolator(interpolator);
-    metric->SetTransform(transform);
+    metric->SetTransform(dynamic_cast<SubMetricType::TransformType*> (transform.GetPointer()));
     metric->UseAllPixelsOn();
     metric->SetFixedImage(fixed);
     metric->SetFixedImageRegion(fixed->GetBufferedRegion());
