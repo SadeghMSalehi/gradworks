@@ -14,6 +14,7 @@
 #include "PropertyAccess.h"
 #include "myEventCallback.h"
 #include "itkOptimizerCommon.h"
+#include "dialogPatchCompare.h"
 
 class vtkPolyData;
 class vtkGenericOpenGLRenderWindow;
@@ -21,6 +22,8 @@ class QVTKInteractor;
 
 class MainWindow: public QMainWindow, public EventCallback {
     Q_OBJECT
+
+    friend class PatchCompareDialog;
 
 public:
     MainWindow(QWidget* parent = NULL);
@@ -30,6 +33,7 @@ public:
     virtual void EventRaised(int eventId, int eventCode, const void* src = 0, void* data = 0);
     
 public slots:
+    void on_actionOpenCompareWindow_triggered();
     void on_actionAddImage_triggered();
     void on_actionAddLabel_triggered();
     void on_actionOpenSurface_triggered();
@@ -82,6 +86,9 @@ private:
     QActionGroup m_ParticleColors;
 
     PropertyAccess m_Props;
+
+    // dialog for image comparison
+    PatchCompareDialog m_CompareDialog;
 
 };
 

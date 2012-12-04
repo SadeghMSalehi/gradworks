@@ -31,7 +31,7 @@ surface::ParticleAlgorithm::Pointer g_ParticleAlgo;
 myImplicitSurfaceConstraint g_constraint;
 
 
-MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this) {
+MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), m_CompareDialog(this) {
     ui.setupUi(this);
 
     ui.toolBar->addWidget(ui.zoomLabel);
@@ -80,6 +80,10 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this) {
 
 MainWindow::~MainWindow() {
 
+}
+
+void MainWindow::on_actionOpenCompareWindow_triggered() {
+    m_CompareDialog.show();
 }
 
 void MainWindow::on_derivedImages_currentIndexChanged(int n) {

@@ -82,6 +82,13 @@ public:
     QPixmap GetPixmap(int dim);
     QPixmap GetLabelPixmap(int dim);
 
+    QPixmap GetPixmap() {
+        return GetPixmap(m_SliceDir);
+    }
+    QPixmap GetLabelPixmap() {
+        return GetLabelPixmap(m_SliceDir);
+    }
+
     IntTupleType GetSize() {
         return m_MaxSliceIndexes;
     }

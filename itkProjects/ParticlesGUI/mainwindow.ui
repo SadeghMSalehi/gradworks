@@ -123,6 +123,7 @@
     <addaction name="actionAddImage"/>
     <addaction name="actionAddLabel"/>
     <addaction name="menuTransform"/>
+    <addaction name="actionOpenCompareWindow"/>
    </widget>
    <widget class="QMenu" name="menuParticles">
     <property name="title">
@@ -895,6 +896,14 @@
   <action name="actionEBS">
    <property name="text">
     <string>Elastic Body Spline</string>
+   </property>
+  </action>
+  <action name="actionOpenCompareWindow">
+   <property name="text">
+    <string>Open Compare Window</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
    </property>
   </action>
  </widget>
