@@ -74,7 +74,7 @@ private:
 
     double m_gradientScale, m_gradientRatio;
     // assume there's only rigid transformations
-    const int m_nTransformParams = 3;
+    const static int m_nTransformParams = 3;
     std::vector<GradientImageType::Pointer> m_GradientImageList;
     std::vector<SliceInterpolatorType::Pointer> m_ImageInterpolatorList;
 };

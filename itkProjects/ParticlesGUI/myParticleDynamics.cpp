@@ -16,7 +16,7 @@
 // experiment options
 const static bool applySurfaceEntropyToFirstOnly = false;
 const static bool applyBoundaryConditionToFirstOnly = false;
-const static bool useEnsembleForce = true;
+const static bool useEnsembleForce = false;
 const static bool useParticlePhysics = true;
 
 
@@ -64,7 +64,9 @@ ParticleSystem::ParticleSystem(const int nSubj, const int nParticles): m_nDim(2)
     m_Cutoff = 15;
     m_Sigma2 = 3*3;
     m_Mu = 1;
-    m_COR = 1;
+    m_COR = .2
+
+    		;
     m_Force.set_size(m_nSubjects, m_nParams);
     m_Constraint = NULL;
     m_StatusHistory = NULL;
