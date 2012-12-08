@@ -67,16 +67,11 @@ namespace my {
         int nSize = 25;
 
         BSplineFilterType::Pointer bspliner = BSplineFilterType::New();
-        BSplineFilterType::ArrayType ncps;
-        ncps.Fill(nSize + splineOrder);
+        BSplineFilterType::ArrayType numControlPoints;
+        numControlPoints.Fill(nSize + splineOrder);
 
         try {
             // debug: reparameterized point component is outside
-            cout << "Field Points: " << endl;
-            for (int i = 0; i < m_FieldPoints->GetNumberOfPoints(); i++) {
-                DisplacementFieldPointSetType::PointType iPoint = m_FieldPoints->GetPoint(i);
-                cout << iPoint << endl;
-            }
             QElapsedTimer timer;
             timer.start();
             bspliner->SetOrigin(m_RefImage->GetOrigin());
@@ -85,7 +80,7 @@ namespace my {
             bspliner->SetGenerateOutputImage(true);
             bspliner->SetNumberOfLevels(numOfLevels);
             bspliner->SetSplineOrder(splineOrder);
-            bspliner->SetNumberOfControlPoints(ncps);
+            bspliner->SetNumberOfControlPoints(numControlPoints);
             bspliner->SetInput(m_FieldPoints);
             bspliner->Update();
             m_DisplacementField = bspliner->GetOutput();

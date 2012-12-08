@@ -78,6 +78,7 @@ public:
 
     void TransformToPhysicalPoints(const int n, double* pointsIn, double* pointsOut);
     void TransformToImagePoints(const int n, double* pointsIn, double* pointsOut);
+    void TransformToImageVector(VectorType& src, VectorType& dst);
 
     void SetAlpha(int alpha);
     void SetLabelAlpha(int alpha);

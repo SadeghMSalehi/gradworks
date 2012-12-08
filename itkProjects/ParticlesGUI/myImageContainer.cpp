@@ -342,3 +342,15 @@ void ImageContainer::TransformToImagePoints(const int n, double *pointsIn, doubl
     VNLMatrixRef out(n, SDim, pointsOut);
     vnl_transform_points_2d(m_WorldToImage, in, out);
 }
+
+void ImageContainer::TransformToImageVector(VectorType& src, VectorType& dst) {
+    VNLVec3 s;
+    for (int i = 0; i < src.Size(); i++) {
+        s[i] = src[i];
+    }
+    s[2] = 0;
+    VNLVector t = m_WorldToImage * s;
+    for (int i = 0; i < dst.Size(); i++) {
+        dst[i] = t[i];
+    }
+}

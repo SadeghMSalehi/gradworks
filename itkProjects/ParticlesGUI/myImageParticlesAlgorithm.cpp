@@ -764,7 +764,7 @@ void ImageParticlesAlgorithm::ApplyBSplineTransform() {
     // temporarily transform the second image now.
     my::BSplineRegistration bsplineReg;
     bsplineReg.SetLandmarks(m_nPoints, worldPos[1], worldPos[0]);
-    bsplineReg.SetReferenceImage(m_ImageList->at(1)->GetSlice());
+    bsplineReg.SetReferenceImage(srcImage);
     bsplineReg.Update();
     SliceType::Pointer transformedImage = bsplineReg.WarpImage(srcImage);
 
