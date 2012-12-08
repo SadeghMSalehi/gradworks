@@ -20,16 +20,22 @@
 #include "itkArray.h"
 #include "QPixmap"
 #include "myEventCallback.h"
+#include "vnlCommon.h"
+#include "itkPointSet.h"
+
+#define copyArray(x,y) for (int kkk = 0; kkk < SDim; kkk++) x[kkk] = y[kkk]
 
 const int VDim = 3;
 const int SDim = 2;
 
 typedef itk::Image<double, VDim> ImageType;
 typedef itk::Image<double, SDim> SliceType;
+typedef itk::ImageRegionIteratorWithIndex<SliceType> SliceIteratorType;
 typedef itk::LinearInterpolateImageFunction<SliceType> SliceInterpolatorType;
 typedef itk::RGBAPixel<unsigned char> RGBAPixel;
 typedef itk::Image<RGBAPixel, SDim> RGBAImageType;
 typedef itk::Image<unsigned short, VDim> LabelType;
+typedef itk::ImageRegionIteratorWithIndex<SliceType> SliceIteratorType;
 typedef itk::ImageRegionIteratorWithIndex<LabelType> LabelIteratorType;
 typedef itk::Image<unsigned short, SDim> LabelSliceType;
 typedef itk::ImageRegionIteratorWithIndex<LabelSliceType> LabelSliceIteratorType;
@@ -42,6 +48,11 @@ typedef itk::CovariantVector<double,2> GradientType;
 typedef itk::Image<GradientType,2> GradientImageType;
 typedef SliceInterpolatorType::ContinuousIndexType ContinuousIndexType;
 typedef itk::ScalarToARGBColormapImageFilter<SliceType, RGBAImageType> SliceToRGBAImageFilterType;
+typedef itk::PointSet<int,2> PointSetType;
+typedef itk::Vector<double,2> VectorType;
+typedef itk::PointSet<VectorType,2> DisplacementFieldPointSetType;
+typedef itk::Image<VectorType,2> DisplacementFieldType;
+
 
 class ImageContainer: public itk::LightObject {
 public:
@@ -60,6 +71,13 @@ public:
     itkGetConstMacro(Name, std::string);
     itkGetConstMacro(Image, ImageType::Pointer);
     itkGetConstMacro(Label, LabelType::Pointer);
+
+    // transformation between world and image space
+    bool ComputeTransformToPhysicalPointMatrix(VNLMatrix& out);
+    bool ComputeTransformToIndexMatrix(VNLMatrix& out);
+
+    void TransformToPhysicalPoints(const int n, double* pointsIn, double* pointsOut);
+    void TransformToImagePoints(const int n, double* pointsIn, double* pointsOut);
 
     void SetAlpha(int alpha);
     void SetLabelAlpha(int alpha);
@@ -184,6 +202,8 @@ private:
     std::string m_Name;
     EventCallback* m_EventCallback;
 
+    VNLMatrix m_ImageToWorld;
+    VNLMatrix m_WorldToImage;
 };
 
 #endif /* defined(__laplacePDE__ImageViewManager__) */

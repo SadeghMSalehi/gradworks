@@ -42,25 +42,34 @@ public:
     void operator()(const VNLVector &x, const double t);
 
 private:
-    ParticleSystem() : m_nDim(0), m_nSubjects(0), m_nParticles(0), m_nParams(0) {};
+    ParticleSystem() : m_nDim(0), m_nSubjects(0), m_nParticles(0), m_nParams(0),
+    m_Pos(0,0,NULL),
+    m_Vel(0,0,NULL),
+    m_dpdt(0,0,NULL),
+    m_dvdt(0,0,NULL) {};
 
     // estimate rigid transformation
     void EstimateRigidTransform(VNLMatrixRef& gPos, VNLMatrixArray& transforms, VNLMatrixArray& jacobians);
 
     void ApplyMatrixOperation(const double* posIn, const VNLMatrix& matrix, double* posOut);
+
+    void UpdateTransform();
     
     // apply global transform
     // compute forces between particles
-    void UpdateSurfaceForce(VNLMatrixRef& pos, VNLMatrixRef& vel, VNLMatrix& force);
+    void UpdateSurfaceForce();
 
     // test code for gravity physics
-    void UpdateGravityForce(VNLMatrixRef& pos, VNLMatrixRef& vel, VNLMatrix& force);
+    void UpdateGravityForce();
 
     // apply ensemble constraint
-    void UpdateEnsembleForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, VNLMatrix& gForce);
+    void UpdateEnsembleForce();
 
+    // apply image term
+    void UpdateImageForce();
+    
     // apply constraint on implicit boundaries
-    void ApplyBoundaryConditions(const VNLVector &x, const VNLMatrix& gForce, VNLMatrixRef& dpdt, VNLMatrixRef& dvdt);
+    void ApplyBoundaryConditions();
 
     const int m_nDim;
     const int m_nSubjects;
@@ -74,6 +83,12 @@ private:
     double m_COR;
 
     int m_TimeStep;
+
+
+    VNLMatrixRef m_Pos;
+    VNLMatrixRef m_Vel;
+    VNLMatrixRef m_dpdt;
+    VNLMatrixRef m_dvdt;
 
     VNLVector m_Status;
     VNLMatrix m_Force;

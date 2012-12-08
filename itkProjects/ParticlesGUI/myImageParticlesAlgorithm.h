@@ -22,6 +22,7 @@
 #include "itkCommand.h"
 #include "itkArray.h"
 #include "myEnsembleEntropy.h"
+#include "myBSplineRegistration.h"
 
 class vtkPoints;
 
@@ -129,8 +130,19 @@ public:
         return &m_KappaMapInterpolators;
     }
 
+    InterpolatorList* GetImageInterpolators() {
+        return &m_ImageInterpolators;
+    }
+
+    // return image container of n'th subject
+    ImageContainer::Pointer GetImage(int n) {
+        return m_ImageList->at(n);
+    }
+
     // Apply TPS transform
     void ApplyTPSorEBSTransform(int type);
+    void ApplyBSplineTransform();
+    DisplacementFieldType::Pointer GetDisplacementField();
 
     /**
      * UI Event handling
@@ -162,6 +174,7 @@ private:
 
 	VNLVectorArray m_InitialPoints;
     OptimizerParametersType m_CurrentParams;
+
     PropertyAccess m_Props;
 
 	ImageContainer::List* m_ImageList;
@@ -176,6 +189,11 @@ private:
 
     ImageList m_KappaMaps;
     InterpolatorList m_KappaMapInterpolators;
+
+    InterpolatorList m_ImageInterpolators;
+
+
+    DisplacementFieldType::Pointer m_BSplineDisplacementField;
     
     /**
      * Cost function parameters

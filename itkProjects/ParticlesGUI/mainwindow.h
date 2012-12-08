@@ -43,6 +43,8 @@ public slots:
     void on_actionRunImageParticles_triggered();
     void on_actionTPS_triggered();
     void on_actionEBS_triggered();
+    void on_actionBSpline_triggered();
+    void on_actionR2LogRTPS_triggered();
     void on_actionAnimation_triggered();
     void on_actionRandomParticlesInit_triggered();
     void on_actionContinue_triggered();

@@ -119,6 +119,8 @@
      </property>
      <addaction name="actionTPS"/>
      <addaction name="actionEBS"/>
+     <addaction name="actionR2LogRTPS"/>
+     <addaction name="actionBSpline"/>
     </widget>
     <addaction name="actionAddImage"/>
     <addaction name="actionAddLabel"/>
@@ -145,6 +147,7 @@
     <addaction name="actionAnimation"/>
     <addaction name="separator"/>
     <addaction name="actionShowParticles"/>
+    <addaction name="actionShowDisplacement"/>
     <addaction name="menuParticle_Colors"/>
     <addaction name="actionUseODESolver"/>
    </widget>
@@ -193,8 +196,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>262</width>
-          <height>520</height>
+          <width>196</width>
+          <height>389</height>
          </rect>
         </property>
         <attribute name="label">
@@ -414,8 +417,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>262</width>
-          <height>520</height>
+          <width>98</width>
+          <height>28</height>
          </rect>
         </property>
         <attribute name="label">
@@ -442,7 +445,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>262</width>
+          <width>230</width>
           <height>520</height>
          </rect>
         </property>
@@ -904,6 +907,24 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionR2LogRTPS">
+   <property name="text">
+    <string>R2LogR Thin Plate Spline</string>
+   </property>
+  </action>
+  <action name="actionShowDisplacement">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Displacement</string>
+   </property>
+  </action>
+  <action name="actionBSpline">
+   <property name="text">
+    <string>BSpline</string>
    </property>
   </action>
  </widget>

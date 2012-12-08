@@ -385,7 +385,7 @@ void MainWindow::updateScene() {
                 particles = &(g_imageParticlesAlgo->GetCurrentParams());
             }
             if (particles != NULL && particles->size() >= (image+1)*g_imageParticlesAlgo->GetNumberOfParams()) {
-                //            const int nSubj = g_imageParticlesAlgo->GetNumberOfSubjects();
+                // const int nSubj = g_imageParticlesAlgo->GetNumberOfSubjects();
                 const int nPoints = g_imageParticlesAlgo->GetNumberOfPoints();
                 const int nParams = g_imageParticlesAlgo->GetNumberOfParams();
                 const int nDims = 2;
@@ -449,15 +449,44 @@ void MainWindow::updateScene() {
                             pointColor = QColor(rgb[0], rgb[1], rgb[2]);
                         }
                         
-                        m_scene.addEllipse(x, y, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
+                        m_scene.addEllipse(x-.5, y-.5, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
                     }
                 }
             }
         }
     }
-    
-//    QRectF sceneRect = ui.graphicsView->sceneRect();
-//    cout << "Rect [" << sceneRect.top() << "," << sceneRect.bottom() << "," << sceneRect.left() << "," << sceneRect.right() << endl;
+
+    if (ui.actionShowDisplacement->isChecked() && g_imageParticlesAlgo.IsNotNull()) {
+        if (g_imageParticlesAlgo->GetDisplacementField().IsNull()) {
+            const OptimizerParametersType& params = g_imageParticlesAlgo->GetCurrentParams();
+            int nParams = g_imageParticlesAlgo->GetNumberOfParams();
+            int nPoints = g_imageParticlesAlgo->GetNumberOfPoints();
+            int n = GetCurrentImage();
+
+            if (n > 0) {
+                VNLMatrixRef src(nPoints, 2, (double*) &params[0]);
+                VNLMatrixRef dst(nParams, 2, (double*) &params[n*nParams]);
+
+                for (int i = 0; i < nPoints; i++) {
+                    m_scene.addLine(src[i][0], src[i][1], dst[i][0], dst[i][1], QPen(Qt::yellow));
+                }
+            }
+        } else {
+            SliceType::Pointer sliceImage = m_ImageList[image]->GetSlice();
+            SliceIteratorType iter(sliceImage, sliceImage->GetBufferedRegion());
+            DisplacementFieldType::Pointer field = g_imageParticlesAlgo->GetDisplacementField();
+            for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+                SliceType::IndexType idx = iter.GetIndex();
+                VectorType offset = field->GetPixel(idx);
+                VectorType src;
+                src[0] = idx[0];
+                src[1] = idx[1];
+                VectorType dst = src + offset;
+                m_scene.addLine(src[0], src[1], dst[0], dst[1], QPen(Qt::yellow));
+            }
+        }
+    }
+
 }
 
 
@@ -589,6 +618,20 @@ void MainWindow::on_actionEBS_triggered() {
     g_imageParticlesAlgo->ApplyTPSorEBSTransform(1);
 }
 
+void MainWindow::on_actionR2LogRTPS_triggered() {
+    // must after particles run
+    if (g_imageParticlesAlgo.IsNull()) {
+        return;
+    }
+    g_imageParticlesAlgo->ApplyTPSorEBSTransform(2);
+}
+
+void MainWindow::on_actionBSpline_triggered() {
+    if (g_imageParticlesAlgo.IsNull()) {
+        return;
+    }
+    g_imageParticlesAlgo->ApplyBSplineTransform();
+}
 
 void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
     QPoint o = event->pos();

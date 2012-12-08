@@ -259,7 +259,7 @@ void myEnsembleEntropy::GetValueAndDerivative(const OptimizerParametersType &par
     deriv.set_size(m_nParams * m_nSubjects);
     deriv.fill(0);
     
-    if (vnl_has_nan(params)) {
+    if (vnl_has_nans(params)) {
         cout << "NaN detected: " << params << endl;
         return;
     }

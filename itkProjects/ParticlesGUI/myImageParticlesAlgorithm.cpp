@@ -29,6 +29,7 @@
 #include "itkThinPlateSplineKernelTransform.h"
 #include "itkElasticBodySplineKernelTransform.h"
 #include "itkResampleImageFilter.h"
+#include "myImageTransform.h"
 
 
 using namespace std;
@@ -124,7 +125,6 @@ ImageParticlesAlgorithm::ImageParticlesAlgorithm() : m_ImageList(NULL), m_EventC
     m_ViewingDimension = 0;
     m_iters = 0;
     m_nSubjects = 0;
-    m_nPoints = 0;
     m_nPoints = 0;
     m_nTotalParams = 0;
     m_Dim = 2;
@@ -594,6 +594,7 @@ void ImageParticlesAlgorithm::SetImageList(ImageContainer::List *list) {
     m_nSubjects = list->size();
     m_KappaMaps.clear();
     m_KappaMapInterpolators.clear();
+    m_ImageInterpolators.clear();
 
     for (int i = 0; i < m_nSubjects; i++) {
         ImageContainer::Pointer image = list->at(i);
@@ -622,6 +623,10 @@ void ImageParticlesAlgorithm::SetImageList(ImageContainer::List *list) {
         kappaInterpolator->SetInputImage(kappaMap);
         m_KappaMapInterpolators.push_back(kappaInterpolator);
         m_KappaMaps.push_back(kappaMap);
+
+        SliceInterpolatorType::Pointer imageInterpolator = SliceInterpolatorType::New();
+        imageInterpolator->SetInputImage(image->GetSlice());
+        m_ImageInterpolators.push_back(imageInterpolator);
     }
 
     m_Constraint.SetImageList(list);
@@ -715,88 +720,71 @@ void ImageParticlesAlgorithm::ApplyTPSorEBSTransform(int type) {
     }
 
     VNLMatrixRef subjects(m_nSubjects, m_nParams, m_CurrentParams.data_block());
+    VNLMatrix worldPos(m_nSubjects, m_nParams);
 
-    // copy target points
-    SliceType::Pointer targetSlice = m_ImageList->at(0)->GetSlice();
-    VNLMatrixRef target(m_nPoints, Dimensions, subjects[0]);
-    TPSTransformType::PointsContainer::Pointer targetPoints = TPSTransformType::PointsContainer::New();
-    for (int i = 0; i < m_nPoints; i++) {
-        ContinuousIndexType iIdx;
-        TPSTransformType::PointsContainer::Element iPoint;
-        iIdx[0] = iPoint[0] = target[i][0];
-        iIdx[1] = iPoint[1] = target[i][1];
-        targetSlice->TransformContinuousIndexToPhysicalPoint(iIdx, iPoint);
-        targetPoints->InsertElement(i, iPoint);
+    for (int n = 0; n < m_nSubjects; n++) {
+        m_ImageList->at(n)->TransformToPhysicalPoints(m_nPoints, subjects[n], worldPos[n]);
+
+        SliceType::PointType point0;
+        ContinuousIndexType idx0;
+        idx0[0] = subjects[n][0];
+        idx0[1] = subjects[n][1];
+
+        m_ImageList->at(n)->GetSlice()->TransformContinuousIndexToPhysicalPoint(idx0, point0);
     }
 
-    TPSTransformType::PointSetPointer targetPointSet = TPSTransformType::PointSetType::New();
-    targetPointSet->SetPoints(targetPoints.GetPointer());
+    myImageTransform transformer;
+    myImageTransform::KernelTransformPointer transform = transformer.CreateKernelTransform(0, m_nPoints, worldPos[0], worldPos[1]);
+
+    SliceType::Pointer transformedImage = transformer.ResampleSlice(m_ImageList->at(0)->GetSlice(), transform);
 
 
-    // debug: validate point set
-//    for (int k = 0; k < m_nPoints; k++) {
-//        TPSTransformType::PointsContainer::Element kPoint;
-//        targetPointSet->GetPoint(k, &kPoint);
-//        cout << k << ": " << kPoint << endl;
-//    }
+    // store transformed image as derived image
+    RGBAImageType::Pointer transformedRGBA = ImageContainer::CreateBitmap(transformedImage);
+    string sourceName = m_ImageList->at(0)->GetName();
+    m_ImageList->at(0)->AddDerivedView(sourceName + "/tpsTransformed", transformedRGBA);
+}
 
-    for (int n = 1; n < m_nSubjects; n++) {
-        // copy source points
-        SliceType::Pointer sourceSlice = m_ImageList->at(n)->GetSlice();
-        VNLMatrixRef source(m_nPoints, Dimensions, subjects[1]);
-        KernelTransformType::PointsContainer::Pointer sourcePoints = KernelTransformType::PointsContainer::New();
-        for (int i = 0; i < m_nPoints; i++) {
-            ContinuousIndexType iIdx;
-            KernelTransformType::PointsContainer::Element iPoint;
-            iIdx[0] = iPoint[0] = source[i][0];
-            iIdx[1] = iPoint[1] = source[i][1];
-            targetSlice->TransformContinuousIndexToPhysicalPoint(iIdx, iPoint);
-            sourcePoints->InsertElement(i, iPoint);
-        }
-        KernelTransformType::PointSetPointer srcPointSet = TPSTransformType::PointSetType::New();
-        srcPointSet->SetPoints(sourcePoints.GetPointer());
+void ImageParticlesAlgorithm::ApplyBSplineTransform() {
+    VNLMatrixRef subjects(m_nSubjects, m_nParams, m_CurrentParams.data_block());
+    VNLMatrix worldPos(m_nSubjects, m_nParams);
 
+    for (int n = 0; n < m_nSubjects; n++) {
+        m_ImageList->at(n)->TransformToPhysicalPoints(m_nPoints, subjects[n], worldPos[n]);
 
-        // debug: validate point set
-//        for (int k = 0; k < m_nPoints; k++) {
-//            KernelTransformType::PointsContainer::Element kPoint;
-//            srcPointSet->GetPoint(k, &kPoint);
-//            cout << k << ": " << kPoint << endl;
-//        }
+        SliceType::PointType point0;
+        ContinuousIndexType idx0;
+        idx0[0] = subjects[n][0];
+        idx0[1] = subjects[n][1];
 
-        // set up TPS transform
-        KernelTransformType::Pointer kernelTransform(NULL);
-        if (type == 0) {
-            TPSTransformType::Pointer tps = TPSTransformType::New();
-            tps->SetSourceLandmarks(srcPointSet.GetPointer());
-            tps->SetTargetLandmarks(targetPointSet.GetPointer());
-            cout << "Computing W ..." << endl;
-            tps->ComputeWMatrix();
-            cout << "Computing W done ..." << endl;
-            kernelTransform = tps;
-        } else if (type == 1) {
-            EBSTransformType::Pointer ebs = EBSTransformType::New();
-            ebs->SetSourceLandmarks(srcPointSet.GetPointer());
-            ebs->SetTargetLandmarks(targetPointSet.GetPointer());
-            cout << "Computing W ..." << endl;
-            ebs->ComputeWMatrix();
-            cout << "Computing W done ..." << endl;
-            kernelTransform = ebs;
-        }
+        m_ImageList->at(n)->GetSlice()->TransformContinuousIndexToPhysicalPoint(idx0, point0);
+    }
 
-        SliceType::Pointer sourceImage = m_ImageList->at(n)->GetSlice();
-        ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
-        resampler->SetInput(targetSlice);
-        resampler->SetTransform(kernelTransform.GetPointer());
-        resampler->SetReferenceImage(sourceSlice);
-        resampler->UseReferenceImageOn();
-        resampler->Update();
-        SliceType::Pointer tpsTransformed = resampler->GetOutput();
+    SliceType::Pointer srcImage = m_ImageList->at(1)->GetSlice();
+    // temporarily transform the second image now.
+    my::BSplineRegistration bsplineReg;
+    bsplineReg.SetLandmarks(m_nPoints, worldPos[1], worldPos[0]);
+    bsplineReg.SetReferenceImage(m_ImageList->at(1)->GetSlice());
+    bsplineReg.Update();
+    SliceType::Pointer transformedImage = bsplineReg.WarpImage(srcImage);
+
+    if (transformedImage.IsNotNull()) {
+        // transformedImage->Print(cout);
+        
+        // store transformed image as derived image
+        RGBAImageType::Pointer transformedRGBA = ImageContainer::CreateBitmap(transformedImage);
+        string sourceName = m_ImageList->at(0)->GetName();
+        m_ImageList->at(0)->AddDerivedView(sourceName + "/bsplineTransformed", transformedRGBA);
 
         // store transformed image as derived image
-        RGBAImageType::Pointer tpsTransformedRGBA = ImageContainer::CreateBitmap(tpsTransformed);
-        string sourceName = m_ImageList->at(n)->GetName();
-        m_ImageList->at(n)->AddDerivedView(sourceName + "/tpsTransformed", tpsTransformedRGBA);
+        RGBAImageType::Pointer displacementRGBA = ImageContainer::CreateBitmap(bsplineReg.GetDisplacementMagnitude());
+        m_ImageList->at(0)->AddDerivedView(sourceName + "/displacementMagnitude", displacementRGBA);
+
+        m_BSplineDisplacementField = bsplineReg.GetDisplacementField();
     }
 }
 
+
+DisplacementFieldType::Pointer ImageParticlesAlgorithm::GetDisplacementField() {
+    return m_BSplineDisplacementField;
+}

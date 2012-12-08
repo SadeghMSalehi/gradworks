@@ -91,6 +91,9 @@ void ImageContainer::SetImage(ImageType::Pointer image) {
     m_IntensityStats[1] = statisticsImageFilter->GetMaximum();
     m_IntensityStats[2] = statisticsImageFilter->GetMean();
     m_IntensityStats[3] = statisticsImageFilter->GetSigma();
+
+    ComputeTransformToIndexMatrix(m_WorldToImage);
+    ComputeTransformToPhysicalPointMatrix(m_ImageToWorld);
 }
 
 void ImageContainer::UpdateSlice(int dim) {
@@ -284,4 +287,58 @@ QPixmap ImageContainer::GetDerivedViewPixmap(std::string name) {
 
 void ImageContainer::ClearDerivedViews() {
     g_DerivedSliceDictionary.clear();
+}
+
+
+
+bool ImageContainer::ComputeTransformToPhysicalPointMatrix(VNLMatrix& out) {
+    if (!HasImage()) {
+        return false;
+    }
+    SliceType::Pointer sliceImg = GetSlice();
+    SliceType::DirectionType dir = sliceImg->GetDirection();
+    SliceType::SpacingType spacing = sliceImg->GetSpacing();
+    SliceType::PointType origin = sliceImg->GetOrigin();
+
+    // physical space point y = spacing*dir*x - origin
+    out.set_size(3,3);
+    out.set_identity();
+    out.update(dir.GetVnlMatrix());
+    for (int i = 0; i < spacing.Size(); i++) {
+        out[i][i] *= spacing[i];
+    }
+    for (int i = 0; i < origin.Size(); i++) {
+        out[i][origin.Size()] = origin[i];
+    }
+    return true;
+}
+
+bool ImageContainer::ComputeTransformToIndexMatrix(VNLMatrix& out) {
+    VNLMatrix index2world(SDim+1,SDim+1);
+    if (!ComputeTransformToPhysicalPointMatrix(index2world)) {
+        return false;
+    };
+    VNLMatrix world2index = vnl_matrix_inverse<double>(index2world);
+    out.set_size(3,3);
+    out.set_identity();
+    out.update(world2index);
+    return true;
+}
+
+void ImageContainer::TransformToPhysicalPoints(const int n, double *pointsIn, double *pointsOut) {
+    if (!HasImage()) {
+        return;
+    }
+    VNLMatrixRef in(n, SDim, pointsIn);
+    VNLMatrixRef out(n, SDim, pointsOut);
+    vnl_transform_points_2d(m_ImageToWorld, in, out);
+}
+
+void ImageContainer::TransformToImagePoints(const int n, double *pointsIn, double *pointsOut) {
+    if (!HasImage()) {
+        return;
+    }
+    VNLMatrixRef in(n, SDim, pointsIn);
+    VNLMatrixRef out(n, SDim, pointsOut);
+    vnl_transform_points_2d(m_WorldToImage, in, out);
 }

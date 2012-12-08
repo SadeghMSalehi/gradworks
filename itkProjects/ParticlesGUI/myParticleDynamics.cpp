@@ -11,17 +11,22 @@
 #include "vnl/algo/vnl_symmetric_eigensystem.h"
 #include "iostream"
 #include "myImageParticlesAlgorithm.h"
-
+#include "itkThinPlateSplineKernelTransform.h"
+#include "myImageTransform.h"
+#include <QElapsedTimer>
 
 // experiment options
 const static bool applySurfaceEntropyToFirstOnly = false;
 const static bool applyBoundaryConditionToFirstOnly = false;
 const static bool useEnsembleForce = false;
 const static bool useParticlePhysics = true;
+const static bool useBoundaryCondition = true;
 
 
 using namespace std;
 const static int nDim = 2;
+
+typedef itk::ThinPlateSplineKernelTransform<double,nDim> TPSTransformType;
 
 // VNL-Boost compatibility functions
 namespace boost {
@@ -60,13 +65,19 @@ static inline double dist2(VNLMatrix& m, int r, int p1, int p2, int d = 2) {
     return __dist2(m[r][d*p1], m[r][d*p1+1], m[r][d*p2], m[r][d*p2+1]);
 }
 
-ParticleSystem::ParticleSystem(const int nSubj, const int nParticles): m_nDim(2), m_nSubjects(nSubj), m_nParticles(nParticles), m_nParams(nParticles*m_nDim) {
+ParticleSystem::ParticleSystem(const int nSubj, const int nParticles):
+m_nDim(2),
+m_nSubjects(nSubj),
+m_nParticles(nParticles),
+m_nParams(nParticles*m_nDim),
+m_Pos(0,0,NULL),
+m_Vel(0,0,NULL),
+m_dpdt(0,0,NULL),
+m_dvdt(0,0,NULL) {
     m_Cutoff = 15;
     m_Sigma2 = 3*3;
     m_Mu = 1;
-    m_COR = .2
-
-    		;
+    m_COR = .2;
     m_Force.set_size(m_nSubjects, m_nParams);
     m_Constraint = NULL;
     m_StatusHistory = NULL;
@@ -113,7 +124,11 @@ void ParticleSystem::SetContext(ImageParticlesAlgorithm* context) {
     m_Sigma2 *= m_Sigma2;
 }
 
-void ParticleSystem::UpdateSurfaceForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, VNLMatrix& gForce) {
+void ParticleSystem::UpdateSurfaceForce() {
+    VNLMatrixRef& gPos = m_Pos;
+    VNLMatrixRef& gVel = m_Vel;
+    VNLMatrix& gForce = m_Force;
+
     const int nDim = 2;//vec::SIZE;
 
     int nSubj = (applySurfaceEntropyToFirstOnly ? 1 : m_nSubjects);
@@ -185,11 +200,12 @@ void ParticleSystem::UpdateSurfaceForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, 
 
 
 
-void ParticleSystem::UpdateGravityForce(VNLMatrixRef& pos, VNLMatrixRef& vel, VNLMatrix& force) {
+void ParticleSystem::UpdateGravityForce() {
+    VNLMatrix& gForce = m_Force;
     const int nDim = 2;
     for (int n = 0; n < m_nSubjects; n++) {
         for (int i = 0; i < m_nParticles; i++) {
-            force[n][nDim*i+1] = 0.98;
+            gForce[n][nDim*i+1] = 0.98;
         }
     }
 }
@@ -266,8 +282,10 @@ void ParticleSystem::ApplyMatrixOperation(const double* posIn, const VNLMatrix& 
     }
 }
 
-void ParticleSystem::UpdateEnsembleForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel, VNLMatrix& gForce)
+void ParticleSystem::UpdateEnsembleForce()
  {
+
+     VNLMatrixRef& gPos = m_Pos;
 
     // estimate transform from subjN to subj1
     VNLMatrixArray transforms;
@@ -350,14 +368,61 @@ void ParticleSystem::UpdateEnsembleForce(VNLMatrixRef& gPos, VNLMatrixRef& gVel,
     }
 }
 
+void ParticleSystem::UpdateImageForce() {
+    ImageParticlesAlgorithm::InterpolatorList* interpolators = m_Context->GetImageInterpolators();
+
+    VNLMatrixRef& gPos = m_Pos;
+    VNLMatrix wPos(m_nSubjects, m_nParams);
+    for (int n = 0; n < m_nSubjects; n++) {
+        ImageContainer::Pointer image = m_Context->GetImage(n);
+        image->TransformToPhysicalPoints(m_nParticles, gPos[n], wPos[n]);
+    }
+
+    VNLMatrix imageAttributes(m_nSubjects, m_nParticles);
+    for (int n = 0; n < m_nSubjects; n++) {
+        // iterate over particles and sample image intensity
+        SliceInterpolatorType::Pointer interp = interpolators->at(n);
+        for (int i = 0; i < m_nParticles; i++) {
+            VNLVectorRef iPos(nDim, &m_Pos[n][nDim*i]);
+            VNLVectorRef iVel(nDim, &m_Vel[n][nDim*i]);
+            VNLVectorRef iForce(nDim, &m_Force[n][nDim*i]);
+
+            ContinuousIndexType iIdx;
+            copyArray(iIdx, iPos);
+
+            imageAttributes[n][i] = interpolators->at(n)->EvaluateAtContinuousIndex(iIdx);
+        }
+    }
+
+
+    // compute covariance matrix and gradient for minimization
+    // jacobian requires image intensity gradient with respect to xy coordinate
+    
+}
+
+void ParticleSystem::UpdateTransform() {
+    VNLMatrixRef& gPos = m_Pos;
+
+    VNLMatrix wPos(m_nSubjects, m_nParams);
+    for (int n = 0; n < m_nSubjects; n++) {
+        m_Context->GetImage(n)->TransformToPhysicalPoints(m_nParticles, gPos[0], wPos[0]);
+    }
+
+
+    QElapsedTimer timer;
+    timer.start();
+
+    myImageTransform transformer;
+    myImageTransform::KernelTransformPointer transform = transformer.CreateKernelTransform(0, m_nParticles, gPos[0], wPos[0]);
+
+    cout << "Transform Time: " << timer.elapsed() << " ms" << endl;
+}
 
 // Apply boundary constraint
-void ParticleSystem::ApplyBoundaryConditions(const VNLVector &x, const VNLMatrix& gForce, VNLMatrixRef& dpdt, VNLMatrixRef& dvdt) {
+void ParticleSystem::ApplyBoundaryConditions() {
 
     // boundary constraint
     const int nDim = 2;
-    VNLMatrixRef gPos(m_nSubjects, m_nParams, (double*) x.data_block());
-    VNLMatrixRef gVel(m_nSubjects, m_nParams, (double*) x.data_block()+m_nSubjects*m_nParams);
 
     int nSubj = applyBoundaryConditionToFirstOnly ? 1 : m_nSubjects;
     nSubj = m_nSubjects;
@@ -365,13 +430,13 @@ void ParticleSystem::ApplyBoundaryConditions(const VNLVector &x, const VNLMatrix
         for (int i = 0; i < m_nParticles; i++) {
 
             // input data
-            VNLVectorRef posi(nDim, &gPos[n][nDim*i]);
-            VNLVectorRef forcei(nDim, (double*) &gForce[n][nDim*i]);
-            VNLVectorRef veli(nDim, &gVel[n][nDim*i]);
+            VNLVectorRef posi(nDim, &m_Pos[n][nDim*i]);
+            VNLVectorRef forcei(nDim, (double*) &m_Force[n][nDim*i]);
+            VNLVectorRef veli(nDim, &m_Vel[n][nDim*i]);
 
             // output data
-            VNLVectorRef dpdti(nDim, &dpdt[n][nDim*i]);
-            VNLVectorRef dvdti(nDim, &dvdt[n][nDim*i]);
+            VNLVectorRef dpdti(nDim, &m_dpdt[n][nDim*i]);
+            VNLVectorRef dvdti(nDim, &m_dvdt[n][nDim*i]);
 
             // constraint should be available
             if (m_Constraint != NULL) {
@@ -445,35 +510,37 @@ void ParticleSystem::ApplyBoundaryConditions(const VNLVector &x, const VNLMatrix
 
 // integration function
 void ParticleSystem::operator()(const VNLVector &x, VNLVector& dxdt, const double t) {
-    VNLMatrixRef pos(m_nSubjects, m_nParams, (double*) x.data_block());
-    VNLMatrixRef vel(m_nSubjects, m_nParams, (double*) x.data_block()+m_nSubjects*m_nParams);
+    const int nVelocityOffset = m_nSubjects * m_nParams;
 
-    VNLMatrixRef dpdt(m_nSubjects, m_nParams, dxdt.data_block());
-    VNLMatrixRef dvdt(m_nSubjects, m_nParams, dxdt.data_block()+m_nSubjects*m_nParams);
+    m_Pos.reinit(m_nSubjects, m_nParams, (double*) &x[0]);
+    m_Vel.reinit(m_nSubjects, m_nParams, (double*) &x[nVelocityOffset]);
+    m_dpdt.reinit(m_nSubjects, m_nParams, (double*) &dxdt[0]);
+    m_dvdt.reinit(m_nSubjects, m_nParams, &dxdt[nVelocityOffset]);
 
     m_Force.fill(0);
 
+    // UpdateTransform();
+    
     // update forces at time t
     if (useEnsembleForce) {
-        UpdateEnsembleForce(pos, vel, m_Force);
+        UpdateEnsembleForce();
     }
-    UpdateSurfaceForce(pos, vel, m_Force);
+    UpdateSurfaceForce();
     // UpdateGravityForce(pos, vel, m_Force);
 
     if (useParticlePhysics) {
         // dP/dt = V
-        dpdt.copy_in(vel.data_block());
+        m_dpdt.copy_in(m_Vel[0]);
         // dV/dt = F/m
-        dvdt.copy_in(m_Force.data_block());
+        m_dvdt.copy_in(m_Force[0]);
     } else {
         // gradient descent
-        dpdt.copy_in(m_Force.data_block());
-        dvdt.fill(0);
+        m_dpdt.copy_in(m_Force.data_block());
+        m_dvdt.fill(0);
     }
 
-    bool useImplicitBoundary = true;
-    if (useImplicitBoundary) {
-        ApplyBoundaryConditions(x, m_Force, dpdt, dvdt);
+    if (useBoundaryCondition) {
+        ApplyBoundaryConditions();
     }
 }
 
@@ -500,7 +567,6 @@ void ParticleSystem::operator()(const VNLVector &x, const double t) {
                     continue;
                 }
                 VNLVectorRef posj(2, &gPos[n][nDim*j]);
-
                 double dij = (pos-posj).two_norm();
                 if (dij > m_Cutoff) {
                     weights[j] = 0;
