@@ -20,7 +20,6 @@ namespace my {
     typedef itk::WarpImageFilter<SliceType, SliceType, DisplacementFieldType> WarpImageFilterType;
 
     BSplineRegistration::BSplineRegistration() {
-
     }
 
     BSplineRegistration::~BSplineRegistration() {
@@ -63,26 +62,36 @@ namespace my {
 
     void BSplineRegistration::Update() {
         int splineOrder = 3;
-        int numOfLevels = 3;
+        int numOfLevels = 1;
         int nSize = 25;
 
         BSplineFilterType::Pointer bspliner = BSplineFilterType::New();
         BSplineFilterType::ArrayType numControlPoints;
         numControlPoints.Fill(nSize + splineOrder);
 
+        SliceType::SizeType imageSize = m_RefImage->GetBufferedRegion().GetSize();
+        SliceType::SpacingType imageSpacing = m_RefImage->GetSpacing();
+        SliceType::PointType imageOrigin = m_RefImage->GetOrigin();
+
+        cout << "Image Size: " << imageSize << endl;
+        cout << "Image Spacing: " << imageSpacing << endl;
+        cout << "Image Origin: " << imageOrigin << endl;
+        cout << "# control points: " << numControlPoints << endl;
+
         try {
             // debug: reparameterized point component is outside
             QElapsedTimer timer;
             timer.start();
-            bspliner->SetOrigin(m_RefImage->GetOrigin());
-            bspliner->SetSpacing(m_RefImage->GetSpacing());
-            bspliner->SetSize(m_RefImage->GetBufferedRegion().GetSize());
+            bspliner->SetOrigin(imageOrigin);
+            bspliner->SetSpacing(imageSpacing);
+            bspliner->SetSize(imageSize);
             bspliner->SetGenerateOutputImage(true);
             bspliner->SetNumberOfLevels(numOfLevels);
             bspliner->SetSplineOrder(splineOrder);
             bspliner->SetNumberOfControlPoints(numControlPoints);
             bspliner->SetInput(m_FieldPoints);
             bspliner->Update();
+            m_PhiLattice = bspliner->GetPhiLattice();
             m_DisplacementField = bspliner->GetOutput();
             cout << "BSpline Update Time: " << timer.elapsed() << endl;
         } catch (itk::ExceptionObject& e) {
@@ -107,7 +116,11 @@ namespace my {
     DisplacementFieldType::Pointer BSplineRegistration::GetDisplacementField() {
         return m_DisplacementField;
     }
-    
+
+    DisplacementFieldType::Pointer BSplineRegistration::GetControlPoints() {
+        return m_PhiLattice;
+    }
+
     SliceType::Pointer BSplineRegistration::GetDisplacementMagnitude() {
         if (m_DisplacementField.IsNull()) {
             return SliceType::Pointer(NULL);

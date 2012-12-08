@@ -52,7 +52,7 @@ typedef itk::PointSet<int,2> PointSetType;
 typedef itk::Vector<double,2> VectorType;
 typedef itk::PointSet<VectorType,2> DisplacementFieldPointSetType;
 typedef itk::Image<VectorType,2> DisplacementFieldType;
-
+typedef itk::ImageRegionConstIteratorWithIndex<DisplacementFieldType> FieldIteratorType;
 
 class ImageContainer: public itk::LightObject {
 public:

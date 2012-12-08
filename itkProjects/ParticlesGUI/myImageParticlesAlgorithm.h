@@ -144,6 +144,11 @@ public:
     void ApplyBSplineTransform();
     DisplacementFieldType::Pointer GetDisplacementField();
 
+    // return bspline registration for debugging and visualization
+    my::BSplineRegistration* GetBSplineRegistration() {
+        return &m_BSplineRegistration;
+    }
+
     /**
      * UI Event handling
      */
@@ -193,6 +198,8 @@ private:
     InterpolatorList m_ImageInterpolators;
 
 
+    my::BSplineRegistration m_BSplineRegistration;
+    
     DisplacementFieldType::Pointer m_BSplineDisplacementField;
     
     /**

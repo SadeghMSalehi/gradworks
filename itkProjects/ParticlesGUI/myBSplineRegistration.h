@@ -20,7 +20,6 @@ namespace my {
     <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
     typedef BSplineFilterType::WeightsContainerType WeightsContainerType;
 
-
     class BSplineRegistration {
     public:
         BSplineRegistration();
@@ -32,12 +31,14 @@ namespace my {
         SliceType::Pointer WarpImage(SliceType::Pointer srcImage);
         SliceType::Pointer GetDisplacementMagnitude();
         DisplacementFieldType::Pointer GetDisplacementField();
+        DisplacementFieldType::Pointer GetControlPoints();
 
     private:
         VNLVector m_Params;
         SliceType::Pointer m_RefImage;
         DisplacementFieldPointSetType::Pointer m_FieldPoints;
         DisplacementFieldType::Pointer m_DisplacementField;
+        DisplacementFieldType::Pointer m_PhiLattice;
     };
 }
 

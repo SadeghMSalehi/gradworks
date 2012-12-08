@@ -762,11 +762,12 @@ void ImageParticlesAlgorithm::ApplyBSplineTransform() {
 
     SliceType::Pointer srcImage = m_ImageList->at(1)->GetSlice();
     // temporarily transform the second image now.
-    my::BSplineRegistration bsplineReg;
-    bsplineReg.SetLandmarks(m_nPoints, worldPos[1], worldPos[0]);
-    bsplineReg.SetReferenceImage(srcImage);
-    bsplineReg.Update();
-    SliceType::Pointer transformedImage = bsplineReg.WarpImage(srcImage);
+    m_BSplineRegistration.SetLandmarks(m_nPoints, worldPos[1], worldPos[0]);
+    m_BSplineRegistration.SetReferenceImage(srcImage);
+    m_BSplineRegistration.Update();
+
+    // warp the image in according to the bspline transformation
+    SliceType::Pointer transformedImage = m_BSplineRegistration.WarpImage(srcImage);
 
     if (transformedImage.IsNotNull()) {
         // transformedImage->Print(cout);
@@ -777,10 +778,10 @@ void ImageParticlesAlgorithm::ApplyBSplineTransform() {
         m_ImageList->at(0)->AddDerivedView(sourceName + "/bsplineTransformed", transformedRGBA);
 
         // store transformed image as derived image
-        RGBAImageType::Pointer displacementRGBA = ImageContainer::CreateBitmap(bsplineReg.GetDisplacementMagnitude());
+        RGBAImageType::Pointer displacementRGBA = ImageContainer::CreateBitmap(m_BSplineRegistration.GetDisplacementMagnitude());
         m_ImageList->at(0)->AddDerivedView(sourceName + "/displacementMagnitude", displacementRGBA);
 
-        m_BSplineDisplacementField = bsplineReg.GetDisplacementField();
+        m_BSplineDisplacementField = m_BSplineRegistration.GetDisplacementField();
     }
 }
 

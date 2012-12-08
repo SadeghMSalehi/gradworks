@@ -120,7 +120,9 @@
      <addaction name="actionTPS"/>
      <addaction name="actionEBS"/>
      <addaction name="actionR2LogRTPS"/>
+     <addaction name="separator"/>
      <addaction name="actionBSpline"/>
+     <addaction name="actionShowBSplineControlPoints"/>
     </widget>
     <addaction name="actionAddImage"/>
     <addaction name="actionAddLabel"/>
@@ -196,8 +198,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>196</width>
-          <height>389</height>
+          <width>230</width>
+          <height>520</height>
          </rect>
         </property>
         <attribute name="label">
@@ -417,8 +419,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>98</width>
-          <height>28</height>
+          <width>230</width>
+          <height>520</height>
          </rect>
         </property>
         <attribute name="label">
@@ -925,6 +927,14 @@
   <action name="actionBSpline">
    <property name="text">
     <string>BSpline</string>
+   </property>
+  </action>
+  <action name="actionShowBSplineControlPoints">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Control Points</string>
    </property>
   </action>
  </widget>

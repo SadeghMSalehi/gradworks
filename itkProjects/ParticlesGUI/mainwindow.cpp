@@ -60,6 +60,7 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), 
     QObject::connect(ui.labelOpacity, SIGNAL(valueChanged(int)), this, SLOT(updateScene()));
     QObject::connect(&m_ParticleColors, SIGNAL(triggered(QAction*)), this, SLOT(updateScene()));
     QObject::connect(ui.actionShowParticles, SIGNAL(triggered()), this, SLOT(updateScene()));
+    QObject::connect(ui.actionShowBSplineControlPoints, SIGNAL(triggered()), this, SLOT(updateScene()));
     QObject::connect(ui.showGray, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showLabel, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showDerived, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
@@ -485,6 +486,17 @@ void MainWindow::updateScene() {
                 src[1] = idx[1];
                 VectorType dst = src + imageOffset;
                 m_scene.addLine(src[0], src[1], dst[0], dst[1], QPen(Qt::yellow));
+            }
+        }
+    }
+
+    if (ui.actionShowBSplineControlPoints->isChecked() && g_imageParticlesAlgo.IsNotNull()) {
+        DisplacementFieldType::Pointer controlPoints = g_imageParticlesAlgo->GetBSplineRegistration()->GetControlPoints();
+        if (controlPoints.IsNotNull()) {
+            FieldIteratorType cpsIter(controlPoints, controlPoints->GetBufferedRegion());
+            for (cpsIter.GoToBegin(); !cpsIter.IsAtEnd(); ++cpsIter) {
+                VectorType aPoint = cpsIter.Get();
+                m_scene.addEllipse(aPoint[0] - .5, aPoint[1] - .5, 1, 1, QPen(Qt::white), QBrush(Qt::white, Qt::SolidPattern));
             }
         }
     }
