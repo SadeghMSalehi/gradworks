@@ -22,6 +22,7 @@
 #include "myEventCallback.h"
 #include "vnlCommon.h"
 #include "itkPointSet.h"
+#include "itkVectorLinearInterpolateImageFunction.h"
 
 #define copyArray(x,y) for (int kkk = 0; kkk < SDim; kkk++) x[kkk] = y[kkk]
 
@@ -46,6 +47,7 @@ typedef itk::FixedArray<double,4> StatTupleType;
 typedef itk::FixedArray<int,VDim> IntTupleType;
 typedef itk::CovariantVector<double,2> GradientType;
 typedef itk::Image<GradientType,2> GradientImageType;
+typedef itk::VectorLinearInterpolateImageFunction<GradientImageType> VectorInterpolatorType;
 typedef SliceInterpolatorType::ContinuousIndexType ContinuousIndexType;
 typedef itk::ScalarToARGBColormapImageFilter<SliceType, RGBAImageType> SliceToRGBAImageFilterType;
 typedef itk::PointSet<int,2> PointSetType;

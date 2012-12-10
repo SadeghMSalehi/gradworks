@@ -150,6 +150,7 @@
     <addaction name="separator"/>
     <addaction name="actionShowParticles"/>
     <addaction name="actionShowDisplacement"/>
+    <addaction name="actionShowCorrespondence"/>
     <addaction name="menuParticle_Colors"/>
     <addaction name="actionUseODESolver"/>
    </widget>
@@ -693,7 +694,7 @@
           </widget>
          </item>
          <item row="11" column="2">
-          <widget class="QDoubleSpinBox" name="ensembleFactor_3">
+          <widget class="QDoubleSpinBox" name="gradientScale">
            <property name="minimum">
             <double>0.000000000000000</double>
            </property>
@@ -935,6 +936,14 @@
    </property>
    <property name="text">
     <string>Show Control Points</string>
+   </property>
+  </action>
+  <action name="actionShowCorrespondence">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Correspondence</string>
    </property>
   </action>
  </widget>

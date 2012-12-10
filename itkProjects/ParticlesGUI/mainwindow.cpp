@@ -56,6 +56,9 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), 
     QObject::connect(ui.grayImages, SIGNAL(currentIndexChanged(int)), this, SLOT(selectImage(int)));
     QObject::connect(ui.labelImages, SIGNAL(currentIndexChanged(int)), this, SLOT(selectLabel(int)));
 
+    QObject::connect(ui.actionShowCorrespondence, SIGNAL(triggered()), this, SLOT(updateScene()));
+    QObject::connect(ui.actionShowDisplacement, SIGNAL(triggered()), this, SLOT(updateScene()));
+
     QObject::connect(ui.zoomRatio, SIGNAL(valueChanged(double)), this, SLOT(updateScene()));
     QObject::connect(ui.labelOpacity, SIGNAL(valueChanged(int)), this, SLOT(updateScene()));
     QObject::connect(&m_ParticleColors, SIGNAL(triggered(QAction*)), this, SLOT(updateScene()));
@@ -120,15 +123,21 @@ void MainWindow::ReadyToExperiments() {
 //    LoadLabel("/data/Particles/00.Label.half.nrrd");
 //    LoadImage("/data/Particles/16.T2.half.nrrd");
 //    LoadLabel("/data/Particles/16.Label.half.nrrd");
-    LoadImage("/data/Particles/cs1_tex.nrrd");
-    LoadLabel("/data/Particles/cs1.nrrd");
-    LoadImage("/data/Particles/cs2_tex.nrrd");
-    LoadLabel("/data/Particles/cs2.nrrd");
+//    LoadImage("/data/Particles/cs1_tex.nrrd");
+//    LoadLabel("/data/Particles/cs1.nrrd");
+//    LoadImage("/data/Particles/cs2_tex.nrrd");
+//    LoadLabel("/data/Particles/cs2.nrrd");
 //    LoadSurface("/data/Particles/00.vtk");
 //    LoadImage("/data/Particles/Image001.nrrd");
 //    LoadLabel("/data/Particles/Image001.nrrd");
 //    LoadImage("/data/Particles/Image002.nrrd");
 //    LoadLabel("/data/Particles/Image002.nrrd");
+    LoadImage("/data/Particles/image_black_gray.nrrd");
+    LoadLabel("/data/Particles/image_whole_mask.nrrd");
+    LoadImage("/data/Particles/image_gray_white.nrrd");
+    LoadLabel("/data/Particles/image_whole_mask.nrrd");
+    LoadImage("/data/Particles/image_black_gray.nrrd");
+    LoadLabel("/data/Particles/image_center_mask.nrrd");
 
     on_actionRandomParticlesInit_triggered();
     g_constraint.SetImageList(&m_ImageList);
@@ -457,8 +466,8 @@ void MainWindow::updateScene() {
         }
     }
 
-    if (ui.actionShowDisplacement->isChecked() && g_imageParticlesAlgo.IsNotNull()) {
-        if (g_imageParticlesAlgo->GetDisplacementField().IsNull()) {
+    if (g_imageParticlesAlgo.IsNotNull()) {
+        if (ui.actionShowCorrespondence->isChecked()) {
             const OptimizerParametersType& params = g_imageParticlesAlgo->GetCurrentParams();
             int nParams = g_imageParticlesAlgo->GetNumberOfParams();
             int nPoints = g_imageParticlesAlgo->GetNumberOfPoints();
@@ -472,31 +481,45 @@ void MainWindow::updateScene() {
                     m_scene.addLine(src[i][0], src[i][1], dst[i][0], dst[i][1], QPen(Qt::yellow));
                 }
             }
-        } else {
-            SliceType::Pointer sliceImage = m_ImageList[image]->GetSlice();
-            SliceIteratorType iter(sliceImage, sliceImage->GetBufferedRegion());
-            DisplacementFieldType::Pointer field = g_imageParticlesAlgo->GetDisplacementField();
-            for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
-                SliceType::IndexType idx = iter.GetIndex();
-                VectorType offset = field->GetPixel(idx);
-                VectorType imageOffset;
-                m_ImageList[image]->TransformToImageVector(offset, imageOffset);
-                VectorType src;
-                src[0] = idx[0];
-                src[1] = idx[1];
-                VectorType dst = src + imageOffset;
-                m_scene.addLine(src[0], src[1], dst[0], dst[1], QPen(Qt::yellow));
+        }
+
+        if (ui.actionShowDisplacement->isChecked()) {
+            if (!g_imageParticlesAlgo->GetDisplacementField().IsNull()) {
+                SliceType::Pointer sliceImage = m_ImageList[image]->GetSlice();
+                SliceIteratorType iter(sliceImage, sliceImage->GetBufferedRegion());
+                DisplacementFieldType::Pointer field = g_imageParticlesAlgo->GetDisplacementField();
+                for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+                    SliceType::IndexType idx = iter.GetIndex();
+                    VectorType offset = field->GetPixel(idx);
+                    VectorType imageOffset;
+                    m_ImageList[image]->TransformToImageVector(offset, imageOffset);
+                    VectorType src;
+                    src[0] = idx[0];
+                    src[1] = idx[1];
+                    VectorType dst = src + imageOffset;
+                    if (imageOffset[0] == 0 && imageOffset[1] == 0) {
+                        continue;
+                    }
+                    cout << "Destination: " << dst << endl;
+                    m_scene.addLine(src[0], src[1], dst[0], dst[1], QPen(Qt::yellow));
+                }
             }
         }
-    }
 
-    if (ui.actionShowBSplineControlPoints->isChecked() && g_imageParticlesAlgo.IsNotNull()) {
-        DisplacementFieldType::Pointer controlPoints = g_imageParticlesAlgo->GetBSplineRegistration()->GetControlPoints();
-        if (controlPoints.IsNotNull()) {
-            FieldIteratorType cpsIter(controlPoints, controlPoints->GetBufferedRegion());
-            for (cpsIter.GoToBegin(); !cpsIter.IsAtEnd(); ++cpsIter) {
-                VectorType aPoint = cpsIter.Get();
-                m_scene.addEllipse(aPoint[0] - .5, aPoint[1] - .5, 1, 1, QPen(Qt::white), QBrush(Qt::white, Qt::SolidPattern));
+        if (ui.actionShowBSplineControlPoints->isChecked()) {
+            DisplacementFieldType::Pointer controlPoints = g_imageParticlesAlgo->GetBSplineRegistration()->GetControlPoints();
+            if (controlPoints.IsNotNull()) {
+                FieldIteratorType cpsIter(controlPoints, controlPoints->GetBufferedRegion());
+                for (cpsIter.GoToBegin(); !cpsIter.IsAtEnd(); ++cpsIter) {
+                    DisplacementFieldType::IndexType aIndex = cpsIter.GetIndex();
+                    ContinuousIndexType aContIndex;
+                    DisplacementFieldType::PointType aPoint;
+                    VectorType aOffset = cpsIter.Get();
+                    aContIndex[0] = aIndex[0] + aOffset[0];
+                    aContIndex[1] = aIndex[1] + aOffset[1];
+                    controlPoints->TransformContinuousIndexToPhysicalPoint(aContIndex, aPoint);
+                    m_scene.addEllipse(aPoint[0] - .5, aPoint[1] - .5, 1, 1, QPen(Qt::white), QBrush(Qt::white, Qt::SolidPattern));
+                }
             }
         }
     }

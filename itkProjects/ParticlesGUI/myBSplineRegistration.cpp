@@ -106,9 +106,10 @@ namespace my {
         WarpImageFilterType::Pointer warpFilter = WarpImageFilterType::New();
         warpFilter->SetInput(srcImage);
         warpFilter->SetDisplacementField(m_DisplacementField);
-        warpFilter->SetOutputSpacing(srcImage->GetSpacing());
-        warpFilter->SetOutputOrigin(srcImage->GetOrigin());
-        warpFilter->SetOutputSize(srcImage->GetBufferedRegion().GetSize());
+//        warpFilter->SetOutputSpacing(srcImage->GetSpacing());
+//        warpFilter->SetOutputOrigin(srcImage->GetOrigin());
+//        warpFilter->SetOutputSize(srcImage->GetBufferedRegion().GetSize());
+        warpFilter->SetOutputParametersFromImage(srcImage);
         warpFilter->Update();
         return warpFilter->GetOutput();
     }

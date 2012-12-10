@@ -30,13 +30,14 @@
 #include "itkElasticBodySplineKernelTransform.h"
 #include "itkResampleImageFilter.h"
 #include "myImageTransform.h"
+#include "myImageContainer.h"
 
 
 using namespace std;
 const static int Dimensions = 2;
 
-typedef itk::GradientRecursiveGaussianImageFilter<SliceType,ImageParticlesAlgorithm::GradientImageType> GradientImageFilter;
-typedef itk::VectorMagnitudeImageFilter<ImageParticlesAlgorithm::GradientImageType,SliceType> VectorMagnitudeImageFilter;
+typedef itk::GradientRecursiveGaussianImageFilter<SliceType,GradientImageType> GradientImageFilter;
+typedef itk::VectorMagnitudeImageFilter<GradientImageType,SliceType> VectorMagnitudeImageFilter;
 
 typedef itk::KernelTransform<double,2> KernelTransformType;
 typedef itk::ThinPlateSplineKernelTransform<double,2> TPSTransformType;
@@ -146,6 +147,17 @@ void ImageParticlesAlgorithm::OnClick(double x, double y, int imageIdx) {
     ContinuousIndexType cIdx;
     cIdx[0] = x; cIdx[1] = y;
     cout << m_KappaMapInterpolators[imageIdx]->EvaluateAtContinuousIndex(cIdx) << endl;
+
+    if (m_BSplineRegistration.GetDisplacementField().IsNotNull()) {
+        DisplacementFieldType::IndexType idx;
+        idx[0] = x;
+        idx[1] = y;
+        cout << "Displacement Field: " << m_BSplineRegistration.GetDisplacementField()->GetPixel(idx) << endl;
+    }
+
+    if (m_GradientInterpolators[imageIdx].IsNotNull()) {
+        cout << "Image Gradient: " << m_GradientInterpolators[imageIdx]->EvaluateAtContinuousIndex(cIdx) << endl;
+    }
 }
 
 // currently ignore; might not be necessary
@@ -604,6 +616,11 @@ void ImageParticlesAlgorithm::SetImageList(ImageContainer::List *list) {
         gradFilter->SetSigma(m_GradientSigma);
         gradFilter->Update();
 
+        VectorInterpolatorType::Pointer gradientInterpolator = VectorInterpolatorType::New();
+        gradientInterpolator->SetInputImage(gradFilter->GetOutput());
+        m_GradientInterpolators.push_back(gradientInterpolator);
+
+
         VectorMagnitudeImageFilter::Pointer magFilter = VectorMagnitudeImageFilter::New();
         magFilter->SetInput(gradFilter->GetOutput());
         magFilter->Update();
@@ -760,26 +777,29 @@ void ImageParticlesAlgorithm::ApplyBSplineTransform() {
         m_ImageList->at(n)->GetSlice()->TransformContinuousIndexToPhysicalPoint(idx0, point0);
     }
 
-    SliceType::Pointer srcImage = m_ImageList->at(1)->GetSlice();
+    SliceType::Pointer srcImage = m_ImageList->at(0)->GetSlice();
+    SliceType::Pointer dstImage = m_ImageList->at(1)->GetSlice();
+
     // temporarily transform the second image now.
-    m_BSplineRegistration.SetLandmarks(m_nPoints, worldPos[1], worldPos[0]);
+    cout << "World Position: " << worldPos << endl;
+    m_BSplineRegistration.SetLandmarks(m_nPoints, worldPos[0], worldPos[1]);
     m_BSplineRegistration.SetReferenceImage(srcImage);
     m_BSplineRegistration.Update();
 
     // warp the image in according to the bspline transformation
-    SliceType::Pointer transformedImage = m_BSplineRegistration.WarpImage(srcImage);
+    SliceType::Pointer transformedImage = m_BSplineRegistration.WarpImage(dstImage);
 
     if (transformedImage.IsNotNull()) {
         // transformedImage->Print(cout);
         
         // store transformed image as derived image
         RGBAImageType::Pointer transformedRGBA = ImageContainer::CreateBitmap(transformedImage);
-        string sourceName = m_ImageList->at(0)->GetName();
-        m_ImageList->at(0)->AddDerivedView(sourceName + "/bsplineTransformed", transformedRGBA);
+        string sourceName = m_ImageList->at(1)->GetName();
+        m_ImageList->at(1)->AddDerivedView(sourceName + "/bsplineTransformed", transformedRGBA);
 
         // store transformed image as derived image
         RGBAImageType::Pointer displacementRGBA = ImageContainer::CreateBitmap(m_BSplineRegistration.GetDisplacementMagnitude());
-        m_ImageList->at(0)->AddDerivedView(sourceName + "/displacementMagnitude", displacementRGBA);
+        m_ImageList->at(1)->AddDerivedView(sourceName + "/displacementMagnitude", displacementRGBA);
 
         m_BSplineDisplacementField = m_BSplineRegistration.GetDisplacementField();
     }

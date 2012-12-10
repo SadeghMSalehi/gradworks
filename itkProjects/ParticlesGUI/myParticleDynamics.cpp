@@ -21,6 +21,8 @@ const static bool applyBoundaryConditionToFirstOnly = false;
 const static bool useEnsembleForce = false;
 const static bool useParticlePhysics = true;
 const static bool useBoundaryCondition = true;
+const static bool useSurfaceForce = true;
+const static bool useImageForce = true;
 
 
 using namespace std;
@@ -121,6 +123,7 @@ void ParticleSystem::SetContext(ImageParticlesAlgorithm* context) {
 
     m_Cutoff = context->GetProperty().GetDouble("cutoffDistance", 15.0);
     m_Sigma2  = context->GetProperty().GetDouble("sigma", 3.0);
+    m_GradientScale = context->GetProperty().GetDouble("gradientScale", 10.0);
     m_Sigma2 *= m_Sigma2;
 }
 
@@ -369,17 +372,19 @@ void ParticleSystem::UpdateEnsembleForce()
 }
 
 void ParticleSystem::UpdateImageForce() {
+    int nTmpSubjects = 2;
     ImageParticlesAlgorithm::InterpolatorList* interpolators = m_Context->GetImageInterpolators();
-
+    ImageParticlesAlgorithm::GradientInterpolatorList* gradientInterpolators = m_Context->GetGradientInterpolators();
+    
     VNLMatrixRef& gPos = m_Pos;
-    VNLMatrix wPos(m_nSubjects, m_nParams);
-    for (int n = 0; n < m_nSubjects; n++) {
+    VNLMatrix wPos(nTmpSubjects, m_nParams);
+    for (int n = 0; n < nTmpSubjects; n++) {
         ImageContainer::Pointer image = m_Context->GetImage(n);
         image->TransformToPhysicalPoints(m_nParticles, gPos[n], wPos[n]);
     }
 
-    VNLMatrix imageAttributes(m_nSubjects, m_nParticles);
-    for (int n = 0; n < m_nSubjects; n++) {
+    VNLMatrix imageAttributes(nTmpSubjects, m_nParticles);
+    for (int n = 0; n < nTmpSubjects; n++) {
         // iterate over particles and sample image intensity
         SliceInterpolatorType::Pointer interp = interpolators->at(n);
         for (int i = 0; i < m_nParticles; i++) {
@@ -394,10 +399,49 @@ void ParticleSystem::UpdateImageForce() {
         }
     }
 
+    // debug: check if intensity sampled correctly
+    cout << "Image Data: " << endl;
+    cout << imageAttributes << endl;
 
     // compute covariance matrix and gradient for minimization
     // jacobian requires image intensity gradient with respect to xy coordinate
+    VNLVector meanAttributes(m_nParticles);
+    VNLMatrix normalizedAttributes(nTmpSubjects, m_nParticles);
+
+    vnl_row_mean(imageAttributes, meanAttributes);
+    vnl_row_subtract(imageAttributes, meanAttributes, normalizedAttributes);
+
+    // debug: check if covariance is correct
+    cout << "Normalized Attrs: " << normalizedAttributes << endl;
     
+    VNLMatrix cov = normalizedAttributes * normalizedAttributes.transpose();
+    VNLMatrix covIdentity(cov);
+    covIdentity.set_identity();
+    cov = cov + covIdentity;
+
+    // debug: check if covariance is correct
+    cout << "CoV: " << cov << endl;
+
+    VNLMatrix covInv = vnl_matrix_inverse<double>(cov);
+    cout << "Inverse of CoV: " << covInv << endl;
+
+    VNLMatrix grad = covInv * normalizedAttributes;
+    cout << "Gradient: " << grad << endl;
+
+    // jacobian * grad
+    VNLMatrixRef gForce(nTmpSubjects, m_nParams, m_Force[0]);
+    for (int n = 0; n < nTmpSubjects; n++) {
+        int kParticle = 0;
+        for (int i = 0; i < m_nParams; i+=2) {
+            ContinuousIndexType iIdx;
+            iIdx[0] = gPos[n][i];
+            iIdx[1] = gPos[n][i+1];
+            GradientType g = gradientInterpolators->at(n)->EvaluateAtContinuousIndex(iIdx);
+            gForce[n][i] -= m_GradientScale * g[0] * grad[n][kParticle];
+            gForce[n][i+1] -= m_GradientScale * g[1] * grad[n][kParticle];
+            kParticle ++;
+        }
+    }
 }
 
 void ParticleSystem::UpdateTransform() {
@@ -525,7 +569,16 @@ void ParticleSystem::operator()(const VNLVector &x, VNLVector& dxdt, const doubl
     if (useEnsembleForce) {
         UpdateEnsembleForce();
     }
-    UpdateSurfaceForce();
+
+    if (useImageForce) {
+        UpdateImageForce();
+    }
+
+    if (useSurfaceForce) {
+        UpdateSurfaceForce();
+    }
+
+    //
     // UpdateGravityForce(pos, vel, m_Force);
 
     if (useParticlePhysics) {

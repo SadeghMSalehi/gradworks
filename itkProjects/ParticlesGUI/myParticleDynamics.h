@@ -81,6 +81,7 @@ private:
     double m_Viscosity;
     double m_Mu;
     double m_COR;
+    double m_GradientScale;
 
     int m_TimeStep;
 

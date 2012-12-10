@@ -41,11 +41,9 @@ public:
     typedef vnl_vector<double> VectorType;
 	typedef vnl_matrix<double> MatrixType;
 
-    typedef itk::CovariantVector<double,2> GradientType;
-    typedef itk::Image<GradientType,2> GradientImageType;
-
 	typedef std::vector<SliceType::Pointer> ImageList;
 	typedef std::vector<SliceInterpolatorType::Pointer> InterpolatorList;
+    typedef std::vector<VectorInterpolatorType::Pointer> GradientInterpolatorList;
     
 
     
@@ -134,6 +132,10 @@ public:
         return &m_ImageInterpolators;
     }
 
+    GradientInterpolatorList* GetGradientInterpolators() {
+        return &m_GradientInterpolators;
+    }
+
     // return image container of n'th subject
     ImageContainer::Pointer GetImage(int n) {
         return m_ImageList->at(n);
@@ -196,6 +198,7 @@ private:
     InterpolatorList m_KappaMapInterpolators;
 
     InterpolatorList m_ImageInterpolators;
+    GradientInterpolatorList m_GradientInterpolators;
 
 
     my::BSplineRegistration m_BSplineRegistration;
