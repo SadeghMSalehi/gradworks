@@ -16,13 +16,13 @@
 #include <QElapsedTimer>
 
 // experiment options
-const static bool applySurfaceEntropyToFirstOnly = false;
-const static bool applyBoundaryConditionToFirstOnly = false;
-const static bool useEnsembleForce = false;
-const static bool useParticlePhysics = true;
-const static bool useBoundaryCondition = true;
-const static bool useSurfaceForce = true;
-const static bool useImageForce = true;
+static bool applySurfaceEntropyToFirstOnly = false;
+static bool applyBoundaryConditionToFirstOnly = false;
+static bool useEnsembleForce = false;
+static bool useParticlePhysics = true;
+static bool useBoundaryCondition = true;
+static bool useSurfaceForce = true;
+static bool useImageForce = true;
 
 
 using namespace std;
@@ -125,6 +125,11 @@ void ParticleSystem::SetContext(ImageParticlesAlgorithm* context) {
     m_Sigma2  = context->GetProperty().GetDouble("sigma", 3.0);
     m_GradientScale = context->GetProperty().GetDouble("gradientScale", 10.0);
     m_Sigma2 *= m_Sigma2;
+
+    useSurfaceForce = context->GetProperty().GetBool("actionUseSurfaceForce", true);
+    useImageForce = context->GetProperty().GetBool("actionUseImageForce", true);
+    useBoundaryCondition = context->GetProperty().GetBool("actionUseBoundaryConditions", true);
+
 }
 
 void ParticleSystem::UpdateSurfaceForce() {

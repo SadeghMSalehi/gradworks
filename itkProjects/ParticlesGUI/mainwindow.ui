@@ -148,6 +148,11 @@
     <addaction name="actionRunImageParticles"/>
     <addaction name="actionAnimation"/>
     <addaction name="separator"/>
+    <addaction name="actionUseSurfaceForce"/>
+    <addaction name="actionUseImageForce"/>
+    <addaction name="actionUseBoundaryConditions"/>
+    <addaction name="actionUseAdaptiveControl"/>
+    <addaction name="separator"/>
     <addaction name="actionShowParticles"/>
     <addaction name="actionShowDisplacement"/>
     <addaction name="actionShowCorrespondence"/>
@@ -944,6 +949,44 @@
    </property>
    <property name="text">
     <string>Show Correspondence</string>
+   </property>
+  </action>
+  <action name="actionUseSurfaceForce">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use Surface Force</string>
+   </property>
+  </action>
+  <action name="actionUseImageForce">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use Image Force</string>
+   </property>
+  </action>
+  <action name="actionUseBoundaryConditions">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use Boundary Conditions</string>
+   </property>
+  </action>
+  <action name="actionUseAdaptiveControl">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use Adaptive Control</string>
    </property>
   </action>
  </widget>
