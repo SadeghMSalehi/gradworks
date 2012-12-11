@@ -86,6 +86,10 @@ MainWindow::~MainWindow() {
 
 }
 
+void MainWindow::showEvent(QShowEvent* event) {
+    on_actionOpenBSplineVis_triggered();
+}
+
 void MainWindow::on_actionOpenCompareWindow_triggered() {
     m_CompareDialog.show();
 }

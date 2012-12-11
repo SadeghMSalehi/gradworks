@@ -47,6 +47,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="updateField">
+         <property name="text">
+          <string>Update Displacement Field</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QSlider" name="bspViewZoom">
          <property name="minimum">
           <number>0</number>

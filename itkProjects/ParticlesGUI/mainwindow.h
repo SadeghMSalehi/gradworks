@@ -62,6 +62,9 @@ public slots:
     void chooseSlice();
     void on_animationTimeout();
 
+protected:
+    virtual void showEvent(QShowEvent* event);
+    
 private:
 //    void AddPolyData(std::string name, vtkPolyData* poly, float r = 1, float g = 0, float b = 0, float opacity = 1.0);
 //    void RemovePolyData(std::string name);

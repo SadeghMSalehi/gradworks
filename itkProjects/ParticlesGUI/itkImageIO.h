@@ -84,9 +84,12 @@ namespace itkcmds {
 		ImagePointer NewImageT(int sx, int sy, int sz, ImagePixel fillValue) {
 			ImagePointer newImage = T::New();
 			ImageSize size;
+
 			size[0] = sx;
 			size[1] = sy;
-			size[2] = sz;
+            if (T::GetImageDimension() == 3) {
+                size[2] = sz;
+            }
 
 			ImageRegion region;
 			region.SetSize(size);
@@ -100,10 +103,17 @@ namespace itkcmds {
 			newImage->SetBufferedRegion(region);
 			newImage->SetRequestedRegion(region);
 
-			double spacing[3] = { 1, 1, 1 };
-			double origin[3] = { 0, 0, 0 };
-			newImage->SetOrigin(origin);
-			newImage->SetSpacing(spacing);
+            if (T::GetImageDimension() == 3) {
+                double spacing[3] = { 1, 1, 1 };
+                double origin[3] = { 0, 0, 0 };
+                newImage->SetOrigin(origin);
+                newImage->SetSpacing(spacing);
+            } else if (T::GetImageDimension() == 2) {
+                double spacing[2] = { 1, 1 };
+                double origin[2] = { 0, 0 };
+                newImage->SetOrigin(origin);
+                newImage->SetSpacing(spacing);
+            }
 
 			newImage->Allocate();
 			newImage->FillBuffer(fillValue);
