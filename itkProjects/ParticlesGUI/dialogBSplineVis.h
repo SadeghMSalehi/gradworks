@@ -31,6 +31,7 @@ protected:
     
 private:
     SliceType::Pointer m_RefImage;
+    DisplacementFieldType::Pointer m_Field;
     Ui::BSplineVisDialog ui;
     QGraphicsScene m_Scene;
     std::vector<QRectF> m_VectorList;

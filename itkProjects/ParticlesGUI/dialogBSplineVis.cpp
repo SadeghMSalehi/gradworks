@@ -21,6 +21,8 @@ BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
     
     itkcmds::itkImageIO<SliceType> io;
     m_RefImage = io.NewImageT(100, 100, 1);
+
+    m_Field = DisplacementFieldType::Pointer(NULL);
     
     updateScene();
 }
@@ -45,7 +47,25 @@ void BSplineVisDialog::updateScene() {
         }
     }
     
-    
+
+    if (m_Field.IsNotNull()) {
+        FieldIteratorType iter(m_Field, m_Field->GetBufferedRegion());
+        for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+            DisplacementFieldType::IndexType idx = iter.GetIndex();
+            DisplacementFieldType::PointType point;
+            m_Field->TransformIndexToPhysicalPoint(idx, point);
+            VectorType v = iter.Get();
+            if (v.GetNorm() < 1) {
+                continue;
+            }
+            DisplacementFieldType::PointType point2;
+            point2[0] = point[0] + v[0];
+            point2[1] = point[1] + v[1];
+            m_Scene.addLine(point[0], point[1], point2[0], point2[1], QPen(Qt::yellow));
+        }
+    }
+
+
     // drawing order is important for correct pick up
     double sz = 2 / 2;
     for (int i = 0; i < m_VectorList.size(); i++) {
@@ -57,7 +77,7 @@ void BSplineVisDialog::updateScene() {
         dy->setData(2, i);
 
     }
-    
+
 }
 
 void BSplineVisDialog::on_bspView_mouseReleased(QMouseEvent *event) {
@@ -137,7 +157,10 @@ void BSplineVisDialog::on_updateField_clicked() {
     }
     breg.SetLandmarks(m_VectorList.size(), data[0], data[1]);
     breg.SetReferenceImage(m_RefImage);
-    
+    breg.Update();
+
+    m_Field = breg.GetDisplacementField();
+    updateScene();
 }
 
 void BSplineVisDialog::showEvent(QShowEvent* event) {
