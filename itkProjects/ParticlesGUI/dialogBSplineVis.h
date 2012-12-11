@@ -2,7 +2,7 @@
 #define __dialogBSplineVis_h__
 
 #include "ui_dialogBSplineVis.h"
-#include "QGraphicsScene.h"
+#include "QGraphicsScene"
 #include "myImageContainer.h"
 #include "vector"
 
