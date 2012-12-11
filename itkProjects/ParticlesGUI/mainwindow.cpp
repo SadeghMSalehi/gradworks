@@ -31,7 +31,7 @@ surface::ParticleAlgorithm::Pointer g_ParticleAlgo;
 myImplicitSurfaceConstraint g_constraint;
 
 
-MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), m_CompareDialog(this) {
+MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), m_CompareDialog(this), m_BSplineVisDialog(this) {
     ui.setupUi(this);
 
     ui.toolBar->addWidget(ui.zoomLabel);
@@ -89,6 +89,12 @@ MainWindow::~MainWindow() {
 void MainWindow::on_actionOpenCompareWindow_triggered() {
     m_CompareDialog.show();
 }
+
+void MainWindow::on_actionOpenBSplineVis_triggered() {
+    m_BSplineVisDialog.show();
+}
+
+
 
 void MainWindow::on_derivedImages_currentIndexChanged(int n) {
     if (n > 0) {
@@ -223,6 +229,8 @@ void MainWindow::LoadSurface(QString fileName) {
     
 
 }
+
+
 void MainWindow::on_actionAddImage_triggered() {
     QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                     "/tmpfs/data", tr("Volumes (*.nrrd *.nii *.gipl.gz)"));

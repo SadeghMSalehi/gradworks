@@ -26,9 +26,11 @@ public:
 signals:
     void mouseReleased(QMouseEvent* event);
     void mousePressed(QMouseEvent* event);
+    void mouseMoved(QMouseEvent* event);
     
 protected:
     virtual void mouseReleaseEvent(QMouseEvent* event);
+    virtual void mouseMoveEvent(QMouseEvent* event);
     virtual void mousePressEvent(QMouseEvent* event);
 };
 

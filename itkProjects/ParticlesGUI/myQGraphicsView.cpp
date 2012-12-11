@@ -16,3 +16,7 @@ void myQGraphicsView::mousePressEvent(QMouseEvent* event) {
 void myQGraphicsView::mouseReleaseEvent(QMouseEvent* event) {
     emit mouseReleased(event);
 }
+
+void myQGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    emit mouseMoved(event);
+}

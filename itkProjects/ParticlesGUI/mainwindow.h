@@ -15,6 +15,7 @@
 #include "myEventCallback.h"
 #include "itkOptimizerCommon.h"
 #include "dialogPatchCompare.h"
+#include "dialogBSplineVis.h"
 
 class vtkPolyData;
 class vtkGenericOpenGLRenderWindow;
@@ -24,6 +25,7 @@ class MainWindow: public QMainWindow, public EventCallback {
     Q_OBJECT
 
     friend class PatchCompareDialog;
+    friend class BSplineVisDialog;
 
 public:
     MainWindow(QWidget* parent = NULL);
@@ -39,6 +41,8 @@ public slots:
     void on_actionOpenSurface_triggered();
     void on_actionSurfaceSmoothing_triggered();
     void on_actionSurfaceSmoothingContinue_triggered();
+    void on_actionOpenBSplineVis_triggered();
+    
     void on_actionTest_triggered();
     void on_actionRunImageParticles_triggered();
     void on_actionTPS_triggered();
@@ -91,6 +95,8 @@ private:
 
     // dialog for image comparison
     PatchCompareDialog m_CompareDialog;
+
+    BSplineVisDialog m_BSplineVisDialog;
 
 };
 

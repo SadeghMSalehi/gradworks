@@ -159,9 +159,16 @@
     <addaction name="menuParticle_Colors"/>
     <addaction name="actionUseODESolver"/>
    </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="actionOpenBSplineVis"/>
+   </widget>
    <addaction name="menuImages"/>
    <addaction name="menu_Surface"/>
    <addaction name="menuParticles"/>
+   <addaction name="menuTools"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QToolBar" name="toolBar">
@@ -987,6 +994,11 @@
    </property>
    <property name="text">
     <string>Use Adaptive Control</string>
+   </property>
+  </action>
+  <action name="actionOpenBSplineVis">
+   <property name="text">
+    <string>Open BSpline Vis</string>
    </property>
   </action>
  </widget>

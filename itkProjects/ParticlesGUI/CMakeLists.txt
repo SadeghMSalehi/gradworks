@@ -9,10 +9,10 @@ INCLUDE(${USE_ITK_FILE})
 INCLUDE(${QT_USE_FILE})
 INCLUDE(${USE_VTK_FILE})
 
-SET (QT_HEADERS mainwindow.h dialogPatchCompare.h qcustomplot.h myQGraphicsView.h)
-SET (QT_SOURCES mainwindow.cpp dialogPatchCompare.cpp qcustomplot.cpp myQGraphicsView.cpp)
+SET (QT_HEADERS mainwindow.h dialogPatchCompare.h qcustomplot.h myQGraphicsView.h dialogBSplineVis.h)
+SET (QT_SOURCES mainwindow.cpp dialogPatchCompare.cpp qcustomplot.cpp myQGraphicsView.cpp dialogBSplineVis.cpp)
 qt4_wrap_cpp(QT_MOC_HEADERS ${QT_HEADERS})
-qt4_wrap_ui(QT_UI_FILES mainwindow.ui dialogPatchCompare.ui)
+qt4_wrap_ui(QT_UI_FILES mainwindow.ui dialogPatchCompare.ui dialogBSplineVis.ui)
 add_definitions(${QT_DEFINITIONS})
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
