@@ -18,11 +18,11 @@
 // experiment options
 static bool applySurfaceEntropyToFirstOnly = false;
 static bool applyBoundaryConditionToFirstOnly = false;
-static bool useEnsembleForce = false;
+static bool useEnsembleForce = true;
 static bool useParticlePhysics = true;
 static bool useBoundaryCondition = true;
 static bool useSurfaceForce = true;
-static bool useImageForce = true;
+static bool useImageForce = false;
 
 
 using namespace std;
@@ -92,8 +92,8 @@ void ParticleSystem::SetPositions(OptimizerParametersType* params) {
     m_Status.fill(0);
     params->copy_out(m_Status.data_block());
 
-//    VNLMatrixRef gPos(m_nSubject, m_nParams, m_Status.data_block() + m_nSubject * m_nParams);
-//    gPos.fill(1);
+    //    VNLMatrixRef gPos(m_nSubject, m_nParams, m_Status.data_block() + m_nSubject * m_nParams);
+    //    gPos.fill(1);
 
 }
 
@@ -150,12 +150,12 @@ void ParticleSystem::UpdateSurfaceForce() {
             VNLVectorRef iForce(nDim, &gForce[n][nDim*i]);
             VNLVectorRef iVel(nDim, &gVel[n][nDim*i]);
             VNLVectorRef iPos(nDim, &gPos[n][nDim*i]);
-            
+
             ContinuousIndexType iIdx;
             iIdx[0] = iPos[0];
             iIdx[1] = iPos[1];
 
-  
+
             // iteration over particles
             // may reduce use symmetric properties
             for (int j = 0; j < m_nParticles; j++) {
@@ -176,9 +176,9 @@ void ParticleSystem::UpdateSurfaceForce() {
                     } else {
                         weights[j] = exp(-dij*dij*kappa/(m_Sigma2));
                         // debug: check kappa is different between neighbors
-//                        if (i == 10) {
-//                            cout << "Distance: " << dij << "; Kappa: " << kappa << endl;
-//                        }
+                        //                        if (i == 10) {
+                        //                            cout << "Distance: " << dij << "; Kappa: " << kappa << endl;
+                        //                        }
                     }
                 }
             }
@@ -186,7 +186,7 @@ void ParticleSystem::UpdateSurfaceForce() {
             if (sumForce > 0) {
                 weights /= sumForce;
             }
-            
+
             // actual force update
             VNLVec2 xixj;
             // update force for neighboring particles
@@ -224,14 +224,16 @@ void ParticleSystem::EstimateRigidTransform(VNLMatrixRef& gPos, VNLMatrixArray& 
         return;
     }
 
-
+    VNLVector gPosMean(m_nParams);
+    vnl_row_mean(gPos, gPosMean);
+    
     // move target points to origin center
-    VNLMatrix targetPoints(gPos[0], m_nParticles, nDim);
+    VNLMatrix targetPoints(gPosMean.data_block(), m_nParticles, nDim);
     VNLVec2 targetCentroid;
     vnl_row_mean(targetPoints, targetCentroid);
     vnl_row_subtract(targetPoints, targetCentroid, targetPoints);
 
-    for (int n = 1; n < gPos.rows(); n++) {
+    for (int n = 0; n < gPos.rows(); n++) {
         // move source points to origin center
         VNLMatrix sourcePoints(gPos[n], m_nParticles, nDim);
         VNLVec2 sourceCentroid;
@@ -266,8 +268,8 @@ void ParticleSystem::EstimateRigidTransform(VNLMatrixRef& gPos, VNLMatrixArray& 
         VNLMatrix jacobian(2,2);
         jacobian.update(rotationMatrix);
 
-//        vnl_identity(transformMatrix);
-//        vnl_identity(jacobian);
+        //        vnl_identity(transformMatrix);
+        //        vnl_identity(jacobian);
 
         transforms.push_back(transformMatrix);
         jacobians.push_back(jacobian);
@@ -291,34 +293,33 @@ void ParticleSystem::ApplyMatrixOperation(const double* posIn, const VNLMatrix& 
 }
 
 void ParticleSystem::UpdateEnsembleForce()
- {
-
-     VNLMatrixRef& gPos = m_Pos;
+{
+    VNLMatrixRef& gPos = m_Pos;
 
     // estimate transform from subjN to subj1
     VNLMatrixArray transforms;
     VNLMatrixArray jacobians;
-//    cout << "Position before estimation: " << gPos << endl;
+    //    cout << "Position before estimation: " << gPos << endl;
     EstimateRigidTransform(gPos, transforms, jacobians);
-//    cout << "Position after estimation: " << gPos << endl;
+    //    cout << "Position after estimation: " << gPos << endl;
     // transform particles onto subj1 space
     VNLMatrix tPos(gPos);
-    for (int n = 1; n < m_nSubjects; n++) {
-        ApplyMatrixOperation(gPos.begin(), transforms[n-1], tPos.begin());
+    for (int n = 0; n < m_nSubjects; n++) {
+        ApplyMatrixOperation(gPos[n], transforms[n], tPos[n]);
     }
 
     // debug: check if transform is correct
-//    cout << "Before: " << gPos << endl;
-//    cout << "After: " << tPos << endl;
+    //    cout << "Before: " << gPos << endl;
+    //    cout << "After: " << tPos << endl;
 
     // aggregate attribute data and compute mean
     VNLMatrix data(tPos.rows(), m_nParams);
     data.update(tPos);
-    
+
     VNLVector dataMean(data.cols());
     vnl_row_mean(data, dataMean);
 
-//    cout << "Data Mean: " << dataMean << endl;
+    //    cout << "Data Mean: " << dataMean << endl;
 
     // move data to center
     for (int i = 0; i < m_nSubjects; i++) {
@@ -327,7 +328,7 @@ void ParticleSystem::UpdateEnsembleForce()
 
     // debug: positional entropy should work without image params
     //    cout << "nPaarms: " << nParams << endl;
-//    cout << "Data: " << data << endl;
+    //    cout << "Data: " << data << endl;
     VNLMatrix cov = data * data.transpose();
 
     // relaxation parameter for singular matrix
@@ -366,12 +367,11 @@ void ParticleSystem::UpdateEnsembleForce()
         cout << "Gradient has Nans: " << grad << endl;
     }
 
-    VNLAlgebra alg(data.rows(), m_nParams);
     // multiply jacobian of the function to gradient
-    for (int n = 1; n < m_nSubjects; n++) {
-        ApplyMatrixOperation(grad[n], jacobians[n-1], grad[n]);
+    for (int n = 0; n < m_nSubjects; n++) {
+        ApplyMatrixOperation(grad[n], jacobians[n], grad[n]);
         grad *= -10;
-//        cout << "Applying gradient: " << grad << endl;
+        //        cout << "Applying gradient: " << grad << endl;
         VNLCVector::add(gPos[n], grad[n], gPos[n], m_nParams);
     }
 }
@@ -380,7 +380,7 @@ void ParticleSystem::UpdateImageForce() {
     int nTmpSubjects = 2;
     ImageParticlesAlgorithm::InterpolatorList* interpolators = m_Context->GetImageInterpolators();
     ImageParticlesAlgorithm::GradientInterpolatorList* gradientInterpolators = m_Context->GetGradientInterpolators();
-    
+
     VNLMatrixRef& gPos = m_Pos;
     VNLMatrix wPos(nTmpSubjects, m_nParams);
     for (int n = 0; n < nTmpSubjects; n++) {
@@ -405,8 +405,8 @@ void ParticleSystem::UpdateImageForce() {
     }
 
     // debug: check if intensity sampled correctly
-    cout << "Image Data: " << endl;
-    cout << imageAttributes << endl;
+    //    cout << "Image Data: " << endl;
+    //    cout << imageAttributes << endl;
 
     // compute covariance matrix and gradient for minimization
     // jacobian requires image intensity gradient with respect to xy coordinate
@@ -417,21 +417,20 @@ void ParticleSystem::UpdateImageForce() {
     vnl_row_subtract(imageAttributes, meanAttributes, normalizedAttributes);
 
     // debug: check if covariance is correct
-    cout << "Normalized Attrs: " << normalizedAttributes << endl;
-    
+    //    cout << "Normalized Attrs: " << normalizedAttributes << endl;
+
     VNLMatrix cov = normalizedAttributes * normalizedAttributes.transpose();
     VNLMatrix covIdentity(cov);
     covIdentity.set_identity();
     cov = cov + covIdentity;
 
-    // debug: check if covariance is correct
-    cout << "CoV: " << cov << endl;
-
     VNLMatrix covInv = vnl_matrix_inverse<double>(cov);
-    cout << "Inverse of CoV: " << covInv << endl;
-
     VNLMatrix grad = covInv * normalizedAttributes;
-    cout << "Gradient: " << grad << endl;
+
+    // debug: check if covariance is correct
+    //    cout << "CoV: " << cov << endl;
+    //    cout << "Inverse of CoV: " << covInv << endl;
+    //    cout << "Gradient: " << grad << endl;
 
     // jacobian * grad
     VNLMatrixRef gForce(nTmpSubjects, m_nParams, m_Force[0]);
@@ -449,7 +448,7 @@ void ParticleSystem::UpdateImageForce() {
     }
 }
 
-void ParticleSystem::UpdateTransform() {
+void ParticleSystem::UpdateKernelTransform() {
     VNLMatrixRef& gPos = m_Pos;
 
     VNLMatrix wPos(m_nSubjects, m_nParams);
@@ -552,7 +551,7 @@ void ParticleSystem::ApplyBoundaryConditions() {
             }
         }
     }
-    
+
 }
 
 
@@ -569,7 +568,7 @@ void ParticleSystem::operator()(const VNLVector &x, VNLVector& dxdt, const doubl
     m_Force.fill(0);
 
     // UpdateTransform();
-    
+
     // update forces at time t
     if (useEnsembleForce) {
         UpdateEnsembleForce();
@@ -641,7 +640,7 @@ void ParticleSystem::operator()(const VNLVector &x, const double t) {
     xy[1] = cost;
     m_Callback->EventRaised(0xADDCEC, 0, NULL, xy);
 
-    
+
     if (m_StatusHistory != NULL) {
         m_StatusHistory->push_back(x);
         m_CostHistory->push_back(cost);
@@ -650,7 +649,7 @@ void ParticleSystem::operator()(const VNLVector &x, const double t) {
 }
 
 void ParticleSystem::Integrate() {
-//    ParticleSystemObserver observer(this);
+    //    ParticleSystemObserver observer(this);
 
     VNLVector status(m_Status);
     // use constant time step
@@ -678,7 +677,7 @@ void ParticleSystem::Integrate() {
         default:
             break;
     }
-
+    
     cout << "History size: " << m_StatusHistory->size() << endl;
-
+    
 }

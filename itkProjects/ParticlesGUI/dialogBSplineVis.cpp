@@ -18,9 +18,11 @@ BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
 
     m_Key = 0;
     m_Index = -1;
-    
+
+    double spacing[] = { 5, 5 };
     itkcmds::itkImageIO<SliceType> io;
     m_RefImage = io.NewImageT(100, 100, 1);
+    m_RefImage->SetSpacing(spacing);
 
     m_Field = DisplacementFieldType::Pointer(NULL);
     

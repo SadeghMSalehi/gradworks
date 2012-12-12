@@ -14,6 +14,7 @@
 #include "itkPointSet.h"
 #include "itkBSplineScatteredDataPointSetToImageFilter.h"
 #include "myImageContainer.h"
+#include "PropertyAccess.h"
 
 namespace my {
     typedef itk::BSplineScatteredDataPointSetToImageFilter
@@ -25,9 +26,11 @@ namespace my {
         BSplineRegistration();
         ~BSplineRegistration();
 
+        void SetPropertyAccess(PropertyAccess props);
         void SetReferenceImage(SliceType::Pointer refImage);
         void SetLandmarks(int n, double* src, double* dst);
         void Update();
+
         SliceType::Pointer WarpImage(SliceType::Pointer srcImage);
         SliceType::Pointer GetDisplacementMagnitude();
         DisplacementFieldType::Pointer GetDisplacementField();
@@ -39,6 +42,7 @@ namespace my {
         DisplacementFieldPointSetType::Pointer m_FieldPoints;
         DisplacementFieldType::Pointer m_DisplacementField;
         DisplacementFieldType::Pointer m_PhiLattice;
+        PropertyAccess m_Props;
     };
 }
 

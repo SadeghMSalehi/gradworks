@@ -61,9 +61,9 @@ namespace my {
     }
 
     void BSplineRegistration::Update() {
-        int splineOrder = 3;
-        int numOfLevels = 1;
-        int nSize = 25;
+        int splineOrder = m_Props.GetInt("splineOrder", 3);
+        int numOfLevels = m_Props.GetInt("numLevels", 1);
+        int nSize = m_Props.GetInt("numControlPoints", 25);
 
         BSplineFilterType::Pointer bspliner = BSplineFilterType::New();
         BSplineFilterType::ArrayType numControlPoints;
@@ -73,10 +73,10 @@ namespace my {
         SliceType::SpacingType imageSpacing = m_RefImage->GetSpacing();
         SliceType::PointType imageOrigin = m_RefImage->GetOrigin();
 
-        cout << "Image Size: " << imageSize << endl;
-        cout << "Image Spacing: " << imageSpacing << endl;
-        cout << "Image Origin: " << imageOrigin << endl;
-        cout << "# control points: " << numControlPoints << endl;
+//        cout << "Image Size: " << imageSize << endl;
+//        cout << "Image Spacing: " << imageSpacing << endl;
+//        cout << "Image Origin: " << imageOrigin << endl;
+//        cout << "# control points: " << numControlPoints << endl;
 
         try {
             // debug: reparameterized point component is outside

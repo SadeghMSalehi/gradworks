@@ -78,11 +78,11 @@ vtkActor* vtkPropScene::AddPolyData(std::string name, vtkPolyData *poly) {
 
 vtkActor* vtkPropScene::NewActor(vtkPolyData* poly) {
     vtkPolyDataMapper* mapper = vtkPolyDataMapper::New();
-    #if VTK_MAJOR_VERSION >= 6
-    mapper->SetInputData(poly);
-    #else
+#if VTK_MAJOR_VERSION >= 6
     mapper->SetInput(poly);
-    #endif
+#else
+    mapper->SetInputData(poly);
+#endif
 
     vtkProperty* props = vtkProperty::New();
     vtkActor* actor = vtkActor::New();

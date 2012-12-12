@@ -53,7 +53,13 @@ private:
 
     void ApplyMatrixOperation(const double* posIn, const VNLMatrix& matrix, double* posOut);
 
-    void UpdateTransform();
+    void UpdateTransform(VNLMatrix& tPos);
+
+    // TPS, EBS transform
+    void UpdateKernelTransform();
+
+    // BSpline-based displacement transform
+    void UpdateBSplineTransform();
     
     // apply global transform
     // compute forces between particles
