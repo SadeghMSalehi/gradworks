@@ -133,5 +133,11 @@ namespace my {
         filter->Update();
         return filter->GetOutput();
     }
+    
+    DisplacementTransformType::Pointer BSplineRegistration::GetTransform() {
+        DisplacementTransformType::Pointer txf = DisplacementTransformType::New();
+        txf->SetDisplacementField(m_DisplacementField);
+        return txf;
+    }
 
 }
