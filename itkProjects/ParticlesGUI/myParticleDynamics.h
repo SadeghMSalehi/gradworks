@@ -59,7 +59,7 @@ private:
     void UpdateKernelTransform();
 
     // BSpline-based displacement transform
-    void UpdateBSplineTransform();
+    void UpdateBSplineEnsemble();
     
     // apply global transform
     // compute forces between particles

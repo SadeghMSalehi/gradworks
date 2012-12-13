@@ -30,7 +30,12 @@ protected:
     
     
 private:
+    SliceType::Pointer m_BlackImage;
+    SliceType::Pointer m_WhiteImage;
+    SliceType::Pointer m_SrcImage;
+    SliceType::Pointer m_DstImage;
     SliceType::Pointer m_RefImage;
+    SliceType::Pointer m_DetJacobian;
     DisplacementFieldType::Pointer m_Field;
     Ui::BSplineVisDialog ui;
     QGraphicsScene m_Scene;

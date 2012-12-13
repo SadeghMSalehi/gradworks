@@ -10,6 +10,7 @@
 #include "QElapsedTimer"
 #include "itkWarpImageFilter.h"
 #include "itkVectorMagnitudeImageFilter.h"
+#include "itkImageIO.h"
 #include "iostream"
 
 // estimation of displacement field via particle correspondence
@@ -25,6 +26,11 @@ namespace my {
     BSplineRegistration::~BSplineRegistration() {
 
     }
+
+    void BSplineRegistration::SetPropertyAccess(PropertyAccess props) {
+        m_Props = props;
+    }
+
 
     void BSplineRegistration::SetReferenceImage(SliceType::Pointer refImage) {
         m_RefImage = refImage;
@@ -113,6 +119,26 @@ namespace my {
         warpFilter->Update();
         return warpFilter->GetOutput();
     }
+
+
+    // compute determinant of jacobian image
+    SliceType::Pointer BSplineRegistration::GetDeterminantOfJacobian() {
+        itkcmds::itkImageIO<SliceType> io;
+        SliceType::Pointer detImage = io.NewImageT(m_RefImage);
+
+        DisplacementTransformType::Pointer txf = GetTransform();
+        SliceIteratorType iter(detImage, detImage->GetBufferedRegion());
+        for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+            DisplacementTransformType::JacobianType jacob;
+            txf->ComputeJacobianWithRespectToParameters(iter.GetIndex(), jacob);
+            double det = vnl_determinant(jacob);
+            cout << jacob << endl;
+            cout << det << endl;
+            iter.Set(det);
+        }
+        return detImage;
+    }
+
 
     DisplacementFieldType::Pointer BSplineRegistration::GetDisplacementField() {
         return m_DisplacementField;

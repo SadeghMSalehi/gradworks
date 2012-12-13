@@ -301,7 +301,7 @@ void myEnsembleEntropy::GetValueAndDerivative(const OptimizerParametersType &par
 
     // debug: data must be centered in the shape space
 //    cout << "Before Center:" << pointData << endl;
-    vnl_center(pointData);
+    vnl_row_center(pointData);
 //    cout << "After Center: " << pointData << endl;
     // debug: avoid NaN targetPoints;
     // targetPoints is transformed with estimation

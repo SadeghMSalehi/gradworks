@@ -74,7 +74,17 @@ void ImageContainer::SetImage(ImageType::Pointer image) {
     if (image.IsNull()) {
         return;
     }
-    
+
+    // set spacing to 1, origin to 0, and direction to identity
+    // to make its physical space and index space same
+    double origin[3] = { 0., 0., 0. };
+    double spacing[3] = { 1., 1., 1. };
+    ImageType::DirectionType identityDir;
+    identityDir.SetIdentity();
+    image->SetSpacing(spacing);
+    image->SetOrigin(origin);
+    image->SetDirection(identityDir);
+
     m_Image = image;
     ImageType::SizeType sz = m_Image->GetBufferedRegion().GetSize();
     for (int i = 0; i < VDim; i++) {
@@ -142,18 +152,6 @@ void ImageContainer::UpdateBitmap(int dim) {
     m_Bitmaps[dim] = rgbFilter->GetOutput();
 }
 
-RGBAImageType::Pointer ImageContainer::CreateBitmap(SliceType::Pointer slice, int alpha) {
-    typedef itk::ScalarToARGBColormapImageFilter<SliceType, RGBAImageType> ScalarToRGBFilter;
-    ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
-    rgbFilter->SetInput(slice);
-    rgbFilter->UseManualScalingOff();
-    rgbFilter->UseInputImageExtremaForScalingOn();
-    rgbFilter->SetAlphaValue(alpha);
-    rgbFilter->Update();
-    return rgbFilter->GetOutput();
-}
-
-
 QPixmap ImageContainer::GetPixmap(int dim) {
     RGBAImageType::Pointer bitmap = m_Bitmaps[dim];
     if (bitmap.IsNull()) {
@@ -170,6 +168,16 @@ void ImageContainer::SetLabel(LabelType::Pointer label) {
     if (label.IsNull()) {
         return;
     }
+
+    // set spacing to 1, origin to 0, and direction to identity
+    // to make its physical space and index space same
+    double origin[3] = { 0., 0., 0. };
+    double spacing[3] = { 1., 1., 1. };
+    LabelType::DirectionType identityDir;
+    identityDir.SetIdentity();
+    label->SetSpacing(spacing);
+    label->SetOrigin(origin);
+    label->SetDirection(identityDir);
 
     m_Label = label;
     LabelType::SizeType sz = m_Label->GetBufferedRegion().GetSize();
@@ -353,4 +361,29 @@ void ImageContainer::TransformToImageVector(VectorType& src, VectorType& dst) {
     for (int i = 0; i < dst.Size(); i++) {
         dst[i] = t[i];
     }
+}
+
+// static methods
+//
+//
+RGBAImageType::Pointer ImageContainer::CreateBitmap(SliceType::Pointer slice, int alpha) {
+    typedef itk::ScalarToARGBColormapImageFilter<SliceType, RGBAImageType> ScalarToRGBFilter;
+    ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
+    rgbFilter->SetInput(slice);
+    rgbFilter->UseManualScalingOff();
+    rgbFilter->UseInputImageExtremaForScalingOn();
+    rgbFilter->SetAlphaValue(alpha);
+    rgbFilter->Update();
+    return rgbFilter->GetOutput();
+}
+
+
+QPixmap ImageContainer::CreatePixmap(RGBAImageType::Pointer bitmap) {
+    if (bitmap.IsNull()) {
+        return QPixmap();
+    }
+    RGBAImageType::SizeType bitmapSz = bitmap->GetBufferedRegion().GetSize();
+    QImage qImg = QImage((unsigned char*) bitmap->GetBufferPointer(),
+                         bitmapSz[0], bitmapSz[1], QImage::Format_ARGB32);
+    return QPixmap::fromImage(qImg);
 }

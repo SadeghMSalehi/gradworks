@@ -23,6 +23,8 @@
 #include "vnlCommon.h"
 #include "itkPointSet.h"
 #include "itkVectorLinearInterpolateImageFunction.h"
+#include "itkResampleImageFilter.h"
+#include "itkTransform.h"
 
 #define copyArray(x,y) for (int kkk = 0; kkk < SDim; kkk++) x[kkk] = y[kkk]
 
@@ -55,6 +57,8 @@ typedef itk::Vector<double,2> VectorType;
 typedef itk::PointSet<VectorType,2> DisplacementFieldPointSetType;
 typedef itk::Image<VectorType,2> DisplacementFieldType;
 typedef itk::ImageRegionConstIteratorWithIndex<DisplacementFieldType> FieldIteratorType;
+typedef itk::ResampleImageFilter<SliceType,SliceType> SliceResamplerType;
+typedef itk::Transform<double,SDim,SDim> SliceTransformType;
 
 class ImageContainer: public itk::LightObject {
 public:
@@ -159,6 +163,8 @@ public:
 
     // utility methods
     static RGBAImageType::Pointer CreateBitmap(SliceType::Pointer slice, int alpha = 255);
+    static QPixmap CreatePixmap(RGBAImageType::Pointer bitmap);
+    static SliceType::Pointer ResampleSlice(SliceType::Pointer src, SliceTransformType::Pointer txf);
 
     static int g_CurrentView;
     static int g_CurrentImage;

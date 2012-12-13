@@ -448,6 +448,58 @@ void ParticleSystem::UpdateImageForce() {
     }
 }
 
+void ParticleSystem::UpdateBSplineEnsemble() {
+    VNLMatrixRef& gPos = m_Pos;
+
+    // ignore conversion between index and physical space
+    VNLVector gMeanPos(m_nParams);
+    vnl_row_mean(gPos, gMeanPos);
+
+    // transform from subject's space to mean space
+    std::vector<my::DisplacementTransformType::Pointer> bsplineTransformArray;
+    for (int n = 0; n < m_nSubjects; n++) {
+        SliceType::Pointer refImage = m_Context->GetImage(n)->GetSlice();
+        my::BSplineRegistration bReg;
+        bReg.SetLandmarks(m_nParticles, gPos[n], gMeanPos.data_block());
+        bReg.SetReferenceImage(refImage);
+        bReg.Update();
+        bsplineTransformArray.push_back(bReg.GetTransform());
+    }
+
+    // compute elastic displacement of bspline
+    VNLMatrix tPos(m_nSubjects, m_nParams);
+    VNLMatrix jacobPos(m_nSubjects, m_nParams);
+
+    for (int n = 0; n < m_nSubjects; n++) {
+        for (int i = 0; i < m_nParticles; i++) {
+            my::DisplacementTransformType::InputPointType inPoint;
+            my::DisplacementTransformType::OutputPointType outPoint;
+            inPoint[0] = gPos[n][2*i];
+            inPoint[1] = gPos[n][2*i+1];
+            outPoint = bsplineTransformArray[n]->TransformPoint(inPoint);
+            tPos[n][2*i] = outPoint[0];
+            tPos[n][2*i+1] = outPoint[1];
+        }
+    }
+
+    // gPos: Xi, xPos: T(Xi)
+    // now tPos must move towards mean point
+    VNLMatrix xPos(m_nSubjects, m_nParams);
+    vnl_row_center(xPos);
+
+    // compute covariance and its inverse
+    VNLMatrix xCov;
+    vnl_covariance(xPos, xCov);
+    double alpha = 1;
+    vnl_add_diagonal(xCov, alpha);
+
+    VNLMatrix xCovInv = vnl_matrix_inverse<double>(xCov);
+
+    // jacobian * xCovInv * xPos
+
+
+}
+
 void ParticleSystem::UpdateKernelTransform() {
     VNLMatrixRef& gPos = m_Pos;
 

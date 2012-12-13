@@ -70,8 +70,13 @@ private:
 typedef std::vector<VNLMatrixRef> VNLMatrixRefArray;
 
 
-void vnl_center(VNLMatrix& A);
+void vnl_row_center(VNLMatrix& A);
 
+// compute covarance of A*A'
+void vnl_covariance(const VNLMatrix& A, VNLMatrix& cov);
+
+// add scalar to diagonal elements
+void vnl_add_diagonal(VNLMatrix& A, double alpha);
 
 //// set matrix A to identity matrix
 //template <class M>

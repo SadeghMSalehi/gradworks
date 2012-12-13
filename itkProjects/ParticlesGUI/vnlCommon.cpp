@@ -23,7 +23,7 @@ bool vnl_row_mean(const VNLMatrix& A, VNLVector& b)
     return true;
 }
 
-void vnl_center(VNLMatrix& A) {
+void vnl_row_center(VNLMatrix& A) {
     VNLVector b(A.cols());
     b.fill(0);
     for (int i = 0; i < A.rows(); i++) {
@@ -41,6 +41,26 @@ void vnl_center(VNLMatrix& A) {
     // debug: check row mean b is correct
     //    std::cout << "Mean: " << b << std::endl;
     return;
+}
+
+
+// compute covariance matrix of A
+// A is row-major matrix
+void vnl_covariance(const VNLMatrix& A, VNLMatrix& cov) {
+    const int nCols = A.cols();
+    cov.set_size(A.rows(), A.rows());
+    for (int i = 0; i < cov.rows(); i++) {
+        for (int j = i; j < cov.cols(); j++) {
+            cov[j][i] = cov[i][j] = VNLCVector::dot_product(A[i], A[j], nCols);
+        }
+    }
+}
+
+void vnl_add_diagonal(VNLMatrix& A, double alpha) {
+    const int n = (A.rows() < A.cols()) ? A.rows() : A.cols();
+    for (int i = 0; i < n; i++) {
+        A[i][i] += n;
+    }
 }
 
 bool vnl_has_nans(const VNLVector& params) {

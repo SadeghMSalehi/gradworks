@@ -34,6 +34,7 @@ namespace my {
         void Update();
 
         SliceType::Pointer WarpImage(SliceType::Pointer srcImage);
+        SliceType::Pointer GetDeterminantOfJacobian();
         SliceType::Pointer GetDisplacementMagnitude();
         DisplacementFieldType::Pointer GetDisplacementField();
         DisplacementFieldType::Pointer GetControlPoints();
