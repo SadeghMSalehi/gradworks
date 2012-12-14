@@ -65,7 +65,7 @@ LaplaceFunctionRestrictedDomain<TImage, TLabelImage>
                 const FloatOffsetType& itkNotUsed(offset))
 {
   unsigned int i;
-  double dx[ImageDimension];
+//  double dx[ImageDimension];
 
   // get the current vector at the center position
   // so that we can do proper upwinding
@@ -75,12 +75,12 @@ LaplaceFunctionRestrictedDomain<TImage, TLabelImage>
 
   bool bDoNotUpdate = false;
 
-  double dInner = 0;
+//  double dInner = 0;
 
   PixelType sumOfValues = 0;
 
   //if ( (currentLabel!=m_OriginId) && (currentLabel>0) )
-  if ( (currentLabel==m_SolutionDomainId) )
+  if ( currentLabel==m_SolutionDomainId )
     {
 
     for (i = 0; i < ImageDimension; i++)

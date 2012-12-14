@@ -27,25 +27,49 @@ namespace my {
     LandmarkMetric::~LandmarkMetric() {
         
     }
-    
-    unsigned int LandmarkMetric::GetNumberOfParameters() const {
-        return m_nParams;
+
+    void LandmarkMetric::SetContext(BSplineRegistration *ctx) {
+        m_Context = ctx;
     }
-    
+
+    MeasureType LandmarkMetric::ComputeMSE(VNLVector& error) const {
+        return error.squared_magnitude() / error.size();
+    }
+
+    void LandmarkMetric::ComputeDerivative(VNLVector& error, const ParametersType& p, DerivativeType& d) const {
+        d.SetSize(GetNumberOfParameters());
+
+        SliceTransformType::Pointer tfm = m_Context->GetRawTransform();
+        SliceTransformType::JacobianType jac;
+        for (int i = 0; i < error.size(); i += SDim) {
+            SliceTransformType::InputPointType point;
+            point[0] = p[i];
+            point[1] = p[i+1];
+            tfm->ComputeJacobianWithRespectToParameters(point, jac);
+            
+        }
+    }
+
+    unsigned int LandmarkMetric::GetNumberOfParameters() const {
+        return 0;
+    }
+
     MeasureType LandmarkMetric::GetValue(const ParametersType& p) const {
-        MeasureType v;
-        DerivativeType d;
-        GetValueAndDerivative(p, v, d);
+        MeasureType v = 0;
+        VNLVector error = m_Context->GetSourcePoints() - m_Context->GetTargetPoints();
+        v = ComputeMSE(error);
         return v;
     }
     
     void LandmarkMetric::GetDerivative(const ParametersType &p, DerivativeType &d) const {
-        MeasureType v;
-        GetValueAndDerivative(p, v, d);
+
+
     }
     
     void LandmarkMetric::GetValueAndDerivative(const ParametersType &p, MeasureType &b, DerivativeType &d) const {
-        
+        VNLVector error = m_Context->GetSourcePoints() - m_Context->GetTargetPoints();
+        b = ComputeMSE(error);
+        GetDerivative(p, d);
     }
 
     BSplineRegistration::BSplineRegistration() {
@@ -220,6 +244,10 @@ namespace my {
         FieldTransformType::Pointer txf = FieldTransformType::New();
         txf->SetDisplacementField(m_DisplacementField);
         return txf;
+    }
+
+    SliceTransformType::Pointer BSplineRegistration::GetRawTransform() {
+        return SliceTransformType::Pointer(NULL);
     }
 
 }

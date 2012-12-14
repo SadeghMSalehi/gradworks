@@ -29,8 +29,10 @@ namespace my {
     typedef double MeasureType;
     typedef itk::CostFunction::ParametersType ParametersType;
     typedef itk::SingleValuedCostFunction::DerivativeType DerivativeType;
-    
-    // cost function for optimizer
+
+    class BSplineRegistration;
+
+    // cost function for deformable transformation optimizer
     class LandmarkMetric : public itk::SingleValuedCostFunction {
     public:
         itkTypeMacro(LandmarkMetric, itk::SingleValuedCostFunction);
@@ -40,8 +42,7 @@ namespace my {
         virtual MeasureType GetValue(const ParametersType& p) const;
         virtual void GetDerivative(const ParametersType& p, DerivativeType& d) const;
         virtual void GetValueAndDerivative(const ParametersType& p, MeasureType &b, DerivativeType& d) const;
-        
-        void SetTransform(BSplineTransform::Pointer transform);
+        void SetContext(BSplineRegistration* ctx);
         
     protected:
         LandmarkMetric();
@@ -50,15 +51,27 @@ namespace my {
     private:
         LandmarkMetric(const LandmarkMetric& o);
         LandmarkMetric& operator=(const LandmarkMetric& o);
-        
-        int m_nParams;
+
+        MeasureType ComputeMSE(VNLVector& error) const;
+        void ComputeDerivative(VNLVector& error, const ParametersType& p, DerivativeType& d) const;
+
+        BSplineRegistration* m_Context;
         BSplineTransform::Pointer m_Transform;
     };
 
+    // bspline registration
+    //  1) scattered data approximation
+    //  2) free-form deformation
     class BSplineRegistration {
+        friend class LandmarkMetric;
     public:
         BSplineRegistration();
         ~BSplineRegistration();
+
+        inline int GetNumberOfParams() { return m_nParams; }
+        inline int GetNumberOfPoints() { return m_nPoints; }
+        inline VNLVector& GetSourcePoints() { return m_Source; }
+        inline VNLVector& GetTargetPoints() { return m_Target; }
 
         void SetUseFreeFormDeformation(bool ffd);
         void SetPropertyAccess(PropertyAccess props);
@@ -74,6 +87,7 @@ namespace my {
         DisplacementFieldType::Pointer GetDisplacementField();
         DisplacementFieldType::Pointer GetControlPoints();
         FieldTransformType::Pointer GetTransform();
+        SliceTransformType::Pointer GetRawTransform();
 
     private:
         bool m_UseFFD;

@@ -184,7 +184,7 @@ void
       // iterate over the 2d neighborhood to see if there is a solutiondomain voxel
 
       int iFoundSolutionDomainVoxel = 0;
-      int iFoundBCVoxel = 0;
+//      int iFoundBCVoxel = 0;
 
       for ( int iI=0; iI<ImageDimension; iI++ ) {
 
