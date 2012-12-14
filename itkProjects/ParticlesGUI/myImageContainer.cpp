@@ -12,6 +12,7 @@
 #include "itkImageIO.h"
 #include "itkARGBColorFunction.h"
 #include "itkScalarToARGBColormapImageFilter.h"
+#include "itkCheckerBoardImageFilter.h"
 
 ImageContainer::SliceDictionary g_DerivedSliceDictionary;
 
@@ -386,4 +387,76 @@ QPixmap ImageContainer::CreatePixmap(RGBAImageType::Pointer bitmap) {
     QImage qImg = QImage((unsigned char*) bitmap->GetBufferPointer(),
                          bitmapSz[0], bitmapSz[1], QImage::Format_ARGB32);
     return QPixmap::fromImage(qImg);
+}
+
+SliceType::Pointer ImageContainer::ResampleSlice(SliceType::Pointer src, SliceTransformType::Pointer txf) {
+    SliceResamplerType::Pointer resampler = SliceResamplerType::New();
+    resampler->SetInput(src);
+    resampler->UseReferenceImageOn();
+    resampler->SetReferenceImage(src);
+    resampler->SetTransform(txf);
+    resampler->Update();
+    return resampler->GetOutput();
+}
+
+SliceType::Pointer ImageContainer::CreateCheckerBoards(SliceType::Pointer ref, VNLVector &pattern) {
+    itkcmds::itkImageIO<SliceType> io;
+    SliceType::Pointer blackImage = io.NewImageT(ref);
+    blackImage->FillBuffer(0.0);
+    SliceType::Pointer whiteImage = io.NewImageT(ref);
+    whiteImage->FillBuffer(1.0);
+    typedef itk::CheckerBoardImageFilter<SliceType> FilterType;
+    FilterType::Pointer filter = FilterType::New();
+    FilterType::PatternArrayType checkPatterns;
+    for (int k = 0; k < checkPatterns.Size(); k++) {
+        checkPatterns[k] = pattern[k];
+    }
+    filter->SetInput1(blackImage);
+    filter->SetInput2(whiteImage); 
+    filter->SetCheckerPattern(checkPatterns);
+    filter->Update();
+    return filter->GetOutput();
+}
+
+
+// compute transform field
+//
+void ImageContainer::ComputeTransformedField(DisplacementFieldType::Pointer inField, VNLMatrix& ox, VNLMatrix& oy) {
+    DisplacementFieldType::SizeType sz = inField->GetBufferedRegion().GetSize();
+    ox.set_size(sz[0], sz[1]);
+    oy.set_size(sz[0], sz[1]);
+
+    FieldTransformType::Pointer txf = FieldTransformType::New();
+    txf->SetDisplacementField(inField);
+
+    FieldIteratorType iter(inField, inField->GetBufferedRegion());
+    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+        FieldIteratorType::IndexType idx = iter.GetIndex();
+        FieldTransformType::InputPointType inPoint;
+        FieldTransformType::OutputPointType outPoint;
+        inField->TransformIndexToPhysicalPoint(idx, inPoint);
+        outPoint = txf->TransformPoint(inPoint);
+        ox[idx[0]][idx[1]] = outPoint[0];
+        oy[idx[0]][idx[1]] = outPoint[1];
+    }
+}
+
+
+void ImageContainer::WarpGrid(SliceTransformType::Pointer txf, VNLMatrix& sx, VNLMatrix& sy, VNLMatrix& tx, VNLMatrix& ty) {
+    const int nRows = sx.rows();
+    const int nCols = sx.cols();
+    tx.set_size(nRows, nCols);
+    ty.set_size(nRows, nCols);
+
+    for (int i = 0; i < nRows; i++) {
+        for (int j = 0; j < nCols; j++) {
+            SliceTransformType::InputPointType inPoint;
+            inPoint[0] = sx[i][j];
+            inPoint[1] = sy[i][j];
+            SliceTransformType::OutputPointType outPoint;
+            outPoint = txf->TransformPoint(inPoint);
+            tx[i][j] = outPoint[0];
+            ty[i][j] = outPoint[1];
+        }
+    }
 }

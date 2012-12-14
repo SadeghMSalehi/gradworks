@@ -42,5 +42,9 @@ private:
     std::vector<QRectF> m_VectorList;
     int m_Key;
     int m_Index;
+
+    VNLMatrix gX, gY;
+    VNLMatrix tX, tY;
+
 };
 #endif

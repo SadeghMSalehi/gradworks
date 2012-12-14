@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>BSpline Experiments</string>
+   <string>Landmark Transform Visualization</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="margin">
@@ -73,10 +73,79 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="showDisplacementField">
+         <property name="text">
+          <string>Show Displacement Field</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="showDetJacobian">
          <property name="text">
           <string>Show Determinant Of Jacobian</string>
          </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="coordBox">
+         <property name="title">
+          <string/>
+         </property>
+         <layout class="QFormLayout" name="formLayout">
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0" colspan="2">
+           <widget class="QRadioButton" name="showNoGrid">
+            <property name="text">
+             <string>No Grid</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0" colspan="2">
+           <widget class="QRadioButton" name="showCoordinateGrid">
+            <property name="text">
+             <string>Show Coordinate Grid</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0" colspan="2">
+           <widget class="QRadioButton" name="showWarpedCoordinateGrid">
+            <property name="text">
+             <string>Show Warped Grid</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Grid Resolution</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QSpinBox" name="gridResolution">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>100</number>
+            </property>
+            <property name="singleStep">
+             <number>1</number>
+            </property>
+            <property name="value">
+             <number>5</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </item>
        <item>
@@ -97,7 +166,7 @@
           <item>
            <widget class="QRadioButton" name="showNoImage">
             <property name="text">
-             <string>Show No Image</string>
+             <string>No Image</string>
             </property>
             <property name="checked">
              <bool>true</bool>
@@ -115,6 +184,45 @@
            <widget class="QRadioButton" name="showTransformed">
             <property name="text">
              <string>Show Transformed Image</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_2">
+         <property name="title">
+          <string>Transforms</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout">
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QRadioButton" name="txfBspline">
+            <property name="text">
+             <string>BSpline Interpolation</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QRadioButton" name="txfTPS">
+            <property name="text">
+             <string>Thin Plate Spline</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QRadioButton" name="txfEBS">
+            <property name="text">
+             <string>Elastic Body Spline</string>
             </property>
            </widget>
           </item>

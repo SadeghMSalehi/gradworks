@@ -25,6 +25,7 @@
 #include "itkVectorLinearInterpolateImageFunction.h"
 #include "itkResampleImageFilter.h"
 #include "itkTransform.h"
+#include "itkDisplacementFieldTransform.h"
 
 #define copyArray(x,y) for (int kkk = 0; kkk < SDim; kkk++) x[kkk] = y[kkk]
 
@@ -57,6 +58,7 @@ typedef itk::Vector<double,2> VectorType;
 typedef itk::PointSet<VectorType,2> DisplacementFieldPointSetType;
 typedef itk::Image<VectorType,2> DisplacementFieldType;
 typedef itk::ImageRegionConstIteratorWithIndex<DisplacementFieldType> FieldIteratorType;
+typedef itk::DisplacementFieldTransform<double, SDim> FieldTransformType;
 typedef itk::ResampleImageFilter<SliceType,SliceType> SliceResamplerType;
 typedef itk::Transform<double,SDim,SDim> SliceTransformType;
 
@@ -165,6 +167,10 @@ public:
     static RGBAImageType::Pointer CreateBitmap(SliceType::Pointer slice, int alpha = 255);
     static QPixmap CreatePixmap(RGBAImageType::Pointer bitmap);
     static SliceType::Pointer ResampleSlice(SliceType::Pointer src, SliceTransformType::Pointer txf);
+    static SliceType::Pointer CreateCheckerBoards(SliceType::Pointer ref, VNLVector& pattern);
+    static void ComputeTransformedField(DisplacementFieldType::Pointer field, VNLMatrix& ox, VNLMatrix& oy);
+    static void WarpGrid(SliceTransformType::Pointer txf, VNLMatrix& sx, VNLMatrix& sy, VNLMatrix& tx, VNLMatrix& ty);
+
 
     static int g_CurrentView;
     static int g_CurrentImage;

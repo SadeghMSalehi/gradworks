@@ -21,7 +21,6 @@ namespace my {
     typedef itk::BSplineScatteredDataPointSetToImageFilter
     <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
     typedef BSplineFilterType::WeightsContainerType WeightsContainerType;
-    typedef itk::DisplacementFieldTransform<double, SDim> DisplacementTransformType;
 
     class BSplineRegistration {
     public:
@@ -38,7 +37,7 @@ namespace my {
         SliceType::Pointer GetDisplacementMagnitude();
         DisplacementFieldType::Pointer GetDisplacementField();
         DisplacementFieldType::Pointer GetControlPoints();
-        DisplacementTransformType::Pointer GetTransform();
+        FieldTransformType::Pointer GetTransform();
 
     private:
         VNLVector m_Params;

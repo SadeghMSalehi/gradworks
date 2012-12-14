@@ -456,7 +456,7 @@ void ParticleSystem::UpdateBSplineEnsemble() {
     vnl_row_mean(gPos, gMeanPos);
 
     // transform from subject's space to mean space
-    std::vector<my::DisplacementTransformType::Pointer> bsplineTransformArray;
+    std::vector<FieldTransformType::Pointer> bsplineTransformArray;
     for (int n = 0; n < m_nSubjects; n++) {
         SliceType::Pointer refImage = m_Context->GetImage(n)->GetSlice();
         my::BSplineRegistration bReg;
@@ -472,8 +472,8 @@ void ParticleSystem::UpdateBSplineEnsemble() {
 
     for (int n = 0; n < m_nSubjects; n++) {
         for (int i = 0; i < m_nParticles; i++) {
-            my::DisplacementTransformType::InputPointType inPoint;
-            my::DisplacementTransformType::OutputPointType outPoint;
+            FieldTransformType::InputPointType inPoint;
+            FieldTransformType::OutputPointType outPoint;
             inPoint[0] = gPos[n][2*i];
             inPoint[1] = gPos[n][2*i+1];
             outPoint = bsplineTransformArray[n]->TransformPoint(inPoint);

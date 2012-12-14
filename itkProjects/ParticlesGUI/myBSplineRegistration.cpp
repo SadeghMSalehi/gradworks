@@ -126,14 +126,12 @@ namespace my {
         itkcmds::itkImageIO<SliceType> io;
         SliceType::Pointer detImage = io.NewImageT(m_RefImage);
 
-        DisplacementTransformType::Pointer txf = GetTransform();
+        FieldTransformType::Pointer txf = GetTransform();
         SliceIteratorType iter(detImage, detImage->GetBufferedRegion());
         for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
-            DisplacementTransformType::JacobianType jacob;
+            FieldTransformType::JacobianType jacob;
             txf->ComputeJacobianWithRespectToParameters(iter.GetIndex(), jacob);
             double det = vnl_determinant(jacob);
-            cout << jacob << endl;
-            cout << det << endl;
             iter.Set(det);
         }
         return detImage;
@@ -160,8 +158,8 @@ namespace my {
         return filter->GetOutput();
     }
     
-    DisplacementTransformType::Pointer BSplineRegistration::GetTransform() {
-        DisplacementTransformType::Pointer txf = DisplacementTransformType::New();
+    FieldTransformType::Pointer BSplineRegistration::GetTransform() {
+        FieldTransformType::Pointer txf = FieldTransformType::New();
         txf->SetDisplacementField(m_DisplacementField);
         return txf;
     }

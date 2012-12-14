@@ -10,6 +10,7 @@
 #include "itkImageIO.h"
 #include "itkCheckerBoardImageFilter.h"
 #include "itkResampleImageFilter.h"
+#include "QGraphicsGridItem.h"
 
 using namespace std;
 
@@ -18,6 +19,10 @@ BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
 
     QObject::connect(ui.showOriginal, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.imageOpacity, SIGNAL(sliderMoved(int)), this, SLOT(updateScene()));
+    QObject::connect(ui.showCoordinateGrid, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showDisplacementField, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showDetJacobian, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.groupBox, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
 
     ui.bspView->setScene(&m_Scene);
 
@@ -31,24 +36,20 @@ BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
 
     m_DetJacobian = io.NewImageT(100, 100, 1);
     m_DetJacobian->SetSpacing(spacing);
-
-    m_BlackImage = io.NewImageT(100, 100, 1, 0.0);
-    m_BlackImage->SetSpacing(spacing);
-
-    m_WhiteImage = io.NewImageT(100, 100, 1, 1.0);
-    m_WhiteImage->SetSpacing(spacing);
-
-    typedef itk::CheckerBoardImageFilter<SliceType> FilterType;
-    FilterType::Pointer filter = FilterType::New();
-    FilterType::PatternArrayType checkPatterns;
-    checkPatterns[0] = 50;
-    checkPatterns[1] = 50;
-    filter->SetInput1(m_BlackImage);
-    filter->SetInput2(m_WhiteImage);
-    filter->SetCheckerPattern(checkPatterns);
-    filter->Update();
-    m_SrcImage = filter->GetOutput();
+    VNLVector patterns(2);
+    patterns[0] = patterns[1] = 50;
+    m_SrcImage = ImageContainer::CreateCheckerBoards(m_RefImage, patterns);
     m_Field = DisplacementFieldType::Pointer(NULL);
+
+    gX.set_size(100, 100);
+    gY.set_size(100, 100);
+
+    for (int i = 0; i < 100; i++) {
+        for (int j = 0; j < 100; j++) {
+            gX[i][j] = i;
+            gY[i][j] = j;
+        }
+    }
 
     updateScene();
 }
@@ -66,20 +67,33 @@ void BSplineVisDialog::updateScene() {
         m_Scene.addPixmap(qPixmap)->setZValue(-10);
     }
 
-    if (m_RefImage.IsNotNull()) {
-        SliceType::SizeType sz = m_RefImage->GetBufferedRegion().GetSize();
-        QPen pen(QColor::fromRgbF(1, 1, 1, 0.5));
+    if (ui.showTransformed->isChecked()) {
+        RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_DstImage, ui.imageOpacity->value());
+        QPixmap qPixmap = ImageContainer::CreatePixmap(image);
+        m_Scene.addPixmap(qPixmap)->setZValue(-10);
+    }
 
-        // show grid per 5 pixels
-        for (int i = 0; i <= sz[0]; i += 5) {
-            QGraphicsItem* l = m_Scene.addLine(i, 0, i, sz[1], pen);
-            l->setEnabled(false);
+    if (m_RefImage.IsNotNull()) {
+        const int gridRes = ui.gridResolution->value();
+        if (ui.showCoordinateGrid->isChecked()) {
+            QPen pen(QColor::fromRgbF(1, 1, 1, ui.imageOpacity->value() / 255.0));
+            QGraphicsGridItem* originalGrid = new QGraphicsGridItem();
+            originalGrid->SetPen(pen);
+            originalGrid->SetResolution(gridRes);
+            originalGrid->SetGrid(gX, gY);
+            m_Scene.addItem(originalGrid);
         }
-        for (int j = 0; j <= sz[1]; j += 5) {
-            QGraphicsItem* l = m_Scene.addLine(0, j, sz[0], j, pen);
-            l->setEnabled(false);
+        if (ui.showWarpedCoordinateGrid->isChecked() && m_Field.IsNotNull()) {
+            SliceType::SizeType sz = m_Field->GetBufferedRegion().GetSize();
+            QPen pen(QColor::fromRgbF(1, 1, 1, ui.imageOpacity->value() / 255.0));
+            QGraphicsGridItem* warpedGrid = new QGraphicsGridItem();
+            warpedGrid->SetPen(pen);
+            warpedGrid->SetResolution(gridRes);
+            warpedGrid->SetGrid(tX, tY);
+            m_Scene.addItem(warpedGrid);
         }
     }
+
 
     if (ui.showDetJacobian->isChecked() && m_DetJacobian.IsNotNull()) {
         RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_DetJacobian);
@@ -88,7 +102,7 @@ void BSplineVisDialog::updateScene() {
     }
 
 
-    if (m_Field.IsNotNull()) {
+    if (m_Field.IsNotNull() && ui.showDisplacementField->isChecked()) {
         FieldIteratorType iter(m_Field, m_Field->GetBufferedRegion());
         for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
             DisplacementFieldType::IndexType idx = iter.GetIndex();
@@ -200,16 +214,17 @@ void BSplineVisDialog::on_updateField_clicked() {
     }
     PropertyAccess props(this);
     breg.SetPropertyAccess(props);
-    breg.SetLandmarks(m_VectorList.size(), data[0], data[1]);
+    breg.SetLandmarks(m_VectorList.size(), data[1], data[0]);
     breg.SetReferenceImage(m_RefImage);
     breg.Update();
-    my::DisplacementTransformType::Pointer txf = breg.GetTransform();
-
-
+    FieldTransformType::Pointer txf = breg.GetTransform();
 
     m_Field = breg.GetDisplacementField();
     m_DetJacobian = breg.GetDeterminantOfJacobian();
-    
+    m_DstImage = ImageContainer::ResampleSlice(m_SrcImage, txf.GetPointer());
+//    ImageContainer::ComputeTransformedField(m_Field, tX, tY);
+    ImageContainer::WarpGrid(txf.GetPointer(), gX, gY, tX, tY);
+
     updateScene();
 }
 
