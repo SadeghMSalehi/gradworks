@@ -512,8 +512,8 @@ void ParticleSystem::UpdateKernelTransform() {
     QElapsedTimer timer;
     timer.start();
 
-    myImageTransform transformer;
-    myImageTransform::KernelTransformPointer transform = transformer.CreateKernelTransform(0, m_nParticles, gPos[0], wPos[0]);
+    my::ImageTransform transformer;
+    my::KernelTransformPointer transform = transformer.CreateKernelTransform(0, m_nParticles, gPos[0], wPos[0]);
 
     cout << "Transform Time: " << timer.elapsed() << " ms" << endl;
 }

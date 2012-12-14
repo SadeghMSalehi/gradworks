@@ -13,6 +13,8 @@
 #include "itkARGBColorFunction.h"
 #include "itkScalarToARGBColormapImageFilter.h"
 #include "itkCheckerBoardImageFilter.h"
+#include "itkTransformToDisplacementFieldSource.h"
+#include "itkWarpImageFilter.h"
 
 ImageContainer::SliceDictionary g_DerivedSliceDictionary;
 
@@ -389,7 +391,7 @@ QPixmap ImageContainer::CreatePixmap(RGBAImageType::Pointer bitmap) {
     return QPixmap::fromImage(qImg);
 }
 
-SliceType::Pointer ImageContainer::ResampleSlice(SliceType::Pointer src, SliceTransformType::Pointer txf) {
+SliceType::Pointer ImageContainer::TransformSlice(SliceType::Pointer src, SliceTransformType::Pointer txf) {
     SliceResamplerType::Pointer resampler = SliceResamplerType::New();
     resampler->SetInput(src);
     resampler->UseReferenceImageOn();
@@ -420,26 +422,26 @@ SliceType::Pointer ImageContainer::CreateCheckerBoards(SliceType::Pointer ref, V
 
 
 // compute transform field
+////
+//void ImageContainer::ComputeTransformedField(DisplacementFieldType::Pointer inField, VNLMatrix& ox, VNLMatrix& oy) {
+//    DisplacementFieldType::SizeType sz = inField->GetBufferedRegion().GetSize();
+//    ox.set_size(sz[0], sz[1]);
+//    oy.set_size(sz[0], sz[1]);
 //
-void ImageContainer::ComputeTransformedField(DisplacementFieldType::Pointer inField, VNLMatrix& ox, VNLMatrix& oy) {
-    DisplacementFieldType::SizeType sz = inField->GetBufferedRegion().GetSize();
-    ox.set_size(sz[0], sz[1]);
-    oy.set_size(sz[0], sz[1]);
-
-    FieldTransformType::Pointer txf = FieldTransformType::New();
-    txf->SetDisplacementField(inField);
-
-    FieldIteratorType iter(inField, inField->GetBufferedRegion());
-    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
-        FieldIteratorType::IndexType idx = iter.GetIndex();
-        FieldTransformType::InputPointType inPoint;
-        FieldTransformType::OutputPointType outPoint;
-        inField->TransformIndexToPhysicalPoint(idx, inPoint);
-        outPoint = txf->TransformPoint(inPoint);
-        ox[idx[0]][idx[1]] = outPoint[0];
-        oy[idx[0]][idx[1]] = outPoint[1];
-    }
-}
+//    FieldTransformType::Pointer txf = FieldTransformType::New();
+//    txf->SetDisplacementField(inField);
+//
+//    FieldIteratorType iter(inField, inField->GetBufferedRegion());
+//    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+//        FieldIteratorType::IndexType idx = iter.GetIndex();
+//        FieldTransformType::InputPointType inPoint;
+//        FieldTransformType::OutputPointType outPoint;
+//        inField->TransformIndexToPhysicalPoint(idx, inPoint);
+//        outPoint = txf->TransformPoint(inPoint);
+//        ox[idx[0]][idx[1]] = outPoint[0];
+//        oy[idx[0]][idx[1]] = outPoint[1];
+//    }
+//}
 
 
 void ImageContainer::WarpGrid(SliceTransformType::Pointer txf, VNLMatrix& sx, VNLMatrix& sy, VNLMatrix& tx, VNLMatrix& ty) {
@@ -460,3 +462,21 @@ void ImageContainer::WarpGrid(SliceTransformType::Pointer txf, VNLMatrix& sx, VN
         }
     }
 }
+
+
+//
+//SliceType::Pointer ImageContainer::WarpSlice(SliceType::Pointer src, SliceTransformType::Pointer txf) {
+//    typedef itk::TransformToDisplacementFieldSource<DisplacementFieldType> TransformToFieldType;
+//    TransformToFieldType::Pointer txfToField = TransformToFieldType::New();
+//    txfToField->SetTransform(txf.GetPointer());
+//    txfToField->SetOutputDirection(src->GetDirection());
+//    txfToField->SetOutputSize(src->GetBufferedRegion().GetSize());
+//    txfToField->SetOutputOrigin(src->GetOrigin());
+//    txfToField->SetOutputSpacing(src->GetSpacing());
+//    txfToField->Update();
+//
+//    FieldTransformType::Pointer fieldTransform = FieldTransformType::New();
+//    fieldTransform->SetDisplacementField(txfToField->GetOutput());
+//
+//    return TransformSlice(src, fieldTransform.GetPointer());
+//}

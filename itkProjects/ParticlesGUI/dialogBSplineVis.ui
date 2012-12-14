@@ -89,7 +89,7 @@
        <item>
         <widget class="QGroupBox" name="coordBox">
          <property name="title">
-          <string/>
+          <string>Coordinate Grid</string>
          </property>
          <layout class="QFormLayout" name="formLayout">
           <property name="topMargin">
@@ -151,7 +151,7 @@
        <item>
         <widget class="QGroupBox" name="groupBox">
          <property name="title">
-          <string/>
+          <string>Background Image</string>
          </property>
          <property name="flat">
           <bool>false</bool>
@@ -219,10 +219,17 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="0">
+          <item row="3" column="0">
            <widget class="QRadioButton" name="txfEBS">
             <property name="text">
              <string>Elastic Body Spline</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QRadioButton" name="txfTPSR2logR">
+            <property name="text">
+             <string>Thin Plate Spline (R2LogR)</string>
             </property>
            </widget>
           </item>

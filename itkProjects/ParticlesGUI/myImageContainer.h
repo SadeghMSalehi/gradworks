@@ -166,10 +166,16 @@ public:
     // utility methods
     static RGBAImageType::Pointer CreateBitmap(SliceType::Pointer slice, int alpha = 255);
     static QPixmap CreatePixmap(RGBAImageType::Pointer bitmap);
-    static SliceType::Pointer ResampleSlice(SliceType::Pointer src, SliceTransformType::Pointer txf);
     static SliceType::Pointer CreateCheckerBoards(SliceType::Pointer ref, VNLVector& pattern);
-    static void ComputeTransformedField(DisplacementFieldType::Pointer field, VNLMatrix& ox, VNLMatrix& oy);
+
+
+//    static void ComputeTransformedField(DisplacementFieldType::Pointer field, VNLMatrix& ox, VNLMatrix& oy);
+
+
     static void WarpGrid(SliceTransformType::Pointer txf, VNLMatrix& sx, VNLMatrix& sy, VNLMatrix& tx, VNLMatrix& ty);
+    static SliceType::Pointer TransformSlice(SliceType::Pointer src, SliceTransformType::Pointer txf);
+
+    // static SliceType::Pointer WarpSlice(SliceType::Pointer src, SliceTransformType::Pointer txf);
 
 
     static int g_CurrentView;

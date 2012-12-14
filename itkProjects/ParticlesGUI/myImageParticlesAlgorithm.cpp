@@ -750,10 +750,10 @@ void ImageParticlesAlgorithm::ApplyTPSorEBSTransform(int type) {
         m_ImageList->at(n)->GetSlice()->TransformContinuousIndexToPhysicalPoint(idx0, point0);
     }
 
-    myImageTransform transformer;
-    myImageTransform::KernelTransformPointer transform = transformer.CreateKernelTransform(0, m_nPoints, worldPos[0], worldPos[1]);
+    my::ImageTransform transformer;
+    my::KernelTransformPointer transform = transformer.CreateKernelTransform(0, m_nPoints, worldPos[0], worldPos[1]);
 
-    SliceType::Pointer transformedImage = transformer.ResampleSlice(m_ImageList->at(0)->GetSlice(), transform);
+    SliceType::Pointer transformedImage = ImageContainer::TransformSlice(m_ImageList->at(0)->GetSlice(), transform.GetPointer());
 
 
     // store transformed image as derived image

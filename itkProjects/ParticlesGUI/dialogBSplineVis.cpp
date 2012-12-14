@@ -11,6 +11,7 @@
 #include "itkCheckerBoardImageFilter.h"
 #include "itkResampleImageFilter.h"
 #include "QGraphicsGridItem.h"
+#include "myImageTransform.h"
 
 using namespace std;
 
@@ -84,7 +85,6 @@ void BSplineVisDialog::updateScene() {
             m_Scene.addItem(originalGrid);
         }
         if (ui.showWarpedCoordinateGrid->isChecked() && m_Field.IsNotNull()) {
-            SliceType::SizeType sz = m_Field->GetBufferedRegion().GetSize();
             QPen pen(QColor::fromRgbF(1, 1, 1, ui.imageOpacity->value() / 255.0));
             QGraphicsGridItem* warpedGrid = new QGraphicsGridItem();
             warpedGrid->SetPen(pen);
@@ -203,8 +203,6 @@ void BSplineVisDialog::on_addPairButton_clicked() {
 }
 
 void BSplineVisDialog::on_updateField_clicked() {
-    my::BSplineRegistration breg;
-
     VNLMatrix data(2, m_VectorList.size() * 2);
     for (int i = 0; i < m_VectorList.size(); i++) {
         data[0][i*2] = m_VectorList[i].left();
@@ -212,19 +210,37 @@ void BSplineVisDialog::on_updateField_clicked() {
         data[1][i*2] = m_VectorList[i].right();
         data[1][i*2+1] = m_VectorList[i].bottom();
     }
-    PropertyAccess props(this);
-    breg.SetPropertyAccess(props);
-    breg.SetLandmarks(m_VectorList.size(), data[1], data[0]);
-    breg.SetReferenceImage(m_RefImage);
-    breg.Update();
-    FieldTransformType::Pointer txf = breg.GetTransform();
+    
+    if (ui.txfBspline->isChecked()) {
+        my::BSplineRegistration breg;
+        PropertyAccess props(this);
+        breg.SetPropertyAccess(props);
+        breg.SetLandmarks(m_VectorList.size(), data[0], data[1]);
+        breg.SetReferenceImage(m_RefImage);
+        breg.Update();
+        FieldTransformType::Pointer txf = breg.GetTransform();
 
-    m_Field = breg.GetDisplacementField();
-    m_DetJacobian = breg.GetDeterminantOfJacobian();
-    m_DstImage = ImageContainer::ResampleSlice(m_SrcImage, txf.GetPointer());
-//    ImageContainer::ComputeTransformedField(m_Field, tX, tY);
-    ImageContainer::WarpGrid(txf.GetPointer(), gX, gY, tX, tY);
+        m_Field = breg.GetDisplacementField();
+        m_DetJacobian = breg.GetDeterminantOfJacobian();
 
+        ImageContainer::WarpGrid(txf.GetPointer(), gX, gY, tX, tY);
+        m_DstImage = ImageContainer::TransformSlice(m_SrcImage, txf.GetPointer());
+    } else {
+        my::KernelTransformPointer transform;
+        int type = 0;
+        if (ui.txfTPS->isChecked()) {
+            type = 0;
+        } else if (ui.txfEBS->isChecked()) {
+            type = 1;
+        } else if (ui.txfTPSR2logR->isChecked()) {
+            type = 2;
+        }
+        my::ImageTransform imageTxf;
+        transform = imageTxf.CreateKernelTransform(type, m_VectorList.size(), data[0], data[1]);
+
+        ImageContainer::WarpGrid(transform.GetPointer(), gX, gY, tX, tY);
+        m_DstImage = ImageContainer::TransformSlice(m_SrcImage, transform.GetPointer());
+    }
     updateScene();
 }
 

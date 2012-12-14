@@ -17,22 +17,24 @@
 #include "itkKernelTransform.h"
 #include "itkBSplineDeformableTransform.h"
 
-class myImageTransform {
-public:
+namespace my {
     typedef itk::Transform<double, 2, 2> Transform2DType;
     typedef itk::KernelTransform<double, 2> KernelTransformType;
     typedef KernelTransformType::Pointer KernelTransformPointer;
     typedef itk::BSplineDeformableTransform<double,2,3> BSplineTransform;
-
-    myImageTransform();
-    ~myImageTransform();
-
-    KernelTransformPointer CreateKernelTransform(int type, int n, double* src, double* dst);
-    BSplineTransform::Pointer CreateBSplineTransform(int type, int n, double *src, double* dst, SliceType::Pointer spaceImage);
-
-    SliceType::Pointer ResampleSlice(SliceType::Pointer image, KernelTransformPointer transform);
-private:
     
-};
+    class ImageTransform {
+    public:
+        ImageTransform();
+        ~ImageTransform();
+
+        KernelTransformPointer CreateKernelTransform(int type, int n, double* src, double* dst);
+        BSplineTransform::Pointer CreateBSplineTransform(int type, int n, double *src, double* dst, SliceType::Pointer spaceImage);
+
+        //SliceType::Pointer ResampleSlice(SliceType::Pointer image, KernelTransformPointer transform);
+    private:
+        
+    };
+}
 
 #endif /* defined(__ParticlesGUI__myImageTransform__) */
