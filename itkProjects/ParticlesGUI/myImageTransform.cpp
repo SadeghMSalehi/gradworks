@@ -80,18 +80,6 @@ namespace my {
         return kernelTransform;
     }
 
-    BSplineTransform::Pointer ImageTransform::CreateBSplineTransform(int type, int n, double *src, double* dst, SliceType::Pointer spaceImage) {
-        BSplineTransform::Pointer transform = BSplineTransform::New();
-        transform->SetGridRegion(spaceImage->GetBufferedRegion());
-        transform->SetGridSpacing(spaceImage->GetSpacing());
-        transform->SetGridOrigin(spaceImage->GetOrigin());
-
-        BSplineTransform::ParametersType params(transform->GetNumberOfParameters());
-        transform->SetParameters(params);
-
-        return transform;
-    }
-
     /*
     SliceType::Pointer ImageTransform::ResampleSlice(SliceType::Pointer sourceImage, KernelTransformPointer  transform) {
         ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();

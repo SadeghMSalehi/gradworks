@@ -19,12 +19,45 @@ using namespace std;
 
 namespace my {
     typedef itk::WarpImageFilter<SliceType, SliceType, DisplacementFieldType> WarpImageFilterType;
+    
+    LandmarkMetric::LandmarkMetric() {
+        
+    }
+    
+    LandmarkMetric::~LandmarkMetric() {
+        
+    }
+    
+    unsigned int LandmarkMetric::GetNumberOfParameters() const {
+        return m_nParams;
+    }
+    
+    MeasureType LandmarkMetric::GetValue(const ParametersType& p) const {
+        MeasureType v;
+        DerivativeType d;
+        GetValueAndDerivative(p, v, d);
+        return v;
+    }
+    
+    void LandmarkMetric::GetDerivative(const ParametersType &p, DerivativeType &d) const {
+        MeasureType v;
+        GetValueAndDerivative(p, v, d);
+    }
+    
+    void LandmarkMetric::GetValueAndDerivative(const ParametersType &p, MeasureType &b, DerivativeType &d) const {
+        
+    }
 
     BSplineRegistration::BSplineRegistration() {
+        m_UseFFD = false;
     }
 
     BSplineRegistration::~BSplineRegistration() {
 
+    }
+    
+    void BSplineRegistration::SetUseFreeFormDeformation(bool ffd) {
+        m_UseFFD = ffd;
     }
 
     void BSplineRegistration::SetPropertyAccess(PropertyAccess props) {
@@ -37,25 +70,52 @@ namespace my {
     }
 
     void BSplineRegistration::SetLandmarks(int n, double *src, double *dst) {
+        m_nPoints = n;
+        m_nParams = n * SDim;
+        
+        // store landmarks
+        m_Source.set_size(m_nParams);
+        m_Source.set(src);
+        
+        m_Target.set_size(m_nParams);
+        m_Target.set(dst);
+    }
+    
+    
+    void BSplineRegistration::Update() {
+        if (m_UseFFD) {
+            UpdateDeformation();
+        } else {
+            UpdateInterpolation();
+        }
+        
+    }
+    
+    void BSplineRegistration::UpdateDeformation() {
+        
+    }
+
+    void BSplineRegistration::UpdateInterpolation() {        
         if (m_FieldPoints.IsNull()) {
             m_FieldPoints = DisplacementFieldPointSetType::New();
         }
         m_FieldPoints->Initialize();
-
+        
         // create point structures
         PointSetType::Pointer srcPoints = PointSetType::New();
         PointSetType::Pointer dstPoints = PointSetType::New();
-
+        
         srcPoints->Initialize();
         dstPoints->Initialize();
-
-        double* pSrc = src;
-        double* pDst = dst;
+        
+        int n = m_nPoints;
+        double* pSrc = m_Source.data_block();
+        double* pDst = m_Target.data_block();
         for (int i = 0; i < n; i++) {
             PointSetType::PointType iPoint;
             iPoint[0] = pSrc[0];
             iPoint[1] = pSrc[1];
-
+            
             VectorType vector;
             vector[0] = pDst[0] - pSrc[0];
             vector[1] = pDst[1] - pSrc[1];
@@ -64,9 +124,7 @@ namespace my {
             pSrc += 2;
             pDst += 2;
         }
-    }
 
-    void BSplineRegistration::Update() {
         int splineOrder = m_Props.GetInt("splineOrder", 3);
         int numOfLevels = m_Props.GetInt("numLevels", 1);
         int nSize = m_Props.GetInt("numControlPoints", 25);
