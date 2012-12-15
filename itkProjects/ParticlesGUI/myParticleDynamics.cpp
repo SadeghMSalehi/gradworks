@@ -466,7 +466,8 @@ void ParticleSystem::UpdateBSplineEnsemble() {
         bsplineTransformArray.push_back(bReg.GetTransform());
     }
 
-    // compute elastic displacement of bspline
+    // compute particles' position at the common space
+    //
     VNLMatrix tPos(m_nSubjects, m_nParams);
     VNLMatrix jacobPos(m_nSubjects, m_nParams);
 
@@ -493,11 +494,23 @@ void ParticleSystem::UpdateBSplineEnsemble() {
     double alpha = 1;
     vnl_add_diagonal(xCov, alpha);
 
+    // inverse of covariance
     VNLMatrix xCovInv = vnl_matrix_inverse<double>(xCov);
 
-    // jacobian * xCovInv * xPos
+    // compute the gradient of positional entropy with respect to transformed position
+    VNLMatrix pGpP = xCovInv * xPos;
+    VNLMatrix pGpX(m_nSubjects, m_nParticles);
 
-
+    // compute the gradient of positional entropy with respect to transformed position
+    FieldTransformType::InputPointType xPoint;
+    FieldTransformType::JacobianType xJac;
+    for (int n = 0; n < m_nSubjects; n++) {
+        for (int i = 0; i < m_nParticles; i++) {
+            xPoint[0] = gPos[n][2*i];
+            xPoint[1] = gPos[n][2*i+1];
+            bsplineTransformArray[n]->ComputeJacobianWithRespectToPosition(xPoint, xJac);
+        }
+    }
 }
 
 void ParticleSystem::UpdateKernelTransform() {
