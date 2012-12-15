@@ -2,6 +2,15 @@
 [Tt]humbs.db
 *.DS_Store
 
+#matlab backups
+*.m~
+
+#image files
+*.png
+*.gif
+*.jpg
+*.nrrd
+
 #Visual Studio files
 *.[Oo]bj
 *.exe
