@@ -95,6 +95,7 @@ void MainWindow::on_actionOpenCompareWindow_triggered() {
 }
 
 void MainWindow::on_actionOpenBSplineVis_triggered() {
+    m_BSplineVisDialog.SetImageParticlesAlgorithm(g_imageParticlesAlgo);
     m_BSplineVisDialog.show();
 }
 

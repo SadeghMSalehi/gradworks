@@ -28,6 +28,9 @@ void QGraphicsGridItem::SetResolution(int res) {
 }
 
 void QGraphicsGridItem::SetGrid(VNLMatrix fx, VNLMatrix fy) {
+    if (fy.rows() == 0 || fx.rows() == 0) {
+        return;
+    }
     m_GridX = fx;
     m_GridY = fy;
 

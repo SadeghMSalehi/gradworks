@@ -12,6 +12,7 @@
 #include "itkResampleImageFilter.h"
 #include "QGraphicsGridItem.h"
 #include "myImageTransform.h"
+#include "myImageParticlesAlgorithm.h"
 
 using namespace std;
 
@@ -29,29 +30,14 @@ BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
 
     m_Key = 0;
     m_Index = -1;
+    m_Algo = NULL;
 
     double spacing[] = { 1, 1 };
     itkcmds::itkImageIO<SliceType> io;
     m_RefImage = io.NewImageT(100, 100, 1);
     m_RefImage->SetSpacing(spacing);
 
-    m_DetJacobian = io.NewImageT(100, 100, 1);
-    m_DetJacobian->SetSpacing(spacing);
-    VNLVector patterns(2);
-    patterns[0] = patterns[1] = 50;
-    m_SrcImage = ImageContainer::CreateCheckerBoards(m_RefImage, patterns);
-    m_Field = DisplacementFieldType::Pointer(NULL);
-
-    gX.set_size(100, 100);
-    gY.set_size(100, 100);
-
-    for (int i = 0; i < 100; i++) {
-        for (int j = 0; j < 100; j++) {
-            gX[i][j] = i;
-            gY[i][j] = j;
-        }
-    }
-
+    CreateGridAndCheckerboards(m_RefImage);
     updateScene();
 }
 
@@ -59,6 +45,43 @@ BSplineVisDialog::~BSplineVisDialog() {
 
 }
 
+
+// construct grid and checkerboard image to compare before and after warping
+// the coordinate system is defined by reference image
+//
+void BSplineVisDialog::CreateGridAndCheckerboards(SliceType::Pointer refImage) {
+    itkcmds::itkImageIO<SliceType> io;
+
+    m_RefImage = refImage;
+    m_DetJacobian = io.NewImageT(refImage);
+
+    VNLVector patterns(2);
+    patterns[0] = patterns[1] = 10;
+    m_SrcImage = ImageContainer::CreateCheckerBoards(m_RefImage, patterns);
+    m_Field = DisplacementFieldType::Pointer(NULL);
+
+    SliceType::SizeType refSize = refImage->GetBufferedRegion().GetSize();
+    gX.set_size(refSize[0], refSize[1]);
+    gY.set_size(refSize[0], refSize[1]);
+
+    SliceType::IndexType idx;
+    SliceType::PointType point;
+    
+    // assume gX and gY are physical coordinate system
+    for (int i = 0; i < gX.rows(); i++) {
+        for (int j = 0; j < gY.cols(); j++) {
+            idx[0] = i;
+            idx[1] = j;
+            m_RefImage->TransformIndexToPhysicalPoint(idx, point);
+            gX[i][j] = point[0];
+            gY[i][j] = point[1];
+        }
+    }
+}
+
+
+// refresh ui elements
+//
 void BSplineVisDialog::updateScene() {
     m_Scene.clear();
 
@@ -83,14 +106,16 @@ void BSplineVisDialog::updateScene() {
             originalGrid->SetResolution(gridRes);
             originalGrid->SetGrid(gX, gY);
             m_Scene.addItem(originalGrid);
+            ui.bspView->fitInView(originalGrid);
         }
-        if (ui.showWarpedCoordinateGrid->isChecked() && m_Field.IsNotNull()) {
+        if (ui.showWarpedCoordinateGrid->isChecked()) {
             QPen pen(QColor::fromRgbF(1, 1, 1, ui.imageOpacity->value() / 255.0));
             QGraphicsGridItem* warpedGrid = new QGraphicsGridItem();
             warpedGrid->SetPen(pen);
             warpedGrid->SetResolution(gridRes);
             warpedGrid->SetGrid(tX, tY);
             m_Scene.addItem(warpedGrid);
+            ui.bspView->fitInView(warpedGrid);
         }
     }
 
@@ -122,19 +147,21 @@ void BSplineVisDialog::updateScene() {
 
 
     // drawing order is important for correct pick up
-    double sz = 1.5;
-    for (int i = 0; i < m_VectorList.size(); i++) {
-        QRectF& xy = m_VectorList[i];
-        m_Scene.addLine(xy.left(), xy.top(), xy.right(), xy.bottom(), QPen(Qt::white));
-        QGraphicsItem* dx = m_Scene.addEllipse(xy.left() - sz, xy.top() - sz, sz*2, sz*2, QPen(Qt::red), QBrush(Qt::red, Qt::SolidPattern));
-        dx->setData(1, i);
-        QGraphicsItem* dy = m_Scene.addEllipse(xy.right() - sz, xy.bottom() - sz, sz*2, sz*2, QPen(Qt::blue), QBrush(Qt::blue, Qt::SolidPattern));
-        dy->setData(2, i);
-
+    // only show when showLandmarks is checked
+    //
+    if (ui.showLandmarks->isChecked()) {
+        double sz = 1.5;
+        for (int i = 0; i < m_VectorList.size(); i++) {
+            QRectF& xy = m_VectorList[i];
+            m_Scene.addLine(xy.left(), xy.top(), xy.right(), xy.bottom(), QPen(Qt::white));
+            QGraphicsItem* dx = m_Scene.addEllipse(xy.left() - sz, xy.top() - sz, sz*2, sz*2, QPen(Qt::red), QBrush(Qt::red, Qt::SolidPattern));
+            dx->setData(1, i);
+            QGraphicsItem* dy = m_Scene.addEllipse(xy.right() - sz, xy.bottom() - sz, sz*2, sz*2, QPen(Qt::blue), QBrush(Qt::blue, Qt::SolidPattern));
+            dy->setData(2, i);
+            
+        }
     }
 
-    QRectF bounds(0, 0, 100, 100);
-    ui.bspView->fitInView(bounds, Qt::KeepAspectRatio);
 }
 
 void BSplineVisDialog::on_bspView_mouseReleased(QMouseEvent *event) {
@@ -180,8 +207,6 @@ void BSplineVisDialog::on_bspView_mousePressed(QMouseEvent *event) {
         m_Index = -1;
         m_Key = 0;
     }
-
-    cout << "Click position: " << pos.x() << ", " << pos.y() << endl;
 }
 
 void BSplineVisDialog::on_bspViewZoom_sliderMoved(int val) {
@@ -199,6 +224,35 @@ void BSplineVisDialog::on_addPairButton_clicked() {
     rect.setCoords(10, 10, 20, 20);
     m_VectorList.push_back(rect);
 
+    updateScene();
+}
+
+void BSplineVisDialog::on_copyPointsButton_clicked() {
+    if (m_Algo == NULL) {
+        return;
+    }
+
+    // select the current slice of the first image as reference image
+    ImageContainer::Pointer img = m_Algo->GetImage(0);
+    m_RefImage = img->GetSlice();
+
+    // reset grid and checkerboard
+    CreateGridAndCheckerboards(m_RefImage);
+
+    // clear current landmarks
+    m_VectorList.clear();
+
+    const OptimizerParametersType& particles = m_Algo->GetCurrentParams();
+    const int nPoints = m_Algo->GetNumberOfPoints();
+    const int nParams = m_Algo->GetNumberOfParams();
+
+    // copy landmarks from the first and second
+    for (int i = 0; i < nPoints; i++) {
+        QRectF rect;
+        rect.setCoords(particles[SDim*i], particles[SDim*i+1], particles[nParams+SDim*i], particles[nParams+SDim*i+1]);
+        m_VectorList.push_back(rect);
+    }
+    
     updateScene();
 }
 
@@ -224,6 +278,19 @@ void BSplineVisDialog::on_updateField_clicked() {
         m_DetJacobian = breg.GetDeterminantOfJacobian();
 
         ImageContainer::WarpGrid(txf.GetPointer(), gX, gY, tX, tY);
+        m_DstImage = ImageContainer::TransformSlice(m_SrcImage, txf.GetPointer());
+    } else if (ui.txfBSplineFFD->isChecked()) {
+        my::BSplineRegistration breg;
+        PropertyAccess props(this);
+        breg.SetPropertyAccess(props);
+        breg.SetLandmarks(m_VectorList.size(), data[0], data[1]);
+        breg.SetReferenceImage(m_RefImage);
+        breg.SetUseFreeFormDeformation(true);
+        breg.UpdateDeformation();
+        SliceTransformType::Pointer txf = breg.GetFreeFormTransform();
+
+        ImageContainer::WarpGrid(txf.GetPointer(), gX, gY, tX, tY);
+//        cout << tX << ", " << tY << endl;
         m_DstImage = ImageContainer::TransformSlice(m_SrcImage, txf.GetPointer());
     } else {
         my::KernelTransformPointer transform;

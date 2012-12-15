@@ -29,6 +29,25 @@
 
 #define copyArray(x,y) for (int kkk = 0; kkk < SDim; kkk++) x[kkk] = y[kkk]
 
+#define itkDeclareMacro(T,S) \
+typedef T Self; \
+typedef S Superclass; \
+typedef itk::SmartPointer<T> Pointer; \
+typedef itk::SmartPointer<const LandmarkMetric> ConstPointer
+
+#define itkConstructorMacro(T) \
+protected: \
+T(); \
+virtual ~T(); \
+private: \
+T(const T&); \
+T& operator=(const T&)
+
+#define mySetMacro(N,T) \
+void Set##N(T _arg) {\
+    this->m_##N = _arg;\
+}
+
 const int VDim = 3;
 const int SDim = 2;
 

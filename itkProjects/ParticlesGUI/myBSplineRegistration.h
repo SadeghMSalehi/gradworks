@@ -35,28 +35,29 @@ namespace my {
     // cost function for deformable transformation optimizer
     class LandmarkMetric : public itk::SingleValuedCostFunction {
     public:
+        itkDeclareMacro(LandmarkMetric, itk::SingleValuedCostFunction);
         itkTypeMacro(LandmarkMetric, itk::SingleValuedCostFunction);
         itkNewMacro(LandmarkMetric);
-        
+        itkConstructorMacro(LandmarkMetric);
+
+    public:
         virtual unsigned int GetNumberOfParameters() const;
         virtual MeasureType GetValue(const ParametersType& p) const;
         virtual void GetDerivative(const ParametersType& p, DerivativeType& d) const;
         virtual void GetValueAndDerivative(const ParametersType& p, MeasureType &b, DerivativeType& d) const;
-        void SetContext(BSplineRegistration* ctx);
-        
-    protected:
-        LandmarkMetric();
-        virtual ~LandmarkMetric();
-        
+
+        void SetContext(BSplineRegistration*);
+        void SetTransform(BSplineTransform*);
+
     private:
-        LandmarkMetric(const LandmarkMetric& o);
-        LandmarkMetric& operator=(const LandmarkMetric& o);
-
         MeasureType ComputeMSE(VNLVector& error) const;
-        void ComputeDerivative(VNLVector& error, const ParametersType& p, DerivativeType& d) const;
+        void ComputeDerivative(VNLVector& error, VNLVector& tX, VNLVector& Y, const ParametersType& p, DerivativeType& d) const ;
+        void TransformPoints(VNLVector& x, VNLVector& tx) const;
 
+        int m_nParams;
         BSplineRegistration* m_Context;
-        BSplineTransform::Pointer m_Transform;
+        mutable BSplineTransform* m_Transform;
+        mutable VNLVector m_Tx;
     };
 
     // bspline registration
@@ -72,6 +73,7 @@ namespace my {
         inline int GetNumberOfPoints() { return m_nPoints; }
         inline VNLVector& GetSourcePoints() { return m_Source; }
         inline VNLVector& GetTargetPoints() { return m_Target; }
+        inline SliceTransformType::Pointer GetFreeFormTransform() { return m_FFDTransform.GetPointer(); }
 
         void SetUseFreeFormDeformation(bool ffd);
         void SetPropertyAccess(PropertyAccess props);
@@ -96,8 +98,9 @@ namespace my {
         DisplacementFieldPointSetType::Pointer m_FieldPoints;
         DisplacementFieldType::Pointer m_DisplacementField;
         DisplacementFieldType::Pointer m_PhiLattice;
+        BSplineTransform::Pointer m_FFDTransform;
         PropertyAccess m_Props;
-        
+
         int m_nParams;
         int m_nPoints;
         VNLVector m_Source;

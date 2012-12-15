@@ -6,12 +6,16 @@
 #include "myImageContainer.h"
 #include "vector"
 
+class ImageParticlesAlgorithm;
+
 class BSplineVisDialog : public QDialog {
     Q_OBJECT
 
 public:
     BSplineVisDialog(QWidget* parent = NULL);
     virtual ~BSplineVisDialog();
+
+    void SetImageParticlesAlgorithm(ImageParticlesAlgorithm* alg) { m_Algo = alg; }
 
 public slots:
     void updateScene();
@@ -23,15 +27,17 @@ public slots:
     void on_addPairButton_clicked();
     void on_bspViewZoom_sliderMoved(int val);
     void on_updateField_clicked();
+    void on_copyPointsButton_clicked();
 
 protected:
     virtual void showEvent(QShowEvent * event);
     virtual void closeEvent(QCloseEvent * e);
     
+    void CreateGridAndCheckerboards(SliceType::Pointer refImage);
     
 private:
-    SliceType::Pointer m_BlackImage;
-    SliceType::Pointer m_WhiteImage;
+//    SliceType::Pointer m_BlackImage;
+//    SliceType::Pointer m_WhiteImage;
     SliceType::Pointer m_SrcImage;
     SliceType::Pointer m_DstImage;
     SliceType::Pointer m_RefImage;
@@ -45,6 +51,8 @@ private:
 
     VNLMatrix gX, gY;
     VNLMatrix tX, tY;
+
+    ImageParticlesAlgorithm* m_Algo;
 
 };
 #endif

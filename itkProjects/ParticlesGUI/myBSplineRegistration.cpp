@@ -11,6 +11,9 @@
 #include "itkWarpImageFilter.h"
 #include "itkVectorMagnitudeImageFilter.h"
 #include "itkImageIO.h"
+#include "itkLBFGSOptimizer.h"
+#include "itkRegularStepGradientDescentOptimizer.h"
+#include "itkFRPROptimizer.h"
 #include "iostream"
 
 // estimation of displacement field via particle correspondence
@@ -28,48 +31,81 @@ namespace my {
         
     }
 
-    void LandmarkMetric::SetContext(BSplineRegistration *ctx) {
-        m_Context = ctx;
-    }
-
     MeasureType LandmarkMetric::ComputeMSE(VNLVector& error) const {
-        return error.squared_magnitude() / error.size();
+        return error.squared_magnitude();
     }
 
-    void LandmarkMetric::ComputeDerivative(VNLVector& error, const ParametersType& p, DerivativeType& d) const {
-        d.SetSize(GetNumberOfParameters());
+    void LandmarkMetric::ComputeDerivative(VNLVector& error, VNLVector& tX, VNLVector& Y, const ParametersType& p, DerivativeType& d) const {
+        d.SetSize(m_nParams);
+        d.Fill(0);
 
-        SliceTransformType::Pointer tfm = m_Context->GetRawTransform();
-        SliceTransformType::JacobianType jac;
+        BSplineTransform::JacobianType jac;
+        BSplineTransform::InputPointType point;
         for (int i = 0; i < error.size(); i += SDim) {
-            SliceTransformType::InputPointType point;
-            point[0] = p[i];
-            point[1] = p[i+1];
-            tfm->ComputeJacobianWithRespectToParameters(point, jac);
-            
+            point[0] = tX[i];
+            point[1] = tX[i+1];
+            m_Transform->ComputeJacobianWithRespectToParameters(point, jac);
+            for (int j = 0; j < m_nParams; j++) {
+                d[j] += 2.0 * (jac[0][j] * error[i] + jac[1][j] * error[i+1]);
+            }
         }
     }
 
+    void LandmarkMetric::TransformPoints(VNLVector& x, VNLVector& y) const {
+        const int nSize = x.size();
+        y.set_size(nSize);
+        for (int i = 0; i < nSize; i += SDim) {
+            BSplineTransform::InputPointType p;
+            p[0] = x[i];
+            p[1] = x[i+1];
+            BSplineTransform::OutputPointType q = m_Transform->TransformPoint(p);
+            y[i] = q[0];
+            y[i+1] = q[1];
+        }
+    }
+
+    void LandmarkMetric::SetContext(BSplineRegistration* context) {
+        m_Context = context;
+    }
+
+    void LandmarkMetric::SetTransform(BSplineTransform* transform) {
+        m_Transform = transform;
+        m_nParams = transform->GetNumberOfParameters();
+    }
+
     unsigned int LandmarkMetric::GetNumberOfParameters() const {
-        return 0;
+        return m_nParams;
     }
 
     MeasureType LandmarkMetric::GetValue(const ParametersType& p) const {
         MeasureType v = 0;
-        VNLVector error = m_Context->GetSourcePoints() - m_Context->GetTargetPoints();
+        m_Transform->SetParameters(p);
+        TransformPoints(m_Context->GetSourcePoints(), m_Tx);
+        VNLVector error = m_Tx - m_Context->GetTargetPoints();
         v = ComputeMSE(error);
+        
         return v;
     }
     
     void LandmarkMetric::GetDerivative(const ParametersType &p, DerivativeType &d) const {
-
-
+        m_Transform->SetParameters(p);
+        TransformPoints(m_Context->GetSourcePoints(), m_Tx);
+        VNLVector& Y = m_Context->GetTargetPoints();
+        VNLVector error = m_Tx - Y;
+        ComputeDerivative(error, m_Tx, Y, p, d);
     }
     
     void LandmarkMetric::GetValueAndDerivative(const ParametersType &p, MeasureType &b, DerivativeType &d) const {
-        VNLVector error = m_Context->GetSourcePoints() - m_Context->GetTargetPoints();
+        m_Transform->SetParameters(p);
+        TransformPoints(m_Context->GetSourcePoints(), m_Tx);
+        VNLVector& Y = m_Context->GetTargetPoints();
+        VNLVector error = m_Tx - m_Context->GetTargetPoints();
+//        cout << ">> " << m_Tx << " >> " << m_Context->GetTargetPoints() << ", " << error << endl;
         b = ComputeMSE(error);
-        GetDerivative(p, d);
+        ComputeDerivative(error, m_Tx, Y, p, d);
+
+        // when using two control points, the result is not stable
+//        cout << "Value: " << b << "; " << p << "; " << d << endl;
     }
 
     BSplineRegistration::BSplineRegistration() {
@@ -114,9 +150,82 @@ namespace my {
         }
         
     }
-    
+
+    //
+    // free form deformation based on landmarks
+    // the distance between landmark is optimizer via mean squared error
+    //
     void BSplineRegistration::UpdateDeformation() {
+        int nSize = m_Props.GetInt("numberOfControlPoints", 25);
+
+        SliceType::SizeType refSize = m_RefImage->GetBufferedRegion().GetSize();
+        SliceType::SpacingType refSpacing = m_RefImage->GetSpacing();
+
+        BSplineTransform::PhysicalDimensionsType physicalDimensions;
+        BSplineTransform::MeshSizeType meshSize;
+        for (unsigned int i = 0; i < SDim; i++) {
+            physicalDimensions[i] = refSpacing[i] * (refSize[i] - 1);
+        }
+        meshSize.Fill(nSize);
+
+
+        //
+        // control point domain describes locations of control points
+        // they usually follows the property of the reference image
+        //
+        BSplineTransform::Pointer bspliner = BSplineTransform::New();
+        bspliner->SetTransformDomainOrigin(m_RefImage->GetOrigin());
+        bspliner->SetTransformDomainDirection(m_RefImage->GetDirection());
+        bspliner->SetTransformDomainPhysicalDimensions(physicalDimensions);
+        bspliner->SetTransformDomainMeshSize(meshSize);
+
+        const int nBSplineParams = bspliner->GetNumberOfParameters();
+
+        // debug: check if number of parameters are same as the number of control points * Dimension (meshSize)
+
+        ParametersType params(nBSplineParams);
+        params.Fill(0);
+        bspliner->SetParameters(params);
+
+        LandmarkMetric::Pointer metric = LandmarkMetric::New();
+        metric->SetTransform(bspliner);
+        metric->SetContext(this);
+
+//        typedef itk::LBFGSOptimizer OptimizerType;
+//        typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
+        typedef itk::FRPROptimizer OptimizerType;
+
+        OptimizerType::Pointer opti = OptimizerType::New();
+
+        //  for LBFGS optimizer
+        //        opti->SetGradientConvergenceTolerance(0.0005);
+        //        opti->SetLineSearchAccuracy(0.9);
+        //        opti->SetDefaultStepLength(.25);
+        //        opti->SetMaximumNumberOfFunctionEvaluations(1000);
+        //        opti->TraceOn();
+
+        // for gradient descent
+//        opti->SetMaximumStepLength(0.1);
+//        opti->SetMinimumStepLength(0.01);
+//        opti->SetNumberOfIterations(1000);
+//        opti->SetGradientMagnitudeTolerance(1e-4);
+//        opti->SetMinimize(true);
+
+        // for FRPR optimizer
+        opti->SetMaximumIteration(100);
+        opti->SetMaximumLineIteration(100);
+        opti->SetStepLength(0.1);
+        opti->SetStepTolerance(0.01);
+        opti->SetValueTolerance(1e-5);
         
+        opti->SetCostFunction(metric);
+        opti->SetInitialPosition(params);
+        opti->StartOptimization();
+        cout << "Stop Condition: " << opti->GetStopConditionDescription() << endl;
+
+        // bspline transform might not have correct parameters
+        bspliner->SetParameters(opti->GetCurrentPosition());
+        m_FFDTransform = bspliner;
     }
 
     void BSplineRegistration::UpdateInterpolation() {        
@@ -151,7 +260,7 @@ namespace my {
 
         int splineOrder = m_Props.GetInt("splineOrder", 3);
         int numOfLevels = m_Props.GetInt("numLevels", 1);
-        int nSize = m_Props.GetInt("numControlPoints", 25);
+        int nSize = m_Props.GetInt("numberOfControlPoints", 25);
 
         BSplineFilterType::Pointer bspliner = BSplineFilterType::New();
         BSplineFilterType::ArrayType numControlPoints;

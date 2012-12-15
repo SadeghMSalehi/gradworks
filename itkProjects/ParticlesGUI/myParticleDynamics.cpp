@@ -18,7 +18,7 @@
 // experiment options
 static bool applySurfaceEntropyToFirstOnly = false;
 static bool applyBoundaryConditionToFirstOnly = false;
-static bool useEnsembleForce = true;
+static bool useEnsembleForce = false;
 static bool useParticlePhysics = true;
 static bool useBoundaryCondition = true;
 static bool useSurfaceForce = true;
