@@ -15,6 +15,7 @@
 #include "itkCheckerBoardImageFilter.h"
 #include "itkTransformToDisplacementFieldSource.h"
 #include "itkWarpImageFilter.h"
+#include "itkCastImageFilter.h"
 
 ImageContainer::SliceDictionary g_DerivedSliceDictionary;
 
@@ -153,6 +154,18 @@ void ImageContainer::UpdateBitmap(int dim) {
     rgbFilter->SetMaximumValue(m_IntensityStats[1]);
     rgbFilter->Update();
     m_Bitmaps[dim] = rgbFilter->GetOutput();
+}
+
+SliceType::Pointer ImageContainer::GetLabelSliceAsSliceType(int dim) {
+    typedef itk::CastImageFilter<LabelSliceType,SliceType> CastFilterType;
+    CastFilterType::Pointer f = CastFilterType::New();
+    if (dim == -1) {
+        f->SetInput(GetLabelSlice());
+    } else {
+        f->SetInput(GetLabelSlice(dim));
+    }
+    f->Update();
+    return f->GetOutput();
 }
 
 QPixmap ImageContainer::GetPixmap(int dim) {
@@ -391,12 +404,18 @@ QPixmap ImageContainer::CreatePixmap(RGBAImageType::Pointer bitmap) {
     return QPixmap::fromImage(qImg);
 }
 
-SliceType::Pointer ImageContainer::TransformSlice(SliceType::Pointer src, SliceTransformType::Pointer txf) {
+SliceType::Pointer ImageContainer::TransformSlice(SliceType::Pointer src, SliceTransformType::Pointer txf, bool useNN) {
+
     SliceResamplerType::Pointer resampler = SliceResamplerType::New();
     resampler->SetInput(src);
     resampler->UseReferenceImageOn();
     resampler->SetReferenceImage(src);
     resampler->SetTransform(txf);
+    if (useNN) {
+        NNSliceInterpolatorType::Pointer nn = NNSliceInterpolatorType::New();
+        nn->SetInputImage(src);
+        resampler->SetInterpolator(nn);
+    }
     resampler->Update();
     return resampler->GetOutput();
 }

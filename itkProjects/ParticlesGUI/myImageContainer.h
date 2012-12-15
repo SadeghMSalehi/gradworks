@@ -26,6 +26,7 @@
 #include "itkResampleImageFilter.h"
 #include "itkTransform.h"
 #include "itkDisplacementFieldTransform.h"
+#include "itkNearestNeighborInterpolateImageFunction.h"
 
 #define copyArray(x,y) for (int kkk = 0; kkk < SDim; kkk++) x[kkk] = y[kkk]
 
@@ -55,6 +56,7 @@ typedef itk::Image<double, VDim> ImageType;
 typedef itk::Image<double, SDim> SliceType;
 typedef itk::ImageRegionIteratorWithIndex<SliceType> SliceIteratorType;
 typedef itk::LinearInterpolateImageFunction<SliceType> SliceInterpolatorType;
+typedef itk::NearestNeighborInterpolateImageFunction<SliceType> NNSliceInterpolatorType;
 typedef itk::RGBAPixel<unsigned char> RGBAPixel;
 typedef itk::Image<RGBAPixel, SDim> RGBAImageType;
 typedef itk::Image<unsigned short, VDim> LabelType;
@@ -169,6 +171,8 @@ public:
         return GetLabelSlice(m_SliceDir);
     }
 
+    SliceType::Pointer GetLabelSliceAsSliceType(int dim = -1);
+
     void SetSliceDir(int dir) {
         m_SliceDir = dir;
     }
@@ -192,7 +196,8 @@ public:
 
 
     static void WarpGrid(SliceTransformType::Pointer txf, VNLMatrix& sx, VNLMatrix& sy, VNLMatrix& tx, VNLMatrix& ty);
-    static SliceType::Pointer TransformSlice(SliceType::Pointer src, SliceTransformType::Pointer txf);
+    static SliceType::Pointer TransformSlice(SliceType::Pointer src, SliceTransformType::Pointer txf, bool useNN = false);
+
 
     // static SliceType::Pointer WarpSlice(SliceType::Pointer src, SliceTransformType::Pointer txf);
 

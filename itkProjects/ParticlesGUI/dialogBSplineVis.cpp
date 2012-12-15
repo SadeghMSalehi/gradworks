@@ -13,14 +13,17 @@
 #include "QGraphicsGridItem.h"
 #include "myImageTransform.h"
 #include "myImageParticlesAlgorithm.h"
+#include "mainwindow.h"
 
 using namespace std;
 
 BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
     ui.setupUi(this);
 
-    QObject::connect(ui.showOriginal, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showCheckerboard, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showWarpedCheckerboard, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.imageOpacity, SIGNAL(sliderMoved(int)), this, SLOT(updateScene()));
+    QObject::connect(ui.showNoGrid, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showCoordinateGrid, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showDisplacementField, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showDetJacobian, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
@@ -85,16 +88,23 @@ void BSplineVisDialog::CreateGridAndCheckerboards(SliceType::Pointer refImage) {
 void BSplineVisDialog::updateScene() {
     m_Scene.clear();
 
-    if (ui.showOriginal->isChecked()) {
+    if (ui.showCheckerboard->isChecked()) {
         RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_SrcImage, ui.imageOpacity->value());
         QPixmap qPixmap = ImageContainer::CreatePixmap(image);
         m_Scene.addPixmap(qPixmap)->setZValue(-10);
     }
 
-    if (ui.showTransformed->isChecked()) {
+    if (ui.showWarpedCheckerboard->isChecked()) {
         RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_DstImage, ui.imageOpacity->value());
         QPixmap qPixmap = ImageContainer::CreatePixmap(image);
         m_Scene.addPixmap(qPixmap)->setZValue(-10);
+    }
+
+    if (ui.showWarpedSlice->isChecked()) {
+        RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_WarpedSlice, ui.imageOpacity->value());
+        QPixmap qPixmap = ImageContainer::CreatePixmap(image);
+        m_Scene.addPixmap(qPixmap)->setZValue(-10);
+
     }
 
     if (m_RefImage.IsNotNull()) {
@@ -228,9 +238,7 @@ void BSplineVisDialog::on_addPairButton_clicked() {
 }
 
 void BSplineVisDialog::on_copyPointsButton_clicked() {
-    if (m_Algo == NULL) {
-        return;
-    }
+//    m_Algo = ((MainWindow*) parent())->GetImageParticlesAlgorithm();
 
     // select the current slice of the first image as reference image
     ImageContainer::Pointer img = m_Algo->GetImage(0);
@@ -257,6 +265,8 @@ void BSplineVisDialog::on_copyPointsButton_clicked() {
 }
 
 void BSplineVisDialog::on_updateField_clicked() {
+//    m_Algo = ((MainWindow*) parent())->GetImageParticlesAlgorithm();
+
     VNLMatrix data(2, m_VectorList.size() * 2);
     for (int i = 0; i < m_VectorList.size(); i++) {
         data[0][i*2] = m_VectorList[i].left();
@@ -279,6 +289,8 @@ void BSplineVisDialog::on_updateField_clicked() {
 
         ImageContainer::WarpGrid(txf.GetPointer(), gX, gY, tX, tY);
         m_DstImage = ImageContainer::TransformSlice(m_SrcImage, txf.GetPointer());
+        m_WarpedSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetSlice(), txf.GetPointer());
+//        m_WarpedLabelSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetLabelSliceAsSliceType(), txf.GetPointer(), true);        
     } else if (ui.txfBSplineFFD->isChecked()) {
         my::BSplineRegistration breg;
         PropertyAccess props(this);
@@ -292,6 +304,8 @@ void BSplineVisDialog::on_updateField_clicked() {
         ImageContainer::WarpGrid(txf.GetPointer(), gX, gY, tX, tY);
 //        cout << tX << ", " << tY << endl;
         m_DstImage = ImageContainer::TransformSlice(m_SrcImage, txf.GetPointer());
+        m_WarpedSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetSlice(), txf.GetPointer());
+//        m_WarpedLabelSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetLabelSliceAsSliceType(), txf.GetPointer(), true);
     } else {
         my::KernelTransformPointer transform;
         int type = 0;
@@ -307,7 +321,10 @@ void BSplineVisDialog::on_updateField_clicked() {
 
         ImageContainer::WarpGrid(transform.GetPointer(), gX, gY, tX, tY);
         m_DstImage = ImageContainer::TransformSlice(m_SrcImage, transform.GetPointer());
+        m_WarpedSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetSlice(), transform.GetPointer());
+//        m_WarpedLabelSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetLabelSliceAsSliceType(), transform.GetPointer(), true);
     }
+
     updateScene();
 }
 

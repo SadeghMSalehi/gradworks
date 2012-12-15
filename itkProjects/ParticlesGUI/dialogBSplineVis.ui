@@ -194,16 +194,23 @@
            </widget>
           </item>
           <item>
-           <widget class="QRadioButton" name="showOriginal">
+           <widget class="QRadioButton" name="showCheckerboard">
             <property name="text">
-             <string>Show Original Image</string>
+             <string>Show Checkerboard</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QRadioButton" name="showTransformed">
+           <widget class="QRadioButton" name="showWarpedCheckerboard">
             <property name="text">
-             <string>Show Transformed Image</string>
+             <string>Show Warped Checkerboard</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="showWarpedSlice">
+            <property name="text">
+             <string>Show Warped Image</string>
             </property>
            </widget>
           </item>

@@ -4,6 +4,7 @@
 #include "ui_dialogBSplineVis.h"
 #include "QGraphicsScene"
 #include "myImageContainer.h"
+#include "myImageParticlesAlgorithm.h"
 #include "vector"
 
 class ImageParticlesAlgorithm;
@@ -15,7 +16,7 @@ public:
     BSplineVisDialog(QWidget* parent = NULL);
     virtual ~BSplineVisDialog();
 
-    void SetImageParticlesAlgorithm(ImageParticlesAlgorithm* alg) { m_Algo = alg; }
+    void SetImageParticlesAlgorithm(ImageParticlesAlgorithm::Pointer alg) { m_Algo = alg; }
 
 public slots:
     void updateScene();
@@ -40,6 +41,9 @@ private:
 //    SliceType::Pointer m_WhiteImage;
     SliceType::Pointer m_SrcImage;
     SliceType::Pointer m_DstImage;
+    SliceType::Pointer m_WarpedSlice;
+    SliceType::Pointer m_WarpedLabelSlice;
+    
     SliceType::Pointer m_RefImage;
     SliceType::Pointer m_DetJacobian;
     DisplacementFieldType::Pointer m_Field;
@@ -52,7 +56,7 @@ private:
     VNLMatrix gX, gY;
     VNLMatrix tX, tY;
 
-    ImageParticlesAlgorithm* m_Algo;
+    ImageParticlesAlgorithm::Pointer m_Algo;
 
 };
 #endif

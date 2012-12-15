@@ -16,10 +16,12 @@
 #include "itkOptimizerCommon.h"
 #include "dialogPatchCompare.h"
 #include "dialogBSplineVis.h"
+#include "myImageParticlesAlgorithm.h"
 
 class vtkPolyData;
 class vtkGenericOpenGLRenderWindow;
 class QVTKInteractor;
+class ImageParticlesAlgorithm;
 
 class MainWindow: public QMainWindow, public EventCallback {
     Q_OBJECT
@@ -31,6 +33,7 @@ public:
     MainWindow(QWidget* parent = NULL);
     ~MainWindow();
 
+    ImageParticlesAlgorithm::Pointer GetImageParticlesAlgorithm();
     void ReadyToExperiments();
     virtual void EventRaised(int eventId, int eventCode, const void* src = 0, void* data = 0);
     

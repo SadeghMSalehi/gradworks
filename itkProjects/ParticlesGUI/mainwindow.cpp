@@ -154,6 +154,10 @@ void MainWindow::ReadyToExperiments() {
     g_constraint.SetImageList(&m_ImageList);
 }
 
+ImageParticlesAlgorithm::Pointer MainWindow::GetImageParticlesAlgorithm() {
+    return g_imageParticlesAlgo;
+}
+
 void MainWindow::selectImage(int idx) {
     updateScene();
 }
