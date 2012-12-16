@@ -149,6 +149,7 @@
     <addaction name="actionAnimation"/>
     <addaction name="separator"/>
     <addaction name="actionUseSurfaceForce"/>
+    <addaction name="actionUseEnsembleForce"/>
     <addaction name="actionUseImageForce"/>
     <addaction name="actionUseBoundaryConditions"/>
     <addaction name="actionUseAdaptiveControl"/>
@@ -158,6 +159,7 @@
     <addaction name="actionShowCorrespondence"/>
     <addaction name="menuParticle_Colors"/>
     <addaction name="actionUseODESolver"/>
+    <addaction name="separator"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -211,8 +213,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>230</width>
-          <height>520</height>
+          <width>196</width>
+          <height>389</height>
          </rect>
         </property>
         <attribute name="label">
@@ -432,8 +434,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>230</width>
-          <height>520</height>
+          <width>98</width>
+          <height>28</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1001,9 +1003,19 @@
     <string>Open BSpline Vis</string>
    </property>
   </action>
+  <action name="actionUseEnsembleForce">
+   <property name="text">
+    <string>Use Ensemble Force</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="3"/>
  <customwidgets>
+  <customwidget>
+   <class>myQGraphicsView</class>
+   <extends>QGraphicsView</extends>
+   <header>myQGraphicsView.h</header>
+  </customwidget>
   <customwidget>
    <class>QVTKWidget2</class>
    <extends>QWidget</extends>
@@ -1015,11 +1027,6 @@
    <extends>QWidget</extends>
    <header>qcustomplot.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>myQGraphicsView</class>
-   <extends>QGraphicsView</extends>
-   <header>myQGraphicsView.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -28,6 +28,9 @@ BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
     QObject::connect(ui.showDisplacementField, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showDetJacobian, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.groupBox, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.landmarkSize, SIGNAL(valueChanged(double)), this, SLOT(updateScene()));
+    QObject::connect(ui.gridResolution, SIGNAL(valueChanged(int)), this, SLOT(updateScene()));
+    QObject::connect(ui.showLandmarks, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
 
     ui.bspView->setScene(&m_Scene);
 
@@ -39,6 +42,8 @@ BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
     itkcmds::itkImageIO<SliceType> io;
     m_RefImage = io.NewImageT(100, 100, 1);
     m_RefImage->SetSpacing(spacing);
+    
+    ui.toolBox->setCurrentWidget(ui.landmarkControlPage);
 
     CreateGridAndCheckerboards(m_RefImage);
     updateScene();
@@ -160,7 +165,7 @@ void BSplineVisDialog::updateScene() {
     // only show when showLandmarks is checked
     //
     if (ui.showLandmarks->isChecked()) {
-        double sz = 1.5;
+        double sz = ui.landmarkSize->value();
         for (int i = 0; i < m_VectorList.size(); i++) {
             QRectF& xy = m_VectorList[i];
             m_Scene.addLine(xy.left(), xy.top(), xy.right(), xy.bottom(), QPen(Qt::white));
@@ -219,15 +224,17 @@ void BSplineVisDialog::on_bspView_mousePressed(QMouseEvent *event) {
     }
 }
 
-void BSplineVisDialog::on_bspViewZoom_sliderMoved(int val) {
-    double zoom = ui.bspViewZoom->value() / 10.0f;
-//    cout << "Zoom: " << zoom << endl;
 
-    QTransform transform = QTransform::fromScale(zoom, zoom);
-
-    ui.bspView->setTransform(transform);
-    updateScene();
-}
+//
+//void BSplineVisDialog::on_bspViewZoom_sliderMoved(int val) {
+////    double zoom = ui.bspViewZoom->value() / 10.0f;
+////    cout << "Zoom: " << zoom << endl;
+//
+//    QTransform transform = QTransform::fromScale(zoom, zoom);
+//
+//    ui.bspView->setTransform(transform);
+//    updateScene();
+//}
 
 void BSplineVisDialog::on_addPairButton_clicked() {
     QRectF rect;
@@ -325,6 +332,7 @@ void BSplineVisDialog::on_updateField_clicked() {
 //        m_WarpedLabelSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetLabelSliceAsSliceType(), transform.GetPointer(), true);
     }
 
+    ui.showWarpedCoordinateGrid->setChecked(true);
     updateScene();
 }
 

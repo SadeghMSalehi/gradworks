@@ -26,7 +26,7 @@ public slots:
     void on_bspView_mouseMoved(QMouseEvent* event);
 
     void on_addPairButton_clicked();
-    void on_bspViewZoom_sliderMoved(int val);
+//    void on_bspViewZoom_sliderMoved(int val);
     void on_updateField_clicked();
     void on_copyPointsButton_clicked();
 

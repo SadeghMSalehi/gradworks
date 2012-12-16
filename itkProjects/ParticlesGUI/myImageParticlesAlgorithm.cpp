@@ -700,7 +700,7 @@ void ImageParticlesAlgorithm::ContinueOptimization() {
 }
 
 void ImageParticlesAlgorithm::RunODE() {
-    ParticleSystem system(m_nSubjects, m_nPoints);
+    my::ParticleSystem system(m_nSubjects, m_nPoints);
     system.SetContext(this);
     system.SetHistoryVector(&m_Traces);
     system.SetCostHistoryVector(&m_CostTraces);
