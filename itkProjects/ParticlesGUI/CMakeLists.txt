@@ -4,10 +4,12 @@ cmake_minimum_required(VERSION 2.8)
 FIND_PACKAGE(ITK 4 REQUIRED)
 FIND_PACKAGE(Qt4 REQUIRED)
 FIND_PACKAGE(VTK REQUIRED)
+FIND_PACKAGE(ItkVtkGlue REQUIRED)
 
 INCLUDE(${USE_ITK_FILE})
 INCLUDE(${QT_USE_FILE})
 INCLUDE(${USE_VTK_FILE})
+INCLUDE(${ItkVtkGlue_USE_FILE})
 
 SET (QT_HEADERS mainwindow.h dialogPatchCompare.h qcustomplot.h myQGraphicsView.h dialogBSplineVis.h)
 SET (QT_SOURCES mainwindow.cpp dialogPatchCompare.cpp qcustomplot.cpp myQGraphicsView.cpp dialogBSplineVis.cpp)
@@ -24,3 +26,6 @@ FILE(GLOB ITK_SOURCES "itk*.h" "itk*.hxx" "itk*.cxx")
 
 ADD_EXECUTABLE(particlesRun particlesMain.cpp ${MY_SOURCES} ${ITK_SOURCES} ${QT_HEADERS} ${QT_SOURCES} ${QT_MOC_HEADERS} ${QT_UI_FILES})
 TARGET_LINK_LIBRARIES(particlesRun ${ITK_LIBRARIES} ${VTK_LIBRARIES} ${QT_LIBRARIES})
+
+ADD_EXECUTABLE(bsplineReg bsplineReg.cxx)
+TARGET_LINK_LIBRARIES(bsplineReg ${ITK_LIBRARIES} ${ItkVtkGlue})

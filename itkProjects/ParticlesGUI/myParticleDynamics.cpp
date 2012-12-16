@@ -71,7 +71,7 @@ namespace my {
         m_Cutoff = 15;
         m_Sigma2 = 3*3;
         m_Mu = 1;
-        m_COR = .2;
+        m_COR = 1 ;
         m_Force.set_size(m_nSubjects, m_nParams);
         m_Constraint = NULL;
         m_StatusHistory = NULL;
@@ -118,6 +118,7 @@ namespace my {
         m_GradientScale = context->GetProperty().GetDouble("gradientScale", 10.0);
         m_Sigma2 *= m_Sigma2;
         
+        m_COR = context->GetProperty().GetDouble("COR", 0.5);
         m_Options.useSurfaceForce = context->GetProperty().GetBool("actionUseSurfaceForce", true);
         m_Options.useImageForce = context->GetProperty().GetBool("actionUseImageForce", true);
         m_Options.useBoundaryCondition = context->GetProperty().GetBool("actionUseBoundaryConditions", true);
@@ -551,13 +552,15 @@ namespace my {
         
         int nSubj = m_Options.applyBoundaryConditionToFirstOnly ? 1 : m_nSubjects;
         nSubj = m_nSubjects;
+        
+        // iterate over all subjects
         for (int n = 0; n < nSubj; n++) {
+            // iterate over all particles
             for (int i = 0; i < m_nParticles; i++) {
-                
                 // input data
                 VNLVectorRef posi(nDim, &m_Pos[n][nDim*i]);
                 VNLVectorRef forcei(nDim, (double*) &m_Force[n][nDim*i]);
-                VNLVectorRef veli(nDim, &m_Vel[n][nDim*i]);
+                VNLVectorRef iVel(nDim, &m_Vel[n][nDim*i]);
                 
                 // output data
                 VNLVectorRef dpdti(nDim, &m_dpdt[n][nDim*i]);
@@ -571,12 +574,13 @@ namespace my {
                     nidx[1] = idx[1] = posi[1];
                     
                     if (!m_Constraint->IsInsideRegion(n, nidx)) {
-                        veli.fill(0);
+                        iVel.fill(0);
                         continue;
                     }
                     
+                    // this is to move outside particles to the nearest boundary
                     double dist = m_Constraint->GetDistance(n, idx);
-                    if (dist >= 0) {
+                    if (dist >= 0 && false) {
                         myImplicitSurfaceConstraint::OffsetType offset = m_Constraint->GetOutsideOffset(n, nidx);
                         for (int k = 0; k < nDim; k++) {
                             posi[k] += offset[k];
@@ -589,6 +593,7 @@ namespace my {
                     
                     //                if (m_Constraint->GetOutsideOffset(n, nidx))
                     
+                    // check boundaries
                     GradientType g = m_Constraint->GetGradient(n, idx);
                     VNLVectorRef normal(nDim, g.GetDataPointer());
                     double normalMagnitude = normal.two_norm();
@@ -606,14 +611,14 @@ namespace my {
                         normal.normalize();
                         
                         // velocity should be zero toward normal direction
-                        double normalSpeed = dot_product(veli, normal);
+                        double normalSpeed = dot_product(iVel, normal);
                         if (normalSpeed < 0) {
-                            VNLVector newVelocity = veli - 2 * normalSpeed * normal;
+                            VNLVector newVelocity = iVel - 2 * normalSpeed * normal;
                             newVelocity *= m_COR;
                             // how to know current timestep?
                             //                        newVelocity /= 0.1;
                             dvdti.fill(0);
-                            veli.copy_in(newVelocity.data_block());
+                            iVel.copy_in(newVelocity.data_block());
                             //                        cout << "Velocity: " << veli << " => " << newVelocity << "; Speed: " << normalSpeed << "; Normal: " << normal << endl;
                         }
                         
@@ -753,7 +758,8 @@ namespace my {
     }
     
     void ParticleSystem::Integrate() {
-        Integrate(m_Status, 0.1, 0, m_Context->GetProperty().GetDouble("numberOfIterations", 100) * 0.1);
+        double dt = m_Context->GetProperty().GetDouble("timeStep", 0.1);
+        Integrate(m_Status, dt, 0, m_Context->GetProperty().GetInt("numberOfIterations", 100) * dt);
     }
     
 }
