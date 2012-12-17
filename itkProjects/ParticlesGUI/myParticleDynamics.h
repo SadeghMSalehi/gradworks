@@ -24,10 +24,11 @@ namespace my {
             this->applySurfaceEntropyToFirstOnly = false;
             this->applyBoundaryConditionToFirstOnly = false;
             this->useEnsembleForce = false;
-            this->useParticlePhysics = false;
-            this->useBoundaryCondition = false;
-            this->useSurfaceForce = false;
+            this->useParticlePhysics = true;
+            this->useBoundaryCondition = true;
+            this->useSurfaceForce = true;
             this->useImageForce = false;
+            this->useAdaptiveSampling = false;
         }
         bool applySurfaceEntropyToFirstOnly;
         bool applyBoundaryConditionToFirstOnly;
@@ -36,6 +37,7 @@ namespace my {
         bool useBoundaryCondition;
         bool useSurfaceForce;
         bool useImageForce;
+        bool useAdaptiveSampling;
     };
     
     class ParticleSystem {
@@ -47,7 +49,6 @@ namespace my {
         
         void SetPositions(OptimizerParametersType* params);
         void GetPositions(OptimizerParametersType* params);
-        void SetConstraint(myImplicitSurfaceConstraint* constraint);
         void SetHistoryVector(VNLVectorArray* systemHistory);
         void SetCostHistoryVector(STDDoubleArray* costHistory);
         void SetEventCallback(EventCallback* callback);
@@ -98,6 +99,8 @@ namespace my {
         
         // apply image term
         void UpdateImageForce();
+
+        void UpdateDraggingForce();
         
         // apply constraint on implicit boundaries
         void ApplyBoundaryConditions();
@@ -128,7 +131,7 @@ namespace my {
         EventCallback* m_Callback;
         
         ImageParticlesAlgorithm* m_Context;
-        myImplicitSurfaceConstraint* m_Constraint;
+        ImplicitSurfaceConstraint* m_Constraint;
         VNLVectorArray* m_StatusHistory;
         STDDoubleArray* m_CostHistory;
         

@@ -87,6 +87,9 @@ public:
     
     // current parameters for optimization
     const OptimizerParametersType& GetCurrentParams() const { return m_CurrentParams; }
+
+    // set current parameters from outside
+    void SetCurrentParams(VNLVector& params);
     
     // mandatory methods to invoke before optimization
     void SetPropertyAccess(PropertyAccess props);
@@ -94,6 +97,7 @@ public:
 	void AddInitialPoints(OptimizerParametersType& points);
     void CreateRandomInitialPoints(int nPoints);
     void CreateInitialPoints(vtkPoints* pointSet);
+    void CreateUniformInitialization();
 
     // optimization execution
 	void RunOptimization();
@@ -151,6 +155,8 @@ public:
         return &m_BSplineRegistration;
     }
 
+    my::ImplicitSurfaceConstraint* GetConstraint() { return &m_Constraint; }
+
     /**
      * UI Event handling
      */
@@ -185,7 +191,7 @@ private:
     PropertyAccess m_Props;
 
 	ImageContainer::List* m_ImageList;
-    myImplicitSurfaceConstraint m_Constraint;
+    my::ImplicitSurfaceConstraint m_Constraint;
     myEnsembleEntropy::Pointer m_EnsembleEntropy;
 
     EventCallback* m_EventCallback;
@@ -196,6 +202,8 @@ private:
 
     ImageList m_KappaMaps;
     InterpolatorList m_KappaMapInterpolators;
+
+    LabelSliceType::Pointer m_Intersection;
 
     InterpolatorList m_ImageInterpolators;
     GradientInterpolatorList m_GradientInterpolators;

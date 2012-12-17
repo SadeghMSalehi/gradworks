@@ -1,5 +1,5 @@
 //
-//  myImplicitSurfaceConstraint.cpp
+//  ImplicitSurfaceConstraint.cpp
 //  ParticlesGUI
 //
 //  Created by Joohwi Lee on 11/23/12.
@@ -13,6 +13,7 @@
 #include "itkBinaryThresholdImageFilter.h"
 
 
+namespace my {
 typedef itk::BinaryThresholdImageFilter<LabelSliceType, LabelSliceType> BinaryThresholdFilterType;
 typedef itk::VectorMagnitudeImageFilter<GradientImageType, SliceType> GradientMagnitudeFilterType;
 
@@ -36,7 +37,7 @@ class BinaryThreshold {
     inline T2 operator()(const T1& A) const { return (A>0)?1:0; }
 };
 
-void myImplicitSurfaceConstraint::Clear() {
+void ImplicitSurfaceConstraint::Clear() {
     m_DistanceMaps.clear();
     m_DistanceMapInterpolators.clear();
     m_InsideDistanceVectorMaps.clear();
@@ -45,7 +46,7 @@ void myImplicitSurfaceConstraint::Clear() {
     m_GradientMaps.clear();
 }
 
-void myImplicitSurfaceConstraint::SetImageList(ImageContainer::List* imageList) {
+void ImplicitSurfaceConstraint::SetImageList(ImageContainer::List* imageList) {
     int nSubj = imageList->size();
     Clear();
     for (int i = 0; i < nSubj; i++) {
@@ -121,38 +122,38 @@ void myImplicitSurfaceConstraint::SetImageList(ImageContainer::List* imageList) 
     std::cout << "surface constraint updated: " << imageList->at(0)->GetSliceIndex() << std::endl;
 }
 
-double myImplicitSurfaceConstraint::GetDistance(int subjId, SliceInterpolatorType::ContinuousIndexType &idx) const {
+double ImplicitSurfaceConstraint::GetDistance(int subjId, SliceInterpolatorType::ContinuousIndexType &idx) const {
     return m_DistanceMapInterpolators[subjId]->EvaluateAtContinuousIndex(idx);
 }
 
-bool myImplicitSurfaceConstraint::IsInsideRegion(int subjId, SliceInterpolatorType::ContinuousIndexType& idx) const {
+bool ImplicitSurfaceConstraint::IsInsideRegion(int subjId, SliceInterpolatorType::ContinuousIndexType& idx) const {
     if (subjId < m_DistanceMaps.size()) {
         return m_DistanceMapInterpolators[subjId]->IsInsideBuffer(subjId);
     }
     return false;
 }
 
-bool myImplicitSurfaceConstraint::IsInsideRegion(int subjId, SliceInterpolatorType::IndexType& idx) const {
+bool ImplicitSurfaceConstraint::IsInsideRegion(int subjId, SliceInterpolatorType::IndexType& idx) const {
     if (subjId < m_DistanceMaps.size()) {
         return m_DistanceMapInterpolators[subjId]->IsInsideBuffer(subjId);
     }
     return false;
 }
 
-myImplicitSurfaceConstraint::DistanceVectorImageType::PixelType myImplicitSurfaceConstraint::GetInsideOffset(int subjId, SliceType::IndexType& idx) const {
+ImplicitSurfaceConstraint::DistanceVectorImageType::PixelType ImplicitSurfaceConstraint::GetInsideOffset(int subjId, SliceType::IndexType& idx) const {
     return m_InsideDistanceVectorMaps[subjId]->GetPixel(idx);
 }
 
-myImplicitSurfaceConstraint::DistanceVectorImageType::PixelType myImplicitSurfaceConstraint::GetOutsideOffset(int subjId, SliceType::IndexType& idx) const {
+ImplicitSurfaceConstraint::DistanceVectorImageType::PixelType ImplicitSurfaceConstraint::GetOutsideOffset(int subjId, SliceType::IndexType& idx) const {
     return m_OutsideDistanceVectorMaps[subjId]->GetPixel(idx);
 }
 
-myImplicitSurfaceConstraint::GradientPixelType myImplicitSurfaceConstraint::GetGradient(int subjId, GradientInterpolatorType::ContinuousIndexType& idx) const {
+ImplicitSurfaceConstraint::GradientPixelType ImplicitSurfaceConstraint::GetGradient(int subjId, GradientInterpolatorType::ContinuousIndexType& idx) const {
 //    return m_GradientMaps[subjId]->GetPixel(idx);
     return m_GradientInterpolators[subjId]->EvaluateAtContinuousIndex(idx);
 }
 
-void myImplicitSurfaceConstraint::ApplyConstraint(OptimizerParametersType& params) const {
+void ImplicitSurfaceConstraint::ApplyConstraint(OptimizerParametersType& params) const {
     const int nSubj = GetNumberOfSubjects();
     const int nDims = SliceType::GetImageDimension();
     const int nVars = params.GetSize() / nSubj;
@@ -167,4 +168,5 @@ void myImplicitSurfaceConstraint::ApplyConstraint(OptimizerParametersType& param
             params[j+1] += offset[j+1];
         }
     }
+}
 }

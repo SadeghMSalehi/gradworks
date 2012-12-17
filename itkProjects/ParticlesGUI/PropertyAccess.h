@@ -17,7 +17,7 @@ class QWidget;
 
 class PropertyAccess {
 public:
-    PropertyAccess() {}
+    PropertyAccess() : m_widget(NULL) {};
     PropertyAccess(QWidget* widget) : m_widget(widget) { }
     inline void SetWidget(QWidget* widget) { m_widget = widget; }
     double GetDouble(std::string name, double val) const;

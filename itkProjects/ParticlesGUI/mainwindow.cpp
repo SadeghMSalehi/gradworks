@@ -8,6 +8,7 @@
 
 #include "mainwindow.h"
 #include "QFileDialog"
+#include "QMessageBox"
 #include "vtkRenderer.h"
 #include "vtkGenericOpenGLRenderWindow.h"
 #include "vtkPolyData.h"
@@ -21,6 +22,7 @@
 #include "myImageParticlesAlgorithm.h"
 #include "itkARGBColorFunction.h"
 #include "bitset"
+#include "armadillo"
 
 static int g_AnimFrame = 0;
 static bool g_showTraceParticles = false;
@@ -28,7 +30,7 @@ static bool g_showTraceParticles = false;
 surface::ParametersVectorType g_Params;
 ImageParticlesAlgorithm::Pointer g_imageParticlesAlgo;
 surface::ParticleAlgorithm::Pointer g_ParticleAlgo;
-myImplicitSurfaceConstraint g_constraint;
+my::ImplicitSurfaceConstraint g_constraint;
 
 
 MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), m_CompareDialog(this), m_BSplineVisDialog(this) {
@@ -100,6 +102,42 @@ void MainWindow::on_actionOpenBSplineVis_triggered() {
 }
 
 
+void MainWindow::on_actionLoadParticles_triggered() {
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "/data/Particles", tr("Armadillo matrix (*.txt)"));
+
+    if (fileName.isNull()) {
+        return;
+    }
+    arma::vec armParams;
+    if (armParams.quiet_load(fileName.toStdString(), arma::arma_ascii)) {
+        VNLVector params(armParams.memptr(), armParams.size());
+        g_imageParticlesAlgo->SetCurrentParams(params);
+        cout << "Particles loaded: " << armParams.size() << endl;
+        updateScene();
+    } else {
+        QMessageBox::warning(this, "Particle Load Fail", fileName + " not available");
+    }
+}
+
+void MainWindow::on_actionSaveParticles_triggered() {
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Open File"), "/data/Particles", tr("Armadillo matrix (*.txt)"));
+    
+    if (fileName.isNull()) {
+        return;
+    }
+    
+    VNLVector params(g_imageParticlesAlgo->GetCurrentParams());
+    arma::vec armParams(params.data_block(), params.size(), false);
+    if (!armParams.quiet_save(fileName.toStdString(), arma::arma_ascii)) {
+        QMessageBox::warning(this, "Particle Save Fail", fileName + " not available");
+    }
+}
+
+void MainWindow::on_actionRunOnIntersection_triggered() {
+    g_imageParticlesAlgo->CreateUniformInitialization();
+    updateScene();
+}
+
 
 void MainWindow::on_derivedImages_currentIndexChanged(int n) {
     if (n > 0) {
@@ -134,19 +172,19 @@ void MainWindow::ReadyToExperiments() {
 //    LoadLabel("/data/Particles/00.Label.half.nrrd");
 //    LoadImage("/data/Particles/16.T2.half.nrrd");
 //    LoadLabel("/data/Particles/16.Label.half.nrrd");
-    LoadImage("/data/Particles/cs1_tex.nrrd");
-    LoadLabel("/data/Particles/cs1.nrrd");
-    LoadImage("/data/Particles/cs2_tex.nrrd");
-    LoadLabel("/data/Particles/cs2.nrrd");
+//    LoadImage("/data/Particles/cs1_tex.nrrd");
+//    LoadLabel("/data/Particles/cs1.nrrd");
+//    LoadImage("/data/Particles/cs2_tex.nrrd");
+//    LoadLabel("/data/Particles/cs2.nrrd");
 //    LoadSurface("/data/Particles/00.vtk");
 //    LoadImage("/data/Particles/Image001.nrrd");
 //    LoadLabel("/data/Particles/Image001.nrrd");
 //    LoadImage("/data/Particles/Image002.nrrd");
 //    LoadLabel("/data/Particles/Image002.nrrd");
-//    LoadImage("/data/Particles/image_black_gray.nrrd");
-//    LoadLabel("/data/Particles/image_whole_mask.nrrd");
-//    LoadImage("/data/Particles/image_gray_white.nrrd");
-//    LoadLabel("/data/Particles/image_whole_mask.nrrd");
+    LoadImage("/data/Particles/image_circle.nrrd");
+    LoadLabel("/data/Particles/image_circle_label.nrrd");
+    LoadImage("/data/Particles/image_square.nrrd");
+    LoadLabel("/data/Particles/image_square_label.nrrd");
 //    LoadImage("/data/Particles/image_black_gray.nrrd");
 //    LoadLabel("/data/Particles/image_center_mask.nrrd");
 
@@ -717,7 +755,7 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
     }
 
     if (GetCurrentImage() > -1) {
-        myImplicitSurfaceConstraint::ContinuousIndexType idx;
+        my::ImplicitSurfaceConstraint::ContinuousIndexType idx;
         idx[0] = p.x();
         idx[1] = p.y();
         SliceType::IndexType idx2;
@@ -732,14 +770,14 @@ void MainWindow::on_graphicsView_mousePressed(QMouseEvent* event) {
         cout << "Outside Offset: " << g_constraint.GetOutsideOffset(GetCurrentImage(), idx2) << endl;
 
         if (g_constraint.GetDistance(GetCurrentImage(), idx) < 0) {
-            myImplicitSurfaceConstraint::DistanceVectorType offset = g_constraint.GetInsideOffset(GetCurrentImage(), idx2);
+            my::ImplicitSurfaceConstraint::DistanceVectorType offset = g_constraint.GetInsideOffset(GetCurrentImage(), idx2);
             m_scene.addLine(idx[0], idx[1], idx[0] + offset[0], idx[1] + offset[1], QPen(Qt::white));
         } else {
-            myImplicitSurfaceConstraint::DistanceVectorType offset = g_constraint.GetOutsideOffset(GetCurrentImage(), idx2);
+            my::ImplicitSurfaceConstraint::DistanceVectorType offset = g_constraint.GetOutsideOffset(GetCurrentImage(), idx2);
             m_scene.addLine(idx[0], idx[1], idx[0] + offset[0], idx[1] + offset[1], QPen(Qt::white));
         }
 
-        myImplicitSurfaceConstraint::GradientPixelType gx = g_constraint.GetGradient(GetCurrentImage(), idx);
+        my::ImplicitSurfaceConstraint::GradientPixelType gx = g_constraint.GetGradient(GetCurrentImage(), idx);
         cout << "Gradient: " << gx << endl;
 
         if (g_imageParticlesAlgo.IsNotNull()) {

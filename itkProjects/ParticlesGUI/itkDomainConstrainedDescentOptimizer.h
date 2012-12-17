@@ -23,7 +23,9 @@
 #include "myImageContainer.h"
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 
-class myImplicitSurfaceConstraint;
+namespace my {
+    class ImplicitSurfaceConstraint;
+}
 
 namespace itk
 {
@@ -78,7 +80,7 @@ namespace itk
         virtual void StepAlongGradient(double factor,
                                        const DerivativeType & transformedGradient);
 
-        void SetConstraint(myImplicitSurfaceConstraint* constraint);
+        void SetConstraint(my::ImplicitSurfaceConstraint* constraint);
 
     protected:
         DomainConstrainedDescentOptimizer() {}
@@ -87,7 +89,7 @@ namespace itk
         DomainConstrainedDescentOptimizer(const Self &); //purposely not implemented
         void operator=(const Self &);                  //purposely not implemented
 
-        myImplicitSurfaceConstraint* m_Constraint;
+        my::ImplicitSurfaceConstraint* m_Constraint;
     };
 } // end namespace itk
 

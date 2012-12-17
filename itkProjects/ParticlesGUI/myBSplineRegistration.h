@@ -69,6 +69,8 @@ namespace my {
         BSplineRegistration();
         ~BSplineRegistration();
 
+        mySetMacro(NumberOfControlPoints, int);
+        
         inline int GetNumberOfParams() { return m_nParams; }
         inline int GetNumberOfPoints() { return m_nPoints; }
         inline VNLVector& GetSourcePoints() { return m_Source; }
@@ -103,6 +105,8 @@ namespace my {
 
         int m_nParams;
         int m_nPoints;
+        int m_NumberOfControlPoints;
+        
         VNLVector m_Source;
         VNLVector m_Target;
     };

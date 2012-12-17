@@ -102,8 +102,12 @@ public:
     itkGetConstMacro(Label, LabelType::Pointer);
 
     // transformation between world and image space
+    // currently works only for current slice
+    // not 3d for 3d volume
     bool ComputeTransformToPhysicalPointMatrix(VNLMatrix& out);
     bool ComputeTransformToIndexMatrix(VNLMatrix& out);
+    bool ComputeSliceTransformToPhysicalPointMatrix(VNLMatrix& out);
+    bool ComputeSliceTransformToIndexMatrix(VNLMatrix& out);
 
     void TransformToPhysicalPoints(const int n, double* pointsIn, double* pointsOut);
     void TransformToImagePoints(const int n, double* pointsIn, double* pointsOut);
@@ -118,14 +122,12 @@ public:
 
     void SetImage(ImageType::Pointer image);
     void SetLabel(LabelType::Pointer label);
+    void SetSlice(SliceType::Pointer slice);
+    void SetLabelSlice(LabelSliceType::Pointer labelSlice);
 
-    bool HasImage() {
-        return m_Image.IsNotNull();
-    }
-
-    bool HasLabel() {
-        return m_Label.IsNotNull();
-    }
+    bool HasImage() { return m_Image.IsNotNull(); }
+    bool HasLabel() { return m_Label.IsNotNull(); }
+    bool HasSlice() { return m_Slices[m_SliceDir].IsNotNull(); }
 
     QPixmap GetPixmap(int dim);
     QPixmap GetLabelPixmap(int dim);

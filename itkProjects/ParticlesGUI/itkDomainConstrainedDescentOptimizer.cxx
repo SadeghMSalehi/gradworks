@@ -48,7 +48,7 @@ namespace itk {
         this->SetCurrentPosition(newPosition);
     }
 
-    void DomainConstrainedDescentOptimizer::SetConstraint(myImplicitSurfaceConstraint* constraint) {
+    void DomainConstrainedDescentOptimizer::SetConstraint(my::ImplicitSurfaceConstraint* constraint) {
         m_Constraint = constraint;
         
     }

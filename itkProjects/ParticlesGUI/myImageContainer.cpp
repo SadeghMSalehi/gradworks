@@ -74,6 +74,110 @@ void ImageContainer::LoadLabel(const char* filename) {
     SetLabel(io.ReadImageT(filename));
 }
 
+
+/**
+ * Set current slice
+ *
+ */
+void ImageContainer::SetSlice(SliceType::Pointer slice) {
+    if (slice.IsNull()) {
+        return;
+    }
+
+    // assume only for current slice
+    m_SliceDir = 0;
+    m_Slices[m_SliceDir] = slice;
+
+    SliceType::SizeType sz = slice->GetBufferedRegion().GetSize();
+    for (int i = 0; i < SDim; i++) {
+        if (m_MaxSliceIndexes[i] == 0) {
+            m_MaxSliceIndexes[i] = sz[i];
+            m_SliceIndexes[i] = m_MaxSliceIndexes[i] / 2;
+        }
+    }
+    
+    typedef itk::StatisticsImageFilter<SliceType> StatisticsImageFilterType;
+    StatisticsImageFilterType::Pointer statisticsImageFilter = StatisticsImageFilterType::New ();
+    statisticsImageFilter->SetInput(slice);
+    statisticsImageFilter->Update();
+
+    m_IntensityStats[0] = statisticsImageFilter->GetMinimum();
+    m_IntensityStats[1] = statisticsImageFilter->GetMaximum();
+    m_IntensityStats[2] = statisticsImageFilter->GetMean();
+    m_IntensityStats[3] = statisticsImageFilter->GetSigma();
+
+    ComputeSliceTransformToIndexMatrix(m_WorldToImage);
+    ComputeSliceTransformToPhysicalPointMatrix(m_ImageToWorld);
+}
+
+/**
+ * Set Label Slice
+ * Used together with SetSlice()
+ */
+void ImageContainer::SetLabelSlice(LabelSliceType::Pointer labelSlice) {
+    if (labelSlice.IsNull()) {
+        return;
+    }
+
+    m_SliceDir = 0;
+    m_LabelSlices[m_SliceDir] = labelSlice;
+    LabelSliceType::SizeType sz = labelSlice->GetBufferedRegion().GetSize();
+    for (int i = 0; i < SDim; i++) {
+        if (m_MaxSliceIndexes[i] == 0) {
+            m_MaxSliceIndexes[i] = sz[i];
+            m_SliceIndexes[i] = m_MaxSliceIndexes[i] / 2;
+        }
+    }
+    
+    typedef itk::StatisticsImageFilter<LabelSliceType> StatisticsImageFilterType;
+    StatisticsImageFilterType::Pointer statisticsImageFilter = StatisticsImageFilterType::New ();
+    statisticsImageFilter->SetInput(labelSlice);
+    statisticsImageFilter->Update();
+
+    m_LabelStats[0] = statisticsImageFilter->GetMinimum();
+    m_LabelStats[1] = statisticsImageFilter->GetMaximum();
+    m_LabelStats[2] = statisticsImageFilter->GetMean();
+    m_LabelStats[3] = statisticsImageFilter->GetSigma();
+}
+
+
+void ImageContainer::SetLabel(LabelType::Pointer label) {
+    if (label.IsNull()) {
+        return;
+    }
+
+    // set spacing to 1, origin to 0, and direction to identity
+    // to make its physical space and index space same
+    double origin[3] = { 0., 0., 0. };
+    double spacing[3] = { 1., 1., 1. };
+    LabelType::DirectionType identityDir;
+    identityDir.SetIdentity();
+    label->SetSpacing(spacing);
+    label->SetOrigin(origin);
+    label->SetDirection(identityDir);
+
+    m_Label = label;
+    LabelType::SizeType sz = m_Label->GetBufferedRegion().GetSize();
+    for (int i = 0; i < VDim; i++) {
+        if (m_MaxSliceIndexes[i] == 0) {
+            m_MaxSliceIndexes[i] = sz[i];
+            m_SliceIndexes[i] = m_MaxSliceIndexes[i] / 2;
+        }
+    }
+
+    typedef itk::StatisticsImageFilter<LabelType> StatisticsImageFilterType;
+    StatisticsImageFilterType::Pointer statisticsImageFilter = StatisticsImageFilterType::New ();
+    statisticsImageFilter->SetInput(m_Label);
+    statisticsImageFilter->Update();
+
+    m_LabelStats[0] = statisticsImageFilter->GetMinimum();
+    m_LabelStats[1] = statisticsImageFilter->GetMaximum();
+    m_LabelStats[2] = statisticsImageFilter->GetMean();
+    m_LabelStats[3] = statisticsImageFilter->GetSigma();
+}
+
+
+
 void ImageContainer::SetImage(ImageType::Pointer image) {
     if (image.IsNull()) {
         return;
@@ -178,41 +282,6 @@ QPixmap ImageContainer::GetPixmap(int dim) {
     QImage qImg = QImage((unsigned char*) bitmap->GetBufferPointer(),
                          bitmapSz[0], bitmapSz[1], QImage::Format_ARGB32);
     return QPixmap::fromImage(qImg);
-}
-
-void ImageContainer::SetLabel(LabelType::Pointer label) {
-    if (label.IsNull()) {
-        return;
-    }
-
-    // set spacing to 1, origin to 0, and direction to identity
-    // to make its physical space and index space same
-    double origin[3] = { 0., 0., 0. };
-    double spacing[3] = { 1., 1., 1. };
-    LabelType::DirectionType identityDir;
-    identityDir.SetIdentity();
-    label->SetSpacing(spacing);
-    label->SetOrigin(origin);
-    label->SetDirection(identityDir);
-
-    m_Label = label;
-    LabelType::SizeType sz = m_Label->GetBufferedRegion().GetSize();
-    for (int i = 0; i < VDim; i++) {
-        if (m_MaxSliceIndexes[i] == 0) {
-            m_MaxSliceIndexes[i] = sz[i];
-            m_SliceIndexes[i] = m_MaxSliceIndexes[i] / 2;
-        }
-    }
-
-    typedef itk::StatisticsImageFilter<LabelType> StatisticsImageFilterType;
-    StatisticsImageFilterType::Pointer statisticsImageFilter = StatisticsImageFilterType::New ();
-    statisticsImageFilter->SetInput(m_Label);
-    statisticsImageFilter->Update();
-
-    m_LabelStats[0] = statisticsImageFilter->GetMinimum();
-    m_LabelStats[1] = statisticsImageFilter->GetMaximum();
-    m_LabelStats[2] = statisticsImageFilter->GetMean();
-    m_LabelStats[3] = statisticsImageFilter->GetSigma();
 }
 
 void ImageContainer::UpdateLabelSlice(int dim) {
@@ -348,6 +417,42 @@ bool ImageContainer::ComputeTransformToIndexMatrix(VNLMatrix& out) {
     out.update(world2index);
     return true;
 }
+
+
+bool ImageContainer::ComputeSliceTransformToPhysicalPointMatrix(VNLMatrix& out) {
+    if (!HasImage()) {
+        return false;
+    }
+    SliceType::Pointer sliceImg = GetSlice();
+    SliceType::DirectionType dir = sliceImg->GetDirection();
+    SliceType::SpacingType spacing = sliceImg->GetSpacing();
+    SliceType::PointType origin = sliceImg->GetOrigin();
+
+    // physical space point y = spacing*dir*x - origin
+    out.set_size(3,3);
+    out.set_identity();
+    out.update(dir.GetVnlMatrix());
+    for (int i = 0; i < spacing.Size(); i++) {
+        out[i][i] *= spacing[i];
+    }
+    for (int i = 0; i < origin.Size(); i++) {
+        out[i][origin.Size()] = origin[i];
+    }
+    return true;
+}
+
+bool ImageContainer::ComputeSliceTransformToIndexMatrix(VNLMatrix& out) {
+    VNLMatrix index2world(SDim+1,SDim+1);
+    if (!ComputeTransformToPhysicalPointMatrix(index2world)) {
+        return false;
+    };
+    VNLMatrix world2index = vnl_matrix_inverse<double>(index2world);
+    out.set_size(3,3);
+    out.set_identity();
+    out.update(world2index);
+    return true;
+}
+
 
 void ImageContainer::TransformToPhysicalPoints(const int n, double *pointsIn, double *pointsOut) {
     if (!HasImage()) {

@@ -259,8 +259,8 @@ namespace my {
         }
 
         int splineOrder = m_Props.GetInt("splineOrder", 3);
-        int numOfLevels = m_Props.GetInt("numLevels", 3);
-        int nSize = m_Props.GetInt("numberOfControlPoints", 25);
+        int numOfLevels = m_Props.GetInt("numLevels", 1);
+        int nSize = m_Props.GetInt("numberOfControlPoints", m_NumberOfControlPoints);
 
         BSplineFilterType::Pointer bspliner = BSplineFilterType::New();
         BSplineFilterType::ArrayType numControlPoints;

@@ -21,8 +21,9 @@
 #include "itkCovariantVector.h"
 #include "itkVectorLinearInterpolateImageFunction.h"
 
+namespace my {
 
-class myImplicitSurfaceConstraint {
+class ImplicitSurfaceConstraint {
 public:
     typedef itk::SignedDanielssonDistanceMapImageFilter<LabelSliceType, SliceType> SignedDistanceMapFilterType;
     typedef itk::DanielssonDistanceMapImageFilter<LabelSliceType, SliceType> DistanceMapFilterType;
@@ -59,4 +60,5 @@ private:
     std::vector<GradientFilterType::OutputImagePointer> m_GradientMaps;
     std::vector<GradientInterpolatorType::Pointer> m_GradientInterpolators;
 };
+}
 #endif /* defined(__ParticlesGUI__myImplicitSurfaceConstraint__) */

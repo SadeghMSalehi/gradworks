@@ -239,7 +239,7 @@ double ImageParticlesAlgorithm::computeEntropy(const ParametersType& p, int nOff
 
 double ImageParticlesAlgorithm::computePhantomEntropy(const ParametersType& p, int n, int i) const {
     const int nOffset = n * m_nParams;
-    myImplicitSurfaceConstraint::ContinuousIndexType idx;
+    my::ImplicitSurfaceConstraint::ContinuousIndexType idx;
     idx[0] = p[nOffset + 2 * i];
     idx[1] = p[nOffset + 2 * i + 1];
 
@@ -375,7 +375,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                     }
                 } else if (boundsCheck) {
                     if (boundaryDistance > 0) {
-                        myImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetOutsideOffset(n, idx1);
+                        my::ImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetOutsideOffset(n, idx1);
                         // what if the repulsion is not weighted; particles will move to boundary next step
                         //                    OffsetVectorType gradientPixel;
                         //                    for (int k = 0; k < m_Dim; k++) {
@@ -389,7 +389,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                     } else if (boundaryDistance <= 0 && boundaryDistance > -1) {
                         // test: if there is no repulsion term
                         // debug: boundary check to prevent runtime exception
-                        myImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetInsideOffset(n, idx1);
+                        my::ImplicitSurfaceConstraint::DistanceVectorType offset = m_Constraint.GetInsideOffset(n, idx1);
                         OffsetVectorType gradientPixel;
                         gradientPixel[0] = offset[0];
                         gradientPixel[1] = offset[1];
@@ -399,7 +399,7 @@ void ImageParticlesAlgorithm::GetValueAndDerivative(const ParametersType & p,
                             derivative[nOffset + i * 2 + k] += entropies[i][m_nPoints] * normalizedGradient[k];
                         }
                     } else if (boundaryDistance < -1) {
-                        myImplicitSurfaceConstraint::GradientPixelType grad = m_Constraint.GetGradient(n, idx2);
+                        my::ImplicitSurfaceConstraint::GradientPixelType grad = m_Constraint.GetGradient(n, idx2);
                         VectorType gradVector(grad.GetDataPointer(), m_Dim);
                         VectorType forceVector(&derivative[nOffset + i * 2], m_Dim);
                         double gf = dot_product(gradVector, forceVector);
@@ -496,14 +496,21 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
     LabelSliceType::Pointer intersection = io.NewImageT(m_ImageList->at(0)->GetLabelSlice(m_ViewingDimension));
     LabelSliceType::RegionType region = intersection->GetBufferedRegion();
 
+
+    io.WriteImageT("/data/Particles/intersection.nrrd", intersection);
+
+    // set as member variable to reuse
+    m_Intersection = intersection;
+
     // compute intersection by looping over region
     std::vector<LabelSliceType::IndexType> indexes;
     LabelSliceIteratorType iter(intersection, region);
     for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
         LabelSliceType::IndexType idx = iter.GetIndex();
-        LabelSliceType::PixelType pixel = 1;
+        LabelSliceType::PixelType pixel = 255;
+        const int pixelThreshold = 255;
         for (int i = 0; i < m_ImageList->size(); i++) {
-            if (m_ImageList->at(i)->GetLabelSlice(m_ViewingDimension)->GetPixel(idx) == 0) {
+            if (m_ImageList->at(i)->GetLabelSlice(m_ViewingDimension)->GetPixel(idx) < pixelThreshold) {
                 pixel = 0;
                 break;
             }
@@ -532,6 +539,48 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
             }
         }
         m_CurrentParams = initial;
+
+//        CreateUniformInitialization();
+    }
+}
+
+
+//
+// create uniform initialization
+// run particle sampling inside the intersection of region of interests
+// nothing with empty intersection
+//
+void ImageParticlesAlgorithm::CreateUniformInitialization() {
+    if (m_Intersection.IsNull()) {
+        return;
+    }
+    my::ParticleSystem system(1, m_nPoints);
+    OptimizerParametersType params(m_nParams);
+    for (int i = 0; i < m_nParams; i++) {
+        params[i] = m_CurrentParams[i];
+    }
+
+    ImageContainer::List intersectionList;
+    ImageContainer::Pointer intersectionImage = ImageContainer::New();
+    intersectionImage->SetLabelSlice(m_Intersection);
+    intersectionList.push_back(intersectionImage);
+
+    ImageParticlesAlgorithm::Pointer algo = ImageParticlesAlgorithm::New();
+    algo->SetPropertyAccess(m_Props);
+    algo->SetImageList(&intersectionList);
+
+    system.SetPositions(&params);
+    system.SetContext(algo.GetPointer());
+
+    my::ParticleSystemOptions options;
+    system.SetOptions(options);
+
+    system.Integrate();
+    system.GetPositions(&params);
+    for (int n = 0; n < m_nSubjects; n++) {
+        for (int i = 0; i < m_nParams; i++) {
+            m_CurrentParams[n*m_nParams + i] = params[i];
+        }
     }
 }
 
@@ -590,6 +639,20 @@ OptimizerType::Pointer ImageParticlesAlgorithm::CreateOptimizer() {
     return OptimizerType::Pointer(NULL);
 }
 
+void ImageParticlesAlgorithm::SetCurrentParams(VNLVector& params)  {
+    if (params.size() < m_CurrentParams.size()) {
+        int k = 0;
+        for (int i = 0; i < m_CurrentParams.size(); i++) {
+            m_CurrentParams[i] = params[k++];
+            if (k >= params.size()) {
+                k = 0;
+            }
+        }
+    } else {
+        m_CurrentParams.SetSize(params.size());
+        m_CurrentParams.update(params);
+    }
+}
 
 void ImageParticlesAlgorithm::SetPropertyAccess(PropertyAccess props) {
     m_Props = props;
@@ -610,6 +673,10 @@ void ImageParticlesAlgorithm::SetImageList(ImageContainer::List *list) {
 
     for (int i = 0; i < m_nSubjects; i++) {
         ImageContainer::Pointer image = list->at(i);
+        if (!image->HasSlice()) {
+            continue;
+        }
+
         // generate kappa map from gradient magnitude image
         GradientImageFilter::Pointer gradFilter = GradientImageFilter::New();
         gradFilter->SetInput(image->GetSlice());
@@ -704,7 +771,6 @@ void ImageParticlesAlgorithm::RunODE() {
     system.SetContext(this);
     system.SetHistoryVector(&m_Traces);
     system.SetCostHistoryVector(&m_CostTraces);
-    system.SetConstraint(&m_Constraint);
     system.SetPositions(&m_CurrentParams);
     system.SetEventCallback(m_EventCallback);
     system.Integrate();

@@ -102,10 +102,6 @@ namespace my {
         m_CostHistory = costHistory;
     }
     
-    void ParticleSystem::SetConstraint(myImplicitSurfaceConstraint* constraint) {
-        m_Constraint = constraint;
-    }
-    
     void ParticleSystem::SetEventCallback(EventCallback* callback) {
         m_Callback = callback;
     }
@@ -117,13 +113,16 @@ namespace my {
         m_Sigma2  = context->GetProperty().GetDouble("sigma", 3.0);
         m_GradientScale = context->GetProperty().GetDouble("gradientScale", 10.0);
         m_Sigma2 *= m_Sigma2;
-        
+
+        m_Mu = context->GetProperty().GetDouble("Mu", 1);
         m_COR = context->GetProperty().GetDouble("COR", 0.5);
         m_Options.useSurfaceForce = context->GetProperty().GetBool("actionUseSurfaceForce", true);
         m_Options.useImageForce = context->GetProperty().GetBool("actionUseImageForce", true);
         m_Options.useBoundaryCondition = context->GetProperty().GetBool("actionUseBoundaryConditions", true);
         m_Options.useEnsembleForce = context->GetProperty().GetBool("actionUseEnsembleForce", true);
-        
+        m_Options.useAdaptiveSampling = context->GetProperty().GetBool("actionUseAdaptiveControl", false);
+
+        m_Constraint = context->GetConstraint();
     }
     
     void ParticleSystem::UpdateSurfaceForce() {
@@ -132,13 +131,17 @@ namespace my {
         VNLMatrix& gForce = m_Force;
         
         const int nDim = 2;//vec::SIZE;
-        
         int nSubj = (m_Options.applySurfaceEntropyToFirstOnly ? 1 : m_nSubjects);
-        
+
+        const bool useAdaptiveSampling = m_Options.useAdaptiveSampling;
+
         // compute forces between particles
         VNLVector weights(m_nParticles);
         for (int n = 0; n < nSubj; n++) {
-            SliceInterpolatorType::Pointer kappaIntp = m_Context->GetAttributeInterpolators()->at(n);
+            SliceInterpolatorType::Pointer kappaIntp;
+            if (useAdaptiveSampling) {
+                kappaIntp = m_Context->GetAttributeInterpolators()->at(n);
+            }
             for (int i = 0; i < m_nParticles; i++) {
                 // reference data
                 VNLVectorRef iForce(nDim, &gForce[n][nDim*i]);
@@ -162,8 +165,11 @@ namespace my {
                         ContinuousIndexType jIdx;
                         jIdx[0] = jPos[0];
                         jIdx[1] = jPos[1];
-                        double kappa = kappaIntp->EvaluateAtContinuousIndex(jIdx);
-                        kappa *= kappa;
+                        double kappa = 1;
+                        if (useAdaptiveSampling) {
+                            kappaIntp->EvaluateAtContinuousIndex(jIdx);
+                            kappa *= kappa;
+                        }
                         double dij = (iPos-jPos).two_norm();
                         if (dij > m_Cutoff) {
                             weights[j] = 0;
@@ -193,9 +199,7 @@ namespace my {
                     xixj.normalize();
                     iForce += (weights[j] * xixj);
                 }
-                
-                // dragging force
-                iForce -= (m_Mu * iVel);
+
             }
         }
     }
@@ -444,7 +448,10 @@ namespace my {
     
     void ParticleSystem::UpdateBSplineEnsemble() {
         VNLMatrixRef& gPos = m_Pos;
-        
+
+        if (gPos.has_nans()) {
+            cout << "NaNs: " << gPos << endl;
+        }
         // ignore conversion between index and physical space
         VNLVector gMeanPos(m_nParams);
         vnl_row_mean(gPos, gMeanPos);
@@ -456,6 +463,7 @@ namespace my {
             my::BSplineRegistration bReg;
             bReg.SetLandmarks(m_nParticles, gPos[n], gMeanPos.data_block());
             bReg.SetReferenceImage(refImage);
+            bReg.SetNumberOfControlPoints(16);
             bReg.Update();
             bsplineTransformArray.push_back(bReg.GetTransform());
         }
@@ -580,8 +588,8 @@ namespace my {
                     
                     // this is to move outside particles to the nearest boundary
                     double dist = m_Constraint->GetDistance(n, idx);
-                    if (dist >= 0 && false) {
-                        myImplicitSurfaceConstraint::OffsetType offset = m_Constraint->GetOutsideOffset(n, nidx);
+                    if (dist >= 0 && true) {
+                        ImplicitSurfaceConstraint::OffsetType offset = m_Constraint->GetOutsideOffset(n, nidx);
                         for (int k = 0; k < nDim; k++) {
                             posi[k] += offset[k];
                         }
@@ -635,7 +643,19 @@ namespace my {
         }
         
     }
-    
+
+
+    void ParticleSystem::UpdateDraggingForce() {
+        VNLMatrixRef iForce(m_nSubjects, m_nParams, m_Force[0]);
+        for (int n = 0; n < m_nSubjects; n++) {
+            for (int i = 0; i < m_nParams; i += SDim) {
+                VNLVectorRef iVel(SDim, &m_Vel[n][i]);
+                VNLVectorRef iForce(SDim, &m_Force[n][i]);
+                iForce[0] -= m_Mu * iVel[0];
+                iForce[1] -= m_Mu * iVel[1];
+            }
+        }
+    }
     
     
     // integration function
@@ -649,11 +669,8 @@ namespace my {
         
         m_Force.fill(0);
         
-        // UpdateTransform();
-        
         // update forces at time t
         if (m_Options.useEnsembleForce) {
-//            UpdateBSplineEnsembleForce();
             UpdateBSplineEnsemble();
         }
         
@@ -664,10 +681,9 @@ namespace my {
         if (m_Options.useSurfaceForce) {
             UpdateSurfaceForce();
         }
-        
-        //
-        // UpdateGravityForce(pos, vel, m_Force);
-        
+
+        UpdateDraggingForce();
+
         if (m_Options.useParticlePhysics) {
             // dP/dt = V
             m_dpdt.copy_in(m_Vel[0]);

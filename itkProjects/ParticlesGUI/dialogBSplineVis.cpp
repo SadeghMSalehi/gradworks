@@ -121,7 +121,7 @@ void BSplineVisDialog::updateScene() {
             originalGrid->SetResolution(gridRes);
             originalGrid->SetGrid(gX, gY);
             m_Scene.addItem(originalGrid);
-            ui.bspView->fitInView(originalGrid);
+            ui.bspView->fitInView(originalGrid, Qt::KeepAspectRatio);
         }
         if (ui.showWarpedCoordinateGrid->isChecked()) {
             QPen pen(QColor::fromRgbF(1, 1, 1, ui.imageOpacity->value() / 255.0));
@@ -130,7 +130,7 @@ void BSplineVisDialog::updateScene() {
             warpedGrid->SetResolution(gridRes);
             warpedGrid->SetGrid(tX, tY);
             m_Scene.addItem(warpedGrid);
-            ui.bspView->fitInView(warpedGrid);
+            ui.bspView->fitInView(warpedGrid, Qt::KeepAspectRatio);
         }
     }
 
@@ -245,7 +245,7 @@ void BSplineVisDialog::on_addPairButton_clicked() {
 }
 
 void BSplineVisDialog::on_copyPointsButton_clicked() {
-//    m_Algo = ((MainWindow*) parent())->GetImageParticlesAlgorithm();
+    m_Algo = ((MainWindow*) parent())->GetImageParticlesAlgorithm();
 
     // select the current slice of the first image as reference image
     ImageContainer::Pointer img = m_Algo->GetImage(0);

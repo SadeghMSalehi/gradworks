@@ -146,6 +146,9 @@
     </widget>
     <addaction name="actionRandomParticlesInit"/>
     <addaction name="actionRunImageParticles"/>
+    <addaction name="actionRunOnIntersection"/>
+    <addaction name="actionLoadParticles"/>
+    <addaction name="actionSaveParticles"/>
     <addaction name="actionAnimation"/>
     <addaction name="separator"/>
     <addaction name="actionUseSurfaceForce"/>
@@ -213,7 +216,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>230</width>
+          <width>228</width>
           <height>520</height>
          </rect>
         </property>
@@ -434,7 +437,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>230</width>
+          <width>228</width>
           <height>520</height>
          </rect>
         </property>
@@ -462,22 +465,22 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>230</width>
+          <width>228</width>
           <height>520</height>
          </rect>
         </property>
         <attribute name="label">
          <string>Optimizer Settings</string>
         </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_3">
-         <item>
+        <layout class="QGridLayout" name="gridLayout_4">
+         <item row="0" column="0">
           <widget class="QPushButton" name="particlesInitialization">
            <property name="text">
             <string>Particles Initialization</string>
            </property>
           </widget>
          </item>
-         <item>
+         <item row="1" column="0">
           <layout class="QHBoxLayout" name="horizontalLayout_9">
            <item>
             <widget class="QLabel" name="label_6">
@@ -498,13 +501,13 @@
               <number>10</number>
              </property>
              <property name="value">
-              <number>100</number>
+              <number>300</number>
              </property>
             </widget>
            </item>
           </layout>
          </item>
-         <item>
+         <item row="2" column="0">
           <layout class="QVBoxLayout" name="verticalLayout">
            <property name="spacing">
             <number>0</number>
@@ -564,7 +567,7 @@
                 <number>10</number>
                </property>
                <property name="value">
-                <number>100</number>
+                <number>1000</number>
                </property>
               </widget>
              </item>
@@ -572,7 +575,7 @@
            </item>
           </layout>
          </item>
-         <item>
+         <item row="3" column="0">
           <layout class="QGridLayout" name="gridLayout_2">
            <item row="0" column="0">
             <widget class="QLabel" name="label_7">
@@ -622,7 +625,7 @@
            </item>
           </layout>
          </item>
-         <item>
+         <item row="4" column="0">
           <layout class="QHBoxLayout" name="horizontalLayout_8">
            <item>
             <widget class="QLabel" name="label_14">
@@ -654,9 +657,39 @@
              </property>
             </widget>
            </item>
+           <item>
+            <widget class="QLabel" name="label_16">
+             <property name="font">
+              <font>
+               <pointsize>12</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Mu</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="Mu">
+             <property name="minimum">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>10.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="value">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
-         <item>
+         <item row="5" column="0">
           <layout class="QHBoxLayout" name="horizontalLayout_10">
            <item>
             <widget class="QLabel" name="label_11">
@@ -683,7 +716,7 @@
            </item>
           </layout>
          </item>
-         <item>
+         <item row="6" column="0">
           <layout class="QHBoxLayout" name="horizontalLayout_11">
            <item>
             <widget class="QLabel" name="label_13">
@@ -717,7 +750,7 @@
            </item>
           </layout>
          </item>
-         <item>
+         <item row="7" column="0">
           <spacer name="verticalSpacer_3">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
@@ -731,24 +764,10 @@
           </spacer>
          </item>
         </layout>
-        <zorder>ensembleFactor</zorder>
-        <zorder>label_13</zorder>
-        <zorder>label_6</zorder>
-        <zorder>numberOfPoints</zorder>
-        <zorder>label_2</zorder>
-        <zorder>label_11</zorder>
-        <zorder>numberOfIterations</zorder>
-        <zorder>label_5</zorder>
-        <zorder>maxKappa</zorder>
-        <zorder>label_7</zorder>
-        <zorder>sigma</zorder>
-        <zorder>gradientScale</zorder>
         <zorder>particlesInitialization</zorder>
-        <zorder>label_14</zorder>
-        <zorder>COR</zorder>
-        <zorder>label_15</zorder>
-        <zorder>timeStep</zorder>
         <zorder></zorder>
+        <zorder>Mu</zorder>
+        <zorder>label_16</zorder>
        </widget>
       </widget>
      </item>
@@ -1009,8 +1028,29 @@
    </property>
   </action>
   <action name="actionUseEnsembleForce">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Use Ensemble Force</string>
+   </property>
+  </action>
+  <action name="actionSaveParticles">
+   <property name="text">
+    <string>Save Particles</string>
+   </property>
+  </action>
+  <action name="actionLoadParticles">
+   <property name="text">
+    <string>Load Particles</string>
+   </property>
+  </action>
+  <action name="actionRunOnIntersection">
+   <property name="text">
+    <string>Run On Intersection</string>
    </property>
   </action>
  </widget>
