@@ -28,6 +28,8 @@ BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
     QObject::connect(ui.showDisplacementField, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showDetJacobian, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.groupBox, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showLandmarks, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showWarpedLandmarks, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.landmarkSize, SIGNAL(valueChanged(double)), this, SLOT(updateScene()));
     QObject::connect(ui.gridResolution, SIGNAL(valueChanged(int)), this, SLOT(updateScene()));
     QObject::connect(ui.showLandmarks, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
@@ -161,6 +163,17 @@ void BSplineVisDialog::updateScene() {
     }
 
 
+
+    if (ui.showWarpedLandmarks->isChecked()) {
+        double sz = ui.landmarkSize->value();
+        for (int i = 0; i < m_WarpedLandmarks.rows(); i++) {
+            double x = m_WarpedLandmarks[i][0];
+            double y = m_WarpedLandmarks[i][1];
+            QGraphicsItem* p = m_Scene.addRect(x - sz, y - sz, sz*2, sz*2, QPen(Qt::yellow), QBrush(Qt::yellow, Qt::SolidPattern));
+        }
+    }
+
+
     // drawing order is important for correct pick up
     // only show when showLandmarks is checked
     //
@@ -176,6 +189,7 @@ void BSplineVisDialog::updateScene() {
             
         }
     }
+
 
 }
 
@@ -281,7 +295,9 @@ void BSplineVisDialog::on_updateField_clicked() {
         data[1][i*2] = m_VectorList[i].right();
         data[1][i*2+1] = m_VectorList[i].bottom();
     }
-    
+
+    m_WarpedLandmarks.set_size(0, 0);
+
     if (ui.txfBspline->isChecked()) {
         my::BSplineRegistration breg;
         PropertyAccess props(this);
@@ -297,6 +313,19 @@ void BSplineVisDialog::on_updateField_clicked() {
         ImageContainer::WarpGrid(txf.GetPointer(), gX, gY, tX, tY);
         m_DstImage = ImageContainer::TransformSlice(m_SrcImage, txf.GetPointer());
         m_WarpedSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetSlice(), txf.GetPointer());
+
+        m_WarpedLandmarks.set_size(m_VectorList.size(), 2);
+
+        FieldTransformType::InputPointType p;
+        FieldTransformType::OutputPointType q;
+        for (int i = 0; i < m_VectorList.size(); i++) {
+            p[0] = m_VectorList[i].x();
+            p[1] = m_VectorList[i].y();
+            q = txf->TransformPoint(p);
+            m_WarpedLandmarks[i][0] = q[0];
+            m_WarpedLandmarks[i][1] = q[1];
+        }
+
 //        m_WarpedLabelSlice = ImageContainer::TransformSlice(m_Algo->GetImage(1)->GetLabelSliceAsSliceType(), txf.GetPointer(), true);        
     } else if (ui.txfBSplineFFD->isChecked()) {
         my::BSplineRegistration breg;

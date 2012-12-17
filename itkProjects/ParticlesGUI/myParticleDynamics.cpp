@@ -141,6 +141,7 @@ namespace my {
 
         // compute forces between particles
         VNLVector weights(m_nParticles);
+
         for (int n = 0; n < nSubj; n++) {
             SliceInterpolatorType::Pointer kappaIntp;
             if (useAdaptiveSampling) {
@@ -182,10 +183,6 @@ namespace my {
                                 weights[j] = 0;
                             } else {
                                 weights[j] = exp(-dij*dij*kappa/(sigma2));
-                                // debug: check kappa is different between neighbors
-                                //                        if (i == 10) {
-                                //                            cout << "Distance: " << dij << "; Kappa: " << kappa << endl;
-                                //                        }
                             }
                         }
                     }
@@ -202,16 +199,20 @@ namespace my {
                             continue;
                         }
                         VNLVectorRef jPos(nDim, &gPos[n][nDim*j]);
+                        VNLCVector::subtract(iPos.data_block(), jPos.data_block(), xixj.data_block(), nDim);
                         xixj.normalize();
                         iForce += (weights[j] * xixj);
                     }
                 } else if (m_ForceType == 1) {
+                    // cotangent force
                     const double sigma = m_Sigma * 5;
                     const double coeff = M_PI_2 / sigma;
-                    double energy = 0;
+
                     VNLVec2 dEdr;
-                    for (int j = 0; j < m_nParticles; j++) {
+                    for (int j = i + 1; j < m_nParticles; j++) {
                         VNLVectorRef jPos(nDim, &gPos[n][nDim*j]);
+                        VNLVectorRef jForce(nDim, &gForce[n][nDim*j]);
+
                         // energy derivative
                         VNLCVector::subtract(iPos.data_block(), jPos.data_block(), dEdr.data_block(), nDim);
                         double rij = dEdr.two_norm();
@@ -222,11 +223,11 @@ namespace my {
                         } else {
                             rij *= coeff;
                             if (rij > 0) {
-                                energy = 1 / std::tan(rij) + rij - M_PI_2;
                                 double sin2rij = std::sin(rij);
                                 sin2rij *= sin2rij;
                                 dEdr *= (coeff * (1 - 1 / sin2rij));
                                 iForce -= dEdr;
+                                jForce += dEdr;
                             }
                         }
                     }
@@ -485,10 +486,10 @@ namespace my {
         }
         // ignore conversion between index and physical space
         VNLVector xMeanPos(m_nParams);
-//        vnl_row_mean(xPos, xMeanPos);
+        vnl_row_mean(xPos, xMeanPos);
 
         // debug: what if we use the first subject as a common space?
-        xMeanPos.copy_in(xPos[0]);
+//        xMeanPos.copy_in(xPos[0]);
 
         // transform from subject's space to mean space
         std::vector<FieldTransformType::Pointer> bsplineTransformArray;
@@ -497,7 +498,7 @@ namespace my {
             my::BSplineRegistration bReg;
             bReg.SetLandmarks(m_nParticles, xPos[n], xMeanPos.data_block());
             bReg.SetReferenceImage(refImage);
-            bReg.SetNumberOfControlPoints(16);
+            bReg.SetNumberOfControlPoints(8);
             bReg.Update();
             FieldTransformType::Pointer transformToMean = bReg.GetTransform();
             bsplineTransformArray.push_back(transformToMean);
@@ -508,7 +509,7 @@ namespace my {
         VNLMatrix tPos(m_nSubjects, m_nParams);
         tPos.fill(0);
 
-        VNLMatrix jacobPos(m_nSubjects, m_nParams);
+//        VNLMatrix jacobPos(m_nSubjects, m_nParams);
         FieldTransformType::InputPointType inPoint;
         FieldTransformType::OutputPointType outPoint;
         for (int n = 0; n < m_nSubjects; n++) {
@@ -537,6 +538,8 @@ namespace my {
 
         FieldTransformType::InputPointType xPoint;
         FieldTransformType::JacobianType xJac;
+        xJac.set_size(2,2);
+        xJac.set_identity();
         
         VNLMatrixRef gForce(m_nSubjects, m_nParams, m_Force[0]);
         for (int n = 0; n < m_nSubjects; n++) {
@@ -548,14 +551,17 @@ namespace my {
             // because the minimum is same,
             // but it is better to use distance function given in
             // Miriah's paper
-            for (int i = 0; i < m_nParticles; i++) {
-                xPoint[0] = xPos[n][2*i];
-                xPoint[1] = xPos[n][2*i+1];
-                bsplineTransformArray[n]->ComputeJacobianWithRespectToPosition(xPoint, xJac);
-                double dGdX = xJac[0][0] * yPos[n][2*i] + xJac[1][0] * yPos[n][2*i+1];
-                double dGdY = xJac[0][1] * yPos[n][2*i] + xJac[1][1] * yPos[n][2*i+1];
-                gForce[n][2*i] -= dGdX;
-                gForce[n][2*i+1] -= dGdY;
+            VNLVec2 dGdX;
+            for (int i = 0; i < m_nParams; i += SDim) {
+                VNLVectorRef dY(SDim, &yPos[n][i]);
+                xPoint[0] = xPos[n][i];
+                xPoint[1] = xPos[n][i+1];
+                bsplineTransformArray[n]->ComputeInverseJacobianWithRespectToPosition(xPoint, xJac);
+                dGdX[0] = xJac[0][0] * dY[0] + xJac[1][0] * dY[1];
+                dGdX[1] = xJac[0][1] * dY[0] + xJac[1][1] * dY[1];
+
+                gForce[n][i] -= .1*dGdX[0];
+                gForce[n][i+1] -= .1*dGdX[1];
             }
         }
         
@@ -735,7 +741,9 @@ namespace my {
             UpdateSurfaceForce();
         }
 
-        UpdateDraggingForce();
+        if (m_Mu > 0) {
+            UpdateDraggingForce();
+        }
 
         if (m_Options.useParticlePhysics) {
             // dP/dt = V

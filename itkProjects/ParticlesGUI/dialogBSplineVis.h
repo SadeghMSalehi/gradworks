@@ -50,6 +50,8 @@ private:
     Ui::BSplineVisDialog ui;
     QGraphicsScene m_Scene;
     std::vector<QRectF> m_VectorList;
+    VNLMatrix m_WarpedLandmarks;
+    
     int m_Key;
     int m_Index;
 
