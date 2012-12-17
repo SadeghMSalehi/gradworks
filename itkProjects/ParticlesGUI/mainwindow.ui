@@ -216,7 +216,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>239</width>
+          <width>265</width>
           <height>607</height>
          </rect>
         </property>
@@ -537,7 +537,7 @@
               <double>1.000000000000000</double>
              </property>
              <property name="value">
-              <double>0.000000000000000</double>
+              <double>0.500000000000000</double>
              </property>
             </widget>
            </item>
@@ -749,8 +749,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>228</width>
-          <height>575</height>
+          <width>98</width>
+          <height>28</height>
          </rect>
         </property>
         <attribute name="label">
@@ -777,8 +777,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>228</width>
-          <height>575</height>
+          <width>98</width>
+          <height>28</height>
          </rect>
         </property>
         <attribute name="label">

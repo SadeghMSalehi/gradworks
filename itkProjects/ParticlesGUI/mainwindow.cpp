@@ -184,11 +184,17 @@ void MainWindow::ReadyToExperiments() {
 //    LoadLabel("/data/Particles/Image001.nrrd");
 //    LoadImage("/data/Particles/Image002.nrrd");
 //    LoadLabel("/data/Particles/Image002.nrrd");
-    LoadImage("/data/Particles/image_circle.nrrd");
+//    LoadImage("/data/Particles/image_circle.nrrd");
+//    LoadLabel("/data/Particles/image_circle_label.nrrd");
+//    LoadImage("/data/Particles/image_square.nrrd");
+//    LoadLabel("/data/Particles/image_square_label.nrrd");
+
+    LoadImage("/data/Particles/image_ellipse_horz.nrrd");
     LoadLabel("/data/Particles/image_circle_label.nrrd");
-    LoadImage("/data/Particles/image_square.nrrd");
-    LoadLabel("/data/Particles/image_square_label.nrrd");
-//    LoadImage("/data/Particles/image_black_gray.nrrd");
+    LoadImage("/data/Particles/image_ellipse_vert.nrrd");
+    LoadLabel("/data/Particles/image_circle_label.nrrd");
+
+    //    LoadImage("/data/Particles/image_black_gray.nrrd");
 //    LoadLabel("/data/Particles/image_center_mask.nrrd");
 
     on_actionRandomParticlesInit_triggered();
