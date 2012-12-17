@@ -69,7 +69,7 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), 
     QObject::connect(ui.showGray, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showLabel, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showDerived, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
-    QObject::connect(ui.particlesInitialization, SIGNAL(clicked()), this, SLOT(on_actionRandomParticlesInit_triggered()));
+//    QObject::connect(ui.particlesInitialization, SIGNAL(clicked()), this, SLOT(on_actionRandomParticlesInit_triggered()));
     QObject::connect(ui.selectedPoints, SIGNAL(textChanged()), this, SLOT(updateScene()));
     
 	ui.graphicsView->setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
@@ -101,13 +101,7 @@ void MainWindow::on_actionOpenBSplineVis_triggered() {
     m_BSplineVisDialog.show();
 }
 
-
-void MainWindow::on_actionLoadParticles_triggered() {
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "/data/Particles", tr("Armadillo matrix (*.txt)"));
-
-    if (fileName.isNull()) {
-        return;
-    }
+void MainWindow::LoadParticle(QString &fileName) {
     arma::vec armParams;
     if (armParams.quiet_load(fileName.toStdString(), arma::arma_ascii)) {
         VNLVector params(armParams.memptr(), armParams.size());
@@ -117,6 +111,15 @@ void MainWindow::on_actionLoadParticles_triggered() {
     } else {
         QMessageBox::warning(this, "Particle Load Fail", fileName + " not available");
     }
+}
+
+void MainWindow::on_actionLoadParticles_triggered() {
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "/data/Particles", tr("Armadillo matrix (*.txt)"));
+
+    if (fileName.isNull()) {
+        return;
+    }
+    LoadParticle(fileName);
 }
 
 void MainWindow::on_actionSaveParticles_triggered() {
@@ -189,6 +192,12 @@ void MainWindow::ReadyToExperiments() {
 //    LoadLabel("/data/Particles/image_center_mask.nrrd");
 
     on_actionRandomParticlesInit_triggered();
+
+    QString fileName = "/data/Particles/particles.txt";
+    QFile particleFile(fileName);
+    if (particleFile.exists()) {
+        LoadParticle(fileName);
+    }
     g_constraint.SetImageList(&m_ImageList);
 }
 
@@ -655,21 +664,28 @@ void MainWindow::on_animationTimeout() {
 }
 
 void MainWindow::on_actionRandomParticlesInit_triggered() {
-    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
+//    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
+
+
     g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
+    // property access must always set before SetImageList
     g_imageParticlesAlgo->SetPropertyAccess(m_Props);
-    g_imageParticlesAlgo->SetCurrentSliceAndView(GetCurrentView(), ui.sliceIndex->value());
     g_imageParticlesAlgo->SetImageList(&m_ImageList);
+    g_imageParticlesAlgo->SetCurrentSliceAndView(GetCurrentView(), ui.sliceIndex->value());
+
     g_imageParticlesAlgo->SetEventCallback(this);
     g_imageParticlesAlgo->CreateRandomInitialPoints(m_Props.GetInt("numberOfPoints", 100));
+
+    // for constraint
     g_constraint.SetImageList(&m_ImageList);
+
     updateScene();
 }
 
 
 void MainWindow::on_actionRunImageParticles_triggered() {
     // run optimization via itk-optimizers or ODE system
-    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
+//    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
     ui.costPlot->graph()->clearData();
 
     // prepare image particles algorithm
@@ -696,7 +712,7 @@ void MainWindow::on_actionRunImageParticles_triggered() {
 }
 
 void MainWindow::on_actionContinue_triggered() {
-    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
+//    ui.toolBox->setCurrentWidget(ui.optimizerSettings);
     if (g_imageParticlesAlgo.IsNotNull()) {
         if (ui.actionUseODESolver->isChecked()) {
             g_imageParticlesAlgo->RunODE();

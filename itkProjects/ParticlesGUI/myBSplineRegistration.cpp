@@ -293,6 +293,9 @@ namespace my {
             cout << "BSpline Update Time: " << timer.elapsed() << endl;
         } catch (itk::ExceptionObject& e) {
             e.Print(std::cout);
+
+            cout << "Source: " << m_Source << endl;
+            cout << "Target: " << m_Target << endl;
         }
     }
 
@@ -351,8 +354,11 @@ namespace my {
     
     FieldTransformType::Pointer BSplineRegistration::GetTransform() {
         FieldTransformType::Pointer txf = FieldTransformType::New();
-        txf->SetDisplacementField(m_DisplacementField);
-        return txf;
+        if (m_DisplacementField.IsNotNull()) {
+            txf->SetDisplacementField(m_DisplacementField);
+            return txf;
+        }
+        return FieldTransformType::Pointer(NULL);
     }
 
     SliceTransformType::Pointer BSplineRegistration::GetRawTransform() {

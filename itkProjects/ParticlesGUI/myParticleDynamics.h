@@ -14,6 +14,7 @@
 #include "itkOptimizerCommon.h"
 #include "myImplicitSurfaceConstraint.h"
 #include "myEventCallback.h"
+#include "QElapsedTimer"
 
 class ImageParticlesAlgorithm;
 
@@ -105,14 +106,16 @@ namespace my {
         // apply constraint on implicit boundaries
         void ApplyBoundaryConditions();
 
-        
+
         const int m_nDim;
         const int m_nSubjects;
         const int m_nParticles;
         const int m_nParams;
+
+        int m_ForceType;
         
         double m_Cutoff;
-        double m_Sigma2;
+        double m_Sigma;
         double m_Viscosity;
         double m_Mu;
         double m_COR;
@@ -136,6 +139,8 @@ namespace my {
         STDDoubleArray* m_CostHistory;
         
         ParticleSystemOptions m_Options;
+
+        mutable QElapsedTimer m_Timer;
     };
 }
 

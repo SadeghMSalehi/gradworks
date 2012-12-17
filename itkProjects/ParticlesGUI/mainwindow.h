@@ -78,6 +78,7 @@ private:
     void LoadImage(QString fileName);
     void LoadLabel(QString fileName);
     void LoadSurface(QString fileName);
+    void LoadParticle(QString& fileName);
 
     inline bool IsSourceAvailable() { return m_ImageList.size() > 0 && m_ImageList[0].IsNotNull(); }
     inline bool IsTargetAvailable() { return m_ImageList.size() > 1 && m_ImageList[1].IsNotNull(); }

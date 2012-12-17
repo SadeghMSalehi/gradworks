@@ -6,6 +6,7 @@
 //
 //
 
+#include <cmath>
 #include "myParticleDynamics.h"
 #include "boost/numeric/odeint.hpp"
 #include "vnl/algo/vnl_symmetric_eigensystem.h"
@@ -69,7 +70,7 @@ namespace my {
     m_dpdt(0,0,NULL),
     m_dvdt(0,0,NULL) {
         m_Cutoff = 15;
-        m_Sigma2 = 3*3;
+        m_Sigma = 15;
         m_Mu = 1;
         m_COR = 1 ;
         m_Force.set_size(m_nSubjects, m_nParams);
@@ -77,6 +78,7 @@ namespace my {
         m_StatusHistory = NULL;
         m_Callback = NULL;
         m_Context = NULL;
+        m_ForceType = 0;
     }
     
     void ParticleSystem::SetPositions(OptimizerParametersType* params) {
@@ -110,9 +112,8 @@ namespace my {
         m_Context = context;
         
         m_Cutoff = context->GetProperty().GetDouble("cutoffDistance", 15.0);
-        m_Sigma2  = context->GetProperty().GetDouble("sigma", 3.0);
+        m_Sigma  = context->GetProperty().GetDouble("sigma", 3.0);
         m_GradientScale = context->GetProperty().GetDouble("gradientScale", 10.0);
-        m_Sigma2 *= m_Sigma2;
 
         m_Mu = context->GetProperty().GetDouble("Mu", 1);
         m_COR = context->GetProperty().GetDouble("COR", 0.5);
@@ -135,6 +136,9 @@ namespace my {
 
         const bool useAdaptiveSampling = m_Options.useAdaptiveSampling;
 
+        // use cotangent-based force
+        m_ForceType = 1;
+
         // compute forces between particles
         VNLVector weights(m_nParticles);
         for (int n = 0; n < nSubj; n++) {
@@ -151,55 +155,82 @@ namespace my {
                 ContinuousIndexType iIdx;
                 iIdx[0] = iPos[0];
                 iIdx[1] = iPos[1];
-                
-                
-                // iteration over particles
-                // may reduce use symmetric properties
-                for (int j = 0; j < m_nParticles; j++) {
-                    if (i == j) {
-                        // there's no self interaction
-                        weights[j] = 0;
-                    } else {
-                        // kappa should use jPos
-                        VNLVectorRef jPos(2, &gPos[n][nDim*j]);
-                        ContinuousIndexType jIdx;
-                        jIdx[0] = jPos[0];
-                        jIdx[1] = jPos[1];
-                        double kappa = 1;
-                        if (useAdaptiveSampling) {
-                            kappaIntp->EvaluateAtContinuousIndex(jIdx);
-                            kappa *= kappa;
-                        }
-                        double dij = (iPos-jPos).two_norm();
-                        if (dij > m_Cutoff) {
+
+                // compute energy and force
+                if (m_ForceType == 0) {
+                    const double sigma2 = m_Sigma * m_Sigma;
+
+                    // iteration over particles
+                    // may reduce use symmetric properties
+                    for (int j = 0; j < m_nParticles; j++) {
+                        if (i == j) {
+                            // there's no self interaction
                             weights[j] = 0;
                         } else {
-                            weights[j] = exp(-dij*dij*kappa/(m_Sigma2));
-                            // debug: check kappa is different between neighbors
-                            //                        if (i == 10) {
-                            //                            cout << "Distance: " << dij << "; Kappa: " << kappa << endl;
-                            //                        }
+                            // kappa should use jPos
+                            VNLVectorRef jPos(2, &gPos[n][nDim*j]);
+                            ContinuousIndexType jIdx;
+                            jIdx[0] = jPos[0];
+                            jIdx[1] = jPos[1];
+                            double kappa = 1;
+                            if (useAdaptiveSampling) {
+                                kappaIntp->EvaluateAtContinuousIndex(jIdx);
+                                kappa *= kappa;
+                            }
+                            double dij = (iPos-jPos).two_norm();
+                            if (dij > m_Cutoff) {
+                                weights[j] = 0;
+                            } else {
+                                weights[j] = exp(-dij*dij*kappa/(sigma2));
+                                // debug: check kappa is different between neighbors
+                                //                        if (i == 10) {
+                                //                            cout << "Distance: " << dij << "; Kappa: " << kappa << endl;
+                                //                        }
+                            }
+                        }
+                    }
+                    double sumForce = weights.sum();
+                    if (sumForce > 0) {
+                        weights /= sumForce;
+                    }
+
+                    // actual force update
+                    VNLVec2 xixj;
+                    // update force for neighboring particles
+                    for (int j = 0; j < m_nParticles; j++) {
+                        if (i == j || weights[j] == 0) {
+                            continue;
+                        }
+                        VNLVectorRef jPos(nDim, &gPos[n][nDim*j]);
+                        xixj.normalize();
+                        iForce += (weights[j] * xixj);
+                    }
+                } else if (m_ForceType == 1) {
+                    const double sigma = m_Sigma * 5;
+                    const double coeff = M_PI_2 / sigma;
+                    double energy = 0;
+                    VNLVec2 dEdr;
+                    for (int j = 0; j < m_nParticles; j++) {
+                        VNLVectorRef jPos(nDim, &gPos[n][nDim*j]);
+                        // energy derivative
+                        VNLCVector::subtract(iPos.data_block(), jPos.data_block(), dEdr.data_block(), nDim);
+                        double rij = dEdr.two_norm();
+                        dEdr.normalize();
+                        if (rij > sigma) {
+                            // no contribution
+                            continue;
+                        } else {
+                            rij *= coeff;
+                            if (rij > 0) {
+                                energy = 1 / std::tan(rij) + rij - M_PI_2;
+                                double sin2rij = std::sin(rij);
+                                sin2rij *= sin2rij;
+                                dEdr *= (coeff * (1 - 1 / sin2rij));
+                                iForce -= dEdr;
+                            }
                         }
                     }
                 }
-                double sumForce = weights.sum();
-                if (sumForce > 0) {
-                    weights /= sumForce;
-                }
-                
-                // actual force update
-                VNLVec2 xixj;
-                // update force for neighboring particles
-                for (int j = 0; j < m_nParticles; j++) {
-                    if (i == j || weights[j] == 0) {
-                        continue;
-                    }
-                    VNLVectorRef jPos(nDim, &gPos[n][nDim*j]);
-                    VNLCVector::subtract(iPos.data_block(), jPos.data_block(), xixj.data_block(), nDim);
-                    xixj.normalize();
-                    iForce += (weights[j] * xixj);
-                }
-
             }
         }
     }
@@ -447,60 +478,82 @@ namespace my {
     }
     
     void ParticleSystem::UpdateBSplineEnsemble() {
-        VNLMatrixRef& gPos = m_Pos;
+        VNLMatrixRef& xPos = m_Pos;
 
-        if (gPos.has_nans()) {
-            cout << "NaNs: " << gPos << endl;
+        if (xPos.has_nans()) {
+            cout << "NaNs: " << xPos << endl;
         }
         // ignore conversion between index and physical space
-        VNLVector gMeanPos(m_nParams);
-        vnl_row_mean(gPos, gMeanPos);
-        
+        VNLVector xMeanPos(m_nParams);
+//        vnl_row_mean(xPos, xMeanPos);
+
+        // debug: what if we use the first subject as a common space?
+        xMeanPos.copy_in(xPos[0]);
+
         // transform from subject's space to mean space
         std::vector<FieldTransformType::Pointer> bsplineTransformArray;
         for (int n = 0; n < m_nSubjects; n++) {
             SliceType::Pointer refImage = m_Context->GetImage(n)->GetSlice();
             my::BSplineRegistration bReg;
-            bReg.SetLandmarks(m_nParticles, gPos[n], gMeanPos.data_block());
+            bReg.SetLandmarks(m_nParticles, xPos[n], xMeanPos.data_block());
             bReg.SetReferenceImage(refImage);
             bReg.SetNumberOfControlPoints(16);
             bReg.Update();
-            bsplineTransformArray.push_back(bReg.GetTransform());
+            FieldTransformType::Pointer transformToMean = bReg.GetTransform();
+            bsplineTransformArray.push_back(transformToMean);
         }
         
         // compute particles' position at the common space
         //
         VNLMatrix tPos(m_nSubjects, m_nParams);
+        tPos.fill(0);
+
         VNLMatrix jacobPos(m_nSubjects, m_nParams);
-        
+        FieldTransformType::InputPointType inPoint;
+        FieldTransformType::OutputPointType outPoint;
         for (int n = 0; n < m_nSubjects; n++) {
-            for (int i = 0; i < m_nParticles; i++) {
-                FieldTransformType::InputPointType inPoint;
-                FieldTransformType::OutputPointType outPoint;
-                inPoint[0] = gPos[n][2*i];
-                inPoint[1] = gPos[n][2*i+1];
-                outPoint = bsplineTransformArray[n]->TransformPoint(inPoint);
-                tPos[n][2*i] = outPoint[0];
-                tPos[n][2*i+1] = outPoint[1];
+            if (bsplineTransformArray[n].IsNull()) {
+                // if bspline is not computable,
+                // use identity transform
+                for (int i = 0; i < m_nParticles; i++) {
+                    tPos[n][2*i] = xPos[n][2*i];
+                    tPos[n][2*i+1] = xPos[n][2*i+1];
+                }
+            } else {
+                for (int i = 0; i < m_nParticles; i++) {
+                    inPoint[0] = xPos[n][2*i];
+                    inPoint[1] = xPos[n][2*i+1];
+                    outPoint = bsplineTransformArray[n]->TransformPoint(inPoint);
+                    tPos[n][2*i] = outPoint[0];
+                    tPos[n][2*i+1] = outPoint[1];
+                }
             }
         }
         
         // gPos: Xi, xPos: T(Xi)
         // now tPos must move towards mean point
-        VNLMatrix xPos(m_nSubjects, m_nParams);
-        vnl_row_center(xPos);
-        
+        VNLMatrix yPos(tPos);
+        vnl_row_center(yPos);
+
         FieldTransformType::InputPointType xPoint;
         FieldTransformType::JacobianType xJac;
         
         VNLMatrixRef gForce(m_nSubjects, m_nParams, m_Force[0]);
         for (int n = 0; n < m_nSubjects; n++) {
+            if (bsplineTransformArray[n].IsNull()) {
+                continue;
+            }
+
+            // ignore covariance factor
+            // because the minimum is same,
+            // but it is better to use distance function given in
+            // Miriah's paper
             for (int i = 0; i < m_nParticles; i++) {
-                xPoint[0] = gPos[n][2*i];
-                xPoint[1] = gPos[n][2*i+1];
+                xPoint[0] = xPos[n][2*i];
+                xPoint[1] = xPos[n][2*i+1];
                 bsplineTransformArray[n]->ComputeJacobianWithRespectToPosition(xPoint, xJac);
-                double dGdX = xJac[0][0] * xPos[n][2*i] + xJac[1][0] * xPos[n][2*i+1];
-                double dGdY = xJac[0][1] * xPos[n][2*i] + xJac[1][1] * xPos[n][2*i+1];
+                double dGdX = xJac[0][0] * yPos[n][2*i] + xJac[1][0] * yPos[n][2*i+1];
+                double dGdY = xJac[0][1] * yPos[n][2*i] + xJac[1][1] * yPos[n][2*i+1];
                 gForce[n][2*i] -= dGdX;
                 gForce[n][2*i+1] -= dGdY;
             }
@@ -710,6 +763,7 @@ namespace my {
         double cost = 0;
         // compute forces between particles
         VNLVector weights(m_nParticles);
+        const double sigma2 = m_Sigma*m_Sigma;
         for (int n = 0; n < m_nSubjects; n++) {
             for (int i = 0; i < m_nParticles; i++) {
                 // reference data
@@ -728,7 +782,7 @@ namespace my {
                         weights[j] = 0;
                         continue;
                     }
-                    weights[j] = exp(-dij*dij/(m_Sigma2));
+                    weights[j] = exp(-dij*dij/(sigma2));
                 }
                 cost += weights.sum();
             }
@@ -755,6 +809,8 @@ namespace my {
         const int RK4 = 2;
         const int EULER = 1;
         const int RKF45 = 0;
+
+        m_Timer.start();
         
         boost::numeric::odeint::euler<VNLVector> eulerStepper;
         boost::numeric::odeint::runge_kutta4<VNLVector> rk4Stepper;
@@ -771,6 +827,9 @@ namespace my {
             default:
                 break;
         }
+
+        qint64 elapsedTime = m_Timer.elapsed();
+        cout << "Elapsed Time: " << elapsedTime << " ms (" << (elapsedTime / (t1- t0) * dt) << ") ms" << endl;
     }
     
     void ParticleSystem::Integrate() {

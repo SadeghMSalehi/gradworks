@@ -497,7 +497,7 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
     LabelSliceType::RegionType region = intersection->GetBufferedRegion();
 
 
-    io.WriteImageT("/data/Particles/intersection.nrrd", intersection);
+    io.WriteImageT("/tmpfs/intersection.nrrd", intersection);
 
     // set as member variable to reuse
     m_Intersection = intersection;
@@ -680,7 +680,7 @@ void ImageParticlesAlgorithm::SetImageList(ImageContainer::List *list) {
         // generate kappa map from gradient magnitude image
         GradientImageFilter::Pointer gradFilter = GradientImageFilter::New();
         gradFilter->SetInput(image->GetSlice());
-        gradFilter->SetSigma(m_GradientSigma);
+        gradFilter->SetSigma(0.5);
         gradFilter->Update();
 
         VectorInterpolatorType::Pointer gradientInterpolator = VectorInterpolatorType::New();
