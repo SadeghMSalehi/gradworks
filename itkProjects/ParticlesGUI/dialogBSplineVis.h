@@ -20,6 +20,7 @@ public:
 
 public slots:
     void updateScene();
+    void renderScene(QGraphicsScene& scene, bool printer = false);
     
     void on_bspView_mousePressed(QMouseEvent* event);
     void on_bspView_mouseReleased(QMouseEvent* event);
@@ -29,7 +30,7 @@ public slots:
 //    void on_bspViewZoom_sliderMoved(int val);
     void on_updateField_clicked();
     void on_copyPointsButton_clicked();
-
+    void on_printButton_clicked();
 protected:
     virtual void showEvent(QShowEvent * event);
     virtual void closeEvent(QCloseEvent * e);

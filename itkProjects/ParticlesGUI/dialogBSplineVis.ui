@@ -97,7 +97,14 @@
              <item>
               <widget class="QPushButton" name="updateField">
                <property name="text">
-                <string>Update</string>
+                <string>Warp</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="printButton">
+               <property name="text">
+                <string>PDF</string>
                </property>
               </widget>
              </item>
@@ -128,10 +135,10 @@
                 <number>1</number>
                </property>
                <property name="singleStep">
-                <double>0.500000000000000</double>
+                <double>0.100000000000000</double>
                </property>
                <property name="value">
-                <double>1.500000000000000</double>
+                <double>0.500000000000000</double>
                </property>
               </widget>
              </item>

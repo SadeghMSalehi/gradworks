@@ -105,6 +105,7 @@ public:
     
     void ReportParameters(const OptimizerParametersType& params, int iterNo, double cost);
     const VNLVector* GetTraceParameters(int idx);
+    const VNLVector* GetDensityTraces(int idx);
     int GetNumberOfTraces() { return m_Traces.size(); }
     void SetEventCallback(EventCallback* callback) { m_EventCallback = callback; }
 
@@ -198,6 +199,7 @@ private:
 
     // ui related field
     VNLVectorArray m_Traces;
+    VNLVectorArray m_DensityTraces;
     STDDoubleArray m_CostTraces;
 
     ImageList m_KappaMaps;

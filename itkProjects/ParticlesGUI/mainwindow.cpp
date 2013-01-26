@@ -79,6 +79,7 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), 
     m_ParticleColors.addAction(ui.actionParticleGreen);
     m_ParticleColors.addAction(ui.actionParticleBlue);
     m_ParticleColors.addAction(ui.actionParticleHSV);
+    m_ParticleColors.addAction(ui.actionPressureMap);
 
     ui.costPlot->setColor(QColor(0xf5, 0xf3, 0xff));
     ui.costPlot->addGraph();
@@ -184,15 +185,15 @@ void MainWindow::ReadyToExperiments() {
 //    LoadLabel("/data/Particles/Image001.nrrd");
 //    LoadImage("/data/Particles/Image002.nrrd");
 //    LoadLabel("/data/Particles/Image002.nrrd");
-//    LoadImage("/data/Particles/image_circle.nrrd");
-//    LoadLabel("/data/Particles/image_circle_label.nrrd");
-//    LoadImage("/data/Particles/image_square.nrrd");
-//    LoadLabel("/data/Particles/image_square_label.nrrd");
+    LoadImage("/data/Particles/image_circle.nrrd");
+    LoadLabel("/data/Particles/image_circle_label.nrrd");
+    LoadImage("/data/Particles/image_square.nrrd");
+    LoadLabel("/data/Particles/image_square_label.nrrd");
 
-    LoadImage("/data/Particles/image_ellipse_horz.nrrd");
-    LoadLabel("/data/Particles/image_circle_label.nrrd");
-    LoadImage("/data/Particles/image_ellipse_vert.nrrd");
-    LoadLabel("/data/Particles/image_circle_label.nrrd");
+//    LoadImage("/data/Particles/image_ellipse_horz.nrrd");
+//    LoadLabel("/data/Particles/image_circle_label.nrrd");
+//    LoadImage("/data/Particles/image_ellipse_vert.nrrd");
+//    LoadLabel("/data/Particles/image_circle_label.nrrd");
 
     //    LoadImage("/data/Particles/image_black_gray.nrrd");
 //    LoadLabel("/data/Particles/image_center_mask.nrrd");
@@ -202,7 +203,7 @@ void MainWindow::ReadyToExperiments() {
     QString fileName = "/data/Particles/particles.txt";
     QFile particleFile(fileName);
     if (particleFile.exists()) {
-        LoadParticle(fileName);
+//        LoadParticle(fileName);
     }
     g_constraint.SetImageList(&m_ImageList);
 }
@@ -466,7 +467,7 @@ void MainWindow::updateScene() {
             particles = &(g_imageParticlesAlgo->GetCurrentParams());
         }
 
-        if (ui.actionShowParticles->isChecked()) {
+        if (ui.actionShowParticles->isChecked() && particles->size()) {
             if (particles != NULL) {
                 // const int nSubj = g_imageParticlesAlgo->GetNumberOfSubjects();
                 const int nPoints = g_imageParticlesAlgo->GetNumberOfPoints();
@@ -474,7 +475,7 @@ void MainWindow::updateScene() {
                 const int nDims = 2;
 
                 // show correspondence
-                if (ui.actionShowCorrespondence->isChecked()) {
+                if (ui.actionShowCorrespondence->isChecked() && particles->size() == nParams) {
                     itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
                     colorFunc->SetMinimumInputValue(0);
                     colorFunc->SetMaximumInputValue(nPoints);
@@ -541,29 +542,61 @@ void MainWindow::updateScene() {
                         }
                     }
                 } else {
-                    itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
-                    colorFunc->SetMinimumInputValue(0);
-                    colorFunc->SetMaximumInputValue(nPoints);
+                    if (!ui.actionPressureMap->isChecked()) {
+                        itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
+                        colorFunc->SetMinimumInputValue(0);
+                        colorFunc->SetMaximumInputValue(nPoints);
 
-                    for (int i = 0; i < nPoints; i++) {
-                        double x = particles->get(image * nParams + nDims * i);
-                        double y = particles->get(image * nParams + nDims * i + 1);
+                        for (int i = 0; i < nPoints; i++) {
+                            double x = particles->get(image * nParams + nDims * i);
+                            double y = particles->get(image * nParams + nDims * i + 1);
 
-                        QColor pointColor = Qt::black;
-                        if (ui.actionParticleRed->isChecked()) {
-                            pointColor = Qt::red;
-                        } else if (ui.actionParticleGreen->isChecked()) {
-                            pointColor = Qt::green;
-                        } else if (ui.actionParticleBlue->isChecked()) {
-                            pointColor = Qt::blue;
-                        } else if (ui.actionParticleWhite->isChecked()) {
-                            pointColor = Qt::white;
-                        } else if (ui.actionParticleHSV->isChecked()) {
-                            itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(i);
-                            pointColor = QColor(rgb[0], rgb[1], rgb[2]);
+                            QColor pointColor = Qt::black;
+                            if (ui.actionParticleRed->isChecked()) {
+                                pointColor = Qt::red;
+                            } else if (ui.actionParticleGreen->isChecked()) {
+                                pointColor = Qt::green;
+                            } else if (ui.actionParticleBlue->isChecked()) {
+                                pointColor = Qt::blue;
+                            } else if (ui.actionParticleWhite->isChecked()) {
+                                pointColor = Qt::white;
+                            } else if (ui.actionParticleHSV->isChecked()) {
+                                itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(i);
+                                pointColor = QColor(rgb[0], rgb[1], rgb[2]);
+                            }
+
+                            m_scene.addEllipse(x-.5, y-.5, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
                         }
+                    } else {
+                        const VNLVector* density = g_imageParticlesAlgo->GetDensityTraces(g_AnimFrame);
+                        if (density != NULL) {
+                            itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::Pointer colorFunc = itk::Function::HSVColormapFunction<double, itk::RGBAPixel<unsigned char> >::New();
+                            double minValue = density->min_value();
+                            double maxValue = density->max_value();
+                            colorFunc->SetMinimumInputValue(minValue);
+                            colorFunc->SetMaximumInputValue(maxValue);
 
-                        m_scene.addEllipse(x-.5, y-.5, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
+                            for (int i = 0; i < nPoints; i++) {
+                                double x = particles->get(image * nParams + nDims * i);
+                                double y = particles->get(image * nParams + nDims * i + 1);
+
+                                QColor pointColor = Qt::black;
+                                if (ui.actionParticleRed->isChecked()) {
+                                    pointColor = Qt::red;
+                                } else if (ui.actionParticleGreen->isChecked()) {
+                                    pointColor = Qt::green;
+                                } else if (ui.actionParticleBlue->isChecked()) {
+                                    pointColor = Qt::blue;
+                                } else if (ui.actionParticleWhite->isChecked()) {
+                                    pointColor = Qt::white;
+                                } else if (ui.actionParticleHSV->isChecked()) {
+                                    itk::RGBAPixel<unsigned char> rgb = colorFunc->operator()(i);
+                                    pointColor = QColor(rgb[0], rgb[1], rgb[2]);
+                                }
+
+                                m_scene.addEllipse(x-.5, y-.5, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
+                            }
+                        }
                     }
                 }
             }

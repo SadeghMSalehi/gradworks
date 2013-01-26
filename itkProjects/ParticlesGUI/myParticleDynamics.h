@@ -50,6 +50,7 @@ namespace my {
         
         void SetPositions(OptimizerParametersType* params);
         void GetPositions(OptimizerParametersType* params);
+        void SetDensityHistoryVector(VNLVectorArray* densityHistory);
         void SetHistoryVector(VNLVectorArray* systemHistory);
         void SetCostHistoryVector(STDDoubleArray* costHistory);
         void SetEventCallback(EventCallback* callback);
@@ -79,7 +80,7 @@ namespace my {
         void EstimateRigidTransform(VNLMatrixRef& gPos, VNLMatrixArray& transforms, VNLMatrixArray& jacobians);
         
         void ApplyMatrixOperation(const double* posIn, const VNLMatrix& matrix, double* posOut);
-        
+
         void UpdateTransform(VNLMatrix& tPos);
         
         // TPS, EBS transform
@@ -87,6 +88,10 @@ namespace my {
         
         // BSpline-based displacement transform
         void UpdateBSplineEnsemble();
+
+        // compute particle density
+        double computeDensityKernel(double r, double h);
+        void UpdateDensity();
         
         // apply global transform
         // compute forces between particles
@@ -128,7 +133,11 @@ namespace my {
         VNLMatrixRef m_Vel;
         VNLMatrixRef m_dpdt;
         VNLMatrixRef m_dvdt;
-        
+
+
+        // derived data from particle positions
+        mutable VNLMatrix m_Rho;
+
         VNLVector m_Status;
         VNLMatrix m_Force;
         EventCallback* m_Callback;
@@ -136,6 +145,7 @@ namespace my {
         ImageParticlesAlgorithm* m_Context;
         ImplicitSurfaceConstraint* m_Constraint;
         VNLVectorArray* m_StatusHistory;
+        VNLVectorArray* m_DensityHistory;
         STDDoubleArray* m_CostHistory;
         
         ParticleSystemOptions m_Options;

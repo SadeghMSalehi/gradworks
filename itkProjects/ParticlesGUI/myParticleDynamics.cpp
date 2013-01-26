@@ -14,6 +14,7 @@
 #include "myImageParticlesAlgorithm.h"
 #include "itkThinPlateSplineKernelTransform.h"
 #include "myImageTransform.h"
+#include "myParticleKernelFunctions.h"
 #include <QElapsedTimer>
 
 #define __dist2(x1,y1,x2,y2) ((x1-y1)*(x1-y1)+(x2-y2)*(x2-y2))
@@ -76,6 +77,7 @@ namespace my {
         m_Force.set_size(m_nSubjects, m_nParams);
         m_Constraint = NULL;
         m_StatusHistory = NULL;
+        m_DensityHistory = NULL;
         m_Callback = NULL;
         m_Context = NULL;
         m_ForceType = 0;
@@ -94,6 +96,10 @@ namespace my {
     void ParticleSystem::GetPositions(OptimizerParametersType* params) {
         VNLMatrixRef pos(m_nSubjects, m_nParams, m_Status.data_block());
         pos.copy_out(params->data_block());
+    }
+
+    void ParticleSystem::SetDensityHistoryVector(VNLVectorArray* densityHistory) {
+        m_DensityHistory = densityHistory;
     }
     
     void ParticleSystem::SetHistoryVector(VNLVectorArray* statusHistory) {
@@ -124,6 +130,33 @@ namespace my {
         m_Options.useAdaptiveSampling = context->GetProperty().GetBool("actionUseAdaptiveControl", false);
 
         m_Constraint = context->GetConstraint();
+    }
+
+    void ParticleSystem::UpdateDensity() {
+        m_Rho.set_size(m_nSubjects, m_nParticles);
+
+        my::DefaultKernel kernelFunc(11.0);        
+        for (int n = 0; n < m_nSubjects; n++) {
+            for (int i = 0; i < m_nParticles; i++) {
+                VNLVectorRef iForce(nDim, &m_Force[n][nDim*i]);
+                VNLVectorRef iVel(nDim, &m_Vel[n][nDim*i]);
+                VNLVectorRef iPos(nDim, &m_Pos[n][nDim*i]);
+
+                double rho_i = 0;
+                for (int j = 0; j < m_nParticles; j++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    VNLVectorRef jPos(2, &m_Pos[n][nDim*j]);
+                    double dij = (iPos - jPos).two_norm();
+                    // temporarily fix smoothing kernel support h
+                    if (dij < kernelFunc.H()) {
+                        rho_i += kernelFunc.value(dij);
+                    }
+                }
+                m_Rho[n][i] = rho_i;
+            }
+        }
     }
     
     void ParticleSystem::UpdateSurfaceForce() {
@@ -805,9 +838,12 @@ namespace my {
         
         
         if (m_StatusHistory != NULL) {
+            VNLVector rho(m_Rho.data_block(), m_nSubjects * m_nParticles);
+            m_DensityHistory->push_back(rho);
             m_StatusHistory->push_back(x);
             m_CostHistory->push_back(cost);
         }
+        
         cout << "Time: " << t << endl;
     }
     

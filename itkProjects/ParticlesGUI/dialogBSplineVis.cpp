@@ -15,11 +15,16 @@
 #include "myImageParticlesAlgorithm.h"
 #include "mainwindow.h"
 
+#include "QPrinter"
+#include "QPainter"
+#include "QFileDialog"
+
 using namespace std;
 
 BSplineVisDialog::BSplineVisDialog(QWidget* parent) : QDialog(parent) {
     ui.setupUi(this);
-
+    QObject::connect(ui.showNoImage, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
+    QObject::connect(ui.showWarpedSlice, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showCheckerboard, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.showWarpedCheckerboard, SIGNAL(toggled(bool)), this, SLOT(updateScene()));
     QObject::connect(ui.imageOpacity, SIGNAL(sliderMoved(int)), this, SLOT(updateScene()));
@@ -90,48 +95,67 @@ void BSplineVisDialog::CreateGridAndCheckerboards(SliceType::Pointer refImage) {
 }
 
 
+void BSplineVisDialog::updateScene() {
+    renderScene(m_Scene, false);
+}
+
 // refresh ui elements
 //
-void BSplineVisDialog::updateScene() {
-    m_Scene.clear();
+void BSplineVisDialog::renderScene(QGraphicsScene& scene, bool isPrinter) {
+    scene.clear();
 
     if (ui.showCheckerboard->isChecked()) {
         RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_SrcImage, ui.imageOpacity->value());
         QPixmap qPixmap = ImageContainer::CreatePixmap(image);
-        m_Scene.addPixmap(qPixmap)->setZValue(-10);
+        scene.addPixmap(qPixmap)->setZValue(-10);
     }
 
     if (ui.showWarpedCheckerboard->isChecked()) {
         RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_DstImage, ui.imageOpacity->value());
         QPixmap qPixmap = ImageContainer::CreatePixmap(image);
-        m_Scene.addPixmap(qPixmap)->setZValue(-10);
+        scene.addPixmap(qPixmap)->setZValue(-10);
     }
 
     if (ui.showWarpedSlice->isChecked()) {
         RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_WarpedSlice, ui.imageOpacity->value());
         QPixmap qPixmap = ImageContainer::CreatePixmap(image);
-        m_Scene.addPixmap(qPixmap)->setZValue(-10);
+        scene.addPixmap(qPixmap)->setZValue(-10);
 
     }
 
     if (m_RefImage.IsNotNull()) {
         const int gridRes = ui.gridResolution->value();
+        QPen blackPen = QPen(QColor::fromRgbF(0,0,0,0.5));
+        blackPen.setWidthF(.1);
+        QPen linePen(QColor::fromRgbF(.5,.5,.5,ui.imageOpacity->value() / 255.0));
         if (ui.showCoordinateGrid->isChecked()) {
-            QPen pen(QColor::fromRgbF(1, 1, 1, ui.imageOpacity->value() / 255.0));
             QGraphicsGridItem* originalGrid = new QGraphicsGridItem();
-            originalGrid->SetPen(pen);
+            if (isPrinter) {
+                // can printer have alpha value?
+                originalGrid->SetPen(blackPen);
+            } else {
+                originalGrid->SetPen(linePen);
+            }
             originalGrid->SetResolution(gridRes);
             originalGrid->SetGrid(gX, gY);
-            m_Scene.addItem(originalGrid);
+            scene.addItem(originalGrid);
             ui.bspView->fitInView(originalGrid, Qt::KeepAspectRatio);
         }
         if (ui.showWarpedCoordinateGrid->isChecked()) {
-            QPen pen(QColor::fromRgbF(1, 1, 1, ui.imageOpacity->value() / 255.0));
             QGraphicsGridItem* warpedGrid = new QGraphicsGridItem();
-            warpedGrid->SetPen(pen);
+            if (isPrinter) {
+                // can printer have alpha value?
+                if (!ui.showNoImage->isChecked()) {
+                    blackPen.setColor(QColor::fromRgbF(1, 1, 0));
+                    blackPen.setWidthF(0.2);
+                }
+                warpedGrid->SetPen(blackPen);
+            } else {
+                warpedGrid->SetPen(linePen);
+            }
             warpedGrid->SetResolution(gridRes);
             warpedGrid->SetGrid(tX, tY);
-            m_Scene.addItem(warpedGrid);
+            scene.addItem(warpedGrid);
             ui.bspView->fitInView(warpedGrid, Qt::KeepAspectRatio);
         }
     }
@@ -140,7 +164,7 @@ void BSplineVisDialog::updateScene() {
     if (ui.showDetJacobian->isChecked() && m_DetJacobian.IsNotNull()) {
         RGBAImageType::Pointer image = ImageContainer::CreateBitmap(m_DetJacobian);
         QPixmap qDetPixmap = ImageContainer::CreatePixmap(image);
-        m_Scene.addPixmap(qDetPixmap);
+        scene.addPixmap(qDetPixmap);
     }
 
 
@@ -157,7 +181,7 @@ void BSplineVisDialog::updateScene() {
             DisplacementFieldType::PointType point2;
             point2[0] = point[0] + v[0];
             point2[1] = point[1] + v[1];
-            m_Scene.addLine(point[0], point[1], point2[0], point2[1], QPen(Qt::yellow));
+            scene.addLine(point[0], point[1], point2[0], point2[1], QPen(Qt::yellow));
         }
 
     }
@@ -169,7 +193,7 @@ void BSplineVisDialog::updateScene() {
         for (int i = 0; i < m_WarpedLandmarks.rows(); i++) {
             double x = m_WarpedLandmarks[i][0];
             double y = m_WarpedLandmarks[i][1];
-            QGraphicsItem* p = m_Scene.addRect(x - sz, y - sz, sz*2, sz*2, QPen(Qt::yellow), QBrush(Qt::yellow, Qt::SolidPattern));
+            QGraphicsItem* p = scene.addRect(x - sz, y - sz, sz*2, sz*2, QPen(Qt::yellow), QBrush(Qt::yellow, Qt::SolidPattern));
         }
     }
 
@@ -181,10 +205,21 @@ void BSplineVisDialog::updateScene() {
         double sz = ui.landmarkSize->value();
         for (int i = 0; i < m_VectorList.size(); i++) {
             QRectF& xy = m_VectorList[i];
-            m_Scene.addLine(xy.left(), xy.top(), xy.right(), xy.bottom(), QPen(Qt::white));
-            QGraphicsItem* dx = m_Scene.addEllipse(xy.left() - sz, xy.top() - sz, sz*2, sz*2, QPen(Qt::red), QBrush(Qt::red, Qt::SolidPattern));
+            QPen linePen(Qt::yellow);
+            QPen sourcePen(Qt::red);
+            QBrush sourceBrush(Qt::red, Qt::SolidPattern);
+            QPen targetPen(Qt::blue);
+            QBrush targetBrush(Qt::blue, Qt::SolidPattern);
+            linePen.setWidthF(sz * .5);
+            if (isPrinter) {
+                linePen.setWidthF(sz);
+                linePen.setColor(QColor::fromRgbF(0.3, 0.6, 0.3));
+            }
+            scene.addLine(xy.left(), xy.top(), xy.right(), xy.bottom(), linePen);
+            QGraphicsItem* dx = scene.addEllipse(xy.left() - sz, xy.top() - sz, sz*2, sz*2, sourcePen, sourceBrush);
+            QGraphicsItem* dy = scene.addEllipse(xy.right() - sz, xy.bottom() - sz, sz*2, sz*2, targetPen, targetBrush);
+
             dx->setData(1, i);
-            QGraphicsItem* dy = m_Scene.addEllipse(xy.right() - sz, xy.bottom() - sz, sz*2, sz*2, QPen(Qt::blue), QBrush(Qt::blue, Qt::SolidPattern));
             dy->setData(2, i);
             
         }
@@ -373,4 +408,29 @@ void BSplineVisDialog::closeEvent(QCloseEvent* event) {
     
 }
 
+void BSplineVisDialog::on_printButton_clicked() {
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Save PDF File"), "/tmpfs", tr("PDF File (*.pdf)"));
+    
+    if (fileName.isNull()) {
+        return;
+    }
 
+    QGraphicsScene printerScene;
+    renderScene(printerScene, true);
+    
+    QPrinter printer(QPrinter::HighResolution);
+    QSizeF paperSize;
+    paperSize.setWidth(printerScene.sceneRect().width());
+    paperSize.setHeight(printerScene.sceneRect().height());
+    printer.setPaperSize(paperSize, QPrinter::Millimeter);
+    printer.setPageMargins(5, 5, 5, 5, QPrinter::Millimeter);
+    printer.setOrientation(QPrinter::Portrait);
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(fileName);
+
+
+    QPainter painter(&printer);
+    painter.setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing | QPainter::SmoothPixmapTransform | QPainter::NonCosmeticDefaultPen);
+    printerScene.render(&painter);
+    painter.end();
+}

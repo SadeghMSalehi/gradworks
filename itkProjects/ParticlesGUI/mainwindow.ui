@@ -143,6 +143,7 @@
      <addaction name="actionParticleBlue"/>
      <addaction name="actionParticleWhite"/>
      <addaction name="actionParticleHSV"/>
+     <addaction name="actionPressureMap"/>
     </widget>
     <addaction name="actionRandomParticlesInit"/>
     <addaction name="actionRunImageParticles"/>
@@ -749,8 +750,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>98</width>
-          <height>28</height>
+          <width>280</width>
+          <height>575</height>
          </rect>
         </property>
         <attribute name="label">
@@ -777,8 +778,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>98</width>
-          <height>28</height>
+          <width>280</width>
+          <height>575</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1071,6 +1072,14 @@
   <action name="actionRunOnIntersection">
    <property name="text">
     <string>Run On Intersection</string>
+   </property>
+  </action>
+  <action name="actionPressureMap">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Pressure Map</string>
    </property>
   </action>
  </widget>

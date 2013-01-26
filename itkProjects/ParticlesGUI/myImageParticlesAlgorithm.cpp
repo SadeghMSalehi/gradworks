@@ -582,6 +582,8 @@ void ImageParticlesAlgorithm::CreateUniformInitialization() {
             m_CurrentParams[n*m_nParams + i] = params[i];
         }
     }
+    m_Traces.clear();
+    m_DensityTraces.clear();
 }
 
 
@@ -603,6 +605,8 @@ void ImageParticlesAlgorithm::CreateInitialPoints(vtkPoints* pointSet) {
     }
 
     m_CurrentParams = initial;
+    m_Traces.clear();
+    m_DensityTraces.clear();
 }
 
 /**
@@ -771,6 +775,7 @@ void ImageParticlesAlgorithm::RunODE() {
     system.SetContext(this);
     system.SetHistoryVector(&m_Traces);
     system.SetCostHistoryVector(&m_CostTraces);
+    system.SetDensityHistoryVector(&m_DensityTraces);
     system.SetPositions(&m_CurrentParams);
     system.SetEventCallback(m_EventCallback);
     system.Integrate();
@@ -790,6 +795,14 @@ void ImageParticlesAlgorithm::ReportParameters(const OptimizerParametersType &pa
 const VNLVector* ImageParticlesAlgorithm::GetTraceParameters(int idx) {
     if (idx < m_Traces.size()) {
         return &m_Traces[idx];
+    } else {
+        return NULL;
+    }
+}
+
+const VNLVector* ImageParticlesAlgorithm::GetDensityTraces(int idx) {
+    if (idx < m_DensityTraces.size()) {
+        return &m_DensityTraces[idx];
     } else {
         return NULL;
     }
