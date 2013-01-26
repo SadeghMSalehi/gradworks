@@ -28,7 +28,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET (MY_SOURCES myImageContainer.h myImageContainer.cpp myParticleAlgorithm.h myParticleAlgorithm.cpp vtkPropScene.h vtkPropScene.cpp PropertyAccess.h PropertyAccess.cpp myImageParticlesAlgorithm.h myImageParticlesAlgorithm.cpp myImplicitSurfaceConstraint.h myImplicitSurfaceConstraint.cpp myEnsembleEntropy.h myEnsembleEntropy.cpp vnlCommon.h vnlCommon.cpp myParticleDynamics.h myParticleDynamics.cpp myParticleSolver.h myParticleSolver.cpp myEventCallback.h myImageTransform.h myImageTransform.cpp myBSplineRegistration.h myBSplineRegistration.cpp QGraphicsGridItem.cpp QGraphicsGridItem.h myParticleKernelFunctions.h myParticleKernelFunctions.cpp myParticlesIO.cpp myParticlesIO.h)
 
-SET (MY_PARTICLES_SOURCES myParticlesCore.cpp myParticlesCore.h myImplicitSurfaceConstraint3D.cpp myImplicitSurfaceConstraint3D.h myImageDef.h myParticleBSpline.cpp myParticleBSpline.h)
+SET (MY_PARTICLES_SOURCES myParticleCore.cpp myParticleCore.h myImplicitSurfaceConstraint3D.cpp myImplicitSurfaceConstraint3D.h myImageDef.h myParticleBSpline.cpp myParticleBSpline.h myParticleForces.h myParticleForces.cpp)
 
 FILE(GLOB ITK_SOURCES "itk*.h" "itk*.hxx" "itk*.cxx")
 

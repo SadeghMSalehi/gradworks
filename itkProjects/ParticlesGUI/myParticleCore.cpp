@@ -1,4 +1,4 @@
-#include "myParticlesCore.h"
+#include "myParticleCore.h"
 
 #include "myImplicitSurfaceConstraint3D.h"
 #include "myParticleBSpline.h"
@@ -165,12 +165,7 @@ namespace my {
 
     void ParticleShape::UpdateInternalForce() {
         InternalForce forceAlg;
-        for (int i = 0; i < m_nPoints; i++) {
-            for (int j = i+1; j < m_nPoints; j++) {
-                double f[3];
-                forceAlg.ComputeForce(m_Particles[i], m_Particles[j], f);
-            }
-        }
+ 
     }
     
     void ParticleShape::UpdateInternalConstraint() {
@@ -184,45 +179,13 @@ namespace my {
     
 
     void ParticleSystem::UpdateStep(double dt) {
-        for (int i = 0; i < m_Shapes.size(); i++) {
-            m_Shapes[i].UpdateInternalForce();
-            if (i > 0) {
-                ParticleBSpline transform;
-                transform.EstimateTransform(m_Shapes[0], m_Shapes[i]);
-                m_Shapes[i].TransformX2Y(transform.GetTransform().GetPointer());
-            } else {
-                m_Shapes[i].TransformX2Y(NULL);
-            }
-        }
-        UpdateEnsembleForce();
+        InternalForce internalForce;
+        EnsembleForce ensembleForce;
+        internalForce.ComputeForce(m_Shapes);
+        ensembleForce.ComputeForce(m_Shapes);
         for (int i = 0; i < m_Shapes.size(); i++) {
             m_Shapes[i].UpdateInternalConstraint();
         }
-    }
-
-
-    void InternalForce::ComputeForce(my::Particle &a, my::Particle &b, double* f) {
-        double dist = std::sqrt(a.Dist2(b));
-        const double sigma = 7 * 5;
-        const double coeff = M_PI_2 / sigma;
-
-        double dx[4];
-        a.Sub(b, dx);
-
-        if (dist > sigma) {
-            return;
-        }
-
-        double rij = dist * coeff;
-        if (rij > 0) {
-            double sin2rij = std::sin(rij);
-            sin2rij *= sin2rij;
-            for3(i) {
-                f[i] = dx[i] * (coeff * (1 - 1 / sin2rij));
-            }
-        }
-        b.AddForce(f);
-        a.SubForce(f);
     }
 
     void LabelContext::LoadLabel(std::string filename) {

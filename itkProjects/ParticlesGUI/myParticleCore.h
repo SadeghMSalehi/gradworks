@@ -86,6 +86,7 @@ namespace my {
         int m_nPoints;
         ParticleArray m_Particles;
         
+        ParticleShape() : m_SubjId(-1), m_nPoints(0) {}
         ParticleShape(int subjid, int npoints);
         ~ParticleShape();
 
@@ -111,17 +112,20 @@ namespace my {
     public:
         InternalForce() : m_TimeStep(0.1) {}
         ~InternalForce() {}
-        void ComputeForce(Particle& a, Particle& b, double *ff);
+        void ComputeForce(ParticleShapeArray& shapes);
+        void ComputeForce(Particle& a, Particle& b);
     private:
         double m_TimeStep;
     };
     
     class EnsembleForce {
     public:
-        EnsembleForce() {};
+        EnsembleForce();
         ~EnsembleForce();
-        
         void ComputeForce(ParticleShapeArray& shapes);
+    private:
+        ParticleShape m_MeanShape;
+        void ComputeMeanShape();
     };
 
 
@@ -129,7 +133,6 @@ namespace my {
     public:
         void LoadShapes();
         void UpdateStep(double dt);
-        void UpdateEnsembleForce();
     private:
         ParticleShapeArray m_Shapes;
     };

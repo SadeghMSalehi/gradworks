@@ -10,7 +10,7 @@
 #define __ParticlesGUI__myParticleBSpline__
 
 #include <iostream>
-#include "myParticlesCore.h"
+#include "myParticleCore.h"
 #include "itkDisplacementFieldTransform.h"
 
 namespace my {
