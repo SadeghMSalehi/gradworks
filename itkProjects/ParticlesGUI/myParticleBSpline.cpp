@@ -96,12 +96,12 @@ namespace my {
         return warpFilter->GetOutput();
     }
 
-    FieldTransformType::Pointer ParticleBSpline::GetTransform() {
+    TransformType::Pointer ParticleBSpline::GetTransform() {
         FieldTransformType::Pointer txf = FieldTransformType::New();
         if (m_DisplacementField.IsNotNull()) {
             txf->SetDisplacementField(m_DisplacementField);
-            return txf;
+            return TransformType::Pointer(txf);
         }
-        return FieldTransformType::Pointer(NULL);
+        return TransformType::Pointer(NULL);
     }
 }

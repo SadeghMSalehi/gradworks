@@ -121,15 +121,44 @@ namespace my {
 
     }
 
-    void ParticleShape::ApplyTransform(TransformType* transform) {
-        for (int i = 0; i < m_nPoints; i++) {
-            TransformType::InputPointType inputPoint;
-            for3 (j) {
-                inputPoint[j] = m_Particles[i].x[j];
+    void ParticleShape::TransformX2Y(TransformType* transform) {
+        if (transform != NULL) {
+            for (int i = 0; i < m_nPoints; i++) {
+                TransformType::InputPointType inputPoint;
+                for3 (j) {
+                    inputPoint[j] = m_Particles[i].x[j];
+                }
+                TransformType::OutputPointType outputPoint = transform->TransformPoint(inputPoint);
+                for3 (j) {
+                    m_Particles[i].y[j] = outputPoint[j];
+                }
             }
-            TransformType::OutputPointType outputPoint = transform->TransformPoint(inputPoint);
-            for3 (j) {
-                m_Particles[i].y[j] = outputPoint[j];
+        } else {
+            for (int i = 0; i < m_nPoints; i++) {
+                for4(j) {
+                    m_Particles[i].y[j] = m_Particles[i].x[j];
+                }
+            }
+        }
+    }
+    
+    void ParticleShape::TransformY2X(TransformType* transform) {
+        if (transform != NULL) {
+            for (int i = 0; i < m_nPoints; i++) {
+                TransformType::InputPointType inputPoint;
+                for3 (j) {
+                    inputPoint[j] = m_Particles[i].y[j];
+                }
+                TransformType::OutputPointType outputPoint = transform->TransformPoint(inputPoint);
+                for3 (j) {
+                    m_Particles[i].x[j] = outputPoint[j];
+                }
+            }
+        } else {
+            for (int i = 0; i < m_nPoints; i++) {
+                for4(j) {
+                    m_Particles[i].x[j] = m_Particles[i].y[j];
+                }
             }
         }
     }
@@ -143,10 +172,16 @@ namespace my {
             }
         }
     }
+    
+    void ParticleShape::UpdateInternalConstraint() {
+        
+    }
+
 
     void ParticleSystem::LoadShapes() {
 
     }
+    
 
     void ParticleSystem::UpdateStep(double dt) {
         for (int i = 0; i < m_Shapes.size(); i++) {
@@ -154,8 +189,14 @@ namespace my {
             if (i > 0) {
                 ParticleBSpline transform;
                 transform.EstimateTransform(m_Shapes[0], m_Shapes[i]);
-                m_Shapes[i].ApplyTransform(transform.GetTransform().GetPointer());
+                m_Shapes[i].TransformX2Y(transform.GetTransform().GetPointer());
+            } else {
+                m_Shapes[i].TransformX2Y(NULL);
             }
+        }
+        UpdateEnsembleForce();
+        for (int i = 0; i < m_Shapes.size(); i++) {
+            m_Shapes[i].UpdateInternalConstraint();
         }
     }
 
@@ -212,7 +253,7 @@ namespace my {
         for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
             LabelImage::IndexType idx = iter.GetIndex();
             LabelImage::PixelType pixel = 255;
-            const int pixelThreshold = 255;
+            const int pixelThreshold = 1;
             for (int i = 0; i < m_LabelImages.size(); i++) {
                 if (m_LabelImages[i]->GetPixel(idx) < pixelThreshold) {
                     pixel = 0;

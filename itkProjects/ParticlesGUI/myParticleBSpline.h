@@ -24,7 +24,7 @@ namespace my {
         void EstimateTransform(const ParticleShape a, const ParticleShape b);
         void ApplyTransform(ParticleShape a);
         DoubleImage::Pointer WarpImage(DoubleImage::Pointer image);
-        FieldTransformType::Pointer GetTransform();
+        TransformType::Pointer GetTransform();
 
     private:
         DoubleImage::Pointer m_RefImage;

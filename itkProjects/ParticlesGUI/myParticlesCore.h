@@ -92,8 +92,10 @@ namespace my {
         void InitializeRandomPoints(LabelImage::Pointer labelImage);
         void Initialize(const ParticleArray& array);
         void ApplyMatrix(VNLMatrix& mat);
-        void ApplyTransform(TransformType* transform);
+        void TransformX2Y(TransformType* transform);
+        void TransformY2X(TransformType* transform);
         void UpdateInternalForce();
+        void UpdateInternalConstraint();
 
         inline Particle& operator[](int i) {
             return m_Particles[i];
@@ -113,12 +115,21 @@ namespace my {
     private:
         double m_TimeStep;
     };
+    
+    class EnsembleForce {
+    public:
+        EnsembleForce() {};
+        ~EnsembleForce();
+        
+        void ComputeForce(ParticleShapeArray& shapes);
+    };
 
 
     class ParticleSystem {
     public:
         void LoadShapes();
         void UpdateStep(double dt);
+        void UpdateEnsembleForce();
     private:
         ParticleShapeArray m_Shapes;
     };
