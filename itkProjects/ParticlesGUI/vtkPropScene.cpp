@@ -81,7 +81,7 @@ vtkActor* vtkPropScene::NewActor(vtkPolyData* poly) {
 #if VTK_MAJOR_VERSION >= 6
     mapper->SetInput(poly);
 #else
-    mapper->SetInputData(poly);
+    mapper->SetInput(poly);
 #endif
 
     vtkProperty* props = vtkProperty::New();

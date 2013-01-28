@@ -46,7 +46,11 @@ int main(int argc, char* argv[]) {
 
     vtkUnstructuredGridWriter* writer = vtkUnstructuredGridWriter::New();
     writer->SetFileName(argv[2]);
+#if VTK_MAJOR_VERSION >= 6
     writer->SetInputData(grid);
+#else
+    writer->SetInput(grid);
+#endif
     writer->Write();
     
     return 0;
