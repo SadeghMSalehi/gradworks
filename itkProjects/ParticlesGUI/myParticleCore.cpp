@@ -266,12 +266,22 @@ namespace pi {
         SaveStatus(outputName);
     }
 
+		void ParticleSystem::Run() {
+				const double t0 = 0;
+				const double t1 = 10;
+				const double dt = 0.02;
+        for (double t = t0; t < t1; t += dt) {
+					UpdateStep(dt);
+				}
+		}
+
     void ParticleSystem::UpdateStep(double dt) {
         InternalForce internalForce;
         EnsembleForce ensembleForce;
         internalForce.ComputeForce(m_Shapes);
         ensembleForce.ComputeForce(m_Shapes);
         m_ParticleConstraint->ApplyConstraint(m_Shapes);
+				UpdateSystem(m_Shapes, dt);
     }
 
     void ParticleSystem::PrepareSystem(ParticleShapeArray& shapes) {

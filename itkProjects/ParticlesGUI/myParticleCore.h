@@ -150,6 +150,10 @@ namespace pi {
         void UpdateStep(double dt);
         void PrepareSystem(ParticleShapeArray& shapes);
         void UpdateSystem(ParticleShapeArray& shapes, double dt);
+
+				// run correspondence process
+				void Run();
+
         void LoadStatus(std::string filename, int cmd = 0);
         void LoadStatus(std::string filename, ParticleShapeArray& shapes, int cmd);
         void SaveStatus(std::string filename) { SaveStatus(filename, m_Shapes); }

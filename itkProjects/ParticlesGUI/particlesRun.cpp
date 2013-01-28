@@ -10,6 +10,7 @@ int main(int argc, char* argv[]) {
     system.LoadStatus("/tmpfs/output.txt", 1);
     system.RunPreprocessing("/tmpfs/preprocessing.txt");
     system.LoadPreprocessing("/tmpfs/preprocessing.txt");
+		system.Run();
     system.SaveStatus("/tmpfs/output2.txt");
     return 0;
 }

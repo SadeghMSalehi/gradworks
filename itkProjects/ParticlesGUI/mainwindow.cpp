@@ -137,7 +137,7 @@ void MainWindow::on_actionLoadParticleWorks_triggered() {
             int l = 0;
             for (int i = 0; i < sys.GetNumberOfShapes(); i++) {
                 for (int j = 0; j < sys.GetNumberOfParticles(); j++) {
-                    for3(k) {
+                    fordim(k) {
                         params[l++] = sys[i][j].x[k];
                     }
                 }
