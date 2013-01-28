@@ -10,11 +10,11 @@
 #include "myParticleBSpline.h"
 
 namespace pi {
-    void InternalForce::ComputeForce(ParticleShapeArray& shapes) {
+    void InternalForce::ComputeForce(ParticleSubjectArray& shapes) {
         const double mu = 1;
-        const int nShapes = shapes.size();
+        const int nSubjects = shapes.size();
         const int nPoints = shapes[0].m_Particles.size();
-        for (int k = 0; k < nShapes; k++) {
+        for (int k = 0; k < nSubjects; k++) {
             ParticleArray& particles = shapes[k].m_Particles;
             for (int i = 0; i < nPoints; i++) {
                 Particle& pi = particles[i];
@@ -66,37 +66,43 @@ namespace pi {
     }
     
     EnsembleForce::~EnsembleForce() {
-        
+
     }
 
-    void EnsembleForce::ComputeMeanShape(ParticleShapeArray& shapes) {
-        const int nShapes = shapes.size();
-        m_MeanShape.m_SubjId = -1;
-        m_MeanShape.m_nPoints = shapes[0].m_nPoints;
-        m_MeanShape.Zero();
+    void EnsembleForce::SetImageContext(ImageContext* context) {
+        m_ImageContext = context;
+    }
 
-        for (int i = 0; i < m_MeanShape.m_nPoints; i++) {
-            for (int j = 0; j < nShapes; j++) {
+    void EnsembleForce::ComputeMeanShape(ParticleSubjectArray& shapes) {
+        const int nSubjects = shapes.size();
+        const int nPoints = m_MeanShape.GetNumberOfPoints();
+
+        m_MeanShape.m_SubjId = -1;
+        m_MeanShape.NewParticles(shapes[0].GetNumberOfPoints());
+
+        for (int i = 0; i < nPoints; i++) {
+            for (int j = 0; j < nSubjects; j++) {
                 fordim(k) {
                     m_MeanShape[i].x[k] += shapes[j][i].x[k];
                 }
             }
             fordim(k) {
-                m_MeanShape[i].x[k] /= nShapes;
+                m_MeanShape[i].x[k] /= nSubjects;
             }
         }
     }
     
-    void EnsembleForce::ComputeForce(ParticleShapeArray& shapes) {
+    void EnsembleForce::ComputeForce(ParticleSubjectArray& shapes) {
         if (shapes.size() < 2) {
             return;
         }
-        const int nPoints = shapes[0].m_nPoints;
-        const int nShapes = shapes.size();
+        const int nPoints = shapes[0].GetNumberOfPoints();
+        const int nSubjects = shapes.size();
         
         ComputeMeanShape(shapes);
         for (int i = 0; i < shapes.size(); i++) {
             ParticleBSpline transform;
+            transform.SetReferenceImage(m_ImageContext->GetLabel(i));
             transform.EstimateTransform(m_MeanShape, shapes[i]);
             FieldTransformType::Pointer fieldTransform = transform.GetTransform();
             shapes[i].TransformX2Y(fieldTransform.GetPointer());
@@ -109,7 +115,7 @@ namespace pi {
                 }
             }
             fordim(k) {
-                m_MeanShape[j].y[k] /= nShapes;
+                m_MeanShape[j].y[k] /= nSubjects;
             }
         }
 
@@ -117,9 +123,9 @@ namespace pi {
             for (int j = 0; j < nPoints; j++) {
                 FieldTransformType::InputPointType xPoint;
                 FieldTransformType::JacobianType xJac;
-                xJac.set_size(2,2);
+                xJac.set_size(__Dim,__Dim);
 
-                double f[4] = { 0, };
+                double f[__Dim] = { 0, };
                 double *x = shapes[i][j].x;
                 double *y = shapes[i][j].y;
                 double *my = m_MeanShape[j].y;
@@ -128,7 +134,11 @@ namespace pi {
                 }
                 shapes[i].m_Transform->ComputeInverseJacobianWithRespectToPosition(xPoint, xJac);
                 fordim(k) {
-                    f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]) + xJac[2][k]*(y[2]-my[2]);
+                    if (__Dim == 3) {
+                        f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]) + xJac[2][k]*(y[2]-my[2]);
+                    } else if (__Dim == 2) {
+                        f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]);
+                    }
                 }
                 shapes[i][j].SubForce(f, 0.1);
             }

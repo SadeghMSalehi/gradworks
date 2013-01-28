@@ -21,9 +21,9 @@
 
 #include "vector"
 
-const static int __Dim = 2;
+const static int __Dim = 3;
 
-#define for4(i) for (int i = 0; i < __Dim + 1; i++)
+#define for4(i) for (int i = 0; i < 4; i++)
 #define fordim(i) for (int i = 0; i < __Dim; i++)
 
 namespace pi {
@@ -37,9 +37,11 @@ namespace pi {
     typedef itk::Image<OffsetType,__Dim> OffsetImage;
     typedef std::vector<LabelImage::Pointer> LabelVector;
     typedef std::vector<OffsetImage::Pointer> OffsetImageVector;
+    typedef std::vector<DoubleImage::Pointer> DoubleImageVector;
 
     typedef itk::LinearInterpolateImageFunction<DoubleImage> LinearImageInterpolatorType;
     typedef itk::NearestNeighborInterpolateImageFunction<DoubleImage> NNImageInterpolatorType;
+    typedef itk::NearestNeighborInterpolateImageFunction<LabelImage> NNLabelInterpolatorType;
     typedef itk::VectorLinearInterpolateImageFunction<VectorImage> LinearVectorImageInterpolatorType;
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
 

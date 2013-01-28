@@ -26,6 +26,10 @@
 
 class vtkPoints;
 
+namespace pi {
+    class ParticleSystem;
+}
+
 class ImageParticlesAlgorithm: public itk::SingleValuedCostFunction {
 public:
 	typedef ImageParticlesAlgorithm Self;
@@ -100,6 +104,7 @@ public:
 	void AddInitialPoints(OptimizerParametersType& points);
     void CreateRandomInitialPoints(int nPoints);
     void CreateInitialPoints(vtkPoints* pointSet);
+    void CreateInitialPoints(pi::ParticleSystem* system);
     void CreateUniformInitialization();
 
     // optimization execution

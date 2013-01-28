@@ -38,5 +38,11 @@ TARGET_LINK_LIBRARIES(guiparticles ${ITK_LIBRARIES} ${VTK_LIBRARIES} ${QT_LIBRAR
 ADD_EXECUTABLE(particlesRun particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 TARGET_LINK_LIBRARIES(particlesRun ${ITK_LIBRARIES})
 
+ADD_EXECUTABLE(particleRegistration particleRegistrationMain.cpp ${MY_PARTICLE_WORKS_SOURCES})
+TARGET_LINK_LIBRARIES(particleRegistration ${ITK_LIBRARIES})
+
+ADD_EXECUTABLE(particleViewer particleViewer.cpp ${MY_PARTICLE_WORKS_SOURCES})
+TARGET_LINK_LIBRARIES(particleViewer ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+
 ADD_EXECUTABLE(bsplineReg bsplineReg.cxx)
 TARGET_LINK_LIBRARIES(bsplineReg ${ITK_LIBRARIES} ${ItkVtkGlue})

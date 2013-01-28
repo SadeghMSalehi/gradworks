@@ -131,11 +131,11 @@ void MainWindow::on_actionLoadParticleWorks_triggered() {
         sprintf(buf, "/tmpfs/particles/Debug/output_%04d.txt", ii);
         QFile file(buf);
         if (file.exists()) {
-            sys.LoadStatus(buf);
+            sys.LoadSystem(buf);
 
-            VNLVector params(sys.GetNumberOfShapes() * __Dim * sys.GetNumberOfParticles());
+            VNLVector params(sys.GetNumberOfSubjects() * __Dim * sys.GetNumberOfParticles());
             int l = 0;
-            for (int i = 0; i < sys.GetNumberOfShapes(); i++) {
+            for (int i = 0; i < sys.GetNumberOfSubjects(); i++) {
                 for (int j = 0; j < sys.GetNumberOfParticles(); j++) {
                     fordim(k) {
                         params[l++] = sys[i][j].x[k];
@@ -143,12 +143,37 @@ void MainWindow::on_actionLoadParticleWorks_triggered() {
                 }
             }
             g_imageParticlesAlgo->AddTrace(params);
-            g_imageParticlesAlgo->SetCurrentParams(params);
         }
     }
-    g_imageParticlesAlgo->SetNumberOfSubjects(sys.GetNumberOfShapes());
-    g_imageParticlesAlgo->SetNumberOfParams(sys.GetNumberOfShapes()*__Dim);
-    g_imageParticlesAlgo->SetNumberOfPoints(sys.GetNumberOfParticles());
+
+    g_imageParticlesAlgo->CreateInitialPoints(&sys);
+    updateScene();
+}
+
+void MainWindow::on_actionLoadParticleWorksSingle_triggered() {
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "/tmpfs", tr("Particle File (*.txt)"));
+
+    if (fileName.isNull()) {
+        return;
+    }
+
+
+
+//    g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
+//    g_imageParticlesAlgo->SetPropertyAccess(m_Props);
+//    g_imageParticlesAlgo->SetImageList(&m_ImageList);
+//    g_imageParticlesAlgo->SetCurrentSliceAndView(GetCurrentView(), ui.sliceIndex->value());
+
+    QFile file(fileName);
+    if (file.exists()) {
+        pi::ParticleSystem sys;
+        sys.LoadSystem(fileName.toUtf8().data());
+        g_imageParticlesAlgo->CreateInitialPoints(&sys);
+
+        updateScene();
+
+        cout << "Loading shape x particles: " << g_imageParticlesAlgo->GetNumberOfSubjects() << " x " << g_imageParticlesAlgo->GetNumberOfPoints() << endl;
+    }
 }
 
 void MainWindow::on_actionLoadParticles_triggered() {

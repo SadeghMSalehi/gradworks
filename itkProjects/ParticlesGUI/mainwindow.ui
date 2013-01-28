@@ -165,6 +165,7 @@
     <addaction name="actionUseODESolver"/>
     <addaction name="separator"/>
     <addaction name="actionLoadParticleWorks"/>
+    <addaction name="actionLoadParticleWorksSingle"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -1086,6 +1087,11 @@
   <action name="actionLoadParticleWorks">
    <property name="text">
     <string>Load Particle Works</string>
+   </property>
+  </action>
+  <action name="actionLoadParticleWorksSingle">
+   <property name="text">
+    <string>Load Particle Works (Single)</string>
    </property>
   </action>
  </widget>

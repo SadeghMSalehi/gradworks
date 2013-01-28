@@ -59,6 +59,7 @@ public slots:
     void on_derivedImages_currentIndexChanged(int n);
     void on_graphicsView_mousePressed(QMouseEvent* event);
     void on_actionLoadParticleWorks_triggered();
+    void on_actionLoadParticleWorksSingle_triggered();
 
     void on_actionSaveParticles_triggered();
     void on_actionLoadParticles_triggered();

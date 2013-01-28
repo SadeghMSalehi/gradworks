@@ -31,7 +31,7 @@
 #include "itkResampleImageFilter.h"
 #include "myImageTransform.h"
 #include "myImageContainer.h"
-
+#include "myParticleCore.h"
 
 using namespace std;
 const static int Dimensions = 2;
@@ -473,6 +473,34 @@ void ImageParticlesAlgorithm::AddInitialPoints(OptimizerParametersType& points) 
     //    m_nParams = points.GetSize();
     //    m_nPoints = m_nParams / Dims;
     //    m_nTotalParams = m_nParams * m_nSubjects;
+}
+
+void ImageParticlesAlgorithm::CreateInitialPoints(pi::ParticleSystem* system) {
+
+    if (m_ImageList == NULL || m_ImageList->size() == 0) {
+        return;
+    }
+
+    const int nSubjects = m_ImageList->size();
+    const int nPoints = system->GetNumberOfParticles();
+    const int nParams = __Dim * system->GetNumberOfParticles();
+
+    VNLVector params(nSubjects * nParams);
+    int l = 0;
+    for (int i = 0; i < system->GetNumberOfSubjects(); i++) {
+        for (int j = 0; j < system->GetNumberOfParticles(); j++) {
+            fordim(k) {
+                params[l++] = (*system)[i][j].x[k];
+            }
+        }
+    }
+
+    m_nSubjects = nSubjects;
+    m_nParams = nPoints*__Dim;
+    m_nPoints = nPoints;
+    m_nTotalParams = m_nSubjects*m_nParams;
+    m_CurrentParams.set_size(m_nTotalParams);
+    m_CurrentParams.update(params);
 }
 
 /**

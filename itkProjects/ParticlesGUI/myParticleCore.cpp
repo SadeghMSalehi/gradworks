@@ -85,29 +85,29 @@ namespace pi {
         return (*this);
     }
 
-    ParticleShape::ParticleShape(int subjid, int npoints) : m_SubjId(subjid), m_nPoints(npoints) {
+    ParticleSubject::ParticleSubject(int subjid, int npoints) : m_SubjId(subjid) {
+        NewParticles(npoints);
+    }
+
+    ParticleSubject::~ParticleSubject() {
 
     }
 
-    ParticleShape::~ParticleShape() {
-
-    }
-
-    void ParticleShape::Zero() {
-        for (int i = 0; i < m_nPoints; i++) {
+    void ParticleSubject::Zero() {
+        const int nPoints = GetNumberOfPoints();
+        for (int i = 0; i < nPoints; i++) {
             m_Particles[i].Zero();
         }
     }
 
-    void ParticleShape::NewParticles(int n) {
-        m_nPoints = n;
+    void ParticleSubject::NewParticles(int n) {
         m_Particles.resize(n);
         Zero();
     }
 
-    void ParticleShape::InitializeRandomPoints(LabelImage::Pointer intersection) {
+    void ParticleSubject::InitializeRandomPoints(LabelImage::Pointer intersection) {
         // resize particles array
-        m_Particles.resize(m_nPoints);
+        const int nPoints = GetNumberOfPoints();
 
         // compute intersection by looping over region
         std::vector<LabelImage::IndexType> indexes;
@@ -123,40 +123,43 @@ namespace pi {
             std::random_shuffle(indexes.begin(), indexes.end());
         }
 
-        
-        for (int i = 0; i < m_nPoints; i++) {
+
+        for (int i = 0; i < nPoints; i++) {
             LabelImage::IndexType idx = indexes[i];
             m_Particles[i].Set(idx);
         }
     }
 
-    void ParticleShape::Initialize(int subj, std::string name, const ParticleShape& shape) {
+    void ParticleSubject::Initialize(int subj, std::string name, const ParticleSubject& shape) {
         m_SubjId = subj;
         m_Name = name;
-        m_nPoints = shape.m_Particles.size();
-        m_Particles.resize(m_nPoints);
-        for (int i = 0; i < m_nPoints; i++) {
+        const int nPoints = shape.GetNumberOfPoints();
+        m_Particles.resize(nPoints);
+        for (int i = 0; i < nPoints; i++) {
             m_Particles[i] = shape.m_Particles[i];
         }
     }
 
-    void ParticleShape::Initialize(const ParticleArray& array) {
-        if (m_nPoints != array.size()) {
-            m_nPoints = array.size();
+    void ParticleSubject::Initialize(const ParticleArray& array) {
+        const int nPoints = GetNumberOfPoints();
+        if (nPoints != array.size()) {
+            m_Particles.resize(nPoints);
         }
-        m_Particles.resize(m_nPoints);
-        for (int i = 0; i < m_nPoints; i++) {
+
+        for (int i = 0; i < nPoints; i++) {
             m_Particles[i] = array[i];
         }
     }
 
-    void ParticleShape::ApplyMatrix(VNLMatrix &mat) {
+    void ParticleSubject::ApplyMatrix(VNLMatrix &mat) {
 
     }
 
-    void ParticleShape::TransformX2Y(TransformType* transform) {
+    void ParticleSubject::TransformX2Y(TransformType* transform) {
+        const int nPoints = GetNumberOfPoints();
+
         if (transform != NULL) {
-            for (int i = 0; i < m_nPoints; i++) {
+            for (int i = 0; i < nPoints; i++) {
                 TransformType::InputPointType inputPoint;
                 fordim (j) {
                     inputPoint[j] = m_Particles[i].x[j];
@@ -167,17 +170,19 @@ namespace pi {
                 }
             }
         } else {
-            for (int i = 0; i < m_nPoints; i++) {
+            for (int i = 0; i < nPoints; i++) {
                 for4(j) {
                     m_Particles[i].y[j] = m_Particles[i].x[j];
                 }
             }
         }
     }
-    
-    void ParticleShape::TransformY2X(TransformType* transform) {
+
+    void ParticleSubject::TransformY2X(TransformType* transform) {
+        const int nPoints = GetNumberOfPoints();
+
         if (transform != NULL) {
-            for (int i = 0; i < m_nPoints; i++) {
+            for (int i = 0; i < nPoints; i++) {
                 TransformType::InputPointType inputPoint;
                 fordim (j) {
                     inputPoint[j] = m_Particles[i].y[j];
@@ -188,7 +193,7 @@ namespace pi {
                 }
             }
         } else {
-            for (int i = 0; i < m_nPoints; i++) {
+            for (int i = 0; i < nPoints; i++) {
                 for4(j) {
                     m_Particles[i].x[j] = m_Particles[i].y[j];
                 }
@@ -196,114 +201,129 @@ namespace pi {
         }
     }
 
-    void ParticleShape::UpdateSystem(double dt) {
-        for (int i = 0; i < m_nPoints; i++) {
+    void ParticleSubject::UpdateSystem(double dt) {
+        const int nPoints = GetNumberOfPoints();
+
+        for (int i = 0; i < nPoints; i++) {
             m_Particles[i].UpdateSystem(dt);
         }
     }
 
-    int ParticleSystem::GetNumberOfShapes() {
-        return m_Shapes.size();
+    int ParticleSystem::GetNumberOfSubjects() {
+        return m_Subjects.size();
     }
 
     int ParticleSystem::GetNumberOfParticles() {
-        if (m_Shapes.size() > 0) {
-            return m_Shapes[0].m_nPoints;
+        if (m_Subjects.size() > 0) {
+            return m_Subjects[0].GetNumberOfPoints();
         }
         return 0;
     }
 
-    ParticleShapeArray& ParticleSystem::GetShapes() {
-        return m_Shapes;
+    ParticleSubjectArray& ParticleSystem::GetSubjects() {
+        return m_Subjects;
     }
 
-    void ParticleSystem::LoadShapes(StringVector files) {
+    ImageContext& ParticleSystem::GetImageContext() {
+        return m_ImageContext;
+    }
+
+    void ParticleSystem::LoadLabels(StringVector files) {
         for (int i = 0; i < files.size(); i++) {
-            m_LabelContext.LoadLabel(files[i]);
+            m_ImageContext.LoadLabel(files[i]);
         }
     }
 
     void ParticleSystem::LoadPreprocessing(std::string filename) {
-        ParticleShapeArray shapes;
-        LoadStatus(filename, shapes, 1);
-        StringVector& labelFiles = m_LabelContext.GetFileNames();
-        const int nShapes = labelFiles.size();
-        m_Shapes.resize(nShapes);
-        for (int i = 0; i < nShapes; i++) {
-            m_Shapes[i].Initialize(i, labelFiles[i], shapes[0]);
+        ParticleSubjectArray subjects;
+        LoadSystem(filename, subjects, 1);
+        StringVector& labelFiles = m_ImageContext.GetFileNames();
+        const int nSubjects = labelFiles.size();
+        m_Subjects.resize(nSubjects);
+        for (int i = 0; i < nSubjects; i++) {
+            m_Subjects[i].Initialize(i, labelFiles[i], subjects[0]);
         }
     }
 
     void ParticleSystem::RunPreprocessing(std::string outputName) {
         double t0 = 0;
-        double t1 = 10;
-        double dt = 0.05;
+        double t1 = 30;
+        double dt = 0.01;
 
-        m_LabelContext.ComputeIntersection();
-        
-        ParticleShapeArray shapes(1);
-        shapes[0].m_Name = "Intersection";
-        shapes[0].m_nPoints = 300;
-        shapes[0].InitializeRandomPoints(m_LabelContext.GetIntersection());
+        m_ImageContext.ComputeIntersection();
 
+        ParticleSubjectArray subjects(1);
+        subjects[0].m_Name = "Intersection";
+        subjects[0].NewParticles(m_NumParticlesPerSubject);
+        subjects[0].InitializeRandomPoints(m_ImageContext.GetIntersection());
+
+        cout << "Distance map generation ..." << endl;
         ParticleConstraint initialConstraint;
         LabelVector labels;
-        labels.push_back(m_LabelContext.GetIntersection());
+        labels.push_back(m_ImageContext.GetIntersection());
         initialConstraint.SetImageList(labels);
+        cout << "Distance map generation ... done" << endl;
 
         int k = 0;
         char trackName[128];
-
         for (double t = t0; t < t1; t += dt) {
-            cout << "Time: " << t << endl;
+            cout << "Preprocessing Time: " << t << endl;
             InternalForce internalForce;
-            internalForce.ComputeForce(shapes);
-            initialConstraint.ApplyConstraint(shapes);
-            UpdateSystem(shapes, dt);
-            sprintf(trackName, "preprocessing_%04d.txt", ++k);
-            SaveStatus(trackName, shapes);
+            internalForce.ComputeForce(subjects);
+            initialConstraint.ApplyConstraint(subjects);
+            UpdateSystem(subjects, dt);
+//            sprintf(trackName, "preprocessing_2_%04d.txt", ++k);
+//            SaveSystem(trackName, subjects);
         }
-        SaveStatus(outputName);
+        SaveSystem(outputName, subjects);
     }
 
-		void ParticleSystem::Run() {
-				const double t0 = 0;
-				const double t1 = 10;
-				const double dt = 0.02;
+    void ParticleSystem::Run() {
+        const double t0 = 0;
+        const double t1 = 30;
+        const double dt = 0.01;
+
+        cout << "Distance map generation ..." << endl;
+        ParticleConstraint constraint;
+        constraint.SetImageList(m_ImageContext.GetLabelVector());
+        cout << "Distance map generation ... done" << endl;
+
+        char trackName[128];
+        int k = 0;
         for (double t = t0; t < t1; t += dt) {
-					UpdateStep(dt);
-				}
-		}
-
-    void ParticleSystem::UpdateStep(double dt) {
-        InternalForce internalForce;
-        EnsembleForce ensembleForce;
-        internalForce.ComputeForce(m_Shapes);
-        ensembleForce.ComputeForce(m_Shapes);
-        m_ParticleConstraint->ApplyConstraint(m_Shapes);
-				UpdateSystem(m_Shapes, dt);
+            cout << "Processing Time: " << t << endl;
+            InternalForce internalForce;
+            EnsembleForce ensembleForce;
+            ensembleForce.SetImageContext(&m_ImageContext);
+            internalForce.ComputeForce(m_Subjects);
+            ensembleForce.ComputeForce(m_Subjects);
+            constraint.ApplyConstraint(m_Subjects);
+            UpdateSystem(m_Subjects, dt);
+            sprintf(trackName, m_TrackingOutputPattern.c_str(), ++k);
+            SaveSystem(trackName, m_Subjects);
+        }
     }
 
-    void ParticleSystem::PrepareSystem(ParticleShapeArray& shapes) {
-        if (shapes.size() < 1) {
+    void ParticleSystem::PrepareSystem(ParticleSubjectArray& subjects) {
+        if (subjects.size() < 1) {
             return;
         }
-        const int nShapes = shapes.size();
-        const int nPoints = shapes[0].m_Particles.size();
-        for (int i = 0; i < nShapes; i++) {
+        const int nSubjects = subjects.size();
+        const int nPoints = subjects[0].m_Particles.size();
+        for (int i = 0; i < nSubjects; i++) {
             for (int j = 0; j < nPoints; j++) {
                 fordim(k) {
-                    shapes[i][j].f[k] = 0;
+                    subjects[i][j].f[k] = 0;
                 }
             }
         }
     }
 
-    void ParticleSystem::UpdateSystem(ParticleShapeArray& shapes, double dt) {
-        const int nShapes = shapes.size();
-        const int nPoints = shapes[0].m_Particles.size();
-        for (int i = 0; i < nShapes; i++) {
-            ParticleShape& iShape = shapes[i];
+    void ParticleSystem::UpdateSystem(ParticleSubjectArray& subjects, double dt) {
+        const int nSubjects = subjects.size();
+        const int nPoints = subjects[0].m_Particles.size();
+        for (int i = 0; i < nSubjects; i++) {
+            ParticleSubject& iShape = subjects[i];
             for (int j = 0; j < nPoints; j++) {
                 Particle& p = iShape[j];
                 fordim(k) {
@@ -315,91 +335,128 @@ namespace pi {
         }
     }
 
-    void ParticleSystem::LoadStatus(std::string filename, int cmd) {
-        LoadStatus(filename, m_Shapes, cmd);
+    void ParticleSystem::LoadSystem(std::string filename, int cmd) {
+        LoadSystem(filename, m_Subjects, cmd);
     }
 
-    void ParticleSystem::LoadStatus(std::string filename, ParticleShapeArray& shapes, int cmd) {
+    void ParticleSystem::LoadSystem(std::string filename, ParticleSubjectArray& subjects, int cmd) {
         using namespace std;
-        int nShapes = 0;
+        int nSubjects = 0;
         int nParticles = 0;
 
-        m_LabelContext.Clear();
+        m_ImageContext.Clear();
+        m_TrackingOutputPattern = "/data/Particles/Output/tracking_%04d.txt";
 
         char cbuf[256];
         ifstream in(filename.c_str());
+        if (in.is_open()) {
+            string name;
+            int value;
 
-        string name;
-        int value;
-
-        in.getline(cbuf, sizeof(cbuf));
-        {
-            stringstream ss(cbuf);
-            ss >> name >> value;
-            for (int i = 0; i < value; i++) {
+            while (in.good())
+            {
                 in.getline(cbuf, sizeof(cbuf));
-                if (cmd != 0) {
-                    m_LabelContext.LoadLabel(cbuf);
-                }
-            }
-        }
-
-        in.getline(cbuf, sizeof(cbuf));
-        {
-            shapes.clear();
-            stringstream ss(cbuf);
-            ss >> name >> nShapes;
-            shapes.resize(nShapes);
-            for (int i = 0; i < nShapes; i++) {
-                in.getline(cbuf, sizeof(cbuf));
-                shapes[i].m_Name = cbuf;
-            }
-        }
-
-        in.getline(cbuf, sizeof(cbuf));
-        {
-            stringstream ss(cbuf);
-            ss >> name >> nParticles;
-
-            cout << "Shapes: " << nShapes << ", Particles = " << nParticles << endl;
-            for (int i = 0; i < nShapes; i++) {
-                shapes[i].NewParticles(nParticles);
-                for (int j = 0; j < nParticles; j++) {
-                    Particle& p = shapes[i][j];
-                    in.getline(cbuf, sizeof(cbuf));
-                    {
-                        stringstream ss(cbuf);
-                        for4(k) { ss >> p.x[k]; }
-                        for4(k) { ss >> p.y[k]; }
-                        for4(k) { ss >> p.v[k]; }
-                        for4(k) { ss >> p.f[k]; }
-                        ss >> p.density;
-                        ss >> p.pressure;
+                if (in.good()) {
+                    stringstream ss(cbuf);
+                    ss >> name >> value;
+                    if (name == "TrackingOutputPattern") {
+                        char buf[128];
+                        in.getline(buf, sizeof(buf));
+                        if (in.good()) {
+                            m_TrackingOutputPattern = buf;
+                        }
+                    } else if (name == "ParticleDimension:") {
+                        if (value != __Dim) {
+                            throw "Particle Dimension Mismatch!";
+                        }
+                    } else if (name == "NumParticlesPerSubject:") {
+                        m_NumParticlesPerSubject = value;
+                    } else if (name == "LabelImages:") {
+                        for (int i = 0; i < value; i++) {
+                            char buf[128];
+                            in.getline(buf, sizeof(buf));
+                            if (in.good()) {
+                                if (cmd != 0) {
+                                    m_ImageContext.LoadLabel(buf);
+                                }
+                            }
+                            //cout << in.exceptions() << endl;
+                        }
+                    } else if (name == "IntensityImages:") {
+                        for (int i = 0; i < value; i++) {
+                            char buf[128];
+                            in.getline(buf, sizeof(buf));
+                            if (cmd != 0) {
+                                m_ImageContext.LoadDoubleImage(buf);
+                            }
+                        }
+                    } else if (name == "Subjects:") {
+                        nSubjects = value;
+                        subjects.clear();
+                        subjects.resize(nSubjects);
+                        for (int i = 0; i < nSubjects; i++) {
+                            char buf[128];
+                            in.getline(buf, sizeof(buf));
+                            subjects[i].m_Name = buf;
+                        }
+                    } else if (name == "Particles:") {
+                        nParticles = value;
+                        for (int i = 0; i < nSubjects; i++) {
+                            subjects[i].NewParticles(nParticles);
+                            for (int j = 0; j < nParticles; j++) {
+                                Particle& p = subjects[i][j];
+                                char buf[128];
+                                in.getline(buf, sizeof(buf));
+                                if (in.good())
+                                {
+                                    stringstream ss(buf);
+                                    for4(k) { ss >> p.x[k]; }
+                                    for4(k) { ss >> p.y[k]; }
+                                    for4(k) { ss >> p.v[k]; }
+                                    for4(k) { ss >> p.f[k]; }
+                                    ss >> p.density;
+                                    ss >> p.pressure;
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    void ParticleSystem::SaveStatus(std::string filename, ParticleShapeArray& shapes) {
+    void ParticleSystem::SaveSystem(std::string filename, ParticleSubjectArray& subjects) {
         using namespace std;
         ofstream out(filename.c_str());
-        StringVector& labels = m_LabelContext.GetFileNames();
-        out << "LabelImages: " << labels.size() << endl;
-        for (int i = 0; i < labels.size(); i++) {
-            out << labels[i] << endl;
+
+        out << "ParticleDimension: " << __Dim << endl;
+        out << "NumParticlesPerSubject: " << m_NumParticlesPerSubject << endl;
+        StringVector& labels = m_ImageContext.GetFileNames();
+        if (labels.size() > 0) {
+            out << "LabelImages: " << labels.size() << endl;
+            for (int i = 0; i < labels.size(); i++) {
+                out << labels[i] << endl;
+            }
         }
 
-        const int nShapes = shapes.size();
-        const int nParticles = shapes[0].m_Particles.size();
-        out << "Shapes: " << shapes.size() << endl;
-        for (int i = 0; i < nShapes; i++) {
-            out << m_Shapes[i].m_Name << endl;
+        StringVector& images = m_ImageContext.GetDoubleImageFileNames();
+        if (images.size() > 0) {
+            out << "IntensityImages: " << images.size() << endl;
+            for (int i = 0; i < images.size(); i++) {
+                out << images[i] << endl;
+            }
         }
-        out << "Particles: " << shapes[0].m_Particles.size() << endl;
-        for (int i = 0; i < nShapes; i++) {
+
+        const int nSubjects = subjects.size();
+        const int nParticles = subjects[0].GetNumberOfPoints();
+        out << "Subjects: " << subjects.size() << endl;
+        for (int i = 0; i < nSubjects; i++) {
+            out << subjects[i].m_Name << endl;
+        }
+        out << "Particles: " << nParticles << endl;
+        for (int i = 0; i < nSubjects; i++) {
             for (int j = 0; j < nParticles; j++) {
-                Particle& p = shapes[i][j];
+                Particle& p = subjects[i][j];
                 for4(k) { out << p.x[k] << " "; }
                 for4(k) { out << p.y[k] << " "; }
                 for4(k) { out << p.v[k] << " "; }
@@ -412,28 +469,51 @@ namespace pi {
         out.close();
     }
 
-    void LabelContext::Clear() {
+    void ImageContext::Clear() {
         m_FileNames.clear();
         m_LabelImages.clear();
         m_DistanceMaps.clear();
     }
-    
-    void LabelContext::LoadLabel(std::string filename) {
+
+    void ImageContext::LoadLabel(std::string filename) {
         itkcmds::itkImageIO<LabelImage> io;
         LabelImage::Pointer image = io.ReadImageT(filename.c_str());
         m_LabelImages.push_back(image);
+
+        // set default spacing to 1 to match index and physical coordinate space
+        LabelImage::SpacingType defaultSpacing;
+        defaultSpacing.Fill(1);
+        m_LabelImages.back()->SetSpacing(defaultSpacing);
+
         m_FileNames.push_back(filename);
     }
 
-    LabelImage::Pointer LabelContext::GetLabel(int j) {
+    void ImageContext::LoadDoubleImage(std::string filename) {
+        itkcmds::itkImageIO<DoubleImage> io;
+        DoubleImage::Pointer image = io.ReadImageT(filename.c_str());
+        m_Images.push_back(image);
+
+        // set default spacing to 1 to match index and physical coordinate space
+        DoubleImage::SpacingType defaultSpacing;
+        defaultSpacing.Fill(1);
+        m_Images.back()->SetSpacing(defaultSpacing);
+        
+        m_DoubleImageFileNames.push_back(filename);
+    }
+
+    LabelImage::Pointer ImageContext::GetLabel(int j) {
         return m_LabelImages[j];
     }
 
-    LabelImage::Pointer LabelContext::GetIntersection() {
+    DoubleImage::Pointer ImageContext::GetDoubleImage(int j) {
+        return m_Images[j];
+    }
+
+    LabelImage::Pointer ImageContext::GetIntersection() {
         return m_Intersection;
     }
 
-    void LabelContext::ComputeIntersection() {
+    void ImageContext::ComputeIntersection() {
         itkcmds::itkImageIO<LabelImage> io;
         LabelImage::Pointer intersection = io.NewImageT(m_LabelImages[0]);
         LabelImage::RegionType region = intersection->GetBufferedRegion();
@@ -447,7 +527,7 @@ namespace pi {
         for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
             LabelImage::IndexType idx = iter.GetIndex();
             LabelImage::PixelType pixel = 255;
-            const int pixelThreshold = 255;
+            const int pixelThreshold = 1;
             for (int i = 0; i < m_LabelImages.size(); i++) {
                 if (m_LabelImages[i]->GetPixel(idx) < pixelThreshold) {
                     pixel = 0;
@@ -460,8 +540,20 @@ namespace pi {
         }
         io.WriteImageT("/tmpfs/intersection.nrrd", intersection);
     }
-
-    StringVector& LabelContext::GetFileNames() {
+    
+    StringVector& ImageContext::GetDoubleImageFileNames() {
+        return m_DoubleImageFileNames;
+    }
+    
+    StringVector& ImageContext::GetFileNames() {
         return m_FileNames;
+    }
+    
+    LabelVector& ImageContext::GetLabelVector() {
+        return m_LabelImages;
+    }
+    
+    DoubleImageVector& ImageContext::GetDoubleImageVector() {
+        return m_Images;
     }
 }

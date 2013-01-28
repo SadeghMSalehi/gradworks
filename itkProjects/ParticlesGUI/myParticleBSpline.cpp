@@ -22,8 +22,16 @@ namespace pi {
     typedef itk::WarpImageFilter<DoubleImage, DoubleImage, DisplacementFieldType> WarpImageFilterType;
 
 
-    void ParticleBSpline::EstimateTransform(const ParticleShape src, const ParticleShape dst) {
-        int m_nPoints = src.m_nPoints;
+    LabelImage::Pointer ParticleBSpline::GetReferenceImage() {
+        return m_RefImage;
+    }
+
+    void ParticleBSpline::SetReferenceImage(LabelImage::Pointer img) {
+        m_RefImage = img;
+    }
+
+    void ParticleBSpline::EstimateTransform(const ParticleSubject src, const ParticleSubject dst) {
+        int nPoints = src.GetNumberOfPoints();
 
         if (m_FieldPoints.IsNull()) {
             m_FieldPoints = DisplacementFieldPointSetType::New();
@@ -37,7 +45,7 @@ namespace pi {
         srcPoints->Initialize();
         dstPoints->Initialize();
 
-        int n = m_nPoints;
+        int n = nPoints;
         for (int i = 0; i < n; i++) {
             IntPointSetType::PointType iPoint;
             fordim(j) {
@@ -80,7 +88,7 @@ namespace pi {
         }
     }
 
-    void ParticleBSpline::ApplyTransform(ParticleShape a) {
+    void ParticleBSpline::ApplyTransform(ParticleSubject a) {
 
     }
 
@@ -90,6 +98,20 @@ namespace pi {
         }
         WarpImageFilterType::Pointer warpFilter = WarpImageFilterType::New();
         warpFilter->SetInput(srcImage);
+        warpFilter->SetDisplacementField(m_DisplacementField);
+        warpFilter->SetOutputParametersFromImage(srcImage);
+        warpFilter->Update();
+        return warpFilter->GetOutput();
+    }
+
+    LabelImage::Pointer ParticleBSpline::WarpLabel(LabelImage::Pointer srcImage) {
+        if (m_DisplacementField.IsNull()) {
+            return LabelImage::Pointer(NULL);
+        }
+        typedef itk::WarpImageFilter<LabelImage, LabelImage, DisplacementFieldType> WarpLabelFilterType;
+        WarpLabelFilterType::Pointer warpFilter = WarpLabelFilterType::New();
+        warpFilter->SetInput(srcImage);
+        warpFilter->SetInterpolator(NNLabelInterpolatorType::New());
         warpFilter->SetDisplacementField(m_DisplacementField);
         warpFilter->SetOutputParametersFromImage(srcImage);
         warpFilter->Update();

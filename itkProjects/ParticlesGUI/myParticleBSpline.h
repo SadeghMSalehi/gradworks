@@ -19,13 +19,16 @@ namespace pi {
         ParticleBSpline() : m_SplineOrder(3), m_SplineLevel(1), m_ControlPoints(8) {
         }
 
-        void EstimateTransform(const ParticleShape a, const ParticleShape b);
-        void ApplyTransform(ParticleShape a);
+        LabelImage::Pointer GetReferenceImage();
+        void SetReferenceImage(LabelImage::Pointer img);
+        void EstimateTransform(const ParticleSubject a, const ParticleSubject b);
+        void ApplyTransform(ParticleSubject a);
         DoubleImage::Pointer WarpImage(DoubleImage::Pointer image);
+        LabelImage::Pointer WarpLabel(LabelImage::Pointer srcImage);
         FieldTransformType::Pointer GetTransform();
 
     private:
-        DoubleImage::Pointer m_RefImage;
+        LabelImage::Pointer m_RefImage;
         DisplacementFieldPointSetType::Pointer m_FieldPoints;
         DisplacementFieldType::Pointer m_DisplacementField;
 

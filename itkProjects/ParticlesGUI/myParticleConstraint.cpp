@@ -61,6 +61,11 @@ namespace pi {
             binThreshFilter->SetUpperThreshold(255);
             LabelImage::Pointer binaryMap = binThreshFilter->GetOutput();
 
+//            itkcmds::itkImageIO<LabelImage> io;
+//            char buf[128];
+//            sprintf(buf, "/tmpfs/binary_%02d.nrrd", i);
+//            io.WriteImageT(buf, binaryMap);
+
             // construct signed distance filter
             SignedDistanceMapFilterType::Pointer distmapFilter = SignedDistanceMapFilterType::New();
             distmapFilter->SetInput(binaryMap);
@@ -140,7 +145,7 @@ namespace pi {
         return m_GradientInterpolators[subjId]->EvaluateAtContinuousIndex(idx);
     }
 
-    void ParticleConstraint::ApplyConstraint(ParticleShapeArray& shapes) {        
+    void ParticleConstraint::ApplyConstraint(ParticleSubjectArray& shapes) {        
         // boundary constraint
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].m_Particles.size();

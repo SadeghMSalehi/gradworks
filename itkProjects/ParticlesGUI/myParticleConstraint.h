@@ -50,7 +50,7 @@ namespace pi {
 
         void Clear();
 
-        void ApplyConstraint(ParticleShapeArray& shapes);
+        void ApplyConstraint(ParticleSubjectArray& shapes);
         
     private:
         std::vector<DoubleImage::Pointer> m_DistanceMaps;
