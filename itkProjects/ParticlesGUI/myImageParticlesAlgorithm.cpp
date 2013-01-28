@@ -792,6 +792,15 @@ void ImageParticlesAlgorithm::ReportParameters(const OptimizerParametersType &pa
     m_EventCallback->EventRaised(0xADDCEC, 0, this, iterCost);
 }
 
+VNLVectorArray* ImageParticlesAlgorithm::GetTraceVector() {
+    return &m_Traces;
+}
+
+void ImageParticlesAlgorithm::AddTrace(VNLVector params) {
+    m_Traces.push_back(VNLVector(params));
+}
+
+
 const VNLVector* ImageParticlesAlgorithm::GetTraceParameters(int idx) {
     if (idx < m_Traces.size()) {
         return &m_Traces[idx];

@@ -164,6 +164,7 @@
     <addaction name="menuParticle_Colors"/>
     <addaction name="actionUseODESolver"/>
     <addaction name="separator"/>
+    <addaction name="actionLoadParticleWorks"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -750,8 +751,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>280</width>
-          <height>575</height>
+          <width>98</width>
+          <height>28</height>
          </rect>
         </property>
         <attribute name="label">
@@ -778,8 +779,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>280</width>
-          <height>575</height>
+          <width>98</width>
+          <height>28</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1080,6 +1081,11 @@
    </property>
    <property name="text">
     <string>Pressure Map</string>
+   </property>
+  </action>
+  <action name="actionLoadParticleWorks">
+   <property name="text">
+    <string>Load Particle Works</string>
    </property>
   </action>
  </widget>

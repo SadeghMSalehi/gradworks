@@ -77,7 +77,10 @@ public:
     
     // connection information between imageList
     void SetViewingDimension(int n) { m_ViewingDimension = n; }
-    
+
+    void SetNumberOfParams(int p) { m_nParams = p; }
+    void SetNumberOfSubjects(int n) { m_nSubjects = n; }
+    void SetNumberOfPoints(int p) { m_nPoints = p; }
     // number of subjects
     int GetNumberOfSubjects() const { return m_nSubjects; }
     // number of params per subject
@@ -104,6 +107,8 @@ public:
 	void ContinueOptimization();
     
     void ReportParameters(const OptimizerParametersType& params, int iterNo, double cost);
+    VNLVectorArray* GetTraceVector();
+    void AddTrace(VNLVector params);
     const VNLVector* GetTraceParameters(int idx);
     const VNLVector* GetDensityTraces(int idx);
     int GetNumberOfTraces() { return m_Traces.size(); }

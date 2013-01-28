@@ -13,12 +13,12 @@
 #include "itkWarpImageFilter.h"
 
 
-namespace my {
+namespace pi {
 
     typedef itk::BSplineScatteredDataPointSetToImageFilter
     <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
     typedef BSplineFilterType::WeightsContainerType WeightsContainerType;
-    typedef itk::BSplineTransform<double,Dim,3> BSplineTransform;
+    typedef itk::BSplineTransform<double,__Dim,3> BSplineTransform;
     typedef itk::WarpImageFilter<DoubleImage, DoubleImage, DisplacementFieldType> WarpImageFilterType;
 
 
@@ -40,11 +40,11 @@ namespace my {
         int n = m_nPoints;
         for (int i = 0; i < n; i++) {
             IntPointSetType::PointType iPoint;
-            for3(j) {
+            fordim(j) {
                 iPoint[j] = src[i].x[j];
             }
             VectorType vector;
-            for3(j) {
+            fordim(j) {
                 vector[j] = dst[i].x[j] - src[i].x[j];
             }
             m_FieldPoints->SetPoint(i, iPoint);
@@ -96,12 +96,12 @@ namespace my {
         return warpFilter->GetOutput();
     }
 
-    TransformType::Pointer ParticleBSpline::GetTransform() {
+    FieldTransformType::Pointer ParticleBSpline::GetTransform() {
         FieldTransformType::Pointer txf = FieldTransformType::New();
         if (m_DisplacementField.IsNotNull()) {
             txf->SetDisplacementField(m_DisplacementField);
-            return TransformType::Pointer(txf);
+            return txf;
         }
-        return TransformType::Pointer(NULL);
+        return FieldTransformType::Pointer(NULL);
     }
 }

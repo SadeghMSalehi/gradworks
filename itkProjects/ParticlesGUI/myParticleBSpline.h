@@ -13,9 +13,7 @@
 #include "myParticleCore.h"
 #include "itkDisplacementFieldTransform.h"
 
-namespace my {
-
-
+namespace pi {
     class ParticleBSpline {
     public:
         ParticleBSpline() : m_SplineOrder(3), m_SplineLevel(1), m_ControlPoints(8) {
@@ -24,7 +22,7 @@ namespace my {
         void EstimateTransform(const ParticleShape a, const ParticleShape b);
         void ApplyTransform(ParticleShape a);
         DoubleImage::Pointer WarpImage(DoubleImage::Pointer image);
-        TransformType::Pointer GetTransform();
+        FieldTransformType::Pointer GetTransform();
 
     private:
         DoubleImage::Pointer m_RefImage;

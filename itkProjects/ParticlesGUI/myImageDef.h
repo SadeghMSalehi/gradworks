@@ -21,21 +21,22 @@
 
 #include "vector"
 
-#define for4(i) for (int i = 0; i < 4; i++)
-#define for3(i) for (int i = 0; i < 3; i++)
+const static int __Dim = 2;
 
-namespace my {
-    const static int Dim = 3;
+#define for4(i) for (int i = 0; i < __Dim + 1; i++)
+#define fordim(i) for (int i = 0; i < __Dim; i++)
+
+namespace pi {
     
     // type definitions
-    typedef itk::Image<double,Dim> DoubleImage;
-    typedef itk::Image<unsigned short,Dim> LabelImage;
-    typedef itk::Vector<double,Dim> VectorType;
-    typedef itk::Image<VectorType,Dim> VectorImage;
-    typedef itk::Offset<Dim> OffsetType;
-    typedef itk::Image<OffsetType,Dim> OffsetImage;
-    typedef std::vector<LabelImage::Pointer> LabelVectors;
-    typedef std::vector<OffsetImage::Pointer> OffsetImageVectors;
+    typedef itk::Image<double,__Dim> DoubleImage;
+    typedef itk::Image<unsigned short,__Dim> LabelImage;
+    typedef itk::Vector<double,__Dim> VectorType;
+    typedef itk::Image<VectorType,__Dim> VectorImage;
+    typedef itk::Offset<__Dim> OffsetType;
+    typedef itk::Image<OffsetType,__Dim> OffsetImage;
+    typedef std::vector<LabelImage::Pointer> LabelVector;
+    typedef std::vector<OffsetImage::Pointer> OffsetImageVector;
 
     typedef itk::LinearInterpolateImageFunction<DoubleImage> LinearImageInterpolatorType;
     typedef itk::NearestNeighborInterpolateImageFunction<DoubleImage> NNImageInterpolatorType;
@@ -44,14 +45,15 @@ namespace my {
 
 
     // definition for transforms
-    typedef itk::Transform<double,Dim,Dim> TransformType;
+    typedef itk::Transform<double,__Dim,__Dim> TransformType;
 
     // definition for displacement field
-    typedef itk::PointSet<int,Dim> IntPointSetType;
-    typedef itk::PointSet<VectorType,Dim> DisplacementFieldPointSetType;
-    typedef itk::DisplacementFieldTransform<double,Dim> FieldTransformType;
-    typedef itk::Image<FieldTransformType::OutputVectorType,Dim> DisplacementFieldType;
+    typedef itk::PointSet<int,__Dim> IntPointSetType;
+    typedef itk::PointSet<VectorType,__Dim> DisplacementFieldPointSetType;
+    typedef itk::DisplacementFieldTransform<double,__Dim> FieldTransformType;
+    typedef itk::Image<FieldTransformType::OutputVectorType,__Dim> DisplacementFieldType;
 
+    typedef std::vector<std::string> StringVector;
 }
 
 #endif

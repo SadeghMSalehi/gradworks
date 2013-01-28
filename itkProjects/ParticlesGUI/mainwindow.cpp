@@ -23,6 +23,7 @@
 #include "itkARGBColorFunction.h"
 #include "bitset"
 #include "armadillo"
+#include "myParticleCore.h"
 
 static int g_AnimFrame = 0;
 static bool g_showTraceParticles = false;
@@ -112,6 +113,42 @@ void MainWindow::LoadParticle(QString &fileName) {
     } else {
         QMessageBox::warning(this, "Particle Load Fail", fileName + " not available");
     }
+}
+
+
+void MainWindow::on_actionLoadParticleWorks_triggered() {
+    pi::ParticleSystem sys;
+    char buf[128];
+
+    g_imageParticlesAlgo = ImageParticlesAlgorithm::New();
+    g_imageParticlesAlgo->SetPropertyAccess(m_Props);
+    g_imageParticlesAlgo->SetImageList(&m_ImageList);
+    g_imageParticlesAlgo->SetCurrentSliceAndView(GetCurrentView(), ui.sliceIndex->value());
+
+    VNLVectorArray* traceVector = g_imageParticlesAlgo->GetTraceVector();
+    traceVector->clear();
+    for (int ii = 0; ii < 3000; ii++) {
+        sprintf(buf, "/tmpfs/particles/Debug/output_%04d.txt", ii);
+        QFile file(buf);
+        if (file.exists()) {
+            sys.LoadStatus(buf);
+
+            VNLVector params(sys.GetNumberOfShapes() * __Dim * sys.GetNumberOfParticles());
+            int l = 0;
+            for (int i = 0; i < sys.GetNumberOfShapes(); i++) {
+                for (int j = 0; j < sys.GetNumberOfParticles(); j++) {
+                    for3(k) {
+                        params[l++] = sys[i][j].x[k];
+                    }
+                }
+            }
+            g_imageParticlesAlgo->AddTrace(params);
+            g_imageParticlesAlgo->SetCurrentParams(params);
+        }
+    }
+    g_imageParticlesAlgo->SetNumberOfSubjects(sys.GetNumberOfShapes());
+    g_imageParticlesAlgo->SetNumberOfParams(sys.GetNumberOfShapes()*__Dim);
+    g_imageParticlesAlgo->SetNumberOfPoints(sys.GetNumberOfParticles());
 }
 
 void MainWindow::on_actionLoadParticles_triggered() {
@@ -657,7 +694,8 @@ void MainWindow::on_animationTimeout() {
     if (ui.tabWidget->currentWidget() == ui.imageTab) {
         // animation should play image particels if imageTab is showing
         g_showTraceParticles = true;
-        if (g_imageParticlesAlgo.IsNotNull() && g_AnimFrame >= g_imageParticlesAlgo->GetNumberOfTraces()) {
+        int nTraces = g_imageParticlesAlgo->GetNumberOfTraces();
+        if (g_imageParticlesAlgo.IsNotNull() && g_AnimFrame >= nTraces) {
             g_showTraceParticles = false;
             m_Timer.stop();
             return;
@@ -666,7 +704,7 @@ void MainWindow::on_animationTimeout() {
         // this is not an optimal implementation because this will update every images together
         updateScene();
         ui.statusbar->showMessage(QString("%1 frame played...").arg(g_AnimFrame));        
-        g_AnimFrame += m_Props.GetInt("animationInterleave", 10);
+        g_AnimFrame += m_Props.GetInt("animationInterleave", 1);
     } else if (ui.tabWidget->currentWidget() == ui.modelTab) {
         int imageIdx = ui.grayImages->currentIndex();
         if (imageIdx < 0) {

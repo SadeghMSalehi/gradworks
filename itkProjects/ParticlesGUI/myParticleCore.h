@@ -16,27 +16,10 @@
 #include "itkOffset.h"
 #include "vector"
 #include "myImageDef.h"
-#include "myImplicitSurfaceConstraint3D.h"
 
-namespace my {
+namespace pi {
 
-    class LabelContext {
-    public:
-        void LoadLabel(std::string filename);
-        void ComputeIntersection();
-        void ComputeDistanceMaps();
-        LabelImage::Pointer GetLabel(int j);
-        LabelImage::Pointer GetIntersection();
-        OffsetImage GetDistanceMap(int j);
-        ImplicitSurfaceConstraint* GetConstraint();
-        
-    private:
-        LabelImage::Pointer m_Intersection;
-        LabelVectors m_LabelImages;
-        OffsetImageVectors m_DistanceMaps;
-        ImplicitSurfaceConstraint m_Constraint;
-    };
-
+    class ParticleConstraint;
     const static double g_TimeStep = 0.1;
 
     class Particle {
@@ -60,19 +43,18 @@ namespace my {
         ~Particle();
 
         inline void Set(LabelImage::IndexType idx) {
-            x[0] = idx[0];
-            x[1] = idx[1];
-            x[2] = idx[2];
-            x[3] = 1;
+            fordim(i) { x[i] = idx[i]; }
+            x[__Dim] = 1;
         }
 
+        void Zero();
         void Sub(const Particle& p, double* nx);
-        void AddForce(double* ff);
-        void SubForce(double* ff);
+        void AddForce(double* ff, double alpha = 1);
+        void SubForce(double* ff, double alpha = 1);
         double Dist2(const Particle& p);
         void UpdateVelocity(double *vv);
         void UpdateForce(double *ff);
-        void UpdateSystem();
+        void UpdateSystem(double dt);
 
         Particle& operator=(const Particle& other);
     };
@@ -84,19 +66,23 @@ namespace my {
     public:
         int m_SubjId;
         int m_nPoints;
+        string m_Name;
         ParticleArray m_Particles;
+        FieldTransformType::Pointer m_Transform;
         
-        ParticleShape() : m_SubjId(-1), m_nPoints(0) {}
+        ParticleShape() : m_SubjId(-1), m_nPoints(0) { Zero(); }
         ParticleShape(int subjid, int npoints);
         ~ParticleShape();
 
+        void Zero();
+        void NewParticles(int nPoints);
         void InitializeRandomPoints(LabelImage::Pointer labelImage);
+        void Initialize(int subj, std::string name, const ParticleShape& shape);
         void Initialize(const ParticleArray& array);
         void ApplyMatrix(VNLMatrix& mat);
         void TransformX2Y(TransformType* transform);
         void TransformY2X(TransformType* transform);
-        void UpdateInternalForce();
-        void UpdateInternalConstraint();
+        void UpdateSystem(double dt);
 
         inline Particle& operator[](int i) {
             return m_Particles[i];
@@ -105,6 +91,7 @@ namespace my {
         inline const Particle& operator[](int i) const {
             return m_Particles[i];
         }
+
     };
     typedef boost::numeric::ublas::vector<ParticleShape> ParticleShapeArray;
 
@@ -125,16 +112,59 @@ namespace my {
         void ComputeForce(ParticleShapeArray& shapes);
     private:
         ParticleShape m_MeanShape;
-        void ComputeMeanShape();
+        void ComputeMeanShape(ParticleShapeArray& shapes);
     };
 
+    class LabelContext {
+    public:
+        void LoadLabel(std::string filename);
+        void ComputeIntersection();
+        void ComputeDistanceMaps();
+        LabelImage::Pointer GetLabel(int j);
+        LabelImage::Pointer GetIntersection();
+        OffsetImage GetDistanceMap(int j);
+        StringVector& GetFileNames();
+        void Clear();
 
+    private:
+        std::vector<std::string> m_FileNames;
+        LabelImage::Pointer m_Intersection;
+        LabelVector m_LabelImages;
+        OffsetImageVector m_DistanceMaps;
+    };
+
+    
     class ParticleSystem {
     public:
-        void LoadShapes();
+        ParticleSystem(): m_ParticleConstraint(NULL) {
+        }
+        ~ParticleSystem() {
+        }
+        int GetNumberOfShapes();
+        int GetNumberOfParticles();
+        ParticleShapeArray& GetShapes();
+
+        void LoadShapes(StringVector labels);
+        void RunPreprocessing(std::string outputName);
+        void LoadPreprocessing(std::string outputName);
         void UpdateStep(double dt);
+        void PrepareSystem(ParticleShapeArray& shapes);
+        void UpdateSystem(ParticleShapeArray& shapes, double dt);
+        void LoadStatus(std::string filename, int cmd = 0);
+        void LoadStatus(std::string filename, ParticleShapeArray& shapes, int cmd);
+        void SaveStatus(std::string filename) { SaveStatus(filename, m_Shapes); }
+        void SaveStatus(std::string filename, ParticleShapeArray& shapes);
+
+        inline ParticleShape& operator[](int j) { return m_Shapes[j];
+        }
+        inline const ParticleShape& operator[](int j) const {
+            return m_Shapes[j];
+        }
+
     private:
+        LabelContext m_LabelContext;
         ParticleShapeArray m_Shapes;
+        ParticleConstraint* m_ParticleConstraint;
     };
 }
 
