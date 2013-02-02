@@ -296,7 +296,7 @@ namespace pi {
             EnsembleForce ensembleForce;
             ensembleForce.SetImageContext(&m_ImageContext);
             internalForce.ComputeForce(m_Subjects);
-            ensembleForce.ComputeForce(m_Subjects);
+            ensembleForce.ComputeEnsembleForce(m_Subjects);
             constraint.ApplyConstraint(m_Subjects);
             UpdateSystem(m_Subjects, dt);
             sprintf(trackName, m_TrackingOutputPattern.c_str(), ++k);
@@ -356,6 +356,7 @@ namespace pi {
             while (in.good())
             {
                 in.getline(cbuf, sizeof(cbuf));
+                cout << cbuf << endl;
                 if (in.good()) {
                     stringstream ss(cbuf);
                     ss >> name >> value;

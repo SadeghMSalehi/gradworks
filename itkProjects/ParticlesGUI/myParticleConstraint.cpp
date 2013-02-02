@@ -92,7 +92,7 @@ namespace pi {
 
             // compute gradient for outside boundary
 
-            GradientFilterType::Pointer gradient = GradientFilterType::New();
+            LabelImageGradientFilterType::Pointer gradient = LabelImageGradientFilterType::New();
             gradient->SetInput(binaryMap);
             gradient->SetSigma(.5);
             try {

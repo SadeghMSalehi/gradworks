@@ -44,8 +44,8 @@ MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), 
     m_PropScene.SetRenderer(m_Renderer);
 
     vtkGenericOpenGLRenderWindow* renWin = ui.qvtkwidget->GetRenderWindow();
-    renWin->AddRenderer(m_Renderer);
-    m_Interactor = ui.qvtkwidget->GetInteractor();
+//    renWin->AddRenderer(m_Renderer);
+//    m_Interactor = ui.qvtkwidget->GetInteractor();
 
     ui.graphicsView->setScene(&m_scene);
     ui.graphicsView->setBackgroundBrush(QBrush(Qt::black, Qt::SolidPattern));
@@ -247,10 +247,10 @@ void MainWindow::ReadyToExperiments() {
 //    LoadLabel("/data/Particles/Image001.nrrd");
 //    LoadImage("/data/Particles/Image002.nrrd");
 //    LoadLabel("/data/Particles/Image002.nrrd");
-    LoadImage("/data/Particles/image_circle.nrrd");
-    LoadLabel("/data/Particles/image_circle_label.nrrd");
-    LoadImage("/data/Particles/image_square.nrrd");
-    LoadLabel("/data/Particles/image_square_label.nrrd");
+    LoadImage("/data/Particles/CircleSquares/image_circle.nrrd");
+    LoadLabel("/data/Particles/CircleSquares/image_circle_label.nrrd");
+    LoadImage("/data/Particles/CircleSquares/image_square.nrrd");
+    LoadLabel("/data/Particles/CircleSquares/image_square_label.nrrd");
 
 //    LoadImage("/data/Particles/image_ellipse_horz.nrrd");
 //    LoadLabel("/data/Particles/image_circle_label.nrrd");

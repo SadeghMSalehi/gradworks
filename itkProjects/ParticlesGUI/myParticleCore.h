@@ -68,6 +68,7 @@ namespace pi {
         string m_Name;
         ParticleArray m_Particles;
         FieldTransformType::Pointer m_Transform;
+        FieldTransformType::Pointer m_InverseTransform;
 
         ParticleSubject() : m_SubjId(-1) { }
         ParticleSubject(int subjid, int npoints);
@@ -112,7 +113,8 @@ namespace pi {
         EnsembleForce();
         ~EnsembleForce();
         void SetImageContext(ImageContext* context);
-        void ComputeForce(ParticleSubjectArray& shapes);
+        void ComputeEnsembleForce(ParticleSubjectArray& shapes);
+        void ComputeImageForce(ParticleSubjectArray& shapes);
     private:
         ImageContext* m_ImageContext;
         ParticleSubject m_MeanShape;

@@ -8,8 +8,20 @@
 
 #include "myParticleCore.h"
 #include "myParticleBSpline.h"
+#include "itkGradientRecursiveGaussianImageFilter.h"
+#include "itkVectorLinearInterpolateImageFunction.h"
+#include "itkConstNeighborhoodIterator.h"
+#include "armadillo"
 
 namespace pi {
+    typedef itk::GradientRecursiveGaussianImageFilter<DoubleImage, VectorImage> GradientFilterType;
+    typedef GradientFilterType::OutputPixelType GradientPixelType;
+    typedef itk::VectorLinearInterpolateImageFunction<VectorImage> GradientInterpolatorType;
+    typedef itk::ConstNeighborhoodIterator<DoubleImage> DoubleImageNeighborhoodIteratorType;
+    typedef itk::ConstNeighborhoodIterator<VectorImage> VectorImageNeighborhoodIteratorType;
+
+//    static void ExtractAttributes(DoubleImage::Pointer image, VectorImage::Pointer grad, Particle& par);
+
     void InternalForce::ComputeForce(ParticleSubjectArray& shapes) {
         const double mu = 1;
         const int nSubjects = shapes.size();
@@ -92,7 +104,7 @@ namespace pi {
         }
     }
     
-    void EnsembleForce::ComputeForce(ParticleSubjectArray& shapes) {
+    void EnsembleForce::ComputeEnsembleForce(ParticleSubjectArray& shapes) {
         if (shapes.size() < 2) {
             return;
         }
@@ -103,7 +115,7 @@ namespace pi {
         for (int i = 0; i < shapes.size(); i++) {
             ParticleBSpline transform;
             transform.SetReferenceImage(m_ImageContext->GetLabel(i));
-            transform.EstimateTransform(m_MeanShape, shapes[i]);
+            transform.EstimateTransform(shapes[i], m_MeanShape);
             FieldTransformType::Pointer fieldTransform = transform.GetTransform();
             shapes[i].TransformX2Y(fieldTransform.GetPointer());
             shapes[i].m_Transform = fieldTransform;
@@ -145,4 +157,69 @@ namespace pi {
         }
     }
 
+    void EnsembleForce::ComputeImageForce(ParticleSubjectArray &shapes) {
+        const int nSubj = shapes.size();
+        const int nPoints = shapes[0].GetNumberOfPoints();
+        const int nRadius = 5;
+        const int nAttrsPerPoint = ::pow(nRadius, __Dim);
+
+        DoubleImageVector warpedImages(nSubj);
+        VectorImageVector gradImages(nSubj);
+
+        arma::mat attrs(nSubj, nPoints * nAttrsPerPoint);
+        arma::mat gradAttrs(nSubj, nPoints * nAttrsPerPoint * __Dim);
+
+        // first create a warped image into the mean transform space
+        // second create a gradient vector image per subject
+        // third extract attributes (features)
+        for (int i = 0; i < nSubj; i++) {
+            ParticleSubject& subject = shapes[i];
+            ParticleBSpline transform;
+            transform.SetReferenceImage(m_ImageContext->GetLabel(i));
+            transform.EstimateTransform(m_MeanShape, subject);
+            FieldTransformType::Pointer fieldTransform = transform.GetTransform();
+            // is this really necessary?
+            subject.m_InverseTransform = fieldTransform;
+            warpedImages[i] = transform.WarpImage(m_ImageContext->GetDoubleImage(i));
+            GradientFilterType::Pointer grad = GradientFilterType::New();
+            grad->SetInput(warpedImages[i]);
+            grad->Update();
+            gradImages[i] = grad->GetOutput();
+
+            // extract attributes
+            DoubleImage::SizeType radius;
+            radius.Fill(nRadius);
+            DoubleImageNeighborhoodIteratorType iiter(radius, warpedImages[i], warpedImages[i]->GetBufferedRegion());
+            VectorImageNeighborhoodIteratorType giter(radius, gradImages[i], gradImages[i]->GetBufferedRegion());
+
+            DoubleImage::IndexType idx;
+            for (int j = 0; j < nPoints; j++) {
+                Particle& par = subject.m_Particles[j];
+                fordim(k) {
+                    idx[k] = round(par.y[k]);
+                }
+                iiter.SetLocation(idx);
+                giter.SetLocation(idx);
+
+                for (int k = 0; k < iiter.Size(); k++) {
+                    double pixel = iiter.GetPixel(k);
+                    VectorType grad = giter.GetPixel(k);
+
+                    attrs.at(i, nAttrsPerPoint * j) = pixel;
+                    for (int m = 0; m < __Dim; m++) {
+                        gradAttrs.at(i, nAttrsPerPoint * j * __Dim + m) = grad[m];
+                    }
+                    
+                }
+            }
+        }
+
+
+        // column mean
+        arma::mat meanAttrs = mean(attrs);
+
+        // compute mean differences
+        
+
+    }
 }

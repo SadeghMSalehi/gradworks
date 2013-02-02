@@ -9,13 +9,15 @@ int main(int argc, char* argv[]) {
 //    labels.push_back("/data/Particles/image_circle_label.nrrd");
 //    system.LoadShapes(labels);
 //    system.SaveSystem("/tmpfs/output.txt");
-    system.LoadSystem("/data/Particles/Output/output_1_0843.txt", 1);
-//    system.RunPreprocessing("/tmpfs/preprocessing_2.txt");
-//    system.LoadPreprocessing("/tmpfs/preprocessing_2.txt");
-//    system.SaveSystem("/tmpfs/2.txt");
+    if (argc < 3) {
+        return 0;
+    }
+    system.LoadSystem(argv[1], 1);
+    system.RunPreprocessing("/data/Particles/CircleSquares/Preprocessing.txt");
+    system.LoadPreprocessing("/data/Particles/CircleSquares/Preprocessing.txt");
 
 	cout << "Done Load Preprocessing .." << endl;
     system.Run();
-    system.SaveSystem("/data/Particles/Output/ensemble_rodent_0016_2.txt");
+    system.SaveSystem(argv[2]);
     return 0;
 }

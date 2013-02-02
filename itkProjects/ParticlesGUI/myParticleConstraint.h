@@ -30,8 +30,8 @@ namespace pi {
         typedef DistanceVectorImageType::PixelType DistanceVectorType;
         typedef itk::NearestNeighborInterpolateImageFunction<DoubleImage> InterpolatorType;
         typedef InterpolatorType::ContinuousIndexType ContinuousIndexType;
-        typedef itk::GradientRecursiveGaussianImageFilter<LabelImage, VectorImage> GradientFilterType;
-        typedef GradientFilterType::OutputPixelType GradientPixelType;
+        typedef itk::GradientRecursiveGaussianImageFilter<LabelImage, VectorImage> LabelImageGradientFilterType;
+        typedef LabelImageGradientFilterType::OutputPixelType GradientPixelType;
         typedef itk::VectorLinearInterpolateImageFunction<VectorImage> GradientInterpolatorType;
         typedef DistanceVectorImageType::PixelType OffsetType;
 
@@ -57,7 +57,7 @@ namespace pi {
         std::vector<LinearImageInterpolatorType::Pointer> m_DistanceMapInterpolators;
         std::vector<DistanceVectorImageType::Pointer> m_InsideDistanceVectorMaps;
         std::vector<DistanceVectorImageType::Pointer> m_OutsideDistanceVectorMaps;
-        std::vector<GradientFilterType::OutputImagePointer> m_GradientMaps;
+        std::vector<LabelImageGradientFilterType::OutputImagePointer> m_GradientMaps;
         std::vector<GradientInterpolatorType::Pointer> m_GradientInterpolators;
     };
 }
