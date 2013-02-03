@@ -4,20 +4,19 @@ using namespace std;
 
 int main(int argc, char* argv[]) {
     pi::ParticleSystem system;
-//    my::StringVector labels;
-//    labels.push_back("/data/Particles/image_square_label.nrrd");
-//    labels.push_back("/data/Particles/image_circle_label.nrrd");
-//    system.LoadShapes(labels);
-//    system.SaveSystem("/tmpfs/output.txt");
     if (argc < 3) {
         return 0;
     }
-    system.LoadSystem(argv[1], 1);
-    system.RunPreprocessing("/data/Particles/CircleSquares/Preprocessing.txt");
-    system.LoadPreprocessing("/data/Particles/CircleSquares/Preprocessing.txt");
+    system.LoadSystem(argv[1]);
+    system.RunPreprocessing();
+    if (argc > 3) {
+        system.SaveSystem(argv[3]);
+    }
 
-	cout << "Done Load Preprocessing .." << endl;
-    system.Run();
-    system.SaveSystem(argv[2]);
+    // if the second argument is equalt to '0', don't run
+    if (0 != strcmp(argv[2], "0")) {
+        system.Run();
+        system.SaveSystem(argv[2]);
+    }
     return 0;
 }

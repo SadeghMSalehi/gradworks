@@ -122,6 +122,7 @@ namespace pi {
     };
 
     class ImageContext {
+        friend class ParticleSystem;
     public:
         void LoadLabel(std::string filename);
         void LoadDoubleImage(std::string filename);
@@ -144,14 +145,13 @@ namespace pi {
         LabelVector m_LabelImages;
         DoubleImageVector m_Images;
         OffsetImageVector m_DistanceMaps;
+        std::string m_IntersectionOutput;
     };
 
 
     class ParticleSystem {
     public:
-        ParticleSystem(): m_NumParticlesPerSubject(300),
-            m_ParticleConstraint(NULL) {
-        }
+        ParticleSystem();
         ~ParticleSystem() {
         }
         int GetNumberOfSubjects();
@@ -160,8 +160,7 @@ namespace pi {
         ImageContext& GetImageContext();
 
         void LoadLabels(StringVector labels);
-        void RunPreprocessing(std::string outputName);
-        void LoadPreprocessing(std::string outputName);
+        void RunPreprocessing();
 
         // run correspondence process
         void Run();
@@ -169,22 +168,27 @@ namespace pi {
         void UpdateSystem(ParticleSubjectArray& shapes, double dt);
 
 
-        void LoadSystem(std::string filename, int cmd = 0);
-        void LoadSystem(std::string filename, ParticleSubjectArray& shapes, int cmd);
-        void SaveSystem(std::string filename) { SaveSystem(filename, m_Subjects); }
-        void SaveSystem(std::string filename, ParticleSubjectArray& shapes);
-
-        inline ParticleSubject& operator[](int j) { return m_Subjects[j];
+        void LoadSystem(std::string filename);
+        void SaveSystem(std::string filename);
+        
+        inline ParticleSubject& operator[](int j) {
+            return m_Subjects[j];
         }
+
         inline const ParticleSubject& operator[](int j) const {
             return m_Subjects[j];
         }
         
     private:
+        double m_times[3];
+        double m_timesPreprocessing[3];
+        
         int m_NumParticlesPerSubject;
         ImageContext m_ImageContext;
+        ParticleSubjectArray m_Initial;
         ParticleSubjectArray m_Subjects;
         ParticleConstraint* m_ParticleConstraint;
+        std::string m_PreprocessingOutput;
         std::string m_TrackingOutputPattern;
     };
 }

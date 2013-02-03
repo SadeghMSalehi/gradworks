@@ -115,7 +115,8 @@ namespace pi {
         for (int i = 0; i < shapes.size(); i++) {
             ParticleBSpline transform;
             transform.SetReferenceImage(m_ImageContext->GetLabel(i));
-            transform.EstimateTransform(shapes[i], m_MeanShape);
+//            transform.EstimateTransform(shapes[i], m_MeanShape);
+            transform.EstimateTransform(m_MeanShape, shapes[i]);
             FieldTransformType::Pointer fieldTransform = transform.GetTransform();
             shapes[i].TransformX2Y(fieldTransform.GetPointer());
             shapes[i].m_Transform = fieldTransform;
@@ -166,8 +167,9 @@ namespace pi {
         DoubleImageVector warpedImages(nSubj);
         VectorImageVector gradImages(nSubj);
 
-        arma::mat attrs(nSubj, nPoints * nAttrsPerPoint);
-        arma::mat gradAttrs(nSubj, nPoints * nAttrsPerPoint * __Dim);
+        double* attrs = new double[nSubj * nPoints * nAttrsPerPoint];
+        double* gradAttrs = new double[nSubj * nPoints * nAttrsPerPoint * __Dim];
+        double* force = new double[nSubj * nPoints * __Dim];
 
         // first create a warped image into the mean transform space
         // second create a gradient vector image per subject
@@ -201,25 +203,76 @@ namespace pi {
                 iiter.SetLocation(idx);
                 giter.SetLocation(idx);
 
+                double* jAttrs = &attrs[i * nPoints * nAttrsPerPoint + j * nAttrsPerPoint];
+                double* jAttrsGrad = gradAttrs + i * nPoints + j * nAttrsPerPoint;
                 for (int k = 0; k < iiter.Size(); k++) {
                     double pixel = iiter.GetPixel(k);
                     VectorType grad = giter.GetPixel(k);
-
-                    attrs.at(i, nAttrsPerPoint * j) = pixel;
+                    jAttrs[k] = pixel;
                     for (int m = 0; m < __Dim; m++) {
-                        gradAttrs.at(i, nAttrsPerPoint * j * __Dim + m) = grad[m];
+                        jAttrsGrad[m] = grad[m];
                     }
-                    
                 }
             }
         }
 
 
         // column mean
-        arma::mat meanAttrs = mean(attrs);
+        const int nAttrs = nPoints * nAttrsPerPoint;
+        double* sumAttrs = new double[nPoints * nAttrsPerPoint];
+        for (int j = 0; j < nAttrs; j++) {
+            sumAttrs[j] = 0;
+            for (int i = 0; i < nSubj; i++) {
+                sumAttrs[j] += attrs[i * nAttrs + j];
+            }
+        }
 
         // compute mean differences
-        
+        for (int i = 0; i < nSubj; i++) {
+            for (int j = 0; j < nAttrs; j++) {
+                attrs[i * nAttrs + j] -= sumAttrs[j] / nSubj;
+            }
+        }
 
+        // compute force direction
+        for (int i = 0; i < nSubj; i++) {
+            for (int j = 0; j < nPoints; j++) {
+                double* forcePtr = &force[i * nPoints * __Dim + j * __Dim];
+                double* gradAttrPtr = &gradAttrs[i * nAttrs * __Dim + j * nAttrsPerPoint * __Dim];
+                for (int k = 0; k < nAttrsPerPoint; k++) {
+                    double attr = attrs[i * nAttrs + j * nAttrsPerPoint];
+                    for (int m = 0; m < __Dim; m++) {
+                        forcePtr[m] += attr * gradAttrPtr[m];
+                    }
+                }
+            }
+        }
+
+
+        // compute force at subject space
+        for (int i = 0; i < nSubj; i++) {
+            FieldTransformType::Pointer transform = shapes[i].m_InverseTransform;
+            for (int j = 0; j < nPoints; j++) {
+                double* forcePtr = &force[i * nPoints * __Dim + j * __Dim];
+                FieldTransformType::InputPointType x;
+                fordim(k) {
+                    x[k] = shapes[i][j].x[k];
+                }
+                FieldTransformType::JacobianType jac;
+                jac.set_size(__Dim, __Dim);
+                transform->ComputeInverseJacobianWithRespectToPosition(x, jac);
+                fordim(k) {
+                    if (__Dim == 3) {
+                        forcePtr[k] = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k] + jac[2][k]*forcePtr[k];
+                    } else if (__Dim == 2) {
+                        forcePtr[k] = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k];
+                    }
+                }
+            }
+        }
+
+        delete[] force;
+        delete[] attrs;
+        delete[] gradAttrs;
     }
 }
