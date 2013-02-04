@@ -140,6 +140,7 @@ namespace pi {
         }
 
         for (int i = 0; i < nSubjects; i++) {
+            #pragma omp parallel for
             for (int j = 0; j < nPoints; j++) {
                 FieldTransformType::InputPointType xPoint;
                 FieldTransformType::JacobianType xJac;
@@ -203,6 +204,7 @@ namespace pi {
             VectorImageNeighborhoodIteratorType giter(radius, gradImages[i], gradImages[i]->GetBufferedRegion());
 
             DoubleImage::IndexType idx;
+            #pragma omp parallel for
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subject.m_Particles[j];
                 fordim(k) {
@@ -229,6 +231,7 @@ namespace pi {
 
         // column sum
         double* sumAttrs = new double[nPoints * nAttrsPerPoint];
+        #pragma omp parallel for
         for (int j = 0; j < nAttrs; j++) {
             sumAttrs[j] = 0;
             for (int i = 0; i < nSubj; i++) {
@@ -238,6 +241,7 @@ namespace pi {
 
         // compute mean differences
         for (int i = 0; i < nSubj; i++) {
+            #pragma omp parallel for
             for (int j = 0; j < nAttrs; j++) {
                 attrs[i * nAttrs + j] -= (sumAttrs[j] / nSubj);
             }
@@ -246,6 +250,7 @@ namespace pi {
         // compute force direction
         memset(force, 0, nSubj * nPoints * __Dim * sizeof(double));
         for (int i = 0; i < nSubj; i++) {
+            #pragma omp parallel for
             for (int j = 0; j < nPoints; j++) {
                 double* forcePtr = &force[(i * nPoints + j) * __Dim];
                 for (int k = 0; k < nAttrsPerPoint; k++) {
