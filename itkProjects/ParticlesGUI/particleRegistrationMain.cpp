@@ -8,7 +8,7 @@ using namespace pi;
 
 int main(int argc, char* argv[]) {
     ParticleSystem sys;
-    sys.LoadSystem(argv[1], 1);
+    sys.LoadSystem(argv[1]);
 
     ImageContext& imageCtx = sys.GetImageContext();
     if (imageCtx.GetDoubleImageVector().size() < 2) {

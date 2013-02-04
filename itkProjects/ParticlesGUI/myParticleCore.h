@@ -77,7 +77,8 @@ namespace pi {
 
         inline const int GetNumberOfPoints() const { return m_Particles.size(); }
         inline int GetNumberOfPoints() { return m_Particles.size(); }
-        
+
+        void Clear();
         void Zero();
         void NewParticles(int nPoints);
         void InitializeRandomPoints(LabelImage::Pointer labelImage);
@@ -206,7 +207,6 @@ namespace pi {
         ImageContext m_ImageContext;
         ParticleSubjectArray m_Initial;
         ParticleSubjectArray m_Subjects;
-        std::string m_PreprocessingOutput;
         std::string m_TrackingOutputPattern;
     };
 }

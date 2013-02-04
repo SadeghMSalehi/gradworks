@@ -97,6 +97,12 @@ namespace pi {
 
     }
 
+    void ParticleSubject::Clear() {
+        m_Particles.clear();
+        m_SubjId = -1;
+        m_InverseTransform = m_Transform = FieldTransformType::Pointer(NULL);
+    }
+
     void ParticleSubject::Zero() {
         const int nPoints = GetNumberOfPoints();
         for (int i = 0; i < nPoints; i++) {
@@ -216,10 +222,25 @@ namespace pi {
     }
 
     void ParticleSlice::Update(ParticleSubjectArray& subjects, LabelImage::Pointer labelImage) {
+        LabelImage::SizeType sz = labelImage->GetBufferedRegion().GetSize();
 
+        const int nSubj = subjects.size();
+        const int nPoints = subjects[0].GetNumberOfPoints();
+
+        m_ParticlePointerMatrix.resize(sz[m_SliceDim], nSubj);
+        for (int i = 0; i < nSubj; i++) {
+            for (int j = 0; j < nPoints; j++) {
+                for (int k = 0; k < sz[m_SliceDim]; k++) {
+                    if (subjects[i][j].x[m_SliceDim] >= k && subjects[i][j].x[m_SliceDim] < k) {
+                        m_ParticlePointerMatrix(k, i).push_back(&subjects[i][j]);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
-    const ParticleSlice::ParticlePointerVector& Get(int slice, int subj) {
+    const ParticleSlice::ParticlePointerVector&  ParticleSlice::Get(int slice, int subj) {
         return m_ParticlePointerMatrix(slice, subj);
     }
 
@@ -376,8 +397,12 @@ namespace pi {
     bool ParticleSystem::LoadSystem(std::string filename) {
         using namespace std;
         int nSubjects = 0;
+
         m_ImageContext.Clear();
         m_TrackingOutputPattern = "";
+
+        m_Subjects.clear();
+        m_Initial.clear();
 
         char cbuf[256];
         ifstream in(filename.c_str());
