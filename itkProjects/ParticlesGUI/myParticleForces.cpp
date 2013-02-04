@@ -28,6 +28,7 @@ namespace pi {
         const int nPoints = shapes[0].m_Particles.size();
         for (int k = 0; k < nSubjects; k++) {
             ParticleArray& particles = shapes[k].m_Particles;
+            #pragma omp parallel for
             for (int i = 0; i < nPoints; i++) {
                 Particle& pi = particles[i];
                 for (int j = i+1; j < nPoints; j++) {
