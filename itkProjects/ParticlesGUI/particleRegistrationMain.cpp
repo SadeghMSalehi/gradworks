@@ -7,6 +7,11 @@ using namespace std;
 using namespace pi;
 
 int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        cout << "usage: " << argv[0] << " particle-output.txt subj1_to_subj0.nrrd [0|1] " << endl;
+        return 0;
+    }
+    
     ParticleSystem sys;
     sys.LoadSystem(argv[1]);
 

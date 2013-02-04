@@ -22,6 +22,7 @@ namespace pi {
 
     class ParticleConstraint;
     class ImageContext;
+    class ParticleSystem;
 
     class Particle {
     public:
@@ -121,6 +122,16 @@ namespace pi {
         void ComputeMeanShape(ParticleSubjectArray& shapes);
     };
 
+    class IntensityForce {
+    public:
+        IntensityForce();
+        ~IntensityForce();
+        void SetImageContext(ImageContext* context);
+        void ComputeIntensityForce(ParticleSystem* system);
+    private:
+        ImageContext* m_ImageContext;
+    };
+
     class ImageContext {
         friend class ParticleSystem;
     public:
@@ -176,6 +187,9 @@ namespace pi {
         }
         int GetNumberOfSubjects();
         int GetNumberOfParticles();
+
+        void ComputeMeanSubject();
+        const ParticleSubject& GetMeanSubject() const;
         ParticleSubjectArray& GetSubjects();
         ImageContext& GetImageContext();
 
@@ -184,8 +198,9 @@ namespace pi {
 
         // run correspondence process
         void Run();
-        void PrepareSystem(ParticleSubjectArray& shapes);
         void UpdateSystem(ParticleSubjectArray& shapes, double dt);
+        //        void PrepareSystem(ParticleSubjectArray& shapes);
+
 
 
         bool LoadSystem(std::string filename);
@@ -202,9 +217,15 @@ namespace pi {
     private:
         double m_times[3];
         double m_timesPreprocessing[3];
+
+        // flags for force selection
+        bool m_InternalForceFlag;
+        bool m_EnsembleForceFlag;
+        bool m_IntensityForceFlag;
         
         int m_NumParticlesPerSubject;
         ImageContext m_ImageContext;
+        ParticleSubject m_MeanSubject;
         ParticleSubjectArray m_Initial;
         ParticleSubjectArray m_Subjects;
         std::string m_TrackingOutputPattern;

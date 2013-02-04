@@ -265,6 +265,30 @@ namespace pi {
         return 0;
     }
 
+    void ParticleSystem::ComputeMeanSubject() {
+        const int nPoints = m_Subjects[0].GetNumberOfPoints();
+        const int nSubjects = m_Subjects.size();
+
+        m_MeanSubject.m_SubjId = -1;
+        m_MeanSubject.NewParticles(nPoints);
+
+        // for every dimension k
+        fordim(k) {
+            // for every point i
+            for (int i = 0; i < nPoints; i++) {
+                // sum over all subject j
+                for (int j = 0; j < nSubjects; j++) {
+                    m_MeanSubject[i].x[k] += m_Subjects[j][i].x[k];
+                }
+                m_MeanSubject[i].x[k] /= nSubjects;
+            }
+        }
+    }
+
+    const ParticleSubject& ParticleSystem::GetMeanSubject() const {
+        return m_MeanSubject;
+    }
+    
     ParticleSubjectArray& ParticleSystem::GetSubjects() {
         return m_Subjects;
     }
@@ -345,13 +369,23 @@ namespace pi {
         boost::timer timer;
         for (double t = t0; t < t1; t += dt) {
             timer.restart();
-            InternalForce internalForce;
-            EnsembleForce ensembleForce;
+            ComputeMeanSubject();
+            if (m_InternalForceFlag) {
+                InternalForce internalForce;
+                internalForce.ComputeForce(m_Subjects);
+            }
 
-            internalForce.ComputeForce(m_Subjects);
+            EnsembleForce ensembleForce;
             ensembleForce.SetImageContext(&m_ImageContext);
-            ensembleForce.ComputeEnsembleForce(m_Subjects);
-            ensembleForce.ComputeImageForce(m_Subjects);
+            if (m_EnsembleForceFlag) {
+                ensembleForce.ComputeEnsembleForce(m_Subjects);
+            }
+
+            IntensityForce IntensityForce;
+            IntensityForce.SetImageContext(&m_ImageContext);
+            if (m_IntensityForceFlag) {
+                IntensityForce.ComputeIntensityForce(this);
+            }
 
             constraint.ApplyConstraint(m_Subjects);
             UpdateSystem(m_Subjects, dt);
@@ -363,24 +397,25 @@ namespace pi {
         }
     }
 
-    void ParticleSystem::PrepareSystem(ParticleSubjectArray& subjects) {
-        if (subjects.size() < 1) {
-            return;
-        }
-        const int nSubjects = subjects.size();
-        const int nPoints = subjects[0].m_Particles.size();
-        for (int i = 0; i < nSubjects; i++) {
-            for (int j = 0; j < nPoints; j++) {
-                fordim(k) {
-                    subjects[i][j].f[k] = 0;
-                }
-            }
-        }
-    }
+//    void ParticleSystem::PrepareSystem(ParticleSubjectArray& subjects) {
+//        if (subjects.size() < 1) {
+//            return;
+//        }
+//        const int nSubjects = subjects.size();
+//        const int nPoints = subjects[0].m_Particles.size();
+//        for (int i = 0; i < nSubjects; i++) {
+//            for (int j = 0; j < nPoints; j++) {
+//                fordim(k) {
+//                    subjects[i][j].f[k] = 0;
+//                }
+//            }
+//        }
+//    }
 
     void ParticleSystem::UpdateSystem(ParticleSubjectArray& subjects, double dt) {
         const int nSubjects = subjects.size();
         const int nPoints = subjects[0].m_Particles.size();
+
         for (int i = 0; i < nSubjects; i++) {
             ParticleSubject& iShape = subjects[i];
             for (int j = 0; j < nPoints; j++) {
@@ -425,6 +460,21 @@ namespace pi {
                             cout << "Particle Domain Mismatch!" << endl;
                             throw "Particle Dimension Mismatch!";
                         }
+                    } else if (name == "Forces:") {
+                        string option;
+                        m_InternalForceFlag = m_EnsembleForceFlag = m_IntensityForceFlag = false;
+                        while (ss.good()) {
+                            ss >> option;
+                            if (option == "+internal") {
+                                m_InternalForceFlag = true;
+                            } else if (option == "+ensemble") {
+                                m_EnsembleForceFlag = true;
+                            } else if (option == "+intensity") {
+                                m_IntensityForceFlag = true;
+                            }
+                        }
+                    } else if (name == "IntersectionImage:") {
+                        ss >> m_ImageContext.m_IntersectionOutput;
                     } else if (name == "NumParticlesPerSubject:") {
                         ss >> m_NumParticlesPerSubject;
                     } else if (name == "TimeRange:") {
@@ -530,6 +580,24 @@ namespace pi {
         ofstream out(filename.c_str());
 
         out << "ParticleDimension: " << __Dim << endl;
+        out << "Forces: ";
+        if (m_InternalForceFlag) {
+            out << "+internal ";
+        } else {
+            out << "-internal ";
+        }
+        if (m_EnsembleForceFlag) {
+            out << "+ensemble ";
+        } else {
+            out << "-ensemble ";
+        }
+        if (m_IntensityForceFlag) {
+            out << "+intensity ";
+        } else {
+            out << "-intensity ";
+        }
+        out << endl;
+
         out << "NumParticlesPerSubject: " << m_NumParticlesPerSubject << endl;
 
         // Time Range

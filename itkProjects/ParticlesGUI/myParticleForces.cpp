@@ -167,7 +167,23 @@ namespace pi {
         }
     }
 
-    void EnsembleForce::ComputeImageForce(ParticleSubjectArray &shapes) {
+
+    IntensityForce::IntensityForce() {
+
+    }
+
+    IntensityForce::~IntensityForce() {
+
+    }
+
+    void IntensityForce::SetImageContext(ImageContext* context) {
+        m_ImageContext = context;
+    }
+
+    void IntensityForce::ComputeIntensityForce(ParticleSystem* system) {
+        ParticleSubjectArray& shapes = system->GetSubjects();
+        const ParticleSubject& meanSubject = system->GetMeanSubject();
+        
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
         const int nRadius = 2;
@@ -188,7 +204,7 @@ namespace pi {
             ParticleSubject& subject = shapes[i];
             ParticleBSpline transform;
             transform.SetReferenceImage(m_ImageContext->GetLabel(i));
-            transform.EstimateTransform(m_MeanShape, subject);
+            transform.EstimateTransform(meanSubject, subject);
             FieldTransformType::Pointer fieldTransform = transform.GetTransform();
             subject.m_InverseTransform = fieldTransform;
             warpedImages[i] = transform.WarpImage(m_ImageContext->GetDoubleImage(i));

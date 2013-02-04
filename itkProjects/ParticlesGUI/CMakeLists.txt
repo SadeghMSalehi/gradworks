@@ -32,12 +32,20 @@ SET (QT_HEADERS mainwindow.h dialogPatchCompare.h qcustomplot.h myQGraphicsView.
 SET (QT_SOURCES mainwindow.cpp dialogPatchCompare.cpp qcustomplot.cpp myQGraphicsView.cpp dialogBSplineVis.cpp)
 qt4_wrap_cpp(QT_MOC_HEADERS ${QT_HEADERS})
 qt4_wrap_ui(QT_UI_FILES mainwindow.ui dialogPatchCompare.ui dialogBSplineVis.ui)
+
+SET (QT_PW_HEADERS particleViewerWindow.h myQGraphicsView.h)
+SET (QT_PW_SOURCES particleViewerWindow.cpp  myQGraphicsView.cpp)
+qt4_wrap_cpp(QT_PW_MOC_HEADERS ${QT_PW_HEADERS})
+qt4_wrap_ui(QT_PW_UI_FILES particleViewerWindow.ui)
+
 add_definitions(${QT_DEFINITIONS})
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET (MY_SOURCES myImageContainer.h myImageContainer.cpp myParticleAlgorithm.h myParticleAlgorithm.cpp vtkPropScene.h vtkPropScene.cpp PropertyAccess.h PropertyAccess.cpp myImageParticlesAlgorithm.h myImageParticlesAlgorithm.cpp myImplicitSurfaceConstraint.h myImplicitSurfaceConstraint.cpp myEnsembleEntropy.h myEnsembleEntropy.cpp vnlCommon.h vnlCommon.cpp myParticleDynamics.h myParticleDynamics.cpp myParticleSolver.h myParticleSolver.cpp myEventCallback.h myImageTransform.h myImageTransform.cpp myBSplineRegistration.h myBSplineRegistration.cpp QGraphicsGridItem.cpp QGraphicsGridItem.h myParticleKernelFunctions.h myParticleKernelFunctions.cpp myParticlesIO.cpp myParticlesIO.h)
+
+SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
 SET (MY_PARTICLE_WORKS_SOURCES myParticleCore.cpp myParticleCore.h myParticleConstraint.cpp myParticleConstraint.h myImageDef.h myParticleBSpline.cpp myParticleBSpline.h myParticleForces.h myParticleForces.cpp)
 
@@ -46,14 +54,17 @@ FILE(GLOB ITK_SOURCES "itk*.h" "itk*.hxx" "itk*.cxx")
 ADD_EXECUTABLE(guiparticles particlesMain.cpp ${MY_SOURCES} ${ITK_SOURCES} ${QT_HEADERS} ${QT_SOURCES} ${QT_MOC_HEADERS} ${QT_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES})
 TARGET_LINK_LIBRARIES(guiparticles ${ITK_LIBRARIES} ${VTK_LIBRARIES} ${QT_LIBRARIES} ${Armadillo_LIBRARIES})
 
+ADD_EXECUTABLE(particleWin particleViewerWindowMain.cpp ${QT_PW_HEADERS} ${QT_PW_SOURCES} ${QT_PW_MOC_HEADERS} ${QT_PW_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
+TARGET_LINK_LIBRARIES(particleWin ${ITK_LIBRARIES} ${QT_LIBRARIES} ${Armadillo_LIBRARIES})
+
 ADD_EXECUTABLE(particlesRun particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 TARGET_LINK_LIBRARIES(particlesRun ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
 
 ADD_EXECUTABLE(particleRegistration particleRegistrationMain.cpp ${MY_PARTICLE_WORKS_SOURCES})
 TARGET_LINK_LIBRARIES(particleRegistration ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
 
-ADD_EXECUTABLE(particleViewer particleViewer.cpp ${MY_PARTICLE_WORKS_SOURCES})
-TARGET_LINK_LIBRARIES(particleViewer ${ITK_LIBRARIES} ${VTK_LIBRARIES} ${Armadillo_LIBRARIES})
+#ADD_EXECUTABLE(particleViewer particleViewer.cpp ${MY_PARTICLE_WORKS_SOURCES})
+#TARGET_LINK_LIBRARIES(particleViewer ${ITK_LIBRARIES} ${VTK_LIBRARIES} ${Armadillo_LIBRARIES})
 
-ADD_EXECUTABLE(bsplineReg bsplineReg.cxx)
-TARGET_LINK_LIBRARIES(bsplineReg ${ITK_LIBRARIES} ${ItkVtkGlue})
+#ADD_EXECUTABLE(bsplineReg bsplineReg.cxx)
+#TARGET_LINK_LIBRARIES(bsplineReg ${ITK_LIBRARIES} ${ItkVtkGlue})

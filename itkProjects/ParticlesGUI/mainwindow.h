@@ -42,6 +42,7 @@ public slots:
     void on_actionAddImage_triggered();
     void on_actionAddLabel_triggered();
     void on_actionOpenSurface_triggered();
+    void on_actionSaveSlices_triggered();
     void on_actionSurfaceSmoothing_triggered();
     void on_actionSurfaceSmoothingContinue_triggered();
     void on_actionOpenBSplineVis_triggered();

@@ -31,6 +31,8 @@ public slots:
     void on_updateField_clicked();
     void on_copyPointsButton_clicked();
     void on_printButton_clicked();
+
+    void on_saveWarpedImage_clicked();
 protected:
     virtual void showEvent(QShowEvent * event);
     virtual void closeEvent(QCloseEvent * e);

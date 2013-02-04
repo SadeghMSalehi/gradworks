@@ -235,10 +235,10 @@ void MainWindow::EventRaised(int eventId, int eventCode, const void* src, void* 
 }
 
 void MainWindow::ReadyToExperiments() {
-//    LoadImage("/data/Particles/00.T2.half.nrrd");
-//    LoadLabel("/data/Particles/00.Label.half.nrrd");
-//    LoadImage("/data/Particles/16.T2.half.nrrd");
-//    LoadLabel("/data/Particles/16.Label.half.nrrd");
+    LoadImage("/NIRAL/work/joohwi/RodentBrainEvaluation/00.T2.mask.nrrd");
+    LoadLabel("/NIRAL/work/joohwi/RodentBrainEvaluation/00.label.nrrd");
+    LoadImage("/NIRAL/work/joohwi/RodentBrainEvaluation/16.T2.mask.nrrd");
+    LoadLabel("/NIRAL/work/joohwi/RodentBrainEvaluation/16.label.nrrd");
 //    LoadImage("/data/Particles/cs1_tex.nrrd");
 //    LoadLabel("/data/Particles/cs1.nrrd");
 //    LoadImage("/data/Particles/cs2_tex.nrrd");
@@ -248,10 +248,10 @@ void MainWindow::ReadyToExperiments() {
 //    LoadLabel("/data/Particles/Image001.nrrd");
 //    LoadImage("/data/Particles/Image002.nrrd");
 //    LoadLabel("/data/Particles/Image002.nrrd");
-    LoadImage("/data/Particles/CircleSquares/image_circle.nrrd");
-    LoadLabel("/data/Particles/CircleSquares/image_circle_label.nrrd");
-    LoadImage("/data/Particles/CircleSquares/image_square.nrrd");
-    LoadLabel("/data/Particles/CircleSquares/image_square_label.nrrd");
+//    LoadImage("/data/Particles/CircleSquares/image_circle.nrrd");
+//    LoadLabel("/data/Particles/CircleSquares/image_circle_label.nrrd");
+//    LoadImage("/data/Particles/CircleSquares/image_square.nrrd");
+//    LoadLabel("/data/Particles/CircleSquares/image_square_label.nrrd");
 
 //    LoadImage("/data/Particles/image_ellipse_horz.nrrd");
 //    LoadLabel("/data/Particles/image_circle_label.nrrd");
@@ -395,6 +395,24 @@ void MainWindow::on_actionOpenSurface_triggered() {
     //
     //    vtkPointSet* result = algo->GetResultPoints();
     //    poly2->SetPoints(result->GetPoints());
+}
+
+
+// Save currently viewing slice into file
+void MainWindow::on_actionSaveSlices_triggered() {
+    const int nSubjs = m_ImageList.size();
+    for (int i = 0; i < nSubjs; i++) {
+        SliceType::Pointer slice = m_ImageList[i]->GetSlice();
+        LabelSliceType::Pointer sliceLabel = m_ImageList[i]->GetLabelSlice();
+        char nameBuf[256];
+        sprintf(nameBuf, "/tmp/slice_%02d.nrrd", i);
+        itkcmds::itkImageIO<SliceType> io;
+        io.WriteImageT(nameBuf, slice);
+
+        sprintf(nameBuf, "/tmp/slice_label_%02d.nrrd", i);
+        itkcmds::itkImageIO<LabelSliceType> io2;
+        io2.WriteImageT(nameBuf, sliceLabel);
+    }
 }
 
 void MainWindow::on_actionSurfaceSmoothing_triggered() {

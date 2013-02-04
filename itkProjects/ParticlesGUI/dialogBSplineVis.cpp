@@ -400,6 +400,17 @@ void BSplineVisDialog::on_updateField_clicked() {
     updateScene();
 }
 
+void BSplineVisDialog::on_saveWarpedImage_clicked() {
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Save NRRD File"), ".", tr("NRRD File (*.nrrd)"));
+
+    if (fileName.isNull()) {
+        return;
+    }
+
+    itkcmds::itkImageIO<SliceType> io;
+    io.WriteImageT(fileName.toUtf8().data(), m_WarpedSlice);
+}
+
 void BSplineVisDialog::showEvent(QShowEvent* event) {
 
 }

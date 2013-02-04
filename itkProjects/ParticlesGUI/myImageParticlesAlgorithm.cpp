@@ -525,8 +525,6 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
     LabelSliceType::RegionType region = intersection->GetBufferedRegion();
 
 
-    io.WriteImageT("/tmpfs/intersection.nrrd", intersection);
-
     // set as member variable to reuse
     m_Intersection = intersection;
 
@@ -536,7 +534,7 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
     for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
         LabelSliceType::IndexType idx = iter.GetIndex();
         LabelSliceType::PixelType pixel = 255;
-        const int pixelThreshold = 255;
+        const int pixelThreshold = 1;
         for (int i = 0; i < m_ImageList->size(); i++) {
             if (m_ImageList->at(i)->GetLabelSlice(m_ViewingDimension)->GetPixel(idx) < pixelThreshold) {
                 pixel = 0;
@@ -549,6 +547,9 @@ void ImageParticlesAlgorithm::CreateRandomInitialPoints(int nPoints) {
         }
     }
 
+    io.WriteImageT("/tmpfs/intersection.nrrd", intersection);
+
+    
     if (indexes.size() > 0) {
         std::random_shuffle(indexes.begin(), indexes.end());
 

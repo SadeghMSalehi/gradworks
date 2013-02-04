@@ -21,7 +21,7 @@
 
 #include "vector"
 
-const static int __Dim = 3;
+const static int __Dim = 2;
 
 #define for4(i) for (int i = 0; i < 4; i++)
 #define fordim(i) for (int i = 0; i < __Dim; i++)
@@ -60,6 +60,7 @@ namespace pi {
 
     // VNL related types
     typedef vnl_vector<double> VNLVector;
+    typedef vnl_matrix<double> VNLMatrix;
 }
 
 #endif
