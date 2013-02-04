@@ -288,13 +288,14 @@ namespace pi {
             int k = 0;
             char trackName[128];
             for (double t = t0; t < t1; t += dt) {
-                cout << "Preprocessing Time: " << t << endl;
+                boost::timer timer;
                 InternalForce internalForce;
                 internalForce.ComputeForce(m_Initial);
                 initialConstraint.ApplyConstraint(m_Initial);
                 UpdateSystem(m_Initial, dt);
                 //            sprintf(trackName, "preprocessing_2_%04d.txt", ++k);
                 //            SaveSystem(trackName, subjects);
+                cout << "Preprocessing Time: " << t << "; Elapsed Time: " << timer.elapsed() << " secs" << endl;
             }
         }
     }
