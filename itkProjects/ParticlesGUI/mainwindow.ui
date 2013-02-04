@@ -126,6 +126,7 @@
     </widget>
     <addaction name="actionAddImage"/>
     <addaction name="actionAddLabel"/>
+    <addaction name="actionSaveSlices"/>
     <addaction name="menuTransform"/>
     <addaction name="actionOpenCompareWindow"/>
    </widget>
@@ -752,8 +753,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>98</width>
-          <height>28</height>
+          <width>280</width>
+          <height>575</height>
          </rect>
         </property>
         <attribute name="label">
@@ -780,8 +781,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>98</width>
-          <height>28</height>
+          <width>280</width>
+          <height>575</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1092,6 +1093,11 @@
   <action name="actionLoadParticleWorksSingle">
    <property name="text">
     <string>Load Particle Works (Single)</string>
+   </property>
+  </action>
+  <action name="actionSaveSlices">
+   <property name="text">
+    <string>Save Slices</string>
    </property>
   </action>
  </widget>

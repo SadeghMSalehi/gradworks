@@ -269,6 +269,13 @@
                 </property>
                </widget>
               </item>
+              <item>
+               <widget class="QPushButton" name="saveWarpedImage">
+                <property name="text">
+                 <string>Save Warped Image</string>
+                </property>
+               </widget>
+              </item>
              </layout>
             </widget>
            </item>
