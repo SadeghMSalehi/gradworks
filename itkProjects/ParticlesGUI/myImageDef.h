@@ -16,8 +16,8 @@
 #include "itkImageRegionIteratorWithIndex.h"
 #include "itkDisplacementFieldTransform.h"
 #include "itkTransform.h"
-
 #include "itkPointSet.h"
+#include "vnl/vnl_vector.h"
 
 #include "vector"
 
@@ -57,6 +57,9 @@ namespace pi {
     typedef itk::Image<FieldTransformType::OutputVectorType,__Dim> DisplacementFieldType;
 
     typedef std::vector<std::string> StringVector;
+
+    // VNL related types
+    typedef vnl_vector<double> VNLVector;
 }
 
 #endif

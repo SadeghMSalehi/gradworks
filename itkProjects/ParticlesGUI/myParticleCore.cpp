@@ -34,13 +34,13 @@ namespace pi {
         }
     }
 
-    void Particle::AddForce(double* ff, double alpha) {
+    void Particle::AddForce(const double* ff, double alpha) {
         fordim(i) {
             f[i] += (alpha * ff[i]);
         }
     }
 
-    void Particle::SubForce(double* ff, double alpha) {
+    void Particle::SubForce(const double* ff, double alpha) {
         fordim(i) {
             f[i] -= (alpha * ff[i]);
         }
@@ -215,7 +215,15 @@ namespace pi {
         }
     }
 
-    ParticleSystem::ParticleSystem() : m_NumParticlesPerSubject(300), m_ParticleConstraint(NULL) {
+    void ParticleSlice::Update(ParticleSubjectArray& subjects, LabelImage::Pointer labelImage) {
+
+    }
+
+    const ParticleSlice::ParticlePointerVector& Get(int slice, int subj) {
+        return m_ParticlePointerMatrix(slice, subj);
+    }
+
+    ParticleSystem::ParticleSystem() : m_NumParticlesPerSubject(300) {
         m_times[0] = 0;
         m_times[1] = 0.01;
         m_times[2] = 10;
@@ -365,7 +373,7 @@ namespace pi {
         }
     }
 
-    void ParticleSystem::LoadSystem(std::string filename) {
+    bool ParticleSystem::LoadSystem(std::string filename) {
         using namespace std;
         int nSubjects = 0;
         m_ImageContext.Clear();
@@ -405,7 +413,12 @@ namespace pi {
                             char buf[128];
                             in.getline(buf, sizeof(buf));
                             if (in.good()) {
-                                m_ImageContext.LoadLabel(buf);
+                                try {
+                                    m_ImageContext.LoadLabel(buf);
+                                } catch (itk::ExceptionObject& ex) {
+                                    ex.Print(cout);
+                                    exit(0);
+                                }
                             }
                             //cout << in.exceptions() << endl;
                         }
@@ -481,7 +494,10 @@ namespace pi {
                     }
                 }
             }
+        } else {
+            return false;
         }
+        return true;
     }
 
     void ParticleSystem::SaveSystem(std::string filename) {
@@ -634,7 +650,7 @@ namespace pi {
             }
         }
         if (m_IntersectionOutput != "") {
-            io.WriteImageT("/tmpfs/intersection.nrrd", intersection);
+            io.WriteImageT(m_IntersectionOutput.c_str(), intersection);
         }
     }
     

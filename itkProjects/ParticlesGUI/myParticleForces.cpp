@@ -25,8 +25,8 @@ namespace pi {
     void InternalForce::ComputeForce(ParticleSubjectArray& shapes) {
         const double mu = 1;
         const int nSubjects = shapes.size();
-        const int nPoints = shapes[0].m_Particles.size();
         for (int k = 0; k < nSubjects; k++) {
+            const int nPoints = shapes[k].m_Particles.size();
             ParticleArray& particles = shapes[k].m_Particles;
             #pragma omp parallel for
             for (int i = 0; i < nPoints; i++) {
@@ -292,11 +292,13 @@ namespace pi {
             ParticleSubject& subj = shapes[i];
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subj[j];
+                VNLVector ff(__Dim);
                 fordim (k) {
                     const int forceIdx = (i * nPoints + j) * __Dim;
-                    double ff = 0.1 * force[forceIdx + k];
-                    par.f[k] -= ff;
+                    ff[k] = force[forceIdx + k];
                 }
+                ff.normalize();
+                par.SubForce(ff.data_block(), 1);
             }
         }
 

@@ -10,6 +10,7 @@
 #define __myParticlesCore__
 
 #include "boost/numeric/ublas/vector.hpp"
+#include "boost/numeric/ublas/matrix.hpp"
 #include "vnlCommon.h"
 #include "itkImage.h"
 #include "itkImageIO.h"
@@ -49,8 +50,8 @@ namespace pi {
 
         void Zero();
         void Sub(const Particle& p, double* nx);
-        void AddForce(double* ff, double alpha = 1);
-        void SubForce(double* ff, double alpha = 1);
+        void AddForce(const double* ff, double alpha = 1);
+        void SubForce(const double* ff, double alpha = 1);
         double Dist2(const Particle& p);
         void UpdateVelocity(double *vv);
         void UpdateForce(double *ff);
@@ -100,12 +101,10 @@ namespace pi {
 
     class InternalForce {
     public:
-        InternalForce() : m_TimeStep(0.1) {}
+        InternalForce() {}
         ~InternalForce() {}
         void ComputeForce(ParticleSubjectArray& shapes);
         void ComputeForce(Particle& a, Particle& b);
-    private:
-        double m_TimeStep;
     };
 
     class EnsembleForce {
@@ -148,6 +147,26 @@ namespace pi {
         std::string m_IntersectionOutput;
     };
 
+    class ParticleSlice {
+    public:
+        typedef std::vector<Particle*> ParticlePointerVector;
+
+        ParticleSlice(int dim, int nSubj, int nPoints) {
+            m_SliceDim = dim;
+            m_NumSubjects = nSubj;
+            m_NumPoints = nPoints;
+        }
+
+        const ParticlePointerVector& Get(int slice, int subj);
+        void Update(ParticleSubjectArray& shapes, LabelImage::Pointer refImage);
+
+    private:
+        int m_SliceDim;
+        int m_NumSubjects;
+        int m_NumPoints;
+        
+        boost::numeric::ublas::matrix<ParticlePointerVector> m_ParticlePointerMatrix;
+    };
 
     class ParticleSystem {
     public:
@@ -168,7 +187,7 @@ namespace pi {
         void UpdateSystem(ParticleSubjectArray& shapes, double dt);
 
 
-        void LoadSystem(std::string filename);
+        bool LoadSystem(std::string filename);
         void SaveSystem(std::string filename);
         
         inline ParticleSubject& operator[](int j) {
@@ -187,7 +206,6 @@ namespace pi {
         ImageContext m_ImageContext;
         ParticleSubjectArray m_Initial;
         ParticleSubjectArray m_Subjects;
-        ParticleConstraint* m_ParticleConstraint;
         std::string m_PreprocessingOutput;
         std::string m_TrackingOutputPattern;
     };

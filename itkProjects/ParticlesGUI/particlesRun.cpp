@@ -8,7 +8,10 @@ int main(int argc, char* argv[]) {
     if (argc < 2) {
         return 0;
     }
-    system.LoadSystem(argv[1]);
+    if (!system.LoadSystem(argv[1])) {
+        cout << "Can't open " << argv[1] << endl;
+        return 0;
+    }
 
 //    {
 //        pi::ParticleBSpline bspline;
