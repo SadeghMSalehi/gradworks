@@ -33,6 +33,8 @@ ImageParticlesAlgorithm::Pointer g_imageParticlesAlgo;
 surface::ParticleAlgorithm::Pointer g_ParticleAlgo;
 my::ImplicitSurfaceConstraint g_constraint;
 
+pi::ParticleSystem g_ParticleSystem;
+
 
 MainWindow::MainWindow(QWidget* parent): m_ParticleColors(this), m_Props(this), m_CompareDialog(this), m_BSplineVisDialog(this) {
     ui.setupUi(this);
@@ -166,9 +168,8 @@ void MainWindow::on_actionLoadParticleWorksSingle_triggered() {
 
     QFile file(fileName);
     if (file.exists()) {
-        pi::ParticleSystem sys;
-        sys.LoadSystem(fileName.toUtf8().data());
-        g_imageParticlesAlgo->CreateInitialPoints(&sys);
+        g_ParticleSystem.LoadSystem(fileName.toUtf8().data());
+        g_imageParticlesAlgo->CreateInitialPoints(&g_ParticleSystem);
 
         updateScene();
 
