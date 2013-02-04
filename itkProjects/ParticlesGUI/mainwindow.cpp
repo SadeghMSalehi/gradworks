@@ -151,7 +151,7 @@ void MainWindow::on_actionLoadParticleWorks_triggered() {
 }
 
 void MainWindow::on_actionLoadParticleWorksSingle_triggered() {
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "/tmpfs", tr("Particle File (*.txt)"));
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), ".", tr("Particle File (*.txt)"));
 
     if (fileName.isNull()) {
         return;

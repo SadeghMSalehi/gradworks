@@ -21,8 +21,8 @@ namespace pi {
 
         LabelImage::Pointer GetReferenceImage();
         void SetReferenceImage(LabelImage::Pointer img);
-        void EstimateTransform(const ParticleSubject a, const ParticleSubject b);
-        void ApplyTransform(ParticleSubject a);
+        void EstimateTransform(const ParticleSubject& a, const ParticleSubject& b);
+        void ApplyTransform(ParticleSubject& a);
         DoubleImage::Pointer WarpImage(DoubleImage::Pointer image);
         LabelImage::Pointer WarpLabel(LabelImage::Pointer srcImage);
         FieldTransformType::Pointer GetTransform();

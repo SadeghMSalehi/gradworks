@@ -86,19 +86,24 @@ namespace pi {
     }
 
     void EnsembleForce::ComputeMeanShape(ParticleSubjectArray& shapes) {
+        if (shapes.size() < 1) {
+            return;
+        }
+        
         const int nSubjects = shapes.size();
-        const int nPoints = m_MeanShape.GetNumberOfPoints();
+        const int nPoints = shapes[0].GetNumberOfPoints();
 
         m_MeanShape.m_SubjId = -1;
         m_MeanShape.NewParticles(shapes[0].GetNumberOfPoints());
 
-        for (int i = 0; i < nPoints; i++) {
-            for (int j = 0; j < nSubjects; j++) {
-                fordim(k) {
+        // for every dimension k
+        fordim(k) {
+            // for every point i
+            for (int i = 0; i < nPoints; i++) {
+                // sum over all subject j
+                for (int j = 0; j < nSubjects; j++) {
                     m_MeanShape[i].x[k] += shapes[j][i].x[k];
                 }
-            }
-            fordim(k) {
                 m_MeanShape[i].x[k] /= nSubjects;
             }
         }
@@ -110,29 +115,30 @@ namespace pi {
         }
         const int nPoints = shapes[0].GetNumberOfPoints();
         const int nSubjects = shapes.size();
-        
+
+        // Compute xMeanShape
         ComputeMeanShape(shapes);
         for (int i = 0; i < shapes.size(); i++) {
             ParticleBSpline transform;
             transform.SetReferenceImage(m_ImageContext->GetLabel(i));
-//            transform.EstimateTransform(shapes[i], m_MeanShape);
-            transform.EstimateTransform(m_MeanShape, shapes[i]);
+            transform.EstimateTransform(shapes[i], m_MeanShape);
+//            transform.EstimateTransform(m_MeanShape, shapes[i]);
             FieldTransformType::Pointer fieldTransform = transform.GetTransform();
             shapes[i].TransformX2Y(fieldTransform.GetPointer());
             shapes[i].m_Transform = fieldTransform;
         }
-        for (int j = 0; j < nPoints; j++) {
-            for (int i = 0; i < shapes.size(); i++) {
-                fordim(k) {
+
+        // Compute yMeanShape
+        fordim(k) {
+            for (int j = 0; j < nPoints; j++) {
+                for (int i = 0; i < nSubjects; i++) {
                     m_MeanShape[j].y[k] += shapes[i][j].y[k];
                 }
-            }
-            fordim(k) {
                 m_MeanShape[j].y[k] /= nSubjects;
             }
         }
 
-        for (int i = 0; i < shapes.size(); i++) {
+        for (int i = 0; i < nSubjects; i++) {
             for (int j = 0; j < nPoints; j++) {
                 FieldTransformType::InputPointType xPoint;
                 FieldTransformType::JacobianType xJac;
@@ -146,6 +152,7 @@ namespace pi {
                     xPoint[k] = x[k];
                 }
                 shapes[i].m_Transform->ComputeInverseJacobianWithRespectToPosition(xPoint, xJac);
+//                shapes[i].m_Transform->ComputeJacobianWithRespectToPosition(xPoint, xJac);
                 fordim(k) {
                     if (__Dim == 3) {
                         f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]) + xJac[2][k]*(y[2]-my[2]);
@@ -153,7 +160,7 @@ namespace pi {
                         f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]);
                     }
                 }
-                shapes[i][j].SubForce(f, 0.1);
+                shapes[i][j].SubForce(f, 1);
             }
         }
     }
@@ -161,14 +168,15 @@ namespace pi {
     void EnsembleForce::ComputeImageForce(ParticleSubjectArray &shapes) {
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
-        const int nRadius = 5;
-        const int nAttrsPerPoint = ::pow(nRadius, __Dim);
+        const int nRadius = 2;
+        const int nAttrsPerPoint = ::pow(2*nRadius+1, __Dim);
+        const int nAttrs = nPoints * nAttrsPerPoint;
 
         DoubleImageVector warpedImages(nSubj);
         VectorImageVector gradImages(nSubj);
 
-        double* attrs = new double[nSubj * nPoints * nAttrsPerPoint];
-        double* gradAttrs = new double[nSubj * nPoints * nAttrsPerPoint * __Dim];
+        double* attrs = new double[nSubj * nAttrs];
+        double* gradAttrs = new double[nSubj * nAttrs * __Dim];
         double* force = new double[nSubj * nPoints * __Dim];
 
         // first create a warped image into the mean transform space
@@ -180,7 +188,6 @@ namespace pi {
             transform.SetReferenceImage(m_ImageContext->GetLabel(i));
             transform.EstimateTransform(m_MeanShape, subject);
             FieldTransformType::Pointer fieldTransform = transform.GetTransform();
-            // is this really necessary?
             subject.m_InverseTransform = fieldTransform;
             warpedImages[i] = transform.WarpImage(m_ImageContext->GetDoubleImage(i));
             GradientFilterType::Pointer grad = GradientFilterType::New();
@@ -203,9 +210,11 @@ namespace pi {
                 iiter.SetLocation(idx);
                 giter.SetLocation(idx);
 
-                double* jAttrs = &attrs[i * nPoints * nAttrsPerPoint + j * nAttrsPerPoint];
-                double* jAttrsGrad = gradAttrs + i * nPoints + j * nAttrsPerPoint;
-                for (int k = 0; k < iiter.Size(); k++) {
+                double* jAttrs = &attrs[i * nAttrs + j * nAttrsPerPoint];
+                double* jAttrsGrad = &gradAttrs[(i * nAttrs + j * nAttrsPerPoint) * __Dim];
+                const int numAttrs = iiter.Size();
+                assert(numAttrs == nAttrsPerPoint);
+                for (int k = 0; k < nAttrsPerPoint; k++) {
                     double pixel = iiter.GetPixel(k);
                     VectorType grad = giter.GetPixel(k);
                     jAttrs[k] = pixel;
@@ -217,8 +226,7 @@ namespace pi {
         }
 
 
-        // column mean
-        const int nAttrs = nPoints * nAttrsPerPoint;
+        // column sum
         double* sumAttrs = new double[nPoints * nAttrsPerPoint];
         for (int j = 0; j < nAttrs; j++) {
             sumAttrs[j] = 0;
@@ -230,17 +238,18 @@ namespace pi {
         // compute mean differences
         for (int i = 0; i < nSubj; i++) {
             for (int j = 0; j < nAttrs; j++) {
-                attrs[i * nAttrs + j] -= sumAttrs[j] / nSubj;
+                attrs[i * nAttrs + j] -= (sumAttrs[j] / nSubj);
             }
         }
 
         // compute force direction
+        memset(force, 0, nSubj * nPoints * __Dim * sizeof(double));
         for (int i = 0; i < nSubj; i++) {
             for (int j = 0; j < nPoints; j++) {
-                double* forcePtr = &force[i * nPoints * __Dim + j * __Dim];
-                double* gradAttrPtr = &gradAttrs[i * nAttrs * __Dim + j * nAttrsPerPoint * __Dim];
+                double* forcePtr = &force[(i * nPoints + j) * __Dim];
                 for (int k = 0; k < nAttrsPerPoint; k++) {
                     double attr = attrs[i * nAttrs + j * nAttrsPerPoint];
+                    double* gradAttrPtr = &gradAttrs[(i * nAttrs + j * nAttrsPerPoint + k) * __Dim];
                     for (int m = 0; m < __Dim; m++) {
                         forcePtr[m] += attr * gradAttrPtr[m];
                     }
@@ -253,7 +262,7 @@ namespace pi {
         for (int i = 0; i < nSubj; i++) {
             FieldTransformType::Pointer transform = shapes[i].m_InverseTransform;
             for (int j = 0; j < nPoints; j++) {
-                double* forcePtr = &force[i * nPoints * __Dim + j * __Dim];
+                double* forcePtr = &force[(i * nPoints + j) * __Dim];
                 FieldTransformType::InputPointType x;
                 fordim(k) {
                     x[k] = shapes[i][j].x[k];
@@ -262,14 +271,29 @@ namespace pi {
                 jac.set_size(__Dim, __Dim);
                 transform->ComputeInverseJacobianWithRespectToPosition(x, jac);
                 fordim(k) {
+                    double ff = 0;
                     if (__Dim == 3) {
-                        forcePtr[k] = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k] + jac[2][k]*forcePtr[k];
+                        ff = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k] + jac[2][k]*forcePtr[k];
                     } else if (__Dim == 2) {
-                        forcePtr[k] = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k];
+                        ff = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k];
                     }
+                    forcePtr[k] = ff;
                 }
             }
         }
+
+        for (int i = 0; i < nSubj; i++) {
+            ParticleSubject& subj = shapes[i];
+            for (int j = 0; j < nPoints; j++) {
+                Particle& par = subj[j];
+                fordim (k) {
+                    const int forceIdx = (i * nPoints + j) * __Dim;
+                    double ff = 0.1 * force[forceIdx + k];
+                    par.f[k] -= ff;
+                }
+            }
+        }
+
 
         delete[] force;
         delete[] attrs;

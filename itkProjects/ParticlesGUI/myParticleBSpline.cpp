@@ -30,7 +30,7 @@ namespace pi {
         m_RefImage = img;
     }
 
-    void ParticleBSpline::EstimateTransform(const ParticleSubject src, const ParticleSubject dst) {
+    void ParticleBSpline::EstimateTransform(const ParticleSubject& src, const ParticleSubject& dst) {
         int nPoints = src.GetNumberOfPoints();
 
         if (m_FieldPoints.IsNull()) {
@@ -88,7 +88,7 @@ namespace pi {
         }
     }
 
-    void ParticleBSpline::ApplyTransform(ParticleSubject a) {
+    void ParticleBSpline::ApplyTransform(ParticleSubject& a) {
 
     }
 

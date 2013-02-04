@@ -7,6 +7,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/timer.hpp>
 
 namespace pi {
 
@@ -311,19 +312,24 @@ namespace pi {
 
         char trackName[128];
         int k = 0;
+        boost::timer timer;
         for (double t = t0; t < t1; t += dt) {
-            cout << "Processing Time: " << t << endl;
+            timer.restart();
             InternalForce internalForce;
             EnsembleForce ensembleForce;
-            ensembleForce.SetImageContext(&m_ImageContext);
+
             internalForce.ComputeForce(m_Subjects);
+            ensembleForce.SetImageContext(&m_ImageContext);
             ensembleForce.ComputeEnsembleForce(m_Subjects);
+            ensembleForce.ComputeImageForce(m_Subjects);
+
             constraint.ApplyConstraint(m_Subjects);
             UpdateSystem(m_Subjects, dt);
             if (m_TrackingOutputPattern != "") {
                 sprintf(trackName, m_TrackingOutputPattern.c_str(), ++k);
                 SaveSystem(trackName);
             }
+            cout << "Processing Time: " << t << "; Elapsed " << timer.elapsed() << " secs" << endl;
         }
     }
 
@@ -374,7 +380,9 @@ namespace pi {
                 if (in.good()) {
                     stringstream ss(cbuf);
                     ss >> name;
-                    if (name == "TrackingOutputPattern") {
+                    if (name[0] == '#') {
+                        continue;
+                    } else if (name == "TrackingOutputPattern:") {
                         ss >> m_TrackingOutputPattern;
                     } else if (name == "ParticleDimension:") {
                         int value;
@@ -432,11 +440,11 @@ namespace pi {
                                 {
                                     stringstream ss(buf);
                                     for4(k) { ss >> p.x[k]; }
-                                    for4(k) { ss >> p.y[k]; }
-                                    for4(k) { ss >> p.v[k]; }
-                                    for4(k) { ss >> p.f[k]; }
-                                    ss >> p.density;
-                                    ss >> p.pressure;
+//                                    for4(k) { ss >> p.y[k]; }
+//                                    for4(k) { ss >> p.v[k]; }
+//                                    for4(k) { ss >> p.f[k]; }
+//                                    ss >> p.density;
+//                                    ss >> p.pressure;
                                 }
                             }
                         }
@@ -447,6 +455,7 @@ namespace pi {
                         int nParticles;
                         ss >> nParticles;
                         if (nParticles > 0) {
+                            cout << "Reading " << nParticles << " particles ..." << endl;
                             if (m_Subjects[subjId].GetNumberOfPoints() != nParticles) {
                                 m_Subjects[subjId].NewParticles(m_NumParticlesPerSubject);
                             }
@@ -465,6 +474,7 @@ namespace pi {
                                 }
                             }
                         } else if (nParticles == 0) {
+                            cout << "Using " << m_Initial[0].GetNumberOfPoints() << " initial particles ..." << endl;
                             m_Subjects[subjId].Initialize(subjId, "", m_Initial[0]);
                         }
                     }
@@ -496,7 +506,7 @@ namespace pi {
         }
 
         const int nSubjects = m_Subjects.size();
-        out << "Subjects: " << m_Subjects.size() << endl;
+        out << "Subjects: " << nSubjects << endl;
         for (int i = 0; i < nSubjects; i++) {
             out << m_Subjects[i].m_Name << endl;
         }
@@ -525,17 +535,17 @@ namespace pi {
             for (int j = 0; j < m_NumParticlesPerSubject; j++) {
                 Particle& p = m_Initial[i][j];
                 for4(k) { out << p.x[k] << " "; }
-                for4(k) { out << p.y[k] << " "; }
-                for4(k) { out << p.v[k] << " "; }
-                for4(k) { out << p.f[k] << " "; }
-                out << p.density << " ";
-                out << p.pressure << " ";
+//                for4(k) { out << p.y[k] << " "; }
+//                for4(k) { out << p.v[k] << " "; }
+//                for4(k) { out << p.f[k] << " "; }
+//                out << p.density << " ";
+//                out << p.pressure << " ";
                 out << endl;
             }
         }
 
         // Particles
-        cout << "Subjects: " << m_Subjects.size() << endl;
+//        cout << "Subjects: " << m_Subjects.size() << endl;
         for (int i = 0; i < m_Subjects.size(); i++) {
             int nParticles = m_Subjects[i].GetNumberOfPoints();
             out << "Particles: " << i << " " << nParticles << endl;
