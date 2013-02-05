@@ -39,3 +39,6 @@ target_link_libraries(volumeRegistration ${itkcmds_LIBRARIES})
 
 add_executable(multiReg itkImageIO.h itkMultiReg.cpp itkMetaMetrics.h ${SRC_ALL})
 target_link_libraries(multiReg ${itkcmds_LIBRARIES})
+
+add_executable(samplePixel samplePixel.cpp)
+target_link_libraries(samplePixel ${ITK_LIBRARIES})
