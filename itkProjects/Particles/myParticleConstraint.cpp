@@ -6,6 +6,7 @@
 //
 //
 
+#include "vnlCommon.h"
 #include "myImageDef.h"
 #include "myParticleConstraint.h"
 #include "itkUnaryFunctorImageFilter.h"

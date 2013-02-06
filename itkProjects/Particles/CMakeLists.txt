@@ -22,7 +22,7 @@ INCLUDE(${QT_USE_FILE})
 INCLUDE(${USE_VTK_FILE})
 INCLUDE_DIRECTORIES(${ARMADILLO_INCLUDE_DIRS})
 
-ET (QT_PW_HEADERS particleViewerWindow.h myQGraphicsView.h)
+SET (QT_PW_HEADERS particleViewerWindow.h myQGraphicsView.h)
 SET (QT_PW_SOURCES particleViewerWindow.cpp  myQGraphicsView.cpp)
 qt4_wrap_cpp(QT_PW_MOC_HEADERS ${QT_PW_HEADERS})
 qt4_wrap_ui(QT_PW_UI_FILES particleViewerWindow.ui)

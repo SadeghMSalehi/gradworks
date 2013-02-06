@@ -100,7 +100,7 @@ namespace pi {
     void ParticleSubject::Clear() {
         m_Particles.clear();
         m_SubjId = -1;
-        m_InverseTransform = m_Transform = FieldTransformType::Pointer(NULL);
+        m_InverseTransform = m_Transform = CompositeTransformType::Pointer(NULL);
     }
 
     void ParticleSubject::Zero() {
@@ -375,13 +375,13 @@ namespace pi {
                 internalForce.ComputeForce(m_Subjects);
             }
 
-            EnsembleForce ensembleForce;
+            EnsembleForce ensembleForce(m_EnsembleCoeff);
             ensembleForce.SetImageContext(&m_ImageContext);
             if (m_EnsembleForceFlag) {
                 ensembleForce.ComputeEnsembleForce(m_Subjects);
             }
 
-            IntensityForce IntensityForce;
+            IntensityForce IntensityForce(m_IntensityCoeff);
             IntensityForce.SetImageContext(&m_ImageContext);
             if (m_IntensityForceFlag) {
                 IntensityForce.ComputeIntensityForce(this);

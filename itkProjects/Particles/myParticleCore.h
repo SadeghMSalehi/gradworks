@@ -11,7 +11,7 @@
 
 #include "boost/numeric/ublas/vector.hpp"
 #include "boost/numeric/ublas/matrix.hpp"
-#include "vnlCommon.h"
+//#include "vnlCommon.h"
 #include "itkImage.h"
 #include "itkImageIO.h"
 #include "itkOffset.h"
