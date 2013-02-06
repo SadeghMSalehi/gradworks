@@ -31,14 +31,14 @@ set (SRC_ALL ${SRC_METRICS} ${SRC_OPTIMIZERS} ${SRC_MYLIBS} ${SRC_TRANSFORMS})
 #add_executable(itkcmds itkcmds.cpp itkinfo.cpp itkImageIO.h ${POPT_INCLUDE_DIR}/popt.h)
 #target_link_libraries(itkcmds ${itkcmds_LIBRARIES} popt)
 
-add_executable(imageRegistration itkImageIO.h imageRegistration.cpp ${SRC_ALL})
-target_link_libraries(imageRegistration ${itkcmds_LIBRARIES})
+#add_executable(imageRegistration itkImageIO.h imageRegistration.cpp ${SRC_ALL})
+#target_link_libraries(imageRegistration ${itkcmds_LIBRARIES})
 
-add_executable(volumeRegistration itkImageIO.h volumeRegistration.cpp ${SRC_ALL})
-target_link_libraries(volumeRegistration ${itkcmds_LIBRARIES})
+#add_executable(volumeRegistration itkImageIO.h volumeRegistration.cpp ${SRC_ALL})
+#target_link_libraries(volumeRegistration ${itkcmds_LIBRARIES})
 
-add_executable(multiReg itkImageIO.h itkMultiReg.cpp itkMetaMetrics.h ${SRC_ALL})
-target_link_libraries(multiReg ${itkcmds_LIBRARIES})
+#add_executable(multiReg itkImageIO.h itkMultiReg.cpp itkMetaMetrics.h ${SRC_ALL})
+#target_link_libraries(multiReg ${itkcmds_LIBRARIES})
 
 add_executable(samplePixel samplePixel.cpp)
 target_link_libraries(samplePixel ${ITK_LIBRARIES})

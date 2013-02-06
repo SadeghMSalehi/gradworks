@@ -15,6 +15,7 @@
 #include "itkVectorLinearInterpolateImageFunction.h"
 #include "itkImageRegionIteratorWithIndex.h"
 #include "itkDisplacementFieldTransform.h"
+#include "itkCompositeTransform.h"
 #include "itkTransform.h"
 #include "itkPointSet.h"
 #include "vnl/vnl_vector.h"
@@ -27,7 +28,6 @@ const static int __Dim = 2;
 #define fordim(i) for (int i = 0; i < __Dim; i++)
 
 namespace pi {
-    
     // type definitions
     typedef itk::Image<double,__Dim> DoubleImage;
     typedef itk::Image<unsigned short,__Dim> LabelImage;
@@ -46,9 +46,9 @@ namespace pi {
     typedef itk::VectorLinearInterpolateImageFunction<VectorImage> LinearVectorImageInterpolatorType;
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
 
-
     // definition for transforms
     typedef itk::Transform<double,__Dim,__Dim> TransformType;
+    typedef itk::CompositeTransform<double,__Dim> CompositeTransformType;
 
     // definition for displacement field
     typedef itk::PointSet<int,__Dim> IntPointSetType;
@@ -56,6 +56,7 @@ namespace pi {
     typedef itk::DisplacementFieldTransform<double,__Dim> FieldTransformType;
     typedef itk::Image<FieldTransformType::OutputVectorType,__Dim> DisplacementFieldType;
 
+    // auxiliary data structures
     typedef std::vector<std::string> StringVector;
 
     // VNL related types

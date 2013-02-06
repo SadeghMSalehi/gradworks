@@ -69,8 +69,8 @@ namespace pi {
         int m_SubjId;
         string m_Name;
         ParticleArray m_Particles;
-        FieldTransformType::Pointer m_Transform;
-        FieldTransformType::Pointer m_InverseTransform;
+        CompositeTransformType::Pointer m_Transform;
+        CompositeTransformType::Pointer m_InverseTransform;
 
         ParticleSubject() : m_SubjId(-1) { }
         ParticleSubject(int subjid, int npoints);
@@ -97,8 +97,10 @@ namespace pi {
         inline const Particle& operator[](int i) const {
             return m_Particles[i];
         }
-
     };
+
+    ostream& operator<<(ostream& os, const Particle& par);
+
     typedef boost::numeric::ublas::vector<ParticleSubject> ParticleSubjectArray;
 
     class InternalForce {
@@ -111,7 +113,7 @@ namespace pi {
 
     class EnsembleForce {
     public:
-        EnsembleForce();
+        EnsembleForce(double coeff);
         ~EnsembleForce();
         void SetImageContext(ImageContext* context);
         void ComputeEnsembleForce(ParticleSubjectArray& shapes);
@@ -120,16 +122,18 @@ namespace pi {
         ImageContext* m_ImageContext;
         ParticleSubject m_MeanShape;
         void ComputeMeanShape(ParticleSubjectArray& shapes);
+        double m_Coeff;
     };
 
     class IntensityForce {
     public:
-        IntensityForce();
+        IntensityForce(double coeff);
         ~IntensityForce();
         void SetImageContext(ImageContext* context);
         void ComputeIntensityForce(ParticleSystem* system);
     private:
         ImageContext* m_ImageContext;
+        double m_Coeff;
     };
 
     class ImageContext {
@@ -223,6 +227,9 @@ namespace pi {
         bool m_EnsembleForceFlag;
         bool m_IntensityForceFlag;
         
+        double m_EnsembleCoeff;
+        double m_IntensityCoeff;
+
         int m_NumParticlesPerSubject;
         ImageContext m_ImageContext;
         ParticleSubject m_MeanSubject;

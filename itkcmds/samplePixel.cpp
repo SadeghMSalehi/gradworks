@@ -35,7 +35,17 @@ int main(int argc, char* argv[]) {
 
         img->TransformPhysicalPointToIndex(inPoint, outIdx);
         double pixel = img->GetPixel(outIdx);
-        out << pixel << endl;
+        out << pixel;
+
+        inPoint[0] = -x;
+        inPoint[1] = -y;
+        inPoint[2] = z;
+
+        img->TransformPhysicalPointToIndex(inPoint, outIdx);
+        pixel = img->GetPixel(outIdx);
+        out << " " << pixel;
+
+        out << endl;
     }
 
     out.close();

@@ -74,7 +74,7 @@ namespace pi {
     }
     
 
-    EnsembleForce::EnsembleForce() {
+    EnsembleForce::EnsembleForce(double coeff) : m_Coeff(coeff) {
         
     }
     
@@ -117,16 +117,46 @@ namespace pi {
         const int nPoints = shapes[0].GetNumberOfPoints();
         const int nSubjects = shapes.size();
 
+        // Compute offset for origin-centered shapes
+        VNLMatrix centers(nSubjects, 4);
+        centers.fill(0);
+        for (int i = 0; i < nSubjects; i++) {
+            ParticleSubject& subject = shapes[i];
+            fordim(k) {
+                for (int j = 0; j < nPoints; j++) {
+                    Particle& par = subject[j];
+                    centers[i][k] += par.x[k];
+                }
+                centers[i][k] /= nPoints;
+                for (int j = 0; j < nPoints; j++) {
+                    Particle& par = subject[j];
+                    par.x[k] -= centers[i][k];
+                }
+            }
+        }
+        
         // Compute xMeanShape
         ComputeMeanShape(shapes);
         for (int i = 0; i < shapes.size(); i++) {
-            ParticleBSpline transform;
-            transform.SetReferenceImage(m_ImageContext->GetLabel(i));
-            transform.EstimateTransform(shapes[i], m_MeanShape);
-//            transform.EstimateTransform(m_MeanShape, shapes[i]);
-            FieldTransformType::Pointer fieldTransform = transform.GetTransform();
+            ParticleBSpline bspline;
+            bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
+            bspline.EstimateTransform(shapes[i], m_MeanShape);
+            FieldTransformType::Pointer fieldTransform = bspline.GetTransform();
             shapes[i].TransformX2Y(fieldTransform.GetPointer());
-            shapes[i].m_Transform = fieldTransform;
+            CompositeTransformType::Pointer transform = CompositeTransformType::New();
+            transform->AddTransform(fieldTransform);
+            shapes[i].m_Transform = transform;
+        }
+
+        // recover coordinates of particles
+        for (int i = 0; i < nSubjects; i++) {
+            ParticleSubject& subject = shapes[i];
+            fordim (k) {
+                for (int j = 0; j < nPoints; j++) {
+                    Particle& par = subject[j];
+                    par.x[k] += centers[i][k];
+                }
+            }
         }
 
         // Compute yMeanShape
@@ -153,7 +183,7 @@ namespace pi {
                 fordim(k) {
                     xPoint[k] = x[k];
                 }
-                shapes[i].m_Transform->ComputeInverseJacobianWithRespectToPosition(xPoint, xJac);
+                shapes[i].m_Transform->GetNthTransform(0)->ComputeInverseJacobianWithRespectToPosition(xPoint, xJac);
 //                shapes[i].m_Transform->ComputeJacobianWithRespectToPosition(xPoint, xJac);
                 fordim(k) {
                     if (__Dim == 3) {
@@ -162,13 +192,13 @@ namespace pi {
                         f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]);
                     }
                 }
-                shapes[i][j].SubForce(f, 1);
+                shapes[i][j].SubForce(f, m_Coeff);
             }
         }
     }
 
 
-    IntensityForce::IntensityForce() {
+    IntensityForce::IntensityForce(double coeff) : m_Coeff(coeff) {
 
     }
 
@@ -202,12 +232,14 @@ namespace pi {
         // third extract attributes (features)
         for (int i = 0; i < nSubj; i++) {
             ParticleSubject& subject = shapes[i];
-            ParticleBSpline transform;
-            transform.SetReferenceImage(m_ImageContext->GetLabel(i));
-            transform.EstimateTransform(meanSubject, subject);
-            FieldTransformType::Pointer fieldTransform = transform.GetTransform();
-            subject.m_InverseTransform = fieldTransform;
-            warpedImages[i] = transform.WarpImage(m_ImageContext->GetDoubleImage(i));
+            ParticleBSpline bspline;
+            bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
+            bspline.EstimateTransform(meanSubject, subject);
+            FieldTransformType::Pointer fieldTransform = bspline.GetTransform();
+            CompositeTransformType::Pointer transform = CompositeTransformType::New();
+            transform->AddTransform(fieldTransform);
+            subject.m_InverseTransform = transform;
+            warpedImages[i] = bspline.WarpImage(m_ImageContext->GetDoubleImage(i));
             GradientFilterType::Pointer grad = GradientFilterType::New();
             grad->SetInput(warpedImages[i]);
             grad->Update();
@@ -282,14 +314,14 @@ namespace pi {
 
         // compute force at subject space
         for (int i = 0; i < nSubj; i++) {
-            FieldTransformType::Pointer transform = shapes[i].m_InverseTransform;
+            CompositeTransformType::Pointer transform = shapes[i].m_InverseTransform;
             for (int j = 0; j < nPoints; j++) {
                 double* forcePtr = &force[(i * nPoints + j) * __Dim];
-                FieldTransformType::InputPointType x;
+                CompositeTransformType::InputPointType x;
                 fordim(k) {
                     x[k] = shapes[i][j].x[k];
                 }
-                FieldTransformType::JacobianType jac;
+                CompositeTransformType::JacobianType jac;
                 jac.set_size(__Dim, __Dim);
                 transform->ComputeInverseJacobianWithRespectToPosition(x, jac);
                 fordim(k) {
@@ -314,7 +346,7 @@ namespace pi {
                     ff[k] = force[forceIdx + k];
                 }
                 ff.normalize();
-                par.SubForce(ff.data_block(), 1);
+                par.SubForce(ff.data_block(), m_Coeff);
             }
         }
 
