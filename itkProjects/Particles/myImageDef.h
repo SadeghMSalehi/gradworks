@@ -15,6 +15,7 @@
 #include "itkVectorLinearInterpolateImageFunction.h"
 #include "itkImageRegionIteratorWithIndex.h"
 #include "itkDisplacementFieldTransform.h"
+#include "itkAffineTransform.h"
 #include "itkCompositeTransform.h"
 #include "itkTransform.h"
 #include "itkPointSet.h"
@@ -22,7 +23,11 @@
 
 #include "vector"
 
+#ifdef DIMENSION3
+const static int __Dim = 3;
+#else
 const static int __Dim = 2;
+#endif
 
 #define for4(i) for (int i = 0; i < 4; i++)
 #define fordim(i) for (int i = 0; i < __Dim; i++)
@@ -49,6 +54,7 @@ namespace pi {
     // definition for transforms
     typedef itk::Transform<double,__Dim,__Dim> TransformType;
     typedef itk::CompositeTransform<double,__Dim> CompositeTransformType;
+    typedef itk::AffineTransform<double,__Dim> AffineTransformType;
 
     // definition for displacement field
     typedef itk::PointSet<int,__Dim> IntPointSetType;

@@ -11,12 +11,12 @@
 
 #include "boost/numeric/ublas/vector.hpp"
 #include "boost/numeric/ublas/matrix.hpp"
+#include "vector"
+#include "myImageDef.h"
 //#include "vnlCommon.h"
 #include "itkImage.h"
 #include "itkImageIO.h"
 #include "itkOffset.h"
-#include "vector"
-#include "myImageDef.h"
 
 namespace pi {
 
@@ -60,7 +60,9 @@ namespace pi {
 
         Particle& operator=(const Particle& other);
     };
-
+    // utility operator overloading
+    ostream& operator<<(ostream& os, const Particle& par);
+    istream& operator>>(istream& is, Particle& par);
 
     typedef boost::numeric::ublas::vector<Particle> ParticleArray;
 
@@ -69,8 +71,11 @@ namespace pi {
         int m_SubjId;
         string m_Name;
         ParticleArray m_Particles;
-        CompositeTransformType::Pointer m_Transform;
-        CompositeTransformType::Pointer m_InverseTransform;
+
+
+        AffineTransformType::Pointer m_AffineTransform;
+        FieldTransformType::Pointer m_DeformableTransform;
+        FieldTransformType::Pointer m_InverseDeformableTransform;
 
         ParticleSubject() : m_SubjId(-1) { }
         ParticleSubject(int subjid, int npoints);
@@ -88,6 +93,8 @@ namespace pi {
         void ApplyMatrix(VNLMatrix& mat);
         void TransformX2Y(TransformType* transform);
         void TransformY2X(TransformType* transform);
+        void TransformX2X(TransformType* transform);
+        void TransformY2Y(TransformType* transform);
         void UpdateSystem(double dt);
 
         inline Particle& operator[](int i) {
@@ -103,38 +110,6 @@ namespace pi {
 
     typedef boost::numeric::ublas::vector<ParticleSubject> ParticleSubjectArray;
 
-    class InternalForce {
-    public:
-        InternalForce() {}
-        ~InternalForce() {}
-        void ComputeForce(ParticleSubjectArray& shapes);
-        void ComputeForce(Particle& a, Particle& b);
-    };
-
-    class EnsembleForce {
-    public:
-        EnsembleForce(double coeff);
-        ~EnsembleForce();
-        void SetImageContext(ImageContext* context);
-        void ComputeEnsembleForce(ParticleSubjectArray& shapes);
-        void ComputeImageForce(ParticleSubjectArray& shapes);
-    private:
-        ImageContext* m_ImageContext;
-        ParticleSubject m_MeanShape;
-        void ComputeMeanShape(ParticleSubjectArray& shapes);
-        double m_Coeff;
-    };
-
-    class IntensityForce {
-    public:
-        IntensityForce(double coeff);
-        ~IntensityForce();
-        void SetImageContext(ImageContext* context);
-        void ComputeIntensityForce(ParticleSystem* system);
-    private:
-        ImageContext* m_ImageContext;
-        double m_Coeff;
-    };
 
     class ImageContext {
         friend class ParticleSystem;
@@ -163,26 +138,6 @@ namespace pi {
         std::string m_IntersectionOutput;
     };
 
-    class ParticleSlice {
-    public:
-        typedef std::vector<Particle*> ParticlePointerVector;
-
-        ParticleSlice(int dim, int nSubj, int nPoints) {
-            m_SliceDim = dim;
-            m_NumSubjects = nSubj;
-            m_NumPoints = nPoints;
-        }
-
-        const ParticlePointerVector& Get(int slice, int subj);
-        void Update(ParticleSubjectArray& shapes, LabelImage::Pointer refImage);
-
-    private:
-        int m_SliceDim;
-        int m_NumSubjects;
-        int m_NumPoints;
-        
-        boost::numeric::ublas::matrix<ParticlePointerVector> m_ParticlePointerMatrix;
-    };
 
     class ParticleSystem {
     public:

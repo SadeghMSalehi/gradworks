@@ -10,5 +10,41 @@
 #define __ParticlesGUI__myParticleForces__
 
 #include <iostream>
+#include "myParticleCore.h"
+
+namespace pi {
+    class InternalForce {
+    public:
+        InternalForce() {}
+        ~InternalForce() {}
+        void ComputeForce(ParticleSubjectArray& shapes);
+        void ComputeForce(Particle& a, Particle& b);
+    };
+
+    class EnsembleForce {
+    public:
+        EnsembleForce(double coeff);
+        ~EnsembleForce();
+        void SetImageContext(ImageContext* context);
+        void ComputeEnsembleForce(ParticleSubjectArray& shapes);
+        void ComputeImageForce(ParticleSubjectArray& shapes);
+    private:
+        ImageContext* m_ImageContext;
+        ParticleSubject m_MeanShape;
+        void ComputeMeanShape(ParticleSubjectArray& shapes);
+        double m_Coeff;
+    };
+
+    class IntensityForce {
+    public:
+        IntensityForce(double coeff);
+        ~IntensityForce();
+        void SetImageContext(ImageContext* context);
+        void ComputeIntensityForce(ParticleSystem* system);
+    private:
+        ImageContext* m_ImageContext;
+        double m_Coeff;
+    };
+}
 
 #endif /* defined(__ParticlesGUI__myParticleForces__) */

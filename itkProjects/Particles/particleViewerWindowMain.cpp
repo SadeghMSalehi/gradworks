@@ -1,5 +1,6 @@
 #include "particleViewerWindow.h"
 #include "itkMacro.h"
+#include "myImageDef.h"
 
 #include "iostream"
 
@@ -24,11 +25,15 @@ public:
 };
 
 int main(int argc, char* argv[]) {
+    if (__Dim == 3) {
+        cout << "running in 3d mode" << endl;
+    }
     MainApps apps(argc, argv);
     ParticleViewerWindow w;
     if (argc > 1) {
-        w.load(argv[1]);
+//        w.load(argv[1]);
     }
+    w.load("/NIRAL/work/joohwi/RodentBrainEvaluation/ParticleReg/Preprocessing.txt");
     w.show();
     return apps.exec();
 }

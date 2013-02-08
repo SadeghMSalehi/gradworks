@@ -1,15 +1,35 @@
-#include "myParticleCore.h"
-
-#include "myParticleConstraint.h"
-#include "myParticleBSpline.h"
 #include "iostream"
 #include "sstream"
-
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/timer.hpp>
 
+#include "myParticleCore.h"
+#include "myParticleConstraint.h"
+#include "myParticleBSpline.h"
+#include "myParticleForces.h"
+
+
 namespace pi {
+    ostream& operator<<(ostream& os, const Particle& par) {
+        for4(k) { os << par.x[k] << " "; }
+        for4(k) { os << par.y[k] << " "; }
+        for4(k) { os << par.v[k] << " "; }
+        for4(k) { os << par.f[k] << " "; }
+        os << par.density << " ";
+        os << par.pressure << " ";
+        return os;
+    }
+
+    istream& operator>>(istream& is, Particle& par) {
+        for4(k) { is >> par.x[k]; }
+        for4(k) { is >> par.y[k]; }
+        for4(k) { is >> par.v[k]; }
+        for4(k) { is >> par.f[k]; }
+        is >> par.density;
+        is >> par.pressure;
+        return is;
+    }
 
     // constructor
     // set every member variable as zero
@@ -100,12 +120,13 @@ namespace pi {
     void ParticleSubject::Clear() {
         m_Particles.clear();
         m_SubjId = -1;
-        m_InverseTransform = m_Transform = CompositeTransformType::Pointer(NULL);
+        m_InverseDeformableTransform = m_DeformableTransform = FieldTransformType::Pointer(NULL);
     }
 
     void ParticleSubject::Zero() {
         const int nPoints = GetNumberOfPoints();
         for (int i = 0; i < nPoints; i++) {
+            m_Particles[i].idx = i;
             m_Particles[i].Zero();
         }
     }
@@ -136,6 +157,7 @@ namespace pi {
 
         for (int i = 0; i < nPoints; i++) {
             LabelImage::IndexType idx = indexes[i];
+            m_Particles[i].idx = i;
             m_Particles[i].Set(idx);
         }
     }
@@ -149,6 +171,7 @@ namespace pi {
         m_Particles.resize(nPoints);
         for (int i = 0; i < nPoints; i++) {
             m_Particles[i] = shape.m_Particles[i];
+            m_Particles[i].idx = i;
         }
     }
 
@@ -213,6 +236,38 @@ namespace pi {
         }
     }
 
+    void ParticleSubject::TransformX2X(TransformType* transform) {
+        const int nPoints = GetNumberOfPoints();
+        if (transform != NULL) {
+            for (int i = 0; i < nPoints; i++) {
+                TransformType::InputPointType inputPoint;
+                fordim (j) {
+                    inputPoint[j] = m_Particles[i].x[j];
+                }
+                TransformType::OutputPointType outputPoint = transform->TransformPoint(inputPoint);
+                fordim (j) {
+                    m_Particles[i].x[j] = outputPoint[j];
+                }
+            }
+        }
+    }
+
+    void ParticleSubject::TransformY2Y(TransformType* transform) {
+        const int nPoints = GetNumberOfPoints();
+        if (transform != NULL) {
+            for (int i = 0; i < nPoints; i++) {
+                TransformType::InputPointType inputPoint;
+                fordim (j) {
+                    inputPoint[j] = m_Particles[i].y[j];
+                }
+                TransformType::OutputPointType outputPoint = transform->TransformPoint(inputPoint);
+                fordim (j) {
+                    m_Particles[i].y[j] = outputPoint[j];
+                }
+            }
+        }
+    }
+
     void ParticleSubject::UpdateSystem(double dt) {
         const int nPoints = GetNumberOfPoints();
 
@@ -221,28 +276,6 @@ namespace pi {
         }
     }
 
-    void ParticleSlice::Update(ParticleSubjectArray& subjects, LabelImage::Pointer labelImage) {
-        LabelImage::SizeType sz = labelImage->GetBufferedRegion().GetSize();
-
-        const int nSubj = subjects.size();
-        const int nPoints = subjects[0].GetNumberOfPoints();
-
-        m_ParticlePointerMatrix.resize(sz[m_SliceDim], nSubj);
-        for (int i = 0; i < nSubj; i++) {
-            for (int j = 0; j < nPoints; j++) {
-                for (int k = 0; k < sz[m_SliceDim]; k++) {
-                    if (subjects[i][j].x[m_SliceDim] >= k && subjects[i][j].x[m_SliceDim] < k) {
-                        m_ParticlePointerMatrix(k, i).push_back(&subjects[i][j]);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    const ParticleSlice::ParticlePointerVector&  ParticleSlice::Get(int slice, int subj) {
-        return m_ParticlePointerMatrix(slice, subj);
-    }
 
     ParticleSystem::ParticleSystem() : m_NumParticlesPerSubject(300) {
         m_times[0] = 0;
@@ -473,6 +506,8 @@ namespace pi {
                                 m_IntensityForceFlag = true;
                             }
                         }
+                    } else if (name == "ForceCoefficients:") {
+                        ss >> m_EnsembleCoeff >> m_IntensityCoeff;
                     } else if (name == "IntersectionImage:") {
                         ss >> m_ImageContext.m_IntersectionOutput;
                     } else if (name == "NumParticlesPerSubject:") {
@@ -529,11 +564,6 @@ namespace pi {
                                 {
                                     stringstream ss(buf);
                                     for4(k) { ss >> p.x[k]; }
-//                                    for4(k) { ss >> p.y[k]; }
-//                                    for4(k) { ss >> p.v[k]; }
-//                                    for4(k) { ss >> p.f[k]; }
-//                                    ss >> p.density;
-//                                    ss >> p.pressure;
                                 }
                             }
                         }
@@ -554,12 +584,7 @@ namespace pi {
                                 in.getline(buf, sizeof(buf));
                                 if (in.good()) {
                                     stringstream ss(buf);
-                                    for4(k) { ss >> p.x[k]; }
-                                    for4(k) { ss >> p.y[k]; }
-                                    for4(k) { ss >> p.v[k]; }
-                                    for4(k) { ss >> p.f[k]; }
-                                    ss >> p.density;
-                                    ss >> p.pressure;
+                                    ss >> p;
                                 }
                             }
                         } else if (nParticles == 0) {
@@ -597,6 +622,8 @@ namespace pi {
             out << "-intensity ";
         }
         out << endl;
+
+        out << "ForceCoefficients: " << m_EnsembleCoeff << " " << m_IntensityCoeff << endl;
 
         out << "NumParticlesPerSubject: " << m_NumParticlesPerSubject << endl;
 
@@ -645,11 +672,6 @@ namespace pi {
             for (int j = 0; j < m_NumParticlesPerSubject; j++) {
                 Particle& p = m_Initial[i][j];
                 for4(k) { out << p.x[k] << " "; }
-//                for4(k) { out << p.y[k] << " "; }
-//                for4(k) { out << p.v[k] << " "; }
-//                for4(k) { out << p.f[k] << " "; }
-//                out << p.density << " ";
-//                out << p.pressure << " ";
                 out << endl;
             }
         }
@@ -661,13 +683,7 @@ namespace pi {
             out << "Particles: " << i << " " << nParticles << endl;
             for (int j = 0; j < nParticles; j++) {
                 Particle& p = m_Subjects[i][j];
-                for4(k) { out << p.x[k] << " "; }
-                for4(k) { out << p.y[k] << " "; }
-                for4(k) { out << p.v[k] << " "; }
-                for4(k) { out << p.f[k] << " "; }
-                out << p.density << " ";
-                out << p.pressure << " ";
-                out << endl;
+                out << p << endl;
             }
         }
         out.close();
