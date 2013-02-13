@@ -21,21 +21,26 @@ int main(int argc, char* argv[]) {
     
     itkcmds::itkImageIO<LabelImage> io;
     LabelImage::Pointer field = io.ReadImageT("/NIRAL/work/joohwi/data/ellipse/circle3.nrrd");
-    LabelImage::Pointer outField = io.NewImageT(field);
 
     ParticleCollision collision;
     collision.SetBinaryMask(field);
+    bool loadSuccess = collision.LoadDistanceMap("/NIRAL/work/joohwi/data/ellipse/circle3distancemap.nrrd");
     collision.UpdateImages();
-    
+    if (!loadSuccess) {
+        collision.SaveDistanceMap("/NIRAL/work/joohwi/data/ellipse/circle3distancemap.nrrd");
+    }
 
+    itkcmds::itkImageIO<DoubleImage> iox;
+    DoubleImage::Pointer outField = iox.NewImageT<LabelImage>(field);
+    
     Particle p;
     arrayset3(p.x, 50, 40, 40);
     arrayset3(p.v, 0, 0, 3);
     arrayset3(p.f, 0, 0.98, 0);
 
     double t0 = 0;
-    double t1 = 300;
-    double dt = 0.05;
+    double t1 = 70;
+    double dt = 0.1;
 
     LabelImage::IndexType pIdx;
     LabelImage::RegionType fieldRegion = field->GetBufferedRegion();
@@ -104,17 +109,18 @@ int main(int argc, char* argv[]) {
         }
 
 
-        cout << t << ": " << x2string(p.x) << "; " << x2string(p.v) << "; " << endl;
+        cout << t << ": " << x2string(p.x) << "; " << x2string(p.v) << "; " << x2string(normal) << "; " << x2string(tangent) << endl;
         if (!fieldRegion.IsInside(pIdx)) {
             cout << "Stop system: out of region" << endl;
             break;
         }
-        outField->SetPixel(pIdx, ++cnt);
+        outField->SetPixel(pIdx, t);
         if (dimequal(p.v,0,0,0)) {
             cout << "Stop system: " << t << endl;
             break;
         }
     }
 
-    io.WriteImageT("/tmpfs/particle.nrrd", outField);
+    const char* particleOutput = "/tmpfs/particle.nrrd";
+    iox.WriteImageT(particleOutput, outField);
 }

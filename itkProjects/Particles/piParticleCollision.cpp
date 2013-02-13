@@ -161,11 +161,34 @@ namespace pi {
         m_NormalPicker = LinearVectorImageInterpolatorType::New();
         m_NormalPicker->SetInputImage(m_Gradient);
 
-        m_DistanceMap = proc.DistanceMap(m_BinaryMask);
-        m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
-        m_DistOffsetPicker->SetInputImage(m_DistanceMap);
+        if (m_DistanceMap.IsNull()) {
+            m_DistanceMap = proc.DistanceMap(m_BinaryMask);
+            m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
+            m_DistOffsetPicker->SetInputImage(m_DistanceMap);
+        }
     }
-
+    
+    bool ParticleCollision::LoadDistanceMap(const char* filename) {
+        itkcmds::itkImageIO<VectorImage> io;
+        if (m_DistanceMap.IsNull()) {
+            m_DistanceMap = io.ReadImageT(filename);
+            if (m_DistanceMap.IsNotNull()) {
+                m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
+                m_DistOffsetPicker->SetInputImage(m_DistanceMap);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    void ParticleCollision::SaveDistanceMap(const char* filename) {
+        itkcmds::itkImageIO<VectorImage> io;
+        if (m_DistanceMap.IsNotNull()) {
+            io.WriteImageT(filename, m_DistanceMap);
+        }
+    }
+    
+    
     void ParticleCollision::Write(std::string b, std::string c) {
         itkcmds::itkImageIO<LabelImage> io;
         io.WriteImageT("/tmpfs/binary.nrrd", m_BinaryMask);

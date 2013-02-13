@@ -125,7 +125,8 @@ namespace itkcmds {
 			return NewImageT(sx, sy, sz, static_cast<typename T::PixelType>(0));
 		}
 
-		void CopyHeaderT(ImagePointer src, ImagePointer dst) {
+        template <typename S = T>
+		void CopyHeaderT(typename S::Pointer src, ImagePointer dst) {
 			dst->SetSpacing(src->GetSpacing());
 			dst->SetOrigin(src->GetOrigin());
 			dst->SetDirection(src->GetDirection());
@@ -133,10 +134,14 @@ namespace itkcmds {
 		}
 
 		ImagePointer NewImageT(ImagePointer srcImg) {
-			typename T::RegionType srcRegion = srcImg->GetRequestedRegion();
-			typename T::SizeType srcSize = srcRegion.GetSize();
+        }
+        
+        template <class S>
+        ImagePointer NewImageT(typename S::Pointer srcImg) {
+			typename S::RegionType srcRegion = srcImg->GetRequestedRegion();
+			typename S::SizeType srcSize = srcRegion.GetSize();
 			typename T::Pointer newImg = NewImageT(srcSize[0], srcSize[1], srcSize[2], static_cast<typename T::PixelType>(0));
-			CopyHeaderT(srcImg, newImg);
+			CopyHeaderT<S>(srcImg, newImg);
 			return newImg;
 		}
 
@@ -159,13 +164,18 @@ namespace itkcmds {
 
 		ImagePointer ReadImageT(const char* filename) {
 			cout << "Reading " << filename << flush;
-			typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
-			reader->SetFileName(filename);
-			reader->Update();
-			GetImageInfo(reader);
-            std::cout << " [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
-			std::cout << " done." << std::endl;
-			return reader->GetOutput();
+            if (CheckExists(filename)) {
+                typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
+                reader->SetFileName(filename);
+                reader->Update();
+                GetImageInfo(reader);
+                std::cout << " [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
+                std::cout << " done." << std::endl;
+                return reader->GetOutput();
+            } else {
+                cout << " failed. (file not exist)" << endl;
+                return ImagePointer();
+            }
 		}
 
 		int WriteImageT(const char* filename, ImagePointer image, bool compression) {
@@ -224,6 +234,11 @@ namespace itkcmds {
             filter->SetInterpolator(InterpolatorType::New());
             filter->Update();
             return filter->GetOutput();
+        }
+        
+        bool CheckExists(const char* filename) {
+            ifstream fin(filename);
+            return fin;
         }
 };
 

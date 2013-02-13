@@ -49,6 +49,10 @@ namespace pi {
         void ComputeClosestBoundary(double* x1, double* cp);
         void SetBinaryMask(LabelImage::Pointer binary);
         void UpdateImages();
+        
+        bool LoadDistanceMap(const char* filename);
+        void SaveDistanceMap(const char* filename);
+        
         void Write(std::string b, std::string c);
         
     private:
