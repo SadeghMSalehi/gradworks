@@ -1,5 +1,5 @@
-#include "myParticleCore.h"
-#include "myParticleBSpline.h"
+#include "piParticleCore.h"
+#include "piParticleBSpline.h"
 #include "itkImageIO.h"
 #include "iostream"
 

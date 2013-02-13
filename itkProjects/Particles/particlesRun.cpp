@@ -1,5 +1,5 @@
-#include "myParticleCore.h"
-#include "myParticleBSpline.h"
+#include "piParticleCore.h"
+#include "piParticleBSpline.h"
 
 using namespace std;
 
@@ -41,8 +41,11 @@ int main(int argc, char* argv[]) {
 //        cout << system[1][0].x[0] << "," << system[1][0].x[1] << "; " << system[0][0].x[0] << "," << system[0][0].x[1] << " ~= " << outPoint << endl;
 //    }
 
-
-    system.RunPreprocessing();
+    if (argc > 2 && 0 == strcmp(argv[2], "1")) {
+        system.RunPreprocessing(true, 0.1);
+    } else if (argc > 2 && 0 == strcmp(argv[2], "0")) {
+        system.RunPreprocessing(false);
+    }
     if (argc > 3) {
         system.SaveSystem(argv[3]);
     }

@@ -1,6 +1,6 @@
 #include "particleViewerWindow.h"
 #include "itkMacro.h"
-#include "myImageDef.h"
+#include "piImageDef.h"
 
 #include "iostream"
 
@@ -31,9 +31,10 @@ int main(int argc, char* argv[]) {
     MainApps apps(argc, argv);
     ParticleViewerWindow w;
     if (argc > 1) {
-//        w.load(argv[1]);
+        w.load(argv[1]);
+    } else {
+        w.load("/NIRAL/work/joohwi/RodentBrainEvaluation/ParticleReg/Preprocessing.txt");
     }
-    w.load("/NIRAL/work/joohwi/RodentBrainEvaluation/ParticleReg/Preprocessing.txt");
     w.show();
     return apps.exec();
 }

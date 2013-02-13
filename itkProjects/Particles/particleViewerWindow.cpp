@@ -1,6 +1,6 @@
 #include "particleViewerWindow.h"
-#include "myParticleCore.h"
-#include "myParticleBSpline.h"
+#include "piParticleCore.h"
+#include "piParticleBSpline.h"
 #include "QFileDialog"
 #include "QGraphicsGridItem.h"
 
@@ -98,8 +98,12 @@ void ParticleViewerWindow::setupSlice() {
 void ParticleViewerWindow::createGrid() {
     pi::LabelImage::Pointer refImage = g_System.GetImageContext().GetLabel(0);
     pi::LabelImage::SizeType refSize = refImage->GetBufferedRegion().GetSize();
-    g_GX.set_size(refSize[0], refSize[1]);
-    g_GY.set_size(refSize[0], refSize[1]);
+
+    const int dim1 = (m_CurrentDirection + __Dim - 1) % __Dim;
+    const int dim2 = (m_CurrentDirection + 1) % __Dim;
+
+    g_GX.set_size(refSize[dim1], refSize[dim2]);
+    g_GY.set_size(refSize[dim1], refSize[dim2]);
 
     // assume gX and gY are physical coordinate system
     for (int i = 0; i < g_GX.rows(); i++) {
@@ -151,8 +155,8 @@ void ParticleViewerWindow::updateScene() {
 
     const pi::ParticleSubjectArray& subjects = g_System.GetSubjects();
     const int currentSlice = m_CurrentSlice[m_CurrentDirection];
-    const int dim1 = (m_CurrentDirection + 1) % __Dim;
-    const int dim2 = (m_CurrentDirection + __Dim - 1) % __Dim;
+    const int dim1 = (m_CurrentDirection + __Dim - 1) % __Dim;
+    const int dim2 = (m_CurrentDirection + 1) % __Dim;
     const int nSubjects = subjects.size();
     const int nPoints = g_Slice.GetNumberOfPointsInSlice(currentSlice, 0);
 
