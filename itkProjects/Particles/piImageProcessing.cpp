@@ -29,6 +29,7 @@
 
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 #include "itkDanielssonDistanceMapImageFilter.h"
+#include "itkVectorMagnitudeImageFilter.h"
 
 #include "itkImageIO.h"
 
@@ -56,6 +57,7 @@ namespace pi {
     typedef itk::DanielssonDistanceMapImageFilter<LabelImage, DoubleImage> DistanceMapFilterType;
     typedef DistanceMapFilterType::VectorImageType DistanceVectorImageType;
     typedef DistanceVectorImageType::PixelType DistancePixelType;
+    typedef itk::VectorMagnitudeImageFilter<VectorImage, DoubleImage> GradientMagnitudeFilterType;
 
     class OffsetToVector {
     public:
@@ -170,13 +172,14 @@ namespace pi {
         return subFilter->GetOutput();
     }
 
-    VectorImage::Pointer ImageProcessing::ComputeNormal(LabelImage::Pointer img) {
+    VectorImage::Pointer ImageProcessing::ComputeGradient(LabelImage::Pointer img) {
         CastToRealFilterType::Pointer toReal = CastToRealFilterType::New();
         toReal->SetInput(img);
         toReal->Update();
 
         GradientFilterType::Pointer gradientFilter = GradientFilterType::New();
         gradientFilter->SetInput(toReal->GetOutput());
+        gradientFilter->SetSigma(1.5);
         gradientFilter->Update();
         return gradientFilter->GetOutput();
     }
@@ -239,5 +242,12 @@ namespace pi {
         caster->SetInput(distmapFilter->GetVectorDistanceMap());
         caster->Update();
         return caster->GetOutput();
+    }
+
+    DoubleImage::Pointer ImageProcessing::ComputeMagnitudeMap(VectorImage::Pointer img) {
+        GradientMagnitudeFilterType::Pointer magFilter = GradientMagnitudeFilterType::New();
+        magFilter->SetInput(img);
+        magFilter->Update();
+        return magFilter->GetOutput();
     }
 }

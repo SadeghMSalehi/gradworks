@@ -28,6 +28,7 @@ namespace pi {
     public:
         int subj;
         int idx;
+        double t;
 
         // the position x and the transformed point y
         double x[4];
@@ -141,7 +142,6 @@ namespace pi {
         std::string m_IntersectionOutput;
     };
 
-
     class ParticleSystem {
     public:
         ParticleSystem();
@@ -167,7 +167,7 @@ namespace pi {
 
         bool LoadSystem(std::string filename);
         void SaveSystem(std::string filename);
-        
+
         inline ParticleSubject& operator[](int j) {
             return m_Subjects[j];
         }
@@ -175,7 +175,7 @@ namespace pi {
         inline const ParticleSubject& operator[](int j) const {
             return m_Subjects[j];
         }
-        
+
     private:
         double m_times[3];
         double m_timesPreprocessing[3];
@@ -184,7 +184,7 @@ namespace pi {
         bool m_InternalForceFlag;
         bool m_EnsembleForceFlag;
         bool m_IntensityForceFlag;
-        
+
         double m_EnsembleCoeff;
         double m_IntensityCoeff;
 
@@ -195,6 +195,7 @@ namespace pi {
         ParticleSubjectArray m_Subjects;
         std::string m_TrackingOutputPattern;
     };
+
 }
 
 #endif

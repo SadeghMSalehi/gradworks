@@ -9,6 +9,7 @@
 #include "piParticleCore.h"
 #include "piParticleBSpline.h"
 #include "piParticleForces.h"
+#include "piParticleSystem.h"
 #include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkVectorLinearInterpolateImageFunction.h"
 #include "itkConstNeighborhoodIterator.h"
@@ -36,11 +37,11 @@ namespace pi {
                     Particle& pj = particles[j];
                     ComputeForce(pi, pj);
                 }
-                double f[__Dim] = { 0, };
-                fordim(d) {
-                    f[d] = -mu * pi.v[d];
-                }
-                pi.AddForce(f);
+//                double f[__Dim] = { 0, };
+//                fordim(d) {
+//                    f[d] = -mu * pi.v[d];
+//                }
+//                pi.AddForce(f);
             }
         }
     }
@@ -48,6 +49,7 @@ namespace pi {
     void InternalForce::ComputeForce(Particle &pi, Particle &pj) {
         const double sigma = 15 * 5;
         const double coeff = M_PI_2 / sigma;
+        const bool useSimpleForce = false;
         
         double fi[__Dim] = { 0 }, fj[__Dim] = { 0 };
         double dx[__Dim] = { 0 };
@@ -60,14 +62,20 @@ namespace pi {
         const double rij = std::sqrt(rij2);
 
         if (rij <= sigma) {
-            fordim(k) {
-                dx[k] /= rij;
-            }
-            const double crij = rij * coeff;
-            const double sin1crij = std::sin(crij);
-            const double sin2crij = sin1crij * sin1crij;
-            fordim(k) {
-                fj[k] = fi[k] = dx[k] * (coeff * (1 - (1 / sin2crij)));
+            if (useSimpleForce) {
+                fordim (k) {
+                    fj[k] = fi[k] = -dx[k];
+                }
+            } else {
+                fordim(k) {
+                    dx[k] /= rij;
+                }
+                const double crij = rij * coeff;
+                const double sin1crij = std::sin(crij);
+                const double sin2crij = sin1crij * sin1crij;
+                fordim(k) {
+                    fj[k] = fi[k] = (dx[k] * (coeff * (1 - (1 / sin2crij))));
+                }
             }
             pi.SubForce(fi);
             pj.AddForce(fj);

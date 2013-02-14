@@ -8,7 +8,7 @@
 #include "piParticleConstraint.h"
 #include "piParticleBSpline.h"
 #include "piParticleForces.h"
-
+#include "piParticleCollision.h"
 
 namespace pi {
     ostream& operator<<(ostream& os, const Particle& par) {
@@ -145,6 +145,9 @@ namespace pi {
         LabelImageIteratorType iter(intersection, intersection->GetBufferedRegion());
         for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
             LabelImage::IndexType idx = iter.GetIndex();
+            if (idx[2] != 40) {
+                continue;
+            }
             LabelImage::PixelType pixel = iter.Value();
             if (pixel > 0) {
                 indexes.push_back(idx);
@@ -176,13 +179,15 @@ namespace pi {
     }
 
     void ParticleSubject::Initialize(const ParticleArray& array) {
-        const int nPoints = GetNumberOfPoints();
-        if (nPoints != array.size()) {
+        const int nPoints = array.size();
+        if (GetNumberOfPoints() != nPoints) {
             m_Particles.resize(nPoints);
         }
 
         for (int i = 0; i < nPoints; i++) {
             m_Particles[i] = array[i];
+            m_Particles[i].idx = i;
+            m_Particles[i].subj = m_SubjId;
         }
     }
 
@@ -276,6 +281,95 @@ namespace pi {
         }
     }
 
+    void ImageContext::Clear() {
+        m_FileNames.clear();
+        m_LabelImages.clear();
+        m_DistanceMaps.clear();
+    }
+
+    void ImageContext::LoadLabel(std::string filename) {
+        itkcmds::itkImageIO<LabelImage> io;
+        LabelImage::Pointer image = io.ReadImageT(filename.c_str());
+        m_LabelImages.push_back(image);
+
+        // set default spacing to 1 to match index and physical coordinate space
+        LabelImage::SpacingType defaultSpacing;
+        defaultSpacing.Fill(1);
+        m_LabelImages.back()->SetSpacing(defaultSpacing);
+
+        m_FileNames.push_back(filename);
+    }
+
+    void ImageContext::LoadDoubleImage(std::string filename) {
+        itkcmds::itkImageIO<DoubleImage> io;
+        DoubleImage::Pointer image = io.ReadImageT(filename.c_str());
+        m_Images.push_back(image);
+
+        // set default spacing to 1 to match index and physical coordinate space
+        DoubleImage::SpacingType defaultSpacing;
+        defaultSpacing.Fill(1);
+        m_Images.back()->SetSpacing(defaultSpacing);
+        
+        m_DoubleImageFileNames.push_back(filename);
+    }
+
+    LabelImage::Pointer ImageContext::GetLabel(int j) {
+        return m_LabelImages[j];
+    }
+
+    DoubleImage::Pointer ImageContext::GetDoubleImage(int j) {
+        return m_Images[j];
+    }
+
+    LabelImage::Pointer ImageContext::GetIntersection() {
+        return m_Intersection;
+    }
+
+    void ImageContext::ComputeIntersection() {
+        itkcmds::itkImageIO<LabelImage> io;
+        LabelImage::Pointer intersection = io.NewImageT(m_LabelImages[0]);
+        LabelImage::RegionType region = intersection->GetBufferedRegion();
+
+        // set as member variable to reuse
+        m_Intersection = intersection;
+
+        // compute intersection by looping over region
+        std::vector<LabelImage::IndexType> indexes;
+        LabelImageIteratorType iter(intersection, region);
+        for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+            LabelImage::IndexType idx = iter.GetIndex();
+            LabelImage::PixelType pixel = 255;
+            const int pixelThreshold = 1;
+            for (int i = 0; i < m_LabelImages.size(); i++) {
+                if (m_LabelImages[i]->GetPixel(idx) < pixelThreshold) {
+                    pixel = 0;
+                    break;
+                }
+            }
+            if (pixel > 0) {
+                intersection->SetPixel(idx, 255);
+            }
+        }
+        if (m_IntersectionOutput != "") {
+            io.WriteImageT(m_IntersectionOutput.c_str(), intersection);
+        }
+    }
+    
+    StringVector& ImageContext::GetDoubleImageFileNames() {
+        return m_DoubleImageFileNames;
+    }
+    
+    StringVector& ImageContext::GetFileNames() {
+        return m_FileNames;
+    }
+    
+    LabelVector& ImageContext::GetLabelVector() {
+        return m_LabelImages;
+    }
+    
+    DoubleImageVector& ImageContext::GetDoubleImageVector() {
+        return m_Images;
+    }
 
     ParticleSystem::ParticleSystem() : m_NumParticlesPerSubject(300) {
         m_times[0] = 0;
@@ -321,7 +415,7 @@ namespace pi {
     const ParticleSubject& ParticleSystem::GetMeanSubject() const {
         return m_MeanSubject;
     }
-    
+
     ParticleSubjectArray& ParticleSystem::GetSubjects() {
         return m_Subjects;
     }
@@ -337,19 +431,19 @@ namespace pi {
     }
 
     /*
-    void ParticleSystem::LoadPreprocessing(std::string filename) {
-        ParticleSubjectArray subjects;
-        if (filename != "") {
-            LoadSystem(filename, m_Initial, 1);
-            StringVector& labelFiles = m_ImageContext.GetFileNames();
-            const int nSubjects = labelFiles.size();
-            m_Subjects.resize(nSubjects);
-            for (int i = 0; i < nSubjects; i++) {
-                m_Subjects[i].Initialize(i, labelFiles[i], subjects[0]);
-            }
-        }
-    }
-    */
+     void ParticleSystem::LoadPreprocessing(std::string filename) {
+     ParticleSubjectArray subjects;
+     if (filename != "") {
+     LoadSystem(filename, m_Initial, 1);
+     StringVector& labelFiles = m_ImageContext.GetFileNames();
+     const int nSubjects = labelFiles.size();
+     m_Subjects.resize(nSubjects);
+     for (int i = 0; i < nSubjects; i++) {
+     m_Subjects[i].Initialize(i, labelFiles[i], subjects[0]);
+     }
+     }
+     }
+     */
 
     void ParticleSystem::RunPreprocessing(bool runInitialProcessing, double checkPointing) {
         if (m_Initial.size() == 0) {
@@ -404,6 +498,7 @@ namespace pi {
         constraint.SetImageList(m_ImageContext.GetLabelVector());
         cout << "Distance map generation ... done" << endl;
 
+
         char trackName[128];
         int k = 0;
         boost::timer timer;
@@ -437,20 +532,20 @@ namespace pi {
         }
     }
 
-//    void ParticleSystem::PrepareSystem(ParticleSubjectArray& subjects) {
-//        if (subjects.size() < 1) {
-//            return;
-//        }
-//        const int nSubjects = subjects.size();
-//        const int nPoints = subjects[0].m_Particles.size();
-//        for (int i = 0; i < nSubjects; i++) {
-//            for (int j = 0; j < nPoints; j++) {
-//                fordim(k) {
-//                    subjects[i][j].f[k] = 0;
-//                }
-//            }
-//        }
-//    }
+    //    void ParticleSystem::PrepareSystem(ParticleSubjectArray& subjects) {
+    //        if (subjects.size() < 1) {
+    //            return;
+    //        }
+    //        const int nSubjects = subjects.size();
+    //        const int nPoints = subjects[0].m_Particles.size();
+    //        for (int i = 0; i < nSubjects; i++) {
+    //            for (int j = 0; j < nPoints; j++) {
+    //                fordim(k) {
+    //                    subjects[i][j].f[k] = 0;
+    //                }
+    //            }
+    //        }
+    //    }
 
     void ParticleSystem::UpdateSystem(ParticleSubjectArray& subjects, double dt) {
         const int nSubjects = subjects.size();
@@ -655,7 +750,7 @@ namespace pi {
         for (int i = 0; i < nSubjects; i++) {
             out << m_Subjects[i].m_Name << endl;
         }
-        
+
         // Label Images
         StringVector& labels = m_ImageContext.GetFileNames();
         if (labels.size() > 0) {
@@ -685,7 +780,7 @@ namespace pi {
         }
 
         // Particles
-//        cout << "Subjects: " << m_Subjects.size() << endl;
+        //        cout << "Subjects: " << m_Subjects.size() << endl;
         for (int i = 0; i < m_Subjects.size(); i++) {
             int nParticles = m_Subjects[i].GetNumberOfPoints();
             out << "Particles: " << i << " " << nParticles << endl;
@@ -697,93 +792,4 @@ namespace pi {
         out.close();
     }
 
-    void ImageContext::Clear() {
-        m_FileNames.clear();
-        m_LabelImages.clear();
-        m_DistanceMaps.clear();
-    }
-
-    void ImageContext::LoadLabel(std::string filename) {
-        itkcmds::itkImageIO<LabelImage> io;
-        LabelImage::Pointer image = io.ReadImageT(filename.c_str());
-        m_LabelImages.push_back(image);
-
-        // set default spacing to 1 to match index and physical coordinate space
-        LabelImage::SpacingType defaultSpacing;
-        defaultSpacing.Fill(1);
-        m_LabelImages.back()->SetSpacing(defaultSpacing);
-
-        m_FileNames.push_back(filename);
-    }
-
-    void ImageContext::LoadDoubleImage(std::string filename) {
-        itkcmds::itkImageIO<DoubleImage> io;
-        DoubleImage::Pointer image = io.ReadImageT(filename.c_str());
-        m_Images.push_back(image);
-
-        // set default spacing to 1 to match index and physical coordinate space
-        DoubleImage::SpacingType defaultSpacing;
-        defaultSpacing.Fill(1);
-        m_Images.back()->SetSpacing(defaultSpacing);
-        
-        m_DoubleImageFileNames.push_back(filename);
-    }
-
-    LabelImage::Pointer ImageContext::GetLabel(int j) {
-        return m_LabelImages[j];
-    }
-
-    DoubleImage::Pointer ImageContext::GetDoubleImage(int j) {
-        return m_Images[j];
-    }
-
-    LabelImage::Pointer ImageContext::GetIntersection() {
-        return m_Intersection;
-    }
-
-    void ImageContext::ComputeIntersection() {
-        itkcmds::itkImageIO<LabelImage> io;
-        LabelImage::Pointer intersection = io.NewImageT(m_LabelImages[0]);
-        LabelImage::RegionType region = intersection->GetBufferedRegion();
-
-        // set as member variable to reuse
-        m_Intersection = intersection;
-
-        // compute intersection by looping over region
-        std::vector<LabelImage::IndexType> indexes;
-        LabelImageIteratorType iter(intersection, region);
-        for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
-            LabelImage::IndexType idx = iter.GetIndex();
-            LabelImage::PixelType pixel = 255;
-            const int pixelThreshold = 1;
-            for (int i = 0; i < m_LabelImages.size(); i++) {
-                if (m_LabelImages[i]->GetPixel(idx) < pixelThreshold) {
-                    pixel = 0;
-                    break;
-                }
-            }
-            if (pixel > 0) {
-                intersection->SetPixel(idx, 255);
-            }
-        }
-        if (m_IntersectionOutput != "") {
-            io.WriteImageT(m_IntersectionOutput.c_str(), intersection);
-        }
-    }
-    
-    StringVector& ImageContext::GetDoubleImageFileNames() {
-        return m_DoubleImageFileNames;
-    }
-    
-    StringVector& ImageContext::GetFileNames() {
-        return m_FileNames;
-    }
-    
-    LabelVector& ImageContext::GetLabelVector() {
-        return m_LabelImages;
-    }
-    
-    DoubleImageVector& ImageContext::GetDoubleImageVector() {
-        return m_Images;
-    }
 }

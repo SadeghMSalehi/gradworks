@@ -18,9 +18,10 @@ namespace pi {
         // anti-aliasing, connected component, and closing morphology
         LabelImage::Pointer SmoothLabelMap(LabelImage::Pointer img);
         LabelImage::Pointer ErodedBorder(LabelImage::Pointer img);
-        VectorImage::Pointer ComputeNormal(LabelImage::Pointer img);
+        VectorImage::Pointer ComputeGradient(LabelImage::Pointer img);
         LabelImage::Pointer Ellipse(int* outputSize, double* center, double* radius);
         VectorImage::Pointer DistanceMap(LabelImage::Pointer img);
+        DoubleImage::Pointer ComputeMagnitudeMap(VectorImage::Pointer img);
     };
 }
 #endif /* defined(__ParticlesGUI__myImageProcessing__) */
