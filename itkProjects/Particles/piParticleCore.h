@@ -17,6 +17,7 @@
 #include "itkImage.h"
 #include "itkImageIO.h"
 #include "itkOffset.h"
+#include "piOptions.h"
 
 namespace pi {
 
@@ -164,9 +165,26 @@ namespace pi {
         //        void PrepareSystem(ParticleSubjectArray& shapes);
 
 
+        LabelImage::Pointer GetLabelImage(int i) {
+            if (m_ImageContext.m_LabelImages.size() > i) {
+                return m_ImageContext.m_LabelImages[i];
+            }
+            return LabelImage::Pointer();
+        }
+
+        DoubleImage::Pointer GetDoubleImage(int i) {
+            if (m_ImageContext.m_Images.size() > i) {
+                return m_ImageContext.m_Images[i];
+            }
+            return DoubleImage::Pointer();
+        }
 
         bool LoadSystem(std::string filename);
         void SaveSystem(std::string filename);
+
+        Options& GetSystemOptions() {
+            return m_Options;
+        }
 
         inline ParticleSubject& operator[](int j) {
             return m_Subjects[j];
@@ -194,6 +212,7 @@ namespace pi {
         ParticleSubjectArray m_Initial;
         ParticleSubjectArray m_Subjects;
         std::string m_TrackingOutputPattern;
+        Options m_Options;
     };
 
 }

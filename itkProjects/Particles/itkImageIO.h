@@ -19,7 +19,6 @@
 using namespace std;
 
 namespace itkcmds {
-
 	template <typename T>
 	class itkImageIO {
 	private:
@@ -75,11 +74,6 @@ namespace itkcmds {
 				"USHORT", "SHORT", "UINT", "INT", "ULONG", "LONG", "FLOAT", "DOUBLE" };
 			return componentTypes[cx];
 		}
-
-        bool FileExists(const char* fileName) {
-            ifstream ifile(fileName);
-            return ifile;
-        }
 
 		ImagePointer NewImageT(int sx, int sy, int sz, ImagePixel fillValue) {
 			ImagePointer newImage = T::New();
@@ -235,7 +229,12 @@ namespace itkcmds {
             filter->Update();
             return filter->GetOutput();
         }
-        
+	
+       	bool FileExists(const char* fileName) {
+			ifstream ifile(fileName);
+			return ifile;
+		}
+
         bool CheckExists(const char* filename) {
             ifstream fin(filename);
             return fin;

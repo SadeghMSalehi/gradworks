@@ -585,6 +585,7 @@ namespace pi {
                         continue;
                     } else if (name == "TrackingOutputPattern:") {
                         ss >> m_TrackingOutputPattern;
+                        m_Options.Set(name, m_TrackingOutputPattern);
                         cout << "TrackingOutputPattern => " << m_TrackingOutputPattern << endl;
                     } else if (name == "ParticleDimension:") {
                         int value;
@@ -608,14 +609,24 @@ namespace pi {
                         }
                     } else if (name == "ForceCoefficients:") {
                         ss >> m_EnsembleCoeff >> m_IntensityCoeff;
+                        m_Options.AppendDouble(name, m_EnsembleCoeff);
+                        m_Options.AppendDouble(name, m_IntensityCoeff);
                     } else if (name == "IntersectionImage:") {
                         ss >> m_ImageContext.m_IntersectionOutput;
+                        m_Options.Set(name, m_ImageContext.m_IntersectionOutput);
                     } else if (name == "NumParticlesPerSubject:") {
                         ss >> m_NumParticlesPerSubject;
+                        m_Options.Set(name, m_NumParticlesPerSubject);
                     } else if (name == "TimeRange:") {
                         ss >> m_times[0] >> m_times[1] >> m_times[2];
+                        m_Options.AppendDouble(name, m_times[0]);
+                        m_Options.AppendDouble(name, m_times[1]);
+                        m_Options.AppendDouble(name, m_times[2]);
                     } else if (name == "PreprocessingTimeRange:") {
                         ss >> m_timesPreprocessing[0] >> m_timesPreprocessing[1] >> m_timesPreprocessing[2];
+                        m_Options.AppendDouble(name, m_timesPreprocessing[0]);
+                        m_Options.AppendDouble(name, m_timesPreprocessing[1]);
+                        m_Options.AppendDouble(name, m_timesPreprocessing[2]);
                     } else if (name == "LabelImages:") {
                         int value;
                         ss >> value;
@@ -638,7 +649,10 @@ namespace pi {
                         for (int i = 0; i < value; i++) {
                             char buf[128];
                             in.getline(buf, sizeof(buf));
-                            m_ImageContext.LoadDoubleImage(buf);
+                            if (in.good()) {
+                                m_ImageContext.LoadDoubleImage(buf);
+                                m_Options.AppendString(name, buf);
+                            }
                         }
                     } else if (name == "Subjects:") {
                         int value;
@@ -651,6 +665,7 @@ namespace pi {
                             char buf[128];
                             in.getline(buf, sizeof(buf));
                             m_Subjects[i].m_Name = buf;
+                            m_Options.AppendString(name, buf);
                         }
                     } else if (name == "InitialParticles:") {
                         m_Initial.resize(1);
@@ -690,6 +705,28 @@ namespace pi {
                         } else if (nParticles == 0) {
                             cout << "Using " << m_Initial[0].GetNumberOfPoints() << " initial particles ..." << endl;
                             m_Subjects[subjId].Initialize(subjId, "", m_Initial[0]);
+                        }
+                    } else {
+                        string kind;
+                        ss >> kind;
+                        if (kind == "strings") {
+                            int nValues;
+                            ss >> nValues;
+                            for (int i = 0; i < nValues; i++) {
+                                char buf[128];
+                                in.getline(buf, sizeof(buf));
+                                if (in.good()) {
+                                    m_Options.AppendString(name, buf);
+                                } else {
+                                    break;
+                                }
+                            }
+                        } else if (kind == "doubles") {
+                            while (ss.good()) {
+                                double d;
+                                ss >> d;
+                                m_Options.AppendDouble(name, d);
+                            }
                         }
                     }
                 }

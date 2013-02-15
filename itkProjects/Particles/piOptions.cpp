@@ -7,6 +7,11 @@
 //
 
 #include "piOptions.h"
+#include "sstream"
+#include "iostream"
+#include "fstream"
+
+using namespace std;
 
 namespace pi {
     void Options::Set(std::string name, bool value) {
@@ -36,8 +41,16 @@ namespace pi {
         }
     }
 
-    void Options::Add(std::string name, std::string value) {
+    void Options::AppendString(std::string name, std::string value) {
         _stringVectorMap[name].push_back(value);
+    }
+
+    void Options::AppendDouble(std::string name, double value) {
+        _doubleVectorMap[name].push_back(value);
+    }
+
+    void Options::AppendInt(std::string name, int value) {
+        _intVectorMap[name].push_back(value);
     }
 
     bool Options::GetBool(std::string name, bool def) {
@@ -85,6 +98,41 @@ namespace pi {
         return _stringVectorMap[name];
     }
 
+    std::string Options::GetStringVectorValue(std::string name, int n, std::string def) {
+        if (_stringVectorMap.find(name) == _stringVectorMap.end()) {
+            return def;
+        } else {
+            if (_stringVectorMap[name].size() > n) {
+                return _stringVectorMap[name][n];
+            }
+        }
+        return def;
+    }
+
+    DoubleVector& Options::GetDoubleVector(std::string name) {
+        return _doubleVectorMap[name];
+    }
+
+    double Options::GetDoubleVectorValue(std::string name, int nth, double def) {
+        DoubleVector& vector = _doubleVectorMap[name];
+        if (vector.size() > nth) {
+            return vector[nth];
+        }
+        return def;
+    }
+
+    IntVector& Options::GetIntVector(std::string name) {
+        return _intVectorMap[name];
+    }
+
+    int Options::GetIntVectorValue(std::string name, int nth, int def) {
+        IntVector& vector = _intVectorMap[name];
+        if (vector.size() > nth) {
+            return vector[nth];
+        }
+        return def;
+    }
+    
 
     StringVector& Options::ParseOptions(int argc, char* argv[], CSimpleOpt::SOption* optionSpecs) {
         CSimpleOpt::SOption defaultSpecs[] = {
@@ -108,9 +156,106 @@ namespace pi {
         }
 
         for (int i = 0; i < args.FileCount(); i++) {
-            this->Add("args", args.File(i));
+            this->AppendString("args", args.File(i));
         }
         return this->GetStringVector("args");
     }
 
+    std::ostream & operator<<(std::ostream &os, const Options& opt) {
+        for(Options::IntMap::const_iterator iter = opt._intMap.begin(); iter != opt._intMap.end(); ++iter) {
+            os << iter->first << " int " << iter->second << endl;
+        }
+        for(Options::DoubleMap::const_iterator iter = opt._doubleMap.begin(); iter != opt._doubleMap.end(); ++iter) {
+            os << iter->first << " double " << iter->second << endl;
+        }
+        for(Options::StringMap::const_iterator iter = opt._stringMap.begin(); iter != opt._stringMap.end(); ++iter) {
+            os << iter->first << " string " << iter->second << endl;
+        }
+        for(Options::BoolMap::const_iterator iter = opt._boolMap.begin(); iter != opt._boolMap.end(); ++iter) {
+            os << iter->first << " bool " << (iter->second ? "true" : "false") << endl;
+        }
+
+        for(Options::IntVectorMap::const_iterator iter = opt._intVectorMap.begin(); iter != opt._intVectorMap.end(); ++iter) {
+            IntVector vector = iter->second;
+            os << iter->first << " ints " << vector.size();
+            for (int i = 0; i < vector.size(); i++) {
+                os << " " << vector[i];
+            }
+            os << endl;
+        }
+
+        for(Options::DoubleVectorMap::const_iterator iter = opt._doubleVectorMap.begin(); iter != opt._doubleVectorMap.end(); ++iter) {
+            DoubleVector vector = iter->second;
+            os << iter->first << " doubles " << vector.size();
+            for (int i = 0; i < vector.size(); i++) {
+                os << " " << vector[i];
+            }
+            os << endl;
+        }
+
+        for(Options::StringVectorMap::const_iterator iter = opt._stringVectorMap.begin(); iter != opt._stringVectorMap.end(); ++iter) {
+            StringVector vector = iter->second;
+            os << iter->first << " strings " << vector.size() << endl;
+            for (int i = 0; i < vector.size(); i++) {
+                os << vector[i] << endl;
+            }
+        }
+        return os;
+    }
+
+    std::istream & operator>>(std::istream &is, Options& opt) {
+        char *cbuf = new char[10240];
+        while (is.good()) {
+            is.getline(cbuf, 10240);
+            if (is.good()) {
+                stringstream ss(cbuf);
+                string name;
+                string type;
+                ss >> name >> type;
+                if (type == "int" ) {
+                    int value;
+                    ss >> value;
+                    opt.Set(name, value);
+                } else if (type == "double") {
+                    double value;
+                    ss >> value;
+                    opt.Set(name, value);
+                } else if (type == "bool") {
+                    string value;
+                    ss >> value;
+                    opt.Set(name, value == "true");
+                } else if (type == "string") {
+                    string value;
+                    ss >> value;
+                    opt.Set(name, value);
+                } else if (type == "ints") {
+                    int len;
+                    ss >> len;
+                    while (ss.good()) {
+                        int val;
+                        ss >> val;
+                        opt.AppendInt(name, val);
+                    }
+                } else if (type == "doubles") {
+                    int len;
+                    ss >> len;
+                    while (ss.good()) {
+                        double val;
+                        ss >> val;
+                        opt.AppendDouble(name, val);
+                    }
+                } else if (type == "strings") {
+                    int len;
+                    ss >> len;
+                    while (ss.good()) {
+                        string val;
+                        ss >> val;
+                        opt.AppendString(name, val);
+                    }
+                }
+            }
+        }
+        delete[] cbuf;
+    }
 }
+

@@ -43,14 +43,21 @@ namespace pi {
             return m_RegionPicker->EvaluateAtIndex(xp) > 0;
         }
 
-        
+        inline bool IsBufferInside(IntIndex& xp) {
+            return m_RegionPicker->IsInsideBuffer(xp);
+        }
+
         bool ComputeContactPoint(double* x0, double* x1, ContactPoint& cp);
         bool ComputeNormal(double* cp, double* normal);
         double ComputeDistance(double* x1, double* cp);
         void ComputeClosestBoundary(double* x1, double* cp);
         void SetBinaryMask(LabelImage::Pointer binary);
+        void UseBinaryMaskSmoothing();
+        void UseBinaryMaskSmoothingCache(const char* cacheName);
+        void UseDistanceMapCache(const char* cacheName);
         void UpdateImages();
 
+        bool LoadBinaryMask(std::string file);
         bool LoadDistanceMap(const char* filename);
         void SaveDistanceMap(const char* filename);
         void SaveGradientMagnitude(const char* filename);
@@ -70,6 +77,9 @@ namespace pi {
         NNLabelInterpolatorType::Pointer m_RegionPicker;
         LinearVectorImageInterpolatorType::Pointer m_NormalPicker;
         NNVectorImageInterpolatorType::Pointer m_DistOffsetPicker;
+
+        std::string m_BinaryMaskSmoothingCacheName;
+        std::string m_DistanceMapCacheName;
 
     };
 }

@@ -129,10 +129,33 @@ namespace pi {
         m_BinaryMask = binary;
     }
 
+    void ParticleCollision::UseBinaryMaskSmoothing() {
+        m_ApplySmoothing = true;
+    }
+
+    void ParticleCollision::UseBinaryMaskSmoothingCache(const char *cacheName) {
+        m_BinaryMaskSmoothingCacheName = cacheName;
+    }
+
+    void ParticleCollision::UseDistanceMapCache(const char *cacheName) {
+        m_DistanceMapCacheName = cacheName;
+    }
+
     void ParticleCollision::UpdateImages() {
         ImageProcessing proc;
+        itkcmds::itkImageIO<LabelImage> io;
         if (m_ApplySmoothing) {
-            m_BinaryMask = proc.SmoothLabelMap(m_BinaryMask);
+            if (m_BinaryMaskSmoothingCacheName != "") {
+                if (io.FileExists(m_BinaryMaskSmoothingCacheName.c_str())) {
+                    m_BinaryMask = io.ReadImageT(m_BinaryMaskSmoothingCacheName.c_str());
+                }
+            }
+            if (m_BinaryMask.IsNull()) {
+                m_BinaryMask = proc.SmoothLabelMap(m_BinaryMask);
+                if (m_BinaryMaskSmoothingCacheName != "") {
+                    io.WriteImageT(m_BinaryMaskSmoothingCacheName.c_str(), m_BinaryMask);
+                }
+            }
         }
         
         typedef itk::InvertIntensityImageFilter<LabelImage,LabelImage> InvertFilterType;
@@ -161,16 +184,33 @@ namespace pi {
         m_NormalPicker = LinearVectorImageInterpolatorType::New();
         m_NormalPicker->SetInputImage(m_Gradient);
 
+        if (m_DistanceMapCacheName != "") {
+            LoadDistanceMap(m_DistanceMapCacheName.c_str());
+        }
+
         if (m_DistanceMap.IsNull()) {
             m_DistanceMap = proc.DistanceMap(m_BinaryMask);
             m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
             m_DistOffsetPicker->SetInputImage(m_DistanceMap);
+            if (m_DistanceMapCacheName != "") {
+                SaveDistanceMap(m_DistanceMapCacheName.c_str());
+            }
         }
+    }
+
+
+    bool ParticleCollision::LoadBinaryMask(std::string file) {
+        itkcmds::itkImageIO<LabelImage> io;
+        if (io.FileExists(file.c_str())) {
+            m_BinaryMask = io.ReadImageT(file.c_str());
+            return true;
+        }
+        return false;
     }
 
     bool ParticleCollision::LoadDistanceMap(const char* filename) {
         itkcmds::itkImageIO<VectorImage> io;
-        if (m_DistanceMap.IsNull()) {
+        if (m_DistanceMap.IsNull() && io.FileExists(filename)) {
             m_DistanceMap = io.ReadImageT(filename);
             if (m_DistanceMap.IsNotNull()) {
                 m_DistOffsetPicker = NNVectorImageInterpolatorType::New();

@@ -42,7 +42,7 @@ SET (MY_PARTICLE_WORKS_SOURCES piParticleCore.cpp piParticleCore.h
 	piParticleConstraint.cpp piParticleConstraint.h 
 	piImageDef.h 
 	piParticleBSpline.cpp piParticleBSpline.h 
-	piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h)
+	piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp)
 
 SET (PI_LIBS_SOURCE )
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)
@@ -51,6 +51,8 @@ FILE(GLOB ITK_SOURCES "itk*.h" "itk*.hxx" "itk*.cxx")
 FILE(GLOB OZC_SOURCES "ozcollide/*")
 
 # 2D version executables
+ADD_EXECUTABLE(optionTest optionTestMain.cpp piOptions.h piOptions.cpp)
+
 ADD_EXECUTABLE(particleWin particleViewerWindowMain.cpp ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
 TARGET_LINK_LIBRARIES(particleWin ${ITK_LIBRARIES} ${QT_LIBRARIES} ${Armadillo_LIBRARIES} QVTK)
 

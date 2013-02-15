@@ -77,6 +77,8 @@ namespace pi {
     };
 
     LabelImage::Pointer ImageProcessing::SmoothLabelMap(LabelImage::Pointer img) {
+        cout << "Computing label map smoothing ..." << flush;
+
         LabelImage::Pointer procImage;
 
         const int LABEL_VAL = 255;
@@ -147,6 +149,8 @@ namespace pi {
         erodeFilter->Update();
 
         procImage = erodeFilter->GetOutput();
+
+        cout << "done" << endl;
         return procImage;
     }
 
@@ -220,6 +224,7 @@ namespace pi {
 
 
     VectorImage::Pointer ImageProcessing::DistanceMap(LabelImage::Pointer img) {
+        cout << "Computing distance map ..." << flush;
         // create binary image for a mask for a correct distance map
         BinaryThreshFilterType::Pointer binThreshFilter = BinaryThreshFilterType::New();
         binThreshFilter->SetInput(img);
@@ -241,6 +246,7 @@ namespace pi {
         OffsetToVectorCastFilterType::Pointer caster = OffsetToVectorCastFilterType::New();
         caster->SetInput(distmapFilter->GetVectorDistanceMap());
         caster->Update();
+        cout << "done" << endl;
         return caster->GetOutput();
     }
 

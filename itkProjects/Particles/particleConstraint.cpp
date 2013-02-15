@@ -29,16 +29,12 @@ int main(int argc, char* argv[]) {
 //    StringVector& args = parser.ParseOptions(argc, argv, NULL);
 
     itkcmds::itkImageIO<LabelImage> io;
-    LabelImage::Pointer field = io.ReadImageT("/NIRAL/work/joohwi/data/ellipse/ellipse3.nrrd");
-
+//    LabelImage::Pointer field = io.ReadImageT("/NIRAL/work/joohwi/data/ellipse/ellipse3.nrrd");
+    LabelImage::Pointer field = io.ReadImageT("/NIRAL/work/joohwi/data/rodent/00.ls.nrrd");
     ParticleCollision collision;
     collision.SetBinaryMask(field);
-    bool loadSuccess = collision.LoadDistanceMap("/NIRAL/work/joohwi/data/ellipse/ellipse3distancemap.nrrd");
+    collision.UseDistanceMapCache("/NIRAL/work/joohwi/data/rodent/00.ls.distancemap.nrrd");
     collision.UpdateImages();
-    if (!loadSuccess) {
-        collision.SaveDistanceMap("/NIRAL/work/joohwi/data/ellipse/ellipse3distancemap.nrrd");
-    }
-    collision.SaveGradientMagnitude("/tmpfs/gradientmap.nrrd");
 
     itkcmds::itkImageIO<DoubleImage> iox;
     DoubleImage::Pointer outField = iox.NewImageT<LabelImage>(field);
