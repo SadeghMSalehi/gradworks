@@ -145,9 +145,6 @@ namespace pi {
         LabelImageIteratorType iter(intersection, intersection->GetBufferedRegion());
         for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
             LabelImage::IndexType idx = iter.GetIndex();
-            if (idx[2] != 40) {
-                continue;
-            }
             LabelImage::PixelType pixel = iter.Value();
             if (pixel > 0) {
                 indexes.push_back(idx);

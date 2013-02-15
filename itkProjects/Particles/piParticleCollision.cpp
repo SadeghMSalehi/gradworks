@@ -228,6 +228,8 @@ namespace pi {
                 }
 
                 if (!isValidRegion) {
+                    // important!!
+                    // this function will move current out-of-region point into the closest boundary
                     ComputeClosestBoundary(p.x, p.x);
                 }
 

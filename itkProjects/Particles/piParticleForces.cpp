@@ -81,12 +81,81 @@ namespace pi {
             pj.AddForce(fj);
         }
     }
-    
+
+    void EntropyInternalForce::ComputeForce(ParticleSubjectArray& subjs) {
+        const int nPoints = subjs[0].GetNumberOfPoints();
+        const int nSubjs = subjs.size();
+        for (int n = 0; n < nSubjs; n++) {
+            ParticleSubject& subj = subjs[n];
+            for (int i = 0; i < nPoints; i++) {
+                Particle& pi = subj.m_Particles[i];
+                // iteration over particles
+                // may reduce use symmetric properties
+                VNLVector weights(nPoints, 0);
+                for (int j = 0; j < nPoints; j++) {
+                    Particle& pj = subj.m_Particles[j];
+                    if (i == j) {
+                        // there's no self interaction
+                        weights[j] = 0;
+                    } else {
+                        const double sigma = 3;
+                        double kappa = 1;
+                        double sigma2 = sigma * sigma;
+                        double cutoff = 15;
+                        /*
+                        // kappa should use jPos
+                        VNLVectorRef jPos(2, &gPos[n][nDim*j]);
+                        ContinuousIndexType jIdx;
+                        jIdx[0] = jPos[0];
+                        jIdx[1] = jPos[1];
+                        double kappa = 1;
+                        if (useAdaptiveSampling) {
+                            kappaIntp->EvaluateAtContinuousIndex(jIdx);
+                            kappa *= kappa;
+                        }
+                        */
+                        double dij = sqrt(pi.Dist2(pj));
+                        if (dij > cutoff) {
+                            weights[j] = 0;
+                        } else {
+                            weights[j] = exp(-dij*dij*kappa/(sigma2));
+                        }
+                    }
+                }
+                double sumForce = weights.sum();
+                if (sumForce > 0) {
+                    weights /= sumForce;
+                }
+
+                // update force for neighboring particles
+                for (int j = 0; j < nPoints; j++) {
+                    if (i == j || weights[j] == 0) {
+                        continue;
+                    }
+                    Particle& pj = subj.m_Particles[j];
+                    double weight = weights[j];
+                    VNLVector xixj(__Dim, 0);
+                    fordim (k) {
+                        xixj[k] = pi.x[k] - pj.x[k];
+                    }
+                    xixj.normalize();
+                    fordim (k) {
+                        pi.f[k] += (weight * (pi.x[k] - pj.x[k]));
+                    }
+                }
+            }
+        }
+    }
+
+    void EntropyInternalForce::ComputeForce(Particle& a, Particle& b) {
+
+    }
+
 
     EnsembleForce::EnsembleForce(double coeff) : m_Coeff(coeff) {
-        
+
     }
-    
+
     EnsembleForce::~EnsembleForce() {
 
     }

@@ -21,6 +21,15 @@ namespace pi {
         void ComputeForce(Particle& a, Particle& b);
     };
 
+    class EntropyInternalForce {
+    public:
+        EntropyInternalForce() {}
+        ~EntropyInternalForce() {}
+
+        void ComputeForce(ParticleSubjectArray& subjs);
+        void ComputeForce(Particle& a, Particle& b);
+    };
+
     class EnsembleForce {
     public:
         EnsembleForce(double coeff);

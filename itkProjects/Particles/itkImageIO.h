@@ -125,7 +125,7 @@ namespace itkcmds {
 			return NewImageT(sx, sy, sz, static_cast<typename T::PixelType>(0));
 		}
 
-        template <typename S = T>
+        template <typename S>
 		void CopyHeaderT(typename S::Pointer src, ImagePointer dst) {
 			dst->SetSpacing(src->GetSpacing());
 			dst->SetOrigin(src->GetOrigin());
