@@ -11,6 +11,7 @@
 #include "SimpleOpt.h"
 #include "piOptions.h"
 #include "itkZeroCrossingImageFilter.h"
+#include "itkVectorMagnitudeImageFilter.h"
 
 using namespace std;
 using namespace pi;
@@ -27,6 +28,17 @@ pi::LabelImage::Pointer zeroCrossingFilter(pi::LabelImage::Pointer image) {
 
 void meshToBinary(std::string& in, std::string& out) {
 
+}
+
+
+void vectorMagnitude(std::string& in, std::string& out) {
+    itkcmds::itkImageIO<VectorImage> io1;
+    itkcmds::itkImageIO<DoubleImage> io2;
+    typedef itk::VectorMagnitudeImageFilter<VectorImage, DoubleImage> F;
+    F::Pointer f = F::New();
+    f->SetInput(io1.ReadImageT(in.c_str()));
+    f->Update();
+    io2.WriteImageT(out.c_str(), f->GetOutput());
 }
 
 int main(int argc, char* argv[]) {
@@ -58,6 +70,10 @@ int main(int argc, char* argv[]) {
         imageOutput = zeroCrossingFilter(image);
     } else if (cmd == "mesh2binary") {
         meshToBinary(args[1], args[2]);
+    } else if (cmd == "magnitude") {
+        vectorMagnitude(args[1], args[2]);
+    } else {
+        cout << "unknown command: " << cmd << endl;
     }
     if (imageOutput.IsNotNull()) {
         io.WriteImageT(args[2].c_str(), imageOutput);
