@@ -10,6 +10,8 @@
 #include "piParticleCollision.h"
 #include "piParticleForces.h"
 #include "piOptions.h"
+#include "piParticleTrace.h"
+
 #include "fstream"
 #include "sstream"
 
@@ -51,12 +53,12 @@ namespace pi {
                     int subjId, nPoints;
                     ss >> subjId >> nPoints;
                     if (subjId < m_System.GetNumberOfSubjects()) {
-                        m_System[subjId].ReadParticlePositions(in, nPoints);
+                        m_System[subjId].ReadParticles(in, nPoints);
                     }
                 } else if (name == "InitialParticles:") {
                     int nPoints;
                     ss >> nPoints;
-                    m_System.GetInitialSubject().ReadParticles(in, nPoints);
+                    m_System.GetInitialSubject().ReadParticlePositions(in, nPoints);
                 }
             }
         }
@@ -87,6 +89,10 @@ namespace pi {
     }
     
     void ParticleSystemSolver::Preprocessing() {
+        string traceFile = m_Options.GetString("PreprocessingTrace:", "");
+        const bool traceOn = traceFile != "";
+        ParticleTrace trace;
+        
         ParticleSubject& initial = m_System.GetInitialSubject();
         if (initial.GetNumberOfPoints() == 0) {
             itkcmds::itkImageIO<LabelImage> io;
@@ -105,6 +111,9 @@ namespace pi {
             initial.InitializeRandomPoints(m_ImageContext.GetIntersection());
             
             SaveConfig("/tmpfs/initial.txt");
+        } else {
+            cout << "Skip preprocessing and use pre-generated data..." << endl;
+            return;
         }
         
         if (initial.GetNumberOfPoints() == 0) {
@@ -132,6 +141,7 @@ namespace pi {
         for (double t = t0; t < t1; t += dt) {
             cout << "t: " << t << endl;
             ParticleSubject& sub = initial;
+
             for (int i = 0; i < nPoints; i++) {
                 Particle& pi = sub[i];
                 forset(pi.x, pi.w);
@@ -150,15 +160,26 @@ namespace pi {
                     p.x[k] += dt*p.v[k];
                     pIdx[k] = p.x[k] + 0.5;
                 }
+
                 
                 if (!boundary.IsBufferInside(pIdx)) {
                     cout << "Stop system: out of region" << endl;
                     goto quit;
                 }
             }
+
+            if (traceOn) {
+                trace.Add(t, sub.m_Particles);
+            }
         }
-    
+
+        if (traceOn) {
+            ofstream out(traceFile.c_str());
+            trace.Write(out);
+            out.close();
+        }
     quit:
+        cout << "Preprocessing done ..." << endl;
         return;
     }
 
@@ -226,10 +247,10 @@ namespace pi {
         collisionHandlers.resize(nSubz);
         
         for (int n = 0; n < nSubz; n++) {
-            collisionHandlers[n].LoadBinaryMask(systemOptions.GetStringVectorValue("BinaryMask", n));
+            collisionHandlers[n].SetBinaryMask(m_ImageContext.GetLabel(n));
             collisionHandlers[n].UseBinaryMaskSmoothing();
-            collisionHandlers[n].UseBinaryMaskSmoothingCache(systemOptions.GetStringVectorValue("BinaryMaskSmoothingCache", n).c_str());
-            collisionHandlers[n].UseBinaryMaskSmoothingCache(systemOptions.GetStringVectorValue("BinaryMaskDistanceMapCache", n).c_str());
+            collisionHandlers[n].UseBinaryMaskSmoothingCache(systemOptions.GetStringVectorValue("BinaryMaskSmoothingCache:", n).c_str());
+            collisionHandlers[n].UseDistanceMapCache(systemOptions.GetStringVectorValue("BinaryMaskDistanceMapCache:", n).c_str());
             collisionHandlers[n].UpdateImages();
         }
         
@@ -262,7 +283,7 @@ namespace pi {
                             pIdx[k] = p.x[k] + 0.5;
                         }
                         
-                        if (collisionHandlers[n].IsBufferInside(pIdx)) {
+                        if (!collisionHandlers[n].IsBufferInside(pIdx)) {
                             cout << "Stop system: out of region" << endl;
                             goto quit;
                         }
@@ -275,4 +296,3 @@ namespace pi {
         return;
     }
 }
-

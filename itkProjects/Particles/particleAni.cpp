@@ -26,8 +26,11 @@
 #include "QTextStream"
 #include "QtDebug"
 #include "QFile"
+#include "QFileDialog"
 #include "piParticleCore.h"
 #include "piParticleSystemSolver.h"
+#include "piParticleTrace.h"
+
 
 
 
@@ -36,6 +39,7 @@ int g_MaxId = 0;
 int g_MaxTimeSteps = 0;
 int g_CurrentFrame = 0;
 pi::Particle g_BoundingBox;
+static pi::ParticleSystemSolver g_Solver;
 
 
 vtkIntArray* g_IdArray;
@@ -139,9 +143,15 @@ void AniWindow::on_action_Open_triggered() {
     g_Trace.clear();
     m_Points->Reset();
     g_IdArray->Reset();
+        g_MaxId = 0;
 
 
-    FILE* file = fopen("/tmpfs/trace.txt", "r");
+    QString filename = QFileDialog::getOpenFileName(this, "Open Trace File", ".", "*.txt");
+    if (filename.isNull()) {
+        return;
+    }
+
+    FILE* file = fopen(filename.toUtf8().data(), "r");
     QTextStream in(file);
     QString line;
     for (int cnt = 0; !in.atEnd(); cnt++) {
@@ -182,16 +192,112 @@ void AniWindow::on_action_Open_triggered() {
     CreateParticles();
 }
 
+void AniWindow::on_actionOpen_Trace_triggered() {
+    g_Trace.clear();
+    m_Points->Reset();
+    g_IdArray->Reset();
+    g_MaxId = 0;
+
+
+    QString filename = QFileDialog::getOpenFileName(this, "Open Trace File", ".", "*.txt");
+    if (filename.isNull()) {
+        return;
+    }
+
+    pi::ParticleTrace traceIO;
+
+    ifstream in(filename.toUtf8().data());
+    if (in.is_open()) {
+        traceIO.Read(in, g_Trace);
+
+        for (int i = 0; i < g_Trace.size(); i++) {
+            pi::Particle& p = g_Trace[i];
+            if (p.idx >= g_MaxId) {
+                g_MaxId = p.idx + 1;
+            }
+            g_IdArray->InsertNextValue(p.idx);
+            if (i == 0) {
+                g_BoundingBox = p;
+                // x for maximum and y for minimum
+                forcopy(p.x, p.y);
+            } else {
+                formin(g_BoundingBox.x, p.x, g_BoundingBox.x);
+                formax(g_BoundingBox.y, p.x, g_BoundingBox.y);
+            }
+
+        }
+        g_MaxTimeSteps = g_Trace.size() / g_MaxId;
+
+        for (int i = 0; i < g_MaxId; i++) {
+            m_Points->InsertNextPoint(g_Trace[i].x);
+        }
+
+        ui.statusbar->showMessage(QString("%1 Points and %2 Times" ).arg(g_MaxId).arg(g_MaxTimeSteps));
+        
+        CreateParticles();
+    }
+}
+
 void AniWindow::on_actionOpen_System_triggered() {
     g_Trace.clear();
     m_Points->Reset();
     g_IdArray->Reset();
+
+    QString filename = QFileDialog::getOpenFileName(this, "Open Trace File", ".", "*.txt");
+    if (filename.isNull()) {
+        return;
+    }
     
-    pi::ParticleSystemSolver solver;
-    solver.LoadConfig("/tmpfs/config.txt");
-    pi::ParticleSubject& initial = solver.m_System.GetInitialSubject();
-    for (int i = 0; i < initial.GetNumberOfPoints(); i++) {
-        pi::Particle& p = initial[i];
+    if (!g_Solver.LoadConfig(filename.toUtf8().data())) {
+        return;
+    }
+
+    ui.subjects->addItem("Initial");
+    for (int i = 0; i < g_Solver.m_System.GetNumberOfSubjects(); i++) {
+        ui.subjects->addItem(QString::fromStdString(g_Solver.m_System[i].m_Name));
+    }
+//
+//    pi::ParticleSubject& initial = g_Solver.m_System.GetInitialSubject();
+//    for (int i = 0; i < initial.GetNumberOfPoints(); i++) {
+//        pi::Particle& p = initial[i];
+//        if (p.idx >= g_MaxId) {
+//            g_MaxId = p.idx + 1;
+//        }
+//        g_IdArray->InsertNextValue(p.idx);
+//
+//        if (i == 0) {
+//            g_BoundingBox = p;
+//            // x for maximum and y for minimum
+//            forcopy(p.x, p.y);
+//        } else {
+//            formin(g_BoundingBox.x, p.x, g_BoundingBox.x);
+//            formax(g_BoundingBox.y, p.x, g_BoundingBox.y);
+//        }
+//        g_Trace.push_back(p);
+//    }
+//    g_MaxTimeSteps = g_Trace.size() / g_MaxId;
+//    
+//    for (int i = 0; i < g_MaxId; i++) {
+//        m_Points->InsertNextPoint(g_Trace[i].x);
+//    }
+//    
+//    ui.statusbar->showMessage(QString("%1 Points and %2 Times" ).arg(g_MaxId).arg(g_MaxTimeSteps));
+//    
+//    CreateParticles();
+}
+
+void AniWindow::on_subjects_currentIndexChanged(int n) {
+    g_Trace.clear();
+    m_Points->Reset();
+    g_IdArray->Reset();
+
+
+    pi::ParticleSubject& subj = g_Solver.m_System.GetInitialSubject();
+    if (n > 0) {
+        subj = g_Solver.m_System[n-1];
+    }
+    for (int i = 0; i < subj.GetNumberOfPoints(); i++) {
+        pi::Particle& p = subj[i];
         if (p.idx >= g_MaxId) {
             g_MaxId = p.idx + 1;
         }
@@ -208,13 +314,15 @@ void AniWindow::on_actionOpen_System_triggered() {
         g_Trace.push_back(p);
     }
     g_MaxTimeSteps = g_Trace.size() / g_MaxId;
-    
+
     for (int i = 0; i < g_MaxId; i++) {
         m_Points->InsertNextPoint(g_Trace[i].x);
     }
-    
+
     ui.statusbar->showMessage(QString("%1 Points and %2 Times" ).arg(g_MaxId).arg(g_MaxTimeSteps));
-    
+
+    m_Renderer->RemoveAllViewProps();
+
     CreateParticles();
 }
 

@@ -31,9 +31,11 @@ int main(int argc, char* argv[]) {
     int size[] = { 80, 80, 80 };
     double center[] = { 40, 40, 40 };
     double radius[] = { 20, 20, 20 };
-    LabelImage::Pointer labelImage = imageProc.Ellipse(size, center, radius);
+//    LabelImage::Pointer labelImage = imageProc.Ellipse(size, center, radius);
 
-    io.WriteImageT("/NIRAL/work/joohwi/data/ellipse/circle3.nrrd", labelImage);
+//    io.WriteImageT("/NIRAL/work/joohwi/data/ellipse/circle3.nrrd", labelImage);
+
+    LabelImage::Pointer labelImage = io.ReadImageT("/tmpfs/circle_ellipse.nrrd");
 
     pi::ParticleCollision dyn;
     dyn.SetBinaryMask(labelImage);

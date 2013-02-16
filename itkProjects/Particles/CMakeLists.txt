@@ -42,7 +42,7 @@ SET (MY_PARTICLE_WORKS_SOURCES piParticleCore.cpp piParticleCore.h
 	piParticleConstraint.cpp piParticleConstraint.h 
 	piImageDef.h 
 	piParticleBSpline.cpp piParticleBSpline.h 
-	piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp)
+	piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp)
 
 SET (PI_LIBS_SOURCE )
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)

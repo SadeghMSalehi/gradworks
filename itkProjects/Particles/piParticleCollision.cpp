@@ -145,12 +145,14 @@ namespace pi {
         ImageProcessing proc;
         itkcmds::itkImageIO<LabelImage> io;
         if (m_ApplySmoothing) {
+            bool generateNewMask = true;
             if (m_BinaryMaskSmoothingCacheName != "") {
                 if (io.FileExists(m_BinaryMaskSmoothingCacheName.c_str())) {
                     m_BinaryMask = io.ReadImageT(m_BinaryMaskSmoothingCacheName.c_str());
+                    generateNewMask = false;
                 }
             }
-            if (m_BinaryMask.IsNull()) {
+            if (generateNewMask) {
                 m_BinaryMask = proc.SmoothLabelMap(m_BinaryMask);
                 if (m_BinaryMaskSmoothingCacheName != "") {
                     io.WriteImageT(m_BinaryMaskSmoothingCacheName.c_str(), m_BinaryMask);

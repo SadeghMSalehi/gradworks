@@ -2,8 +2,10 @@
 #include "piParticleBSpline.h"
 #include "piParticleSystemSolver.h"
 #include "piOptions.h"
+
 using namespace std;
 using namespace pi;
+
 int main(int argc, char* argv[]) {
     Options parser;
     parser.ParseOptions(argc, argv, NULL);
@@ -16,6 +18,7 @@ int main(int argc, char* argv[]) {
     ParticleSystemSolver solver;
     solver.LoadConfig(args[0].c_str());
     solver.Preprocessing();
+    solver.Run();
     solver.SaveConfig("/tmpfs/config.txt");
     
 //    if (!system.LoadSystem(argv[1])) {

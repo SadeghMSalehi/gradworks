@@ -99,12 +99,9 @@ namespace pi {
     }
 
     std::string Options::GetStringVectorValue(std::string name, int n, std::string def) {
-        if (_stringVectorMap.find(name) == _stringVectorMap.end()) {
-            return def;
-        } else {
-            if (_stringVectorMap[name].size() > n) {
-                return _stringVectorMap[name][n];
-            }
+        StringVector& vector = _stringVectorMap[name];
+        if (vector.size() > n) {
+            return vector[n];
         }
         return def;
     }

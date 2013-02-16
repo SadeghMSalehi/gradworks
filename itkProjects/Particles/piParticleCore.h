@@ -71,7 +71,8 @@ namespace pi {
     istream& operator>>(istream& is, Particle& par);
 
     typedef boost::numeric::ublas::vector<Particle> ParticleArray;
-
+    typedef std::vector<Particle> ParticleVector;
+    
     class ParticleSubject {
     public:
         int m_SubjId;
