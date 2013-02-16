@@ -17,6 +17,7 @@ namespace pi {
     public:
         InternalForce() {}
         ~InternalForce() {}
+        void ComputeForce(ParticleSubject& subj);
         void ComputeForce(ParticleSubjectArray& shapes);
         void ComputeForce(Particle& a, Particle& b);
     };
@@ -26,6 +27,7 @@ namespace pi {
         EntropyInternalForce() {}
         ~EntropyInternalForce() {}
 
+        void ComputeForce(ParticleSubject& subj);
         void ComputeForce(ParticleSubjectArray& subjs);
         void ComputeForce(Particle& a, Particle& b);
     };

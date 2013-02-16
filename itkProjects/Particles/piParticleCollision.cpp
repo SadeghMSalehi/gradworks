@@ -246,43 +246,47 @@ namespace pi {
         io.WriteImageT("/tmpfs/edge.nrrd", m_ZeroCrossing);
     }
 
+    void ParticleCollision::HandleCollision(ParticleSubject& subj) {
+        const int nPoints = subj.GetNumberOfPoints();
+        for (int i = 0; i < nPoints; i++) {
+            Particle &p = subj.m_Particles[i];
+            VNLVector normal(__Dim, 0);
+            LabelImage::IndexType idx;
+            fordim (k) {
+                idx[k] = p.x[k];
+            }
+            
+            const bool isValidRegion = IsRegionInside(idx);
+            const bool isContacting = IsCrossing(idx);
+            
+            if (isValidRegion && !isContacting) {
+                continue;
+            }
+            
+            if (!isValidRegion) {
+                // important!!
+                // this function will move current out-of-region point into the closest boundary
+                ComputeClosestBoundary(p.x, p.x);
+            }
+            
+            // project velocity and forces
+            ComputeNormal(p.x, normal.data_block());
+            normal.normalize();
+            double nv = dimdot(p.v, normal);
+            double nf = dimdot(p.f, normal);
+            fordim (k) {
+                p.v[k] = (p.v[k] - nv * normal[k]);
+                p.f[k] -= nf * normal[k];
+            }
+        }
+    }
+    
     void ParticleCollision::HandleCollision(ParticleSubjectArray& subjs) {
         const int nShapes = subjs.size();
         const int nPoints = subjs[0].GetNumberOfPoints();
 
         for (int n = 0; n < nShapes; n++) {
-            ParticleSubject& subj = subjs[n];
-            for (int i = 0; i < nPoints; i++) {
-                Particle &p = subj.m_Particles[i];
-                VNLVector normal(__Dim, 0);
-                LabelImage::IndexType idx;
-                fordim (k) {
-                    idx[k] = p.x[k];
-                }
-
-                const bool isValidRegion = IsRegionInside(idx);
-                const bool isContacting = IsCrossing(idx);
-
-                if (isValidRegion && !isContacting) {
-                    continue;
-                }
-
-                if (!isValidRegion) {
-                    // important!!
-                    // this function will move current out-of-region point into the closest boundary
-                    ComputeClosestBoundary(p.x, p.x);
-                }
-
-                // project velocity and forces
-                ComputeNormal(p.x, normal.data_block());
-                normal.normalize();
-                double nv = dimdot(p.v, normal);
-                double nf = dimdot(p.f, normal);
-                fordim (k) {
-                    p.v[k] = (p.v[k] - nv * normal[k]);
-                    p.f[k] -= nf * normal[k];
-                }
-            }
+            HandleCollision(subjs[n]);
         }
     }
 }

@@ -15,11 +15,11 @@
 #include <string>
 #include "SimpleOpt.h"
 
+#define OPTION_END "==option_end=="
 namespace pi {
     typedef std::vector<std::string> StringVector;
     typedef std::vector<double> DoubleVector;
     typedef std::vector<int> IntVector;
-
     
     class Options {
     private:

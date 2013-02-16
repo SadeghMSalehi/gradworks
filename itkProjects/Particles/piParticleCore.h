@@ -18,6 +18,7 @@
 #include "itkImageIO.h"
 #include "itkOffset.h"
 #include "piOptions.h"
+#include "iostream"
 
 namespace pi {
 
@@ -93,6 +94,7 @@ namespace pi {
         void Zero();
         void NewParticles(int nPoints);
         void InitializeRandomPoints(LabelImage::Pointer labelImage);
+        void Initialize(int subj, std::string name, int nPoints);
         void Initialize(int subj, std::string name, const ParticleSubject& shape);
         void Initialize(const ParticleArray& array);
         void ApplyMatrix(VNLMatrix& mat);
@@ -100,7 +102,10 @@ namespace pi {
         void TransformY2X(TransformType* transform);
         void TransformX2X(TransformType* transform);
         void TransformY2Y(TransformType* transform);
-        void UpdateSystem(double dt);
+        void ReadParticlePositions(std::istream& is, int nPoints);
+        void WriteParticlePositions(std::ostream& os);
+        void ReadParticles(std::istream& is, int nPoints);
+        void WriteParticles(std::ostream& os);
 
         inline Particle& operator[](int i) {
             return m_Particles[i];
@@ -126,6 +131,7 @@ namespace pi {
         LabelImage::Pointer GetLabel(int j);
         DoubleImage::Pointer GetDoubleImage(int j);
         LabelImage::Pointer GetIntersection();
+        void SetIntersection(LabelImage::Pointer intersection);
         OffsetImage GetDistanceMap(int j);
         StringVector& GetDoubleImageFileNames();
         StringVector& GetFileNames();
@@ -148,40 +154,16 @@ namespace pi {
         ParticleSystem();
         ~ParticleSystem() {
         }
+        
         int GetNumberOfSubjects();
         int GetNumberOfParticles();
-
+        void InitializeSystem(Options& options);
+        
+        ParticleSubject& GetInitialSubject();
         void ComputeMeanSubject();
         const ParticleSubject& GetMeanSubject() const;
         ParticleSubjectArray& GetSubjects();
-        ImageContext& GetImageContext();
-
-        void LoadLabels(StringVector labels);
-        void RunPreprocessing(bool runInitialProcessing = true, double checkPointing = -1);
-
-        // run correspondence process
-        void Run();
-        void UpdateSystem(ParticleSubjectArray& shapes, double dt);
-        //        void PrepareSystem(ParticleSubjectArray& shapes);
-
-
-        LabelImage::Pointer GetLabelImage(int i) {
-            if (m_ImageContext.m_LabelImages.size() > i) {
-                return m_ImageContext.m_LabelImages[i];
-            }
-            return LabelImage::Pointer();
-        }
-
-        DoubleImage::Pointer GetDoubleImage(int i) {
-            if (m_ImageContext.m_Images.size() > i) {
-                return m_ImageContext.m_Images[i];
-            }
-            return DoubleImage::Pointer();
-        }
-
-        bool LoadSystem(std::string filename);
-        void SaveSystem(std::string filename);
-
+        
         Options& GetSystemOptions() {
             return m_Options;
         }
@@ -195,23 +177,10 @@ namespace pi {
         }
 
     private:
-        double m_times[3];
-        double m_timesPreprocessing[3];
-
-        // flags for force selection
-        bool m_InternalForceFlag;
-        bool m_EnsembleForceFlag;
-        bool m_IntensityForceFlag;
-
-        double m_EnsembleCoeff;
-        double m_IntensityCoeff;
-
-        int m_NumParticlesPerSubject;
-        ImageContext m_ImageContext;
         ParticleSubject m_MeanSubject;
-        ParticleSubjectArray m_Initial;
+        ParticleSubject m_InitialSubject;
         ParticleSubjectArray m_Subjects;
-        std::string m_TrackingOutputPattern;
+        
         Options m_Options;
     };
 

@@ -177,7 +177,7 @@ namespace pi {
 
         for(Options::IntVectorMap::const_iterator iter = opt._intVectorMap.begin(); iter != opt._intVectorMap.end(); ++iter) {
             IntVector vector = iter->second;
-            os << iter->first << " ints " << vector.size();
+            os << iter->first << " ints";
             for (int i = 0; i < vector.size(); i++) {
                 os << " " << vector[i];
             }
@@ -186,7 +186,7 @@ namespace pi {
 
         for(Options::DoubleVectorMap::const_iterator iter = opt._doubleVectorMap.begin(); iter != opt._doubleVectorMap.end(); ++iter) {
             DoubleVector vector = iter->second;
-            os << iter->first << " doubles " << vector.size();
+            os << iter->first << " doubles";
             for (int i = 0; i < vector.size(); i++) {
                 os << " " << vector[i];
             }
@@ -212,6 +212,9 @@ namespace pi {
                 string name;
                 string type;
                 ss >> name >> type;
+                if (name == OPTION_END) {
+                    return is;
+                }
                 if (type == "int" ) {
                     int value;
                     ss >> value;
@@ -229,16 +232,12 @@ namespace pi {
                     ss >> value;
                     opt.Set(name, value);
                 } else if (type == "ints") {
-                    int len;
-                    ss >> len;
                     while (ss.good()) {
                         int val;
                         ss >> val;
                         opt.AppendInt(name, val);
                     }
                 } else if (type == "doubles") {
-                    int len;
-                    ss >> len;
                     while (ss.good()) {
                         double val;
                         ss >> val;
@@ -247,15 +246,18 @@ namespace pi {
                 } else if (type == "strings") {
                     int len;
                     ss >> len;
-                    while (ss.good()) {
-                        string val;
-                        ss >> val;
-                        opt.AppendString(name, val);
+                    for (int i = 0; i < len; i++) {
+                        char sbuf[1024];
+                        is.getline(sbuf, sizeof(sbuf));
+                        if (is.good()) {
+                            opt.AppendString(name, sbuf);
+                        }
                     }
                 }
             }
         }
         delete[] cbuf;
+        return is;
     }
 }
 

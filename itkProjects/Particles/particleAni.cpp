@@ -27,6 +27,7 @@
 #include "QtDebug"
 #include "QFile"
 #include "piParticleCore.h"
+#include "piParticleSystemSolver.h"
 
 
 
@@ -178,6 +179,42 @@ void AniWindow::on_action_Open_triggered() {
 
     ui.statusbar->showMessage(QString("%1 Points and %2 Times" ).arg(g_MaxId).arg(g_MaxTimeSteps));
 
+    CreateParticles();
+}
+
+void AniWindow::on_actionOpen_System_triggered() {
+    g_Trace.clear();
+    m_Points->Reset();
+    g_IdArray->Reset();
+    
+    pi::ParticleSystemSolver solver;
+    solver.LoadConfig("/tmpfs/config.txt");
+    pi::ParticleSubject& initial = solver.m_System.GetInitialSubject();
+    for (int i = 0; i < initial.GetNumberOfPoints(); i++) {
+        pi::Particle& p = initial[i];
+        if (p.idx >= g_MaxId) {
+            g_MaxId = p.idx + 1;
+        }
+        g_IdArray->InsertNextValue(p.idx);
+
+        if (i == 0) {
+            g_BoundingBox = p;
+            // x for maximum and y for minimum
+            forcopy(p.x, p.y);
+        } else {
+            formin(g_BoundingBox.x, p.x, g_BoundingBox.x);
+            formax(g_BoundingBox.y, p.x, g_BoundingBox.y);
+        }
+        g_Trace.push_back(p);
+    }
+    g_MaxTimeSteps = g_Trace.size() / g_MaxId;
+    
+    for (int i = 0; i < g_MaxId; i++) {
+        m_Points->InsertNextPoint(g_Trace[i].x);
+    }
+    
+    ui.statusbar->showMessage(QString("%1 Points and %2 Times" ).arg(g_MaxId).arg(g_MaxTimeSteps));
+    
     CreateParticles();
 }
 

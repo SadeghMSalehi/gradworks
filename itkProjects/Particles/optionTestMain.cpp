@@ -65,9 +65,12 @@ int main(int argc, char* argv[]) {
     cout << findLiteralType("hello") << endl;
     cout << findLiteralType("true") << endl;
 
-    stringstream os2("hello int 1\n\n\nbyebye string joohwi\n");
+    stringstream os2("hello int 1\n\n\nbyebye string joohwi\nend\n");
     Options args3;
     os2 >> args3;
     cout << args3;
     cout << "end" << endl;
+    
+    Options args4 = args3;
+    cout << args4 << endl;
 }

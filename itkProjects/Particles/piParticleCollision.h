@@ -63,6 +63,7 @@ namespace pi {
         void SaveGradientMagnitude(const char* filename);
         void Write(std::string b, std::string c);
 
+        void HandleCollision(ParticleSubject& subj);
         void HandleCollision(ParticleSubjectArray& subj);
 
     private:

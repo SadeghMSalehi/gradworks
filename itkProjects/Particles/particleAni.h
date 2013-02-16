@@ -30,6 +30,7 @@ public:
     
 public slots:
     void on_action_Open_triggered();
+    void on_actionOpen_System_triggered();
     void on_actionForward_triggered();
     void on_actionBackward_triggered();
     void on_actionFirst_triggered();

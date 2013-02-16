@@ -11,15 +11,23 @@
 
 #include <iostream>
 #include "piParticleCore.h"
+#include "piOptions.h"
 
 namespace pi {
     class ParticleSystemSolver {
-        void Preprocessing(ParticleSystem& system);
-        void Run(ParticleSystem& system);
-    private:
-        double m_t0;
-        double m_dt;
-        double m_t1;
+    public:
+        bool LoadConfig(const char* name);
+        bool SaveConfig(const char* name);
+        void Preprocessing();
+        void Run();
+        
+        ImageContext& GetImageContext() {
+            return m_ImageContext;
+        }
+
+        Options m_Options;
+        ParticleSystem m_System;
+        ImageContext m_ImageContext;
     };
 }
 #endif /* defined(__ParticlesGUI__piParticleSystemSolver__) */

@@ -128,6 +128,7 @@ namespace itkcmds {
 		}
 
 		ImagePointer NewImageT(ImagePointer srcImg) {
+            return NewImageT<T>(srcImg);
         }
         
         template <class S>

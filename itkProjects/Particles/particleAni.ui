@@ -39,6 +39,7 @@
      <string>&amp;File</string>
     </property>
     <addaction name="action_Open"/>
+    <addaction name="actionOpen_System"/>
     <addaction name="action_Close"/>
    </widget>
    <widget class="QMenu" name="menuPlay">
@@ -147,6 +148,11 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+4</string>
+   </property>
+  </action>
+  <action name="actionOpen_System">
+   <property name="text">
+    <string>Open System</string>
    </property>
   </action>
  </widget>

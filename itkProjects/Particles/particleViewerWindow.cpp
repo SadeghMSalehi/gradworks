@@ -3,6 +3,7 @@
 #include "piParticleBSpline.h"
 #include "QFileDialog"
 #include "QGraphicsGridItem.h"
+#include "piParticleSystemSolver.h"
 
 namespace pi {
     
@@ -58,7 +59,7 @@ namespace pi {
     }
 }
 
-pi::ParticleSystem g_System;
+pi::ParticleSystemSolver g_Solver;
 pi::ParticleSlice g_Slice;
 pi::VNLMatrix g_GX, g_GY, g_TX, g_TY;
 
@@ -81,7 +82,7 @@ ParticleViewerWindow::~ParticleViewerWindow() {
 }
 
 void ParticleViewerWindow::setupSlice() {
-    pi::LabelImage::Pointer label = g_System.GetImageContext().GetLabel(0);
+    pi::LabelImage::Pointer label = g_Solver.m_ImageContext.GetLabel(0);
     pi::LabelImage::SizeType sz = label->GetBufferedRegion().GetSize();
     fordim (k) {
         m_Size[k] = sz[k];
@@ -89,14 +90,14 @@ void ParticleViewerWindow::setupSlice() {
     }
     ui.sliceSlider->setValue(m_CurrentSlice[m_CurrentDirection]);
     try {
-        g_Slice.Update(m_CurrentDirection, g_System.GetSubjects(), label);
+        g_Slice.Update(m_CurrentDirection, g_Solver.m_System.GetSubjects(), label);
     } catch (std::exception& e) {
         cout << e.what() << endl;
     }
 }
 
 void ParticleViewerWindow::createGrid() {
-    pi::LabelImage::Pointer refImage = g_System.GetImageContext().GetLabel(0);
+    pi::LabelImage::Pointer refImage = g_Solver.m_ImageContext.GetLabel(0);
     pi::LabelImage::SizeType refSize = refImage->GetBufferedRegion().GetSize();
 
     const int dim1 = (m_CurrentDirection + __Dim - 1) % __Dim;
@@ -114,7 +115,7 @@ void ParticleViewerWindow::createGrid() {
     }
 
     // create transform
-    const pi::ParticleSubjectArray& subjects = g_System.GetSubjects();
+    const pi::ParticleSubjectArray& subjects = g_Solver.m_System.GetSubjects();
     pi::ParticleBSpline bspline;
     bspline.SetReferenceImage(refImage);
     bspline.EstimateTransform(subjects[1], subjects[0]);
@@ -139,7 +140,7 @@ void ParticleViewerWindow::createGrid() {
 }
 
 void ParticleViewerWindow::load(char* file) {
-    if (g_System.LoadSystem(file)) {
+    if (g_Solver.LoadConfig(file)) {
         setupSlice();
         createGrid();
         try {
@@ -153,7 +154,7 @@ void ParticleViewerWindow::load(char* file) {
 void ParticleViewerWindow::updateScene() {
     m_Scene.clear();
 
-    const pi::ParticleSubjectArray& subjects = g_System.GetSubjects();
+    const pi::ParticleSubjectArray& subjects = g_Solver.m_System.GetSubjects();
     const int currentSlice = m_CurrentSlice[m_CurrentDirection];
     const int dim1 = (m_CurrentDirection + __Dim - 1) % __Dim;
     const int dim2 = (m_CurrentDirection + 1) % __Dim;

@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         w.load(argv[1]);
     } else {
-        w.load("/NIRAL/work/joohwi/RodentBrainEvaluation/ParticleReg/Preprocessing.txt");
+        w.load("/tmpfs/temp.txt");
     }
     w.show();
     return apps.exec();

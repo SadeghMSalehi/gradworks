@@ -24,25 +24,23 @@ namespace pi {
 
 //    static void ExtractAttributes(DoubleImage::Pointer image, VectorImage::Pointer grad, Particle& par);
 
+    void InternalForce::ComputeForce(ParticleSubject& subj) {
+        const int nPoints = subj.m_Particles.size();
+        ParticleArray& particles = subj.m_Particles;
+#pragma omp parallel for
+        for (int i = 0; i < nPoints; i++) {
+            Particle& pi = particles[i];
+            for (int j = i+1; j < nPoints; j++) {
+                Particle& pj = particles[j];
+                ComputeForce(pi, pj);
+            }
+        }
+    }
+    
     void InternalForce::ComputeForce(ParticleSubjectArray& shapes) {
-        const double mu = 1;
         const int nSubjects = shapes.size();
         for (int k = 0; k < nSubjects; k++) {
-            const int nPoints = shapes[k].m_Particles.size();
-            ParticleArray& particles = shapes[k].m_Particles;
-            #pragma omp parallel for
-            for (int i = 0; i < nPoints; i++) {
-                Particle& pi = particles[i];
-                for (int j = i+1; j < nPoints; j++) {
-                    Particle& pj = particles[j];
-                    ComputeForce(pi, pj);
-                }
-//                double f[__Dim] = { 0, };
-//                fordim(d) {
-//                    f[d] = -mu * pi.v[d];
-//                }
-//                pi.AddForce(f);
-            }
+            ComputeForce(shapes[k]);
         }
     }
     
@@ -82,68 +80,72 @@ namespace pi {
         }
     }
 
-    void EntropyInternalForce::ComputeForce(ParticleSubjectArray& subjs) {
-        const int nPoints = subjs[0].GetNumberOfPoints();
-        const int nSubjs = subjs.size();
-        for (int n = 0; n < nSubjs; n++) {
-            ParticleSubject& subj = subjs[n];
-            for (int i = 0; i < nPoints; i++) {
-                Particle& pi = subj.m_Particles[i];
-                // iteration over particles
-                // may reduce use symmetric properties
-                VNLVector weights(nPoints, 0);
-                for (int j = 0; j < nPoints; j++) {
-                    Particle& pj = subj.m_Particles[j];
-                    if (i == j) {
-                        // there's no self interaction
+    
+    void EntropyInternalForce::ComputeForce(ParticleSubject& subj) {
+        const int nPoints = subj.GetNumberOfPoints();
+        for (int i = 0; i < nPoints; i++) {
+            Particle& pi = subj.m_Particles[i];
+            // iteration over particles
+            // may reduce use symmetric properties
+            VNLVector weights(nPoints, 0);
+            for (int j = 0; j < nPoints; j++) {
+                Particle& pj = subj.m_Particles[j];
+                if (i == j) {
+                    // there's no self interaction
+                    weights[j] = 0;
+                } else {
+                    const double sigma = 3;
+                    double kappa = 1;
+                    double sigma2 = sigma * sigma;
+                    double cutoff = 15;
+                    /*
+                     // kappa should use jPos
+                     VNLVectorRef jPos(2, &gPos[n][nDim*j]);
+                     ContinuousIndexType jIdx;
+                     jIdx[0] = jPos[0];
+                     jIdx[1] = jPos[1];
+                     double kappa = 1;
+                     if (useAdaptiveSampling) {
+                     kappaIntp->EvaluateAtContinuousIndex(jIdx);
+                     kappa *= kappa;
+                     }
+                     */
+                    double dij = sqrt(pi.Dist2(pj));
+                    if (dij > cutoff) {
                         weights[j] = 0;
                     } else {
-                        const double sigma = 3;
-                        double kappa = 1;
-                        double sigma2 = sigma * sigma;
-                        double cutoff = 15;
-                        /*
-                        // kappa should use jPos
-                        VNLVectorRef jPos(2, &gPos[n][nDim*j]);
-                        ContinuousIndexType jIdx;
-                        jIdx[0] = jPos[0];
-                        jIdx[1] = jPos[1];
-                        double kappa = 1;
-                        if (useAdaptiveSampling) {
-                            kappaIntp->EvaluateAtContinuousIndex(jIdx);
-                            kappa *= kappa;
-                        }
-                        */
-                        double dij = sqrt(pi.Dist2(pj));
-                        if (dij > cutoff) {
-                            weights[j] = 0;
-                        } else {
-                            weights[j] = exp(-dij*dij*kappa/(sigma2));
-                        }
-                    }
-                }
-                double sumForce = weights.sum();
-                if (sumForce > 0) {
-                    weights /= sumForce;
-                }
-
-                // update force for neighboring particles
-                for (int j = 0; j < nPoints; j++) {
-                    if (i == j || weights[j] == 0) {
-                        continue;
-                    }
-                    Particle& pj = subj.m_Particles[j];
-                    double weight = weights[j];
-                    VNLVector xixj(__Dim, 0);
-                    fordim (k) {
-                        xixj[k] = pi.x[k] - pj.x[k];
-                    }
-                    xixj.normalize();
-                    fordim (k) {
-                        pi.f[k] += (weight * (pi.x[k] - pj.x[k]));
+                        weights[j] = exp(-dij*dij*kappa/(sigma2));
                     }
                 }
             }
+            double sumForce = weights.sum();
+            if (sumForce > 0) {
+                weights /= sumForce;
+            }
+            
+            // update force for neighboring particles
+            for (int j = 0; j < nPoints; j++) {
+                if (i == j || weights[j] == 0) {
+                    continue;
+                }
+                Particle& pj = subj.m_Particles[j];
+                double weight = weights[j];
+                VNLVector xixj(__Dim, 0);
+                fordim (k) {
+                    xixj[k] = pi.x[k] - pj.x[k];
+                }
+                xixj.normalize();
+                fordim (k) {
+                    pi.f[k] += (weight * (pi.x[k] - pj.x[k]));
+                }
+            }
+        }
+    }
+    
+    void EntropyInternalForce::ComputeForce(ParticleSubjectArray& subjs) {
+        const int nSubjs = subjs.size();
+        for (int n = 0; n < nSubjs; n++) {
+            ComputeForce(subjs[n]);
         }
     }
 
