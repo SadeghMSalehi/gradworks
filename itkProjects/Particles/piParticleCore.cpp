@@ -251,8 +251,8 @@ namespace pi {
     void ParticleSubject::TransformX2X(TransformType* transform) {
         const int nPoints = GetNumberOfPoints();
         if (transform != NULL) {
+            TransformType::InputPointType inputPoint;
             for (int i = 0; i < nPoints; i++) {
-                TransformType::InputPointType inputPoint;
                 fordim (j) {
                     inputPoint[j] = m_Particles[i].x[j];
                 }

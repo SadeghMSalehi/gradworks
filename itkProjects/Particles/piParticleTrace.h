@@ -11,16 +11,31 @@
 
 #include <iostream>
 #include "piParticleCore.h"
+#include "vector"
 
+// assume particle id ranges from 0 to maxId consecutively
+// assume the number of particle per subject are same at every time step for every subject
 namespace pi {
     class ParticleTrace {
     public:
-        void Add(double t, ParticleArray& array);
+        int GetNumberOfSubject();
+        int GetNumberOfTimeSteps(int n);
+        int GetMaxId(int n);
+        void Clear();
+        void Resize(int n);
+        void Add(double t, ParticleSubject& subj);
+        void Add(double t, ParticleArray& array, int subj = 0);
         void Write(std::ostream& os);
         void Read(std::istream& is);
-        void Read(std::istream& is, ParticleVector& trace);
+        static void Read(std::istream& is, ParticleVector& trace);
+
     private:
-        ParticleVector m_Trace;
+        bool AddParticle(Particle& p, int subj = -1);
+        
+        std::vector<int> m_MaxIds;
+        std::vector<int> m_TimeSteps;
+        std::vector<Particle> m_BoundingBoxes;
+        std::vector<ParticleVector> m_SystemTrace;
     };
 }
 

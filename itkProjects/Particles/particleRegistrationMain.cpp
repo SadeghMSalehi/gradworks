@@ -1,5 +1,6 @@
 #include "piParticleCore.h"
 #include "piParticleBSpline.h"
+#include "piParticleSystemSolver.h"
 #include "itkImageIO.h"
 #include "iostream"
 
@@ -12,14 +13,11 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     
-    ParticleSystem sys;
-    sys.LoadSystem(argv[1]);
+    ParticleSystemSolver solver;
+    solver.LoadConfig(argv[1]);
 
-    ImageContext& imageCtx = sys.GetImageContext();
-    if (imageCtx.GetDoubleImageVector().size() < 2) {
-        cout << "No images to register..." << endl;
-        return 0;
-    }
+    ParticleSystem& sys = solver.m_System;
+    ImageContext& imageCtx = solver.m_ImageContext;
 
     if (argc == 3) {
         ParticleBSpline particleTransform;

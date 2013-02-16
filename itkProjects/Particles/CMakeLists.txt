@@ -1,4 +1,4 @@
-PROJECT(ParticlesGUI)
+PROJECT(ParticleGuidedRegistration)
 cmake_minimum_required(VERSION 2.8)
 
 FIND_PACKAGE(ITK 4 REQUIRED)

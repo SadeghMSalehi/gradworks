@@ -59,6 +59,7 @@ namespace pi {
                     int nPoints;
                     ss >> nPoints;
                     m_System.GetInitialSubject().ReadParticlePositions(in, nPoints);
+                    cout << "Read " << nPoints << " initial particles" << endl;
                 }
             }
         }
@@ -169,7 +170,7 @@ namespace pi {
             }
 
             if (traceOn) {
-                trace.Add(t, sub.m_Particles);
+                trace.Add(t, sub.m_Particles, 0);
             }
         }
 
@@ -237,12 +238,22 @@ namespace pi {
         const int nPoints = system.GetNumberOfParticles();
         Options& systemOptions = system.GetSystemOptions();
         ParticleSubjectArray& subs = system.GetSubjects();
-                
+
+        string traceFile = m_Options.GetString("RunTrace:", "");
+        const bool traceOn = traceFile != "";
+
+        ParticleTrace trace;
+        trace.Resize(nSubz);
+
         for (int n = 0; n < nSubz; n++) {
             m_System[n].Initialize(system.GetInitialSubject().m_Particles);
         }
         
         EntropyInternalForce internalForce;
+
+        EnsembleForce ensembleForce(1);
+        ensembleForce.SetImageContext(&m_ImageContext);
+
         std::vector<ParticleCollision> collisionHandlers;
         collisionHandlers.resize(nSubz);
         
@@ -257,9 +268,13 @@ namespace pi {
         double t0 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 0);
         double dt = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 1);
         double t1 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 2);
-        
+
+
         for (double t = t0; t < t1; t += dt) {
             cout << "t: " << t << endl;
+            m_System.ComputeMeanSubject();
+
+            // compute internal force
             for (int n = 0; n < nSubz; n++) {
                 ParticleSubject& sub = subs[n];
                 for (int i = 0; i < nPoints; i++) {
@@ -268,31 +283,43 @@ namespace pi {
                     forfill(pi.f, 0);
                 }
                 
-                internalForce.ComputeForce(subs);
-                collisionHandlers[n].HandleCollision(subs);
-                
-                for (int n = 0; n < nSubz; n++) {
-                    ParticleSubject& sub = subs[n];
-                    for (int i = 0; i < nPoints; i++) {
-                        Particle& p = sub[i];
-                        LabelImage::IndexType pIdx;
-                        fordim (k) {
-                            p.f[k] -= p.v[k];
-                            p.v[k] += dt*p.f[k];
-                            p.x[k] += dt*p.v[k];
-                            pIdx[k] = p.x[k] + 0.5;
-                        }
-                        
-                        if (!collisionHandlers[n].IsBufferInside(pIdx)) {
-                            cout << "Stop system: out of region" << endl;
-                            goto quit;
-                        }
+                internalForce.ComputeForce(sub);
+                collisionHandlers[n].HandleCollision(sub);
+            }
+
+            // ensembleForce.ComputeEnsembleForce(m_System);
+
+            // system update
+            for (int n = 0; n < nSubz; n++) {
+                ParticleSubject& sub = subs[n];
+                for (int i = 0; i < nPoints; i++) {
+                    Particle& p = sub[i];
+                    LabelImage::IndexType pIdx;
+                    fordim (k) {
+                        p.f[k] -= p.v[k];
+                        p.v[k] += dt*p.f[k];
+                        p.x[k] += dt*p.v[k];
+                        pIdx[k] = p.x[k] + 0.5;
                     }
+
+                    if (!collisionHandlers[n].IsBufferInside(pIdx)) {
+                        cout << "Stop system: out of region" << endl;
+                        goto quit;
+                    }
+                }
+                if (traceOn) {
+                    trace.Add(t, subs[n]);
                 }
             }
         }
-        
+
     quit:
+        if (traceOn) {
+            ofstream traceOut(traceFile.c_str());
+            trace.Write(traceOut);
+            traceOut.close();
+        }
+
         return;
     }
 }

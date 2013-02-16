@@ -59,9 +59,9 @@ namespace pi {
     }
 }
 
-pi::ParticleSystemSolver g_Solver;
-pi::ParticleSlice g_Slice;
-pi::VNLMatrix g_GX, g_GY, g_TX, g_TY;
+static pi::ParticleSystemSolver g_Solver;
+static pi::ParticleSlice g_Slice;
+static pi::VNLMatrix g_GX, g_GY, g_TX, g_TY;
 
 ParticleViewerWindow::ParticleViewerWindow(QWidget* parent) {
     ui.setupUi(this);

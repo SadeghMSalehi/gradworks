@@ -190,18 +190,18 @@ namespace pi {
         }
     }
     
-    void EnsembleForce::ComputeEnsembleForce(ParticleSubjectArray& shapes) {
-        if (shapes.size() < 2) {
+    void EnsembleForce::ComputeEnsembleForce(ParticleSystem& system) {
+        if (system.GetNumberOfSubjects() < 2) {
             return;
         }
-        const int nPoints = shapes[0].GetNumberOfPoints();
-        const int nSubjects = shapes.size();
+        const int nPoints = system.GetNumberOfParticles();
+        const int nSubjects = system.GetNumberOfSubjects();
 
         // Compute offset for origin-centered shapes
         VNLMatrix centers(nSubjects, 4);
         centers.fill(0);
         for (int i = 0; i < nSubjects; i++) {
-            ParticleSubject& subject = shapes[i];
+            ParticleSubject& subject = system[i];
             fordim(k) {
                 for (int j = 0; j < nPoints; j++) {
                     Particle& par = subject[j];
@@ -216,31 +216,32 @@ namespace pi {
             }
             affineTransform->Translate(offset);
             subject.m_AffineTransform = affineTransform;
-            subject.TransformX2Y(affineTransform.GetPointer());
+//            subject.TransformX2X(affineTransform.GetPointer());
         }
         
         // Compute xMeanShape
-        ComputeMeanShape(shapes);
-        for (int i = 0; i < shapes.size(); i++) {
+        ComputeMeanShape(system.GetSubjects());
+        for (int i = 0; i < nSubjects; i++) {
             ParticleBSpline bspline;
             bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
-            bspline.EstimateTransform(shapes[i], m_MeanShape);
+            bspline.EstimateTransform(system[i], m_MeanShape);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
-            shapes[i].TransformX2Y(deformableTransform.GetPointer());
-            shapes[i].m_DeformableTransform = deformableTransform;
+            system[i].TransformX2Y(deformableTransform.GetPointer());
+            system[i].m_DeformableTransform = deformableTransform;
         }
 
         // Compute yMeanShape
         fordim(k) {
             for (int j = 0; j < nPoints; j++) {
                 for (int i = 0; i < nSubjects; i++) {
-                    m_MeanShape[j].y[k] += shapes[i][j].y[k];
+                    m_MeanShape[j].y[k] += system[i][j].y[k];
                 }
                 m_MeanShape[j].y[k] /= nSubjects;
             }
         }
 
         for (int i = 0; i < nSubjects; i++) {
+            ParticleSubject& iSubj = system[i];
             #pragma omp parallel for
             for (int j = 0; j < nPoints; j++) {
                 FieldTransformType::InputPointType xPoint;
@@ -248,13 +249,13 @@ namespace pi {
                 xJac.set_size(__Dim,__Dim);
 
                 double f[__Dim] = { 0, };
-                double *x = shapes[i][j].x;
-                double *y = shapes[i][j].y;
+                double *x = iSubj.m_Particles[j].x;
+                double *y = iSubj.m_Particles[j].y;
                 double *my = m_MeanShape[j].y;
                 fordim(k) {
                     xPoint[k] = x[k];
                 }
-                shapes[i].m_DeformableTransform->ComputeInverseJacobianWithRespectToPosition(xPoint, xJac);
+                iSubj.m_DeformableTransform->ComputeInverseJacobianWithRespectToPosition(xPoint, xJac);
 //                shapes[i].m_Transform->ComputeJacobianWithRespectToPosition(xPoint, xJac);
                 fordim(k) {
                     if (__Dim == 3) {
@@ -263,16 +264,16 @@ namespace pi {
                         f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]);
                     }
                 }
-                shapes[i][j].SubForce(f, m_Coeff);
+                iSubj.m_Particles[j].SubForce(f, m_Coeff);
             }
         }
 
         // recover coordinates of particles
         for (int i = 0; i < nSubjects; i++) {
-            ParticleSubject& subject = shapes[i];
+            ParticleSubject& subject = system[i];
             AffineTransformType::Pointer inverse = AffineTransformType::New();
             subject.m_AffineTransform->GetInverse(inverse.GetPointer());
-            subject.TransformX2Y(inverse);
+//            subject.TransformX2X(inverse);
         }
     }
 

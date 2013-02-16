@@ -285,7 +285,6 @@ namespace pi {
     
     void ParticleCollision::HandleCollision(ParticleSubjectArray& subjs) {
         const int nShapes = subjs.size();
-        const int nPoints = subjs[0].GetNumberOfPoints();
 
         for (int n = 0; n < nShapes; n++) {
             HandleCollision(subjs[n]);

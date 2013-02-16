@@ -34,13 +34,13 @@
 
 
 
-std::vector<pi::Particle> g_Trace;
 int g_MaxId = 0;
 int g_MaxTimeSteps = 0;
 int g_CurrentFrame = 0;
 pi::Particle g_BoundingBox;
-static pi::ParticleSystemSolver g_Solver;
 
+static pi::ParticleSystemSolver g_Solver;
+static pi::ParticleTrace g_Trace;
 
 vtkIntArray* g_IdArray;
 
@@ -204,11 +204,9 @@ void AniWindow::on_actionOpen_Trace_triggered() {
         return;
     }
 
-    pi::ParticleTrace traceIO;
-
     ifstream in(filename.toUtf8().data());
     if (in.is_open()) {
-        traceIO.Read(in, g_Trace);
+        g_Trace.Read(in);
 
         for (int i = 0; i < g_Trace.size(); i++) {
             pi::Particle& p = g_Trace[i];
@@ -239,9 +237,11 @@ void AniWindow::on_actionOpen_Trace_triggered() {
 }
 
 void AniWindow::on_actionOpen_System_triggered() {
-    g_Trace.clear();
+    g_MaxTimeSteps = 0;
+
     m_Points->Reset();
     g_IdArray->Reset();
+    ui.subjects->clear();
 
     QString filename = QFileDialog::getOpenFileName(this, "Open Trace File", ".", "*.txt");
     if (filename.isNull()) {
@@ -292,10 +292,11 @@ void AniWindow::on_subjects_currentIndexChanged(int n) {
     g_IdArray->Reset();
 
 
-    pi::ParticleSubject& subj = g_Solver.m_System.GetInitialSubject();
+    pi::ParticleSubject* subjPtr = &(g_Solver.m_System.GetInitialSubject());
     if (n > 0) {
-        subj = g_Solver.m_System[n-1];
+        subjPtr = &(g_Solver.m_System[n-1]);
     }
+    pi::ParticleSubject& subj = (*subjPtr);
     for (int i = 0; i < subj.GetNumberOfPoints(); i++) {
         pi::Particle& p = subj[i];
         if (p.idx >= g_MaxId) {

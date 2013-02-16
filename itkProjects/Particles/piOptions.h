@@ -15,6 +15,15 @@
 #include <string>
 #include "SimpleOpt.h"
 
+/**
+ * Todo
+ * 
+ *   value interpolated string 
+ *      example)
+ *         NumberOfParticles: int 100
+ *         Name: interpolated_string file_#NumberOfParticles#.txt
+ *         GetString("Name", "") => file_100.txt
+ */
 #define OPTION_END "==option_end=="
 namespace pi {
     typedef std::vector<std::string> StringVector;

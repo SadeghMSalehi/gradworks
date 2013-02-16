@@ -37,8 +37,8 @@ namespace pi {
         EnsembleForce(double coeff);
         ~EnsembleForce();
         void SetImageContext(ImageContext* context);
-        void ComputeEnsembleForce(ParticleSubjectArray& shapes);
-        void ComputeImageForce(ParticleSubjectArray& shapes);
+        void ComputeEnsembleForce(ParticleSystem& system);
+        void ComputeImageForce(ParticleSystem& system);
     private:
         ImageContext* m_ImageContext;
         ParticleSubject m_MeanShape;

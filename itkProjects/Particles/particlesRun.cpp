@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
     parser.ParseOptions(argc, argv, NULL);
     
     StringVector& args = parser.GetStringVector("args");
-    if (args.size() < 1) {
+    if (args.size() < 2) {
         return 0;
     }
     
@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     solver.LoadConfig(args[0].c_str());
     solver.Preprocessing();
     solver.Run();
-    solver.SaveConfig("/tmpfs/config.txt");
+    solver.SaveConfig(args[1].c_str());
     
 //    if (!system.LoadSystem(argv[1])) {
 //        cout << "Can't open " << argv[1] << endl;
