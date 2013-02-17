@@ -76,6 +76,7 @@ namespace pi {
     typedef LinearVectorImageInterpolatorType::ContinuousIndexType RealIndex;
     
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
+    typedef itk::ImageRegionIteratorWithIndex<DoubleImage> DoubleImageIteratorType;
 
     // definition for transforms
     typedef itk::Transform<double,__Dim,__Dim> TransformType;

@@ -5,6 +5,7 @@
 #include "piParticleTrace.h"
 #include "piOptions.h"
 #include "piParticleBSpline.h"
+#include "piImageProcessing.h"
 
 using namespace std;
 using namespace pi;
@@ -20,6 +21,7 @@ int main(int argc, char* argv[]) {
         { 7, "--dstidx", SO_REQ_SEP },
         { 5, "--useEnsemble", SO_NONE },
         { 6, "--noTrace", SO_NONE },
+        { 10, "--intensityNormalize", SO_NONE },
         SO_END_OF_OPTIONS
     };
     Options parser;
@@ -72,6 +74,21 @@ int main(int argc, char* argv[]) {
         	itkcmds::itkImageIO<DoubleImage> io;
         	io.WriteImageT(output.c_str(), outputImage);
         }
+    } else if (parser.GetBool("--normalizeIntensity")) {
+        if (args.size() < 3) {
+            cout << "normalization requires [input-image] [mask-image] [output-image]" << endl;
+            return 0;
+        }
+        itkcmds::itkImageIO<DoubleImage> iod;
+        itkcmds::itkImageIO<LabelImage> iol;
+        
+        DoubleImage::Pointer input = iod.ReadImageT(args[0].c_str());
+        LabelImage::Pointer label = iol.ReadImageT(args[1].c_str());
+        
+        ImageProcessing proc;
+        DoubleImage::Pointer output = proc.NormalizeIntensity(input, label);
+        
+        iod.WriteImageT(args[2].c_str(), output);
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;

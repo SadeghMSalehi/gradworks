@@ -25,6 +25,7 @@ namespace pi {
         VectorImage::Pointer DistanceMap(LabelImage::Pointer img);
         DoubleImage::Pointer ComputeMagnitudeMap(VectorImage::Pointer img);
         vtkPolyData* ConvertToMesh(LabelImage::Pointer image);
+        DoubleImage::Pointer NormalizeIntensity(DoubleImage::Pointer image, LabelImage::Pointer label);
     };
 }
 #endif /* defined(__ParticlesGUI__myImageProcessing__) */

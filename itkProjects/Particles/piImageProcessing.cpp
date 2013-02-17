@@ -280,4 +280,39 @@ namespace pi {
 #endif
         return NULL;
     }
+    
+    DoubleImage::Pointer ImageProcessing::NormalizeIntensity(DoubleImage::Pointer image, LabelImage::Pointer label) {
+        double sum = 0, sum2 = 0;
+        itkcmds::itkImageIO<DoubleImage> io;
+        DoubleImage::Pointer output = io.NewImageT(image);
+        DoubleImageIteratorType iter(image, image->GetBufferedRegion());
+        LabelImageIteratorType iter2(label, image->GetBufferedRegion());
+        DoubleImageIteratorType oiter(output, image->GetBufferedRegion());
+        int n = 0;
+        iter.GoToBegin();
+        iter2.GoToBegin();
+        while (!iter.IsAtEnd()) {
+            if (iter2.Get() > 0) {
+                double v = iter.Get();
+                sum += v;
+                sum2 += (v*v);
+                ++n;
+            }
+            ++iter;
+            ++iter2;
+        }
+        double mean = sum/(n-1);
+        double sigma  = sqrt(sum2/(n-1) - mean*mean);
+        iter.GoToBegin();
+        iter2.GoToBegin();
+        while (!iter.IsAtEnd()) {
+            if (iter2.Get() > 0) {
+                oiter.Set((iter.Get() - mean)/sigma);
+            }
+            ++iter;
+            ++iter2;
+        }
+        return output;
+    }
+
 }
