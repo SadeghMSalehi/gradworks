@@ -60,6 +60,7 @@ int main(int argc, char* argv[]) {
         io.WriteImageT(output.c_str(), outputImage);
     } else {
         if (args.size() < 2) {
+        	cout << "registration requires [config.txt] [output.txt]" << endl;
             return 0;
         }
 
@@ -71,7 +72,7 @@ int main(int argc, char* argv[]) {
             options.Set("PreprocessingTrace:", string(""));
             options.Set("RunTrace:", string(""));
             cout << options << endl;
-            cout << "Trace disabaled..." << endl;
+            cout << "Trace disabled..." << endl;
         }
 
         solver.Preprocessing();
