@@ -12,6 +12,7 @@ using namespace pi;
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
         { 1, "-r", SO_NONE },
+        { 8, "-d", SO_NONE },
         { 2, "-o", SO_REQ_SEP },
         { 3, "--mean", SO_NONE },
         { 4, "--srcidx", SO_REQ_SEP },
@@ -52,12 +53,18 @@ int main(int argc, char* argv[]) {
         } else {
             particleTransform.EstimateTransform(system[dstIdx], system[srcIdx]);
         }
-        LabelImage::Pointer outputImage = particleTransform.WarpLabel(imageCtx.GetLabel(srcIdx));
 
-
-        // write image
-        itkcmds::itkImageIO<LabelImage> io;
-        io.WriteImageT(output.c_str(), outputImage);
+        bool labelWarp = !parser.GetBool("-d", false);
+        if (labelWarp) {
+			LabelImage::Pointer outputImage = particleTransform.WarpLabel(imageCtx.GetLabel(srcIdx));
+			// write image
+			itkcmds::itkImageIO<LabelImage> io;
+			io.WriteImageT(output.c_str(), outputImage);
+        } else {
+        	DoubleImage::Pointer outputImage = particleTransform.WarpImage(imageCtx.GetDoubleImage(srcIdx));
+        	itkcmds::itkImageIO<DoubleImage> io;
+        	io.WriteImageT(output.c_str(), outputImage);
+        }
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;
