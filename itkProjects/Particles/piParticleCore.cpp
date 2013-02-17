@@ -307,6 +307,7 @@ namespace pi {
         if (m_Particles.size() != nPoints) {
             m_Particles.resize(nPoints);
         }
+        
         for (int i = 0; i < nPoints; i++) {
             m_Particles[i].idx = i;
             m_Particles[i].t = 0;

@@ -15,6 +15,11 @@
 #include "itkConstNeighborhoodIterator.h"
 #include "armadillo"
 
+
+#define __show2(t,x,m,n) for (int _=0;_<m;_++) { cout << t << "#" << _ << ":"; for (int __=0;__<n;__++) cout << " " << x[__+_*m]; cout << endl; }
+#define __show1(x,m) cout << #x << ":"; for (int _=0;_<m;_++) cout << " " << x[_]; cout << endl;
+
+
 namespace pi {
     typedef itk::GradientRecursiveGaussianImageFilter<DoubleImage, VectorImage> GradientFilterType;
     typedef GradientFilterType::OutputPixelType GradientPixelType;
@@ -296,32 +301,54 @@ namespace pi {
         
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
-        const int nRadius = 2;
+        const int nRadius = 1;
         const int nAttrsPerPoint = ::pow(2*nRadius+1, __Dim);
-        const int nAttrs = nPoints * nAttrsPerPoint;
+        const int nAttrsPerSubject = nPoints * nAttrsPerPoint;
 
         DoubleImageVector warpedImages(nSubj);
         VectorImageVector gradImages(nSubj);
 
-        double* attrs = new double[nSubj * nAttrs];
-        double* gradAttrs = new double[nSubj * nAttrs * __Dim];
-        double* force = new double[nSubj * nPoints * __Dim];
+        double* attrs = new double[nSubj * nAttrsPerSubject];
+        double* gradAttrs = new double[nSubj * nAttrsPerSubject * __Dim];
+        double* force = new double[nSubj * nAttrsPerSubject * __Dim];
 
+        
+        itkcmds::itkImageIO<DoubleImage> io;
+        
         // first create a warped image into the mean transform space
         // second create a gradient vector image per subject
         // third extract attributes (features)
         for (int i = 0; i < nSubj; i++) {
             ParticleSubject& subject = shapes[i];
+            LabelImage::Pointer refImage = m_ImageContext->GetLabel(i);
+            
+            // warp the real image
             ParticleBSpline bspline;
-            bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
+            bspline.SetReferenceImage(refImage);
             bspline.EstimateTransform(meanSubject, subject);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
             subject.m_InverseDeformableTransform = deformableTransform;
             warpedImages[i] = bspline.WarpImage(m_ImageContext->GetDoubleImage(i));
+
+
+            if (subject.m_DeformableTransform.IsNull()) {
+                ParticleBSpline forwardBspline;
+                forwardBspline.SetReferenceImage(refImage);
+                forwardBspline.EstimateTransform(subject, meanSubject);
+                FieldTransformType::Pointer forwardTransform = bspline.GetTransform();
+                subject.TransformX2Y(forwardTransform);
+            }
+
+            char warpedname[128];
+            sprintf(warpedname, "warped%d_%03d.nrrd", i, system->currentIteration);
+            io.WriteImageT(warpedname, warpedImages[i]);
+            
             GradientFilterType::Pointer grad = GradientFilterType::New();
             grad->SetInput(warpedImages[i]);
             grad->Update();
             gradImages[i] = grad->GetOutput();
+            
+            
 
             // extract attributes
             DoubleImage::SizeType radius;
@@ -339,8 +366,8 @@ namespace pi {
                 iiter.SetLocation(idx);
                 giter.SetLocation(idx);
 
-                double* jAttrs = &attrs[i * nAttrs + j * nAttrsPerPoint];
-                double* jAttrsGrad = &gradAttrs[(i * nAttrs + j * nAttrsPerPoint) * __Dim];
+                double* jAttrs = &attrs[i * nAttrsPerSubject + j * nAttrsPerPoint];
+                double* jAttrsGrad = &gradAttrs[(i * nAttrsPerSubject + j * nAttrsPerPoint) * __Dim];
                 const int numAttrs = iiter.Size();
                 assert(numAttrs == nAttrsPerPoint);
                 for (int k = 0; k < nAttrsPerPoint; k++) {
@@ -353,23 +380,34 @@ namespace pi {
                 }
             }
         }
-
+//        
+//        for (int j = 0; j < nSubj; j++) {
+//            cout << "Attributes #" << j << ": ";
+//            for (int k = 0; k < nAttrs; k++) {
+//                cout << attrs[k + j * nAttrs] << " ";
+//            }
+//            cout << endl;
+//        }
+//        
+        __show2("Attributes", attrs, nSubj, nAttrsPerSubject)
 
         // column sum
-        double* sumAttrs = new double[nPoints * nAttrsPerPoint];
+        double* sumAttrs = new double[nAttrsPerSubject];
         #pragma omp parallel for
-        for (int j = 0; j < nAttrs; j++) {
-            sumAttrs[j] = 0;
+        for (int j = 0; j < nAttrsPerSubject; j++) {
+            double sumAttr = 0;
             for (int i = 0; i < nSubj; i++) {
-                sumAttrs[j] += attrs[i * nAttrs + j];
+                sumAttr += attrs[i * nAttrsPerSubject + j];
             }
+            sumAttrs[j] = sumAttr;
         }
+        __show1(sumAttrs, nAttrsPerSubject);
 
         // compute mean differences
         for (int i = 0; i < nSubj; i++) {
             #pragma omp parallel for
-            for (int j = 0; j < nAttrs; j++) {
-                attrs[i * nAttrs + j] -= (sumAttrs[j] / nSubj);
+            for (int j = 0; j < nAttrsPerSubject; j++) {
+                attrs[i * nAttrsPerSubject + j] -= (sumAttrs[j] / nSubj);
             }
         }
 
@@ -380,8 +418,8 @@ namespace pi {
             for (int j = 0; j < nPoints; j++) {
                 double* forcePtr = &force[(i * nPoints + j) * __Dim];
                 for (int k = 0; k < nAttrsPerPoint; k++) {
-                    double attr = attrs[i * nAttrs + j * nAttrsPerPoint];
-                    double* gradAttrPtr = &gradAttrs[(i * nAttrs + j * nAttrsPerPoint + k) * __Dim];
+                    double attr = attrs[i * nAttrsPerSubject + j * nAttrsPerPoint];
+                    double* gradAttrPtr = &gradAttrs[(i * nAttrsPerSubject + j * nAttrsPerPoint + k) * __Dim];
                     for (int m = 0; m < __Dim; m++) {
                         forcePtr[m] += attr * gradAttrPtr[m];
                     }

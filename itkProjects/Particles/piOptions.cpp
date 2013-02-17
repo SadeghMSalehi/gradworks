@@ -14,27 +14,27 @@
 using namespace std;
 
 namespace pi {
-    void Options::Set(std::string name, bool value) {
+    void Options::SetBool(std::string name, bool value) {
         std::pair<BoolMap::iterator, bool> result = _boolMap.insert(BoolPair(name, value));
         if (!result.second) {
             result.first->second = value;
         }
     }
     
-    void Options::Set(std::string name, int value) {
+    void Options::SetInt(std::string name, int value) {
         std::pair<IntMap::iterator, bool> result = _intMap.insert(IntPair(name, value));
         if (!result.second) {
             result.first->second = value;
         }
     }
 
-    void Options::Set(std::string name, double value) {
+    void Options::SetDouble(std::string name, double value) {
         std::pair<DoubleMap::iterator, bool> result = _doubleMap.insert(DoublePair(name, value));
         if (!result.second) {
             result.first->second = value;
         }    }
 
-    void Options::Set(std::string name, std::string value) {
+    void Options::SetString(std::string name, std::string value) {
         std::pair<StringMap::iterator, bool> result = _stringMap.insert(StringPair(name, value));
         if (!result.second) {
             result.first->second = value;
@@ -142,9 +142,9 @@ namespace pi {
         while (args.Next()) {
             if (args.LastError() == SO_SUCCESS) {
                 if (args.OptionArg()) {
-                    this->Set(args.OptionText(), string(args.OptionArg()));
+                    this->SetString(args.OptionText(), string(args.OptionArg()));
                 } else {
-                    this->Set(args.OptionText(), true);
+                    this->SetBool(args.OptionText(), true);
                 }
             } else {
                 // handle error (see the error codes - enum ESOError)
@@ -160,6 +160,21 @@ namespace pi {
     }
 
     std::ostream & operator<<(std::ostream &os, const Options& opt) {
+        bool hasValue = false;
+        for(Options::BoolMap::const_iterator iter = opt._boolMap.begin(); iter != opt._boolMap.end(); ++iter) {
+            if (!hasValue) {
+                os << "Options:";
+                hasValue = true;
+            }
+            if (iter->first[0] != '_') {
+                os << " " << (iter->second ? "+" : "-") << iter->first;
+            }
+        }
+        if (hasValue) {
+            os << endl;
+            hasValue = false;
+        }
+
         for(Options::IntMap::const_iterator iter = opt._intMap.begin(); iter != opt._intMap.end(); ++iter) {
             os << iter->first << " int " << iter->second << endl;
         }
@@ -168,9 +183,6 @@ namespace pi {
         }
         for(Options::StringMap::const_iterator iter = opt._stringMap.begin(); iter != opt._stringMap.end(); ++iter) {
             os << iter->first << " string " << iter->second << endl;
-        }
-        for(Options::BoolMap::const_iterator iter = opt._boolMap.begin(); iter != opt._boolMap.end(); ++iter) {
-            os << iter->first << " bool " << (iter->second ? "true" : "false") << endl;
         }
 
         for(Options::IntVectorMap::const_iterator iter = opt._intVectorMap.begin(); iter != opt._intVectorMap.end(); ++iter) {
@@ -209,26 +221,40 @@ namespace pi {
                 stringstream ss(cbuf);
                 string name;
                 string type;
-                ss >> name >> type;
+                ss >> name;
+                // skip whitespace
+                if (name[0] == '#' || name[0] == '%') {
+                    continue;
+                }
+                if (name == "Options:") {
+                    while (ss.good()) {
+                        string option;
+                        ss >> option;
+                        bool value = (option[0] == '+');
+                        string optionname = option.substr(1);
+                        opt.SetBool(optionname, value);
+                    }
+                }
+                ss >> type;
                 if (name == OPTION_END) {
                     return is;
                 }
                 if (type == "int" ) {
                     int value;
                     ss >> value;
-                    opt.Set(name, value);
+                    opt.SetInt(name, value);
                 } else if (type == "double") {
                     double value;
                     ss >> value;
-                    opt.Set(name, value);
+                    opt.SetDouble(name, value);
                 } else if (type == "bool") {
                     string value;
                     ss >> value;
-                    opt.Set(name, value == "true");
+                    opt.SetBool(name, value == "true");
                 } else if (type == "string") {
                     string value;
                     ss >> value;
-                    opt.Set(name, value);
+                    opt.SetString(name, value);
                 } else if (type == "ints") {
                     while (ss.good()) {
                         int val;

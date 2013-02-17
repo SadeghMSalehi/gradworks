@@ -11,6 +11,7 @@ using namespace pi;
 
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
+        { 9, "--seeConfig", SO_NONE },
         { 1, "-r", SO_NONE },
         { 8, "-d", SO_NONE },
         { 2, "-o", SO_REQ_SEP },
@@ -30,7 +31,13 @@ int main(int argc, char* argv[]) {
     ParticleSystem& system = solver.m_System;
     Options& options = solver.m_Options;
 
-    if (parser.GetBool("-r", false)) {
+    if (parser.GetBool("--seeConfig")) {
+        solver.LoadConfig(args[0].c_str());
+        cout << "Option Contents:\n\n" << options << endl;
+        if (args.size() > 1) {
+            solver.SaveConfig(args[1].c_str());
+        }
+    } else if (parser.GetBool("-r", false)) {
         if (args.size() < 1 || output == "") {
             cout << "registration requires [config.txt] -o [outputimage]" << endl;
             return 0;
@@ -76,23 +83,24 @@ int main(int argc, char* argv[]) {
         }
         
         if (parser.GetBool("--noTrace")) {
-            options.Set("PreprocessingTrace:", string(""));
-            options.Set("RunTrace:", string(""));
-            cout << options << endl;
+            options.SetString("PreprocessingTrace:", string(""));
+            options.SetString("RunTrace:", string(""));
             cout << "Trace disabled..." << endl;
         }
-
-        solver.Preprocessing();
         
         if (parser.GetBool("--useEnsemble")) {
-            options.Set("+ensemble", true);
+            options.SetBool("ensemble", true);
             cout << "Ensemble term enabled..." << endl;
         }
+        
+        if (!options.GetBool("no_preprocessing")) {
+            solver.Preprocessing();
+        }
+        
         solver.Run();
-
-        solver.m_Options = options;
         solver.SaveConfig(args[1].c_str());
 
+        // final point location marking onto image
         StringVector& markingImages = solver.m_Options.GetStringVector("FinalMarking:");
         if (markingImages.size() > 0) {
             itkcmds::itkImageIO<LabelImage> io;

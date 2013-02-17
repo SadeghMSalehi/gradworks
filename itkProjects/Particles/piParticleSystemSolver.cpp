@@ -26,8 +26,6 @@ namespace pi {
         }
         in >> m_Options;
         
-        cout << m_Options << endl;
-        
         // this requires 'NumberOfParticles:', 'Subjects:'
         m_System.InitializeSystem(m_Options);
 
@@ -53,7 +51,11 @@ namespace pi {
                     int subjId, nPoints;
                     ss >> subjId >> nPoints;
                     if (subjId < m_System.GetNumberOfSubjects()) {
-                        m_System[subjId].ReadParticles(in, nPoints);
+                        if (m_Options.GetBool("load_position_only")) {
+                            m_System[subjId].ReadParticlePositions(in, nPoints);
+                        } else {
+                            m_System[subjId].ReadParticles(in, nPoints);
+                        }
                     }
                 } else if (name == "InitialParticles:") {
                     int nPoints;
@@ -83,7 +85,11 @@ namespace pi {
         if (nSubj > 0) {
             for (int i = 0; i < nSubj; i++) {
                 out << "Particles: " << i << " " << nParticles << endl;
-                m_System[i].WriteParticles(out);
+                if (m_Options.GetBool("save_position_only")) {
+                    m_System[i].WriteParticlePositions(out);
+                } else {
+                    m_System[i].WriteParticles(out);
+                }
             }
         }
         return true;
@@ -186,54 +192,7 @@ namespace pi {
         return;
     }
 
-    void Run2() {
-        /*
-         const double t0 = m_times[0];
-         const double dt = m_times[1];
-         const double t1 = m_times[2];
-         
-         
-         cout << "Distance map generation ..." << endl;
-         ParticleConstraint constraint;
-         constraint.SetImageList(m_ImageContext.GetLabelVector());
-         cout << "Distance map generation ... done" << endl;
-         
-         
-         char trackName[128];
-         int k = 0;
-         boost::timer timer;
-         for (double t = t0; t < t1; t += dt) {
-         timer.restart();
-         ComputeMeanSubject();
-         if (m_InternalForceFlag) {
-         InternalForce internalForce;
-         internalForce.ComputeForce(m_Subjects);
-         }
-         
-         EnsembleForce ensembleForce(m_EnsembleCoeff);
-         ensembleForce.SetImageContext(&m_ImageContext);
-         if (m_EnsembleForceFlag) {
-         ensembleForce.ComputeEnsembleForce(m_Subjects);
-         }
-         
-         IntensityForce IntensityForce(m_IntensityCoeff);
-         IntensityForce.SetImageContext(&m_ImageContext);
-         if (m_IntensityForceFlag) {
-         IntensityForce.ComputeIntensityForce(this);
-         }
-         
-         constraint.ApplyConstraint(m_Subjects);
-         UpdateSystem(m_Subjects, dt);
-         if (m_TrackingOutputPattern != "") {
-         sprintf(trackName, m_TrackingOutputPattern.c_str(), ++k);
-         SaveSystem(trackName);
-         }
-         cout << "Processing Time: " << t << "; Elapsed " << timer.elapsed() << " secs" << endl;
-         }
-         */
-        
-    }
-    
+
     void ParticleSystemSolver::Run() {
         ParticleSystem& system = m_System;
         const int nSubz = system.GetNumberOfSubjects();
@@ -246,8 +205,10 @@ namespace pi {
         ParticleTrace trace;
         trace.Resize(nSubz);
 
-        for (int n = 0; n < nSubz; n++) {
-            m_System[n].Initialize(system.GetInitialSubject().m_Particles);
+        if (!m_Options.GetBool("use_previous_position")) {
+            for (int n = 0; n < nSubz; n++) {
+                m_System[n].Initialize(system.GetInitialSubject().m_Particles);
+            }
         }
         
         EntropyInternalForce internalForce;
@@ -272,28 +233,36 @@ namespace pi {
         const double t0 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 0);
         const double dt = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 1);
         const double t1 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 2);
-        const bool useEnsemble = m_Options.GetBool("+ensemble", false);
-        const bool useIntensity = m_Options.GetBool("+intensity", false);
-        const bool useNoInternal = m_Options.GetBool("-internal", false);
         
+        const bool useEnsemble = m_Options.GetBool("ensemble");
+        const bool useIntensity = m_Options.GetBool("intensity");
+        const bool noInternal = m_Options.GetBool("no_internal");
+        const bool noBoundary = m_Options.GetBool("no_boundary");
+        
+        m_System.currentIteration = -1;
         for (double t = t0; t < t1; t += dt) {
+            m_System.currentTime = t;
+            m_System.currentIteration++;
+            
             cout << "t: " << t << endl;
             m_System.ComputeMeanSubject();
 
             // compute internal force
-            if (!useNoInternal) {
-                for (int n = 0; n < nSubz; n++) {
-                    ParticleSubject& sub = subs[n];
-                    for (int i = 0; i < nPoints; i++) {
-                        Particle& pi = sub[i];
-                        forset(pi.x, pi.w);
-                        forfill(pi.f, 0);
-                    }
-                    
+            for (int n = 0; n < nSubz; n++) {
+                ParticleSubject& sub = subs[n];
+                for (int i = 0; i < nPoints; i++) {
+                    Particle& pi = sub[i];
+                    forset(pi.x, pi.w);
+                    forfill(pi.f, 0);
+                }
+                if (!noInternal) {
                     internalForce.ComputeForce(sub);
+                }
+                if (!noBoundary) {
                     collisionHandlers[n].HandleCollision(sub);
                 }
             }
+            
 
             if (useEnsemble) {
                 ensembleForce.ComputeEnsembleForce(m_System);

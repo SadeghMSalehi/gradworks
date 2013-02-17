@@ -23,6 +23,13 @@
  *         NumberOfParticles: int 100
  *         Name: interpolated_string file_#NumberOfParticles#.txt
  *         GetString("Name", "") => file_100.txt
+ *
+ *    if the name of bool type option startswith '_', then it will not be written
+ *      example)
+ *         Options: +_load_position_only +hello
+ *      will be written as
+ *         Options: +hello
+ *
  */
 #define OPTION_END "==option_end=="
 namespace pi {
@@ -47,10 +54,10 @@ namespace pi {
         typedef std::map<std::string, IntVector> IntVectorMap;
         typedef std::pair<std::string, IntVector> IntVectorPair;
     public:
-        void Set(std::string name, bool value);
-        void Set(std::string name, int value);
-        void Set(std::string name, double value);
-        void Set(std::string name, std::string value);
+        void SetBool(std::string name, bool value);
+        void SetInt(std::string name, int value);
+        void SetDouble(std::string name, double value);
+        void SetString(std::string name, std::string value);
         void AppendString(std::string name, std::string value);
         void AppendDouble(std::string name, double value);
         void AppendInt(std::string name, int value);

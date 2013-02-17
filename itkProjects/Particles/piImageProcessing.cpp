@@ -23,7 +23,6 @@
 #include "itkEllipseSpatialObject.h"
 #include "itkSpatialObjectToImageFilter.h"
 #include "itkMesh.h"
-#include "itkBinaryMask3DMeshSource.h"
 #include "itkVTKPolyDataWriter.h"
 #include "itkUnaryFunctorImageFilter.h"
 
@@ -35,13 +34,18 @@
 
 #include "itkImageIO.h"
 
+#ifdef DIMENSION3
+#include "itkBinaryMask3DMeshSource.h"
+#endif
+
 namespace pi {
+#ifdef DIMENSION3
     typedef itk::EllipseSpatialObject<__Dim> EllipseType;
     typedef itk::SpatialObjectToImageFilter<EllipseType, LabelImage> SpatialObjectToImageFilterType;
     typedef itk::Mesh<double> MeshType;
     typedef itk::BinaryMask3DMeshSource<LabelImage, MeshType> MeshSourceType;
+#endif
     typedef itk::ZeroCrossingImageFilter<LabelImage, LabelImage> ZeroCrossingFilterType;
-    
     typedef itk::CastImageFilter<LabelImage ,DoubleImage > CastToRealFilterType;
     typedef itk::AntiAliasBinaryImageFilter<DoubleImage, DoubleImage> AntiAliasFilterType;
     typedef itk::RescaleIntensityImageFilter<DoubleImage, LabelImage > RescaleFilter;
@@ -191,6 +195,7 @@ namespace pi {
     }
 
     LabelImage::Pointer ImageProcessing::Ellipse(int* outputSize, double *center, double *radius) {
+#ifdef DIMENSION3
         SpatialObjectToImageFilterType::Pointer imageFilter = SpatialObjectToImageFilterType::New();
         DoubleImage::SizeType size;
         fordim (k) {
@@ -222,6 +227,9 @@ namespace pi {
         imageFilter->SetOutsideValue(0);
         imageFilter->Update();
         return imageFilter->GetOutput();
+#else
+        return LabelImage::Pointer();
+#endif
     }
 
 
@@ -260,6 +268,7 @@ namespace pi {
     }
 
     vtkPolyData* ImageProcessing::ConvertToMesh(LabelImage::Pointer image) {
+#ifdef DIMENSION3
         typedef itk::Mesh<double> MeshType;
         typedef itk::BinaryMask3DMeshSource<LabelImage, MeshType> MeshSourceType;
 
@@ -268,7 +277,7 @@ namespace pi {
         meshSource->SetObjectValue(255);
         meshSource->Update();
         MeshType::Pointer mesh = meshSource->GetOutput();
-
+#endif
         return NULL;
     }
 }

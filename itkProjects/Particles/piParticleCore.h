@@ -152,6 +152,9 @@ namespace pi {
 
     class ParticleSystem {
     public:
+        double currentTime;
+        int currentIteration;
+        
         ParticleSystem();
         ~ParticleSystem() {
         }
