@@ -54,8 +54,9 @@ const static int __Dim = 2;
 
 namespace pi {
     // type definitions
+    typedef unsigned short LabelPixel;
     typedef itk::Image<double,__Dim> DoubleImage;
-    typedef itk::Image<unsigned short,__Dim> LabelImage;
+    typedef itk::Image<LabelPixel,__Dim> LabelImage;
     typedef itk::Vector<double,__Dim> VectorType;
     typedef itk::Image<VectorType,__Dim> VectorImage;
     typedef itk::Offset<__Dim> OffsetType;
@@ -71,6 +72,9 @@ namespace pi {
     typedef itk::VectorLinearInterpolateImageFunction<VectorImage> LinearVectorImageInterpolatorType;
     typedef itk::VectorNearestNeighborInterpolateImageFunction<VectorImage> NNVectorImageInterpolatorType;
 
+    typedef NNLabelInterpolatorType::IndexType IntIndex;
+    typedef LinearVectorImageInterpolatorType::ContinuousIndexType RealIndex;
+    
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
 
     // definition for transforms

@@ -30,6 +30,8 @@
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 #include "itkDanielssonDistanceMapImageFilter.h"
 #include "itkVectorMagnitudeImageFilter.h"
+#include "itkMesh.h"
+#include "itkBinaryMask3DMeshSource.h"
 
 #include "itkImageIO.h"
 
@@ -93,8 +95,8 @@ namespace pi {
         antiAliasFilter->SetNumberOfLayers(2);
         antiAliasFilter->Update();
 
-        itkcmds::itkImageIO<DoubleImage> iox;
-        iox.WriteImageT("/tmpfs/aadouble.nrrd", antiAliasFilter->GetOutput());
+//        itkcmds::itkImageIO<DoubleImage> iox;
+//        iox.WriteImageT("/tmpfs/aadouble.nrrd", antiAliasFilter->GetOutput());
 
         RescaleFilter::Pointer rescale = RescaleFilter::New();
         rescale->SetInput( antiAliasFilter->GetOutput() );
@@ -255,5 +257,18 @@ namespace pi {
         magFilter->SetInput(img);
         magFilter->Update();
         return magFilter->GetOutput();
+    }
+
+    vtkPolyData* ImageProcessing::ConvertToMesh(LabelImage::Pointer image) {
+        typedef itk::Mesh<double> MeshType;
+        typedef itk::BinaryMask3DMeshSource<LabelImage, MeshType> MeshSourceType;
+
+        MeshSourceType::Pointer meshSource = MeshSourceType::New();
+        meshSource->SetInput(image);
+        meshSource->SetObjectValue(255);
+        meshSource->Update();
+        MeshType::Pointer mesh = meshSource->GetOutput();
+
+        return NULL;
     }
 }

@@ -24,10 +24,8 @@ class AniWindow : public QMainWindow {
 public:
     AniWindow(QWidget* parent = NULL);
     ~AniWindow();
-
     void CreateParticles();
-    void UpdateParticles();
-    
+
 public slots:
     void on_action_Open_triggered();
     void on_actionOpen_Trace_triggered();
@@ -36,9 +34,20 @@ public slots:
     void on_actionBackward_triggered();
     void on_actionFirst_triggered();
     void on_actionLast_triggered();
+    void on_actionLabel_Registration_triggered();
+    void on_actionMark_At_Image_triggered();
+    void on_actionCreate_Pathline_triggered();
+
+
+    // Tools
+    void on_actionReset_Camera_triggered();
+    void on_actionImage_Particle_View_triggered(bool checked);
     void on_subjects_currentIndexChanged(int n);
     void on_glyphRadius_valueChanged(double r);
     
+private:
+    void ShowTraceParticles();
+
 private:
     Ui::AniWindow ui;
     vtkRenderer* m_Renderer;

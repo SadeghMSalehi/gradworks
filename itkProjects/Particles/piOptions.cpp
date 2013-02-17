@@ -142,7 +142,7 @@ namespace pi {
         while (args.Next()) {
             if (args.LastError() == SO_SUCCESS) {
                 if (args.OptionArg()) {
-                    this->Set(args.OptionText(), args.OptionArg());
+                    this->Set(args.OptionText(), string(args.OptionArg()));
                 } else {
                     this->Set(args.OptionText(), true);
                 }
@@ -155,6 +155,7 @@ namespace pi {
         for (int i = 0; i < args.FileCount(); i++) {
             this->AppendString("args", args.File(i));
         }
+
         return this->GetStringVector("args");
     }
 

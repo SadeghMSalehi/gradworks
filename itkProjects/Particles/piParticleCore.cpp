@@ -431,7 +431,7 @@ namespace pi {
 
     
     void ParticleSystem::InitializeSystem(Options& options) {
-        m_Options = options;
+        m_Options = &options;
         m_Subjects.resize(options.GetStringVector("Subjects:").size());
         for (int i = 0; i < m_Subjects.size(); i++) {
             m_Subjects[i].Initialize(i, options.GetStringVectorValue("Subjects:", i), options.GetInt("NumberOfParticles:", 0));

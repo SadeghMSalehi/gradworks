@@ -236,7 +236,6 @@ namespace pi {
         ParticleSystem& system = m_System;
         const int nSubz = system.GetNumberOfSubjects();
         const int nPoints = system.GetNumberOfParticles();
-        Options& systemOptions = system.GetSystemOptions();
         ParticleSubjectArray& subs = system.GetSubjects();
 
         string traceFile = m_Options.GetString("RunTrace:", "");
@@ -254,22 +253,26 @@ namespace pi {
         EnsembleForce ensembleForce(1);
         ensembleForce.SetImageContext(&m_ImageContext);
 
+        IntensityForce intensityForce(1);
+        intensityForce.SetImageContext(&m_ImageContext);
+
         std::vector<ParticleCollision> collisionHandlers;
         collisionHandlers.resize(nSubz);
         
         for (int n = 0; n < nSubz; n++) {
             collisionHandlers[n].SetBinaryMask(m_ImageContext.GetLabel(n));
             collisionHandlers[n].UseBinaryMaskSmoothing();
-            collisionHandlers[n].UseBinaryMaskSmoothingCache(systemOptions.GetStringVectorValue("BinaryMaskSmoothingCache:", n).c_str());
-            collisionHandlers[n].UseDistanceMapCache(systemOptions.GetStringVectorValue("BinaryMaskDistanceMapCache:", n).c_str());
+            collisionHandlers[n].UseBinaryMaskSmoothingCache(m_Options.GetStringVectorValue("BinaryMaskSmoothingCache:", n).c_str());
+            collisionHandlers[n].UseDistanceMapCache(m_Options.GetStringVectorValue("BinaryMaskDistanceMapCache:", n).c_str());
             collisionHandlers[n].UpdateImages();
         }
         
-        double t0 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 0);
-        double dt = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 1);
-        double t1 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 2);
-
-
+        const double t0 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 0);
+        const double dt = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 1);
+        const double t1 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 2);
+        const bool useEnsemble = m_Options.GetBool("+ensemble", false);
+        const bool useIntensity = m_Options.GetBool("+intensity", false);
+        
         for (double t = t0; t < t1; t += dt) {
             cout << "t: " << t << endl;
             m_System.ComputeMeanSubject();
@@ -287,8 +290,14 @@ namespace pi {
                 collisionHandlers[n].HandleCollision(sub);
             }
 
-            // ensembleForce.ComputeEnsembleForce(m_System);
+            if (useEnsemble) {
+                ensembleForce.ComputeEnsembleForce(m_System);
+            }
 
+            if (useIntensity) {
+                intensityForce.ComputeIntensityForce(&m_System);
+            }
+            
             // system update
             for (int n = 0; n < nSubz; n++) {
                 ParticleSubject& sub = subs[n];
@@ -308,7 +317,7 @@ namespace pi {
                     }
                 }
                 if (traceOn) {
-                    trace.Add(t, subs[n]);
+                    trace.Add(t, sub);
                 }
             }
         }

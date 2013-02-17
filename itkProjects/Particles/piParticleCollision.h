@@ -28,8 +28,7 @@ namespace pi {
 
     class ParticleCollision {
     private:
-        typedef NNLabelInterpolatorType::IndexType IntIndex;
-        typedef LinearVectorImageInterpolatorType::ContinuousIndexType RealIndex;
+
         
     public:
         ParticleCollision(): m_ApplySmoothing(false) {}

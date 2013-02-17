@@ -12,6 +12,8 @@
 #include <iostream>
 #include "piImageDef.h"
 
+class vtkPolyData;
+
 namespace pi {
     class ImageProcessing {
     public:
@@ -22,6 +24,7 @@ namespace pi {
         LabelImage::Pointer Ellipse(int* outputSize, double* center, double* radius);
         VectorImage::Pointer DistanceMap(LabelImage::Pointer img);
         DoubleImage::Pointer ComputeMagnitudeMap(VectorImage::Pointer img);
+        vtkPolyData* ConvertToMesh(LabelImage::Pointer image);
     };
 }
 #endif /* defined(__ParticlesGUI__myImageProcessing__) */

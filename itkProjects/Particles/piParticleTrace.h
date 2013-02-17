@@ -16,11 +16,21 @@
 // assume particle id ranges from 0 to maxId consecutively
 // assume the number of particle per subject are same at every time step for every subject
 namespace pi {
+    typedef std::vector<ParticleVector> ParticleVectorSeries;
+
+    class ParticleSetSeries {
+    public:
+        ParticleSetSeries();
+        int subjId;
+        int maxIdx;
+        double lastTime;
+        Particle boundingBox;
+        ParticleVectorSeries timeSeries;
+        bool AppendParticle(Particle& p, double t);
+    };
+
     class ParticleTrace {
     public:
-        int GetNumberOfSubject();
-        int GetNumberOfTimeSteps(int n);
-        int GetMaxId(int n);
         void Clear();
         void Resize(int n);
         void Add(double t, ParticleSubject& subj);
@@ -29,13 +39,11 @@ namespace pi {
         void Read(std::istream& is);
         static void Read(std::istream& is, ParticleVector& trace);
 
+        // property for whole system
+        std::vector<ParticleSetSeries> system;
+
     private:
         bool AddParticle(Particle& p, int subj = -1);
-        
-        std::vector<int> m_MaxIds;
-        std::vector<int> m_TimeSteps;
-        std::vector<Particle> m_BoundingBoxes;
-        std::vector<ParticleVector> m_SystemTrace;
     };
 }
 

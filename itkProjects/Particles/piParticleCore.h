@@ -166,7 +166,7 @@ namespace pi {
         ParticleSubjectArray& GetSubjects();
         
         Options& GetSystemOptions() {
-            return m_Options;
+            return (*m_Options);
         }
 
         inline ParticleSubject& operator[](int j) {
@@ -182,7 +182,7 @@ namespace pi {
         ParticleSubject m_InitialSubject;
         ParticleSubjectArray m_Subjects;
         
-        Options m_Options;
+        Options* m_Options;
     };
 
 }
