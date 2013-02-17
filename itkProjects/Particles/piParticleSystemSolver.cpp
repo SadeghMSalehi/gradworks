@@ -110,8 +110,10 @@ namespace pi {
             initial.m_Name = "Intersection";
             initial.NewParticles(m_Options.GetInt("NumberOfParticles:", 0));
             initial.InitializeRandomPoints(m_ImageContext.GetIntersection());
-            
-            SaveConfig("/tmpfs/initial.txt");
+            string initialConfigOutput = m_Options.GetString("InitialConfigOutput:", "");
+            if (initialConfigOutput != "") {
+                SaveConfig(initialConfigOutput.c_str());
+            }
         } else {
             cout << "Skip preprocessing and use pre-generated data..." << endl;
             return;
@@ -272,22 +274,25 @@ namespace pi {
         const double t1 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 2);
         const bool useEnsemble = m_Options.GetBool("+ensemble", false);
         const bool useIntensity = m_Options.GetBool("+intensity", false);
+        const bool useNoInternal = m_Options.GetBool("-internal", false);
         
         for (double t = t0; t < t1; t += dt) {
             cout << "t: " << t << endl;
             m_System.ComputeMeanSubject();
 
             // compute internal force
-            for (int n = 0; n < nSubz; n++) {
-                ParticleSubject& sub = subs[n];
-                for (int i = 0; i < nPoints; i++) {
-                    Particle& pi = sub[i];
-                    forset(pi.x, pi.w);
-                    forfill(pi.f, 0);
+            if (!useNoInternal) {
+                for (int n = 0; n < nSubz; n++) {
+                    ParticleSubject& sub = subs[n];
+                    for (int i = 0; i < nPoints; i++) {
+                        Particle& pi = sub[i];
+                        forset(pi.x, pi.w);
+                        forfill(pi.f, 0);
+                    }
+                    
+                    internalForce.ComputeForce(sub);
+                    collisionHandlers[n].HandleCollision(sub);
                 }
-                
-                internalForce.ComputeForce(sub);
-                collisionHandlers[n].HandleCollision(sub);
             }
 
             if (useEnsemble) {
