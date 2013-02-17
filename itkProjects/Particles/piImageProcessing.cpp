@@ -311,6 +311,7 @@ namespace pi {
             }
             ++iter;
             ++iter2;
+            ++oiter;
         }
         return output;
     }

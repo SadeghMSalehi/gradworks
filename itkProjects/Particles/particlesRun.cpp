@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
         { 7, "--dstidx", SO_REQ_SEP },
         { 5, "--useEnsemble", SO_NONE },
         { 6, "--noTrace", SO_NONE },
-        { 10, "--intensityNormalize", SO_NONE },
+        { 10, "--normalizeIntensity", SO_NONE },
         SO_END_OF_OPTIONS
     };
     Options parser;
