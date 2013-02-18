@@ -42,3 +42,11 @@ set (SRC_ALL ${SRC_METRICS} ${SRC_OPTIMIZERS} ${SRC_MYLIBS} ${SRC_TRANSFORMS})
 
 add_executable(samplePixel samplePixel.cpp)
 target_link_libraries(samplePixel ${ITK_LIBRARIES})
+
+
+set (PIDIR ${CMAKE_CURRENT_SOURCE_DIR}/../Particles)
+set (PISRC ${PIDIR}/piOptions.h ${PIDIR}/piOptions.cpp ${PIDIR}/piTimer.h ${PIDIR}/piTimer.cpp ${PIDIR}/itkImageIO.h)
+include_directories(${PIDIR})
+
+add_executable(itkcmds itkcmds.cpp ${PISRC} /tools/ITK/Modules/Registration/Common/test/itkNormalizedCorrelationImageMetricTest.cxx)
+target_link_libraries(itkcmds ${ITK_LIBRARIES})

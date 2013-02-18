@@ -19,13 +19,12 @@ int main(int argc, char* argv[]) {
         { 3, "--mean", SO_NONE },
         { 4, "--srcidx", SO_REQ_SEP },
         { 7, "--dstidx", SO_REQ_SEP },
-        { 5, "--useEnsemble", SO_NONE },
         { 6, "--noTrace", SO_NONE },
         { 10, "--markTrace", SO_NONE },
         { 11, "--srcsubj", SO_REQ_SEP },
         { 12, "--inputimage", SO_REQ_SEP },
         { 13, "--inputlabel", SO_REQ_SEP },
-        { 14, "--normalizeIntensity", SO_NONE },
+        { 14, "--normalize", SO_NONE },
         { 15, "--magnitude", SO_NONE },
         { 16, "--distancemap", SO_NONE },
         { 17, "--createmask", SO_NONE },
@@ -127,9 +126,9 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-    } else if (parser.GetBool("--normalizeIntensity")) {
+    } else if (parser.GetBool("--normalize")) {
         if (args.size() < 3) {
-            cout << "normalization requires [input-image] [mask-image] [output-image]" << endl;
+            cout << "--normalize requires [input-image] [mask-image] [output-image]" << endl;
             return 0;
         }
         itkcmds::itkImageIO<RealImage> iod;
@@ -190,11 +189,6 @@ int main(int argc, char* argv[]) {
             options.SetString("PreprocessingTrace:", string(""));
             options.SetString("RunTrace:", string(""));
             cout << "Trace disabled..." << endl;
-        }
-        
-        if (parser.GetBool("--useEnsemble")) {
-            options.SetBool("ensemble", true);
-            cout << "Ensemble term enabled..." << endl;
         }
         
         if (!options.GetBool("no_preprocessing")) {
