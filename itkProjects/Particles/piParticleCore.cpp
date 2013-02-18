@@ -56,16 +56,16 @@ namespace pi {
     }
 
     void Particle::AddForce(const DataReal* ff, DataReal alpha) {
+#ifndef NDEBUG
+        if (abs(ff[0]) > 10 || abs(ff[1]) > 10 || abs(ff[2]) > 10) {
+            cout << "too large force " << endl;
+        }
+#endif
         fordim(i) {
             f[i] += (alpha * ff[i]);
         }
     }
 
-    void Particle::SubForce(const DataReal* ff, DataReal alpha) {
-        fordim(i) {
-            f[i] -= (alpha * ff[i]);
-        }
-    }
 
     DataReal Particle::Dist2(const Particle& p) {
         DataReal d[__Dim];
@@ -140,7 +140,9 @@ namespace pi {
         for (int i = 0; i < nPoints; i++) {
             LabelImage::IndexType idx = indexes[i];
             m_Particles[i].idx = i;
-            m_Particles[i].Set(idx);
+            fordim (k) {
+                m_Particles[i].x[k] = idx[k];
+            }
         }
     }
 

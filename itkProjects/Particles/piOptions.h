@@ -67,6 +67,9 @@ namespace pi {
         bool GetIntTo(std::string name, int& var);
         bool GetRealTo(std::string name, OptionReal& var);
         bool GetStringTo(std::string name, std::string& var);
+        bool GetRealVectorValueTo(std::string name, int n, OptionReal& out);
+        bool GetIntVectorValueTo(std::string name, int n, int& out);
+        bool GetStringVectorValueTo(std::string name, int n, std::string& out);
 
         bool GetBool(std::string name, bool def = false);
         int GetInt(std::string name, int def);

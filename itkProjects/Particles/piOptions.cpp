@@ -86,6 +86,33 @@ namespace pi {
         return true;
     }
 
+    bool Options::GetStringVectorValueTo(std::string name, int n, std::string& out) {
+        StringVector& vector = _stringVectorMap[name];
+        if (vector.size() > n) {
+            out = vector[n];
+            return true;
+        }
+        return false;
+    }
+
+    bool Options::GetIntVectorValueTo(std::string name, int n, int& out) {
+        IntVector& vector = _intVectorMap[name];
+        if (vector.size() > n) {
+            out = vector[n];
+            return true;
+        }
+        return false;
+    }
+
+    bool Options::GetRealVectorValueTo(std::string name, int n, OptionReal& out) {
+        RealVector& vector = _realVectorMap[name];
+        if (vector.size() > n) {
+            out = vector[n];
+            return true;
+        }
+        return false;
+    }
+
     bool Options::GetBool(std::string name, bool def) {
         if (_boolMap.find(name) == _boolMap.end()) {
             return def;

@@ -101,7 +101,7 @@ namespace pi {
                     fj[k] = fi[k] = (dx[k] * (coeff * (1 - (1 / sin2crij))));
                 }
             }
-            pi.SubForce(fi);
+            pi.AddForce(fi, -1);
             pj.AddForce(fj);
         }
     }
@@ -290,7 +290,7 @@ namespace pi {
                         f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]);
                     }
                 }
-                iSubj.m_Particles[j].SubForce(f, m_Coeff);
+                iSubj.m_Particles[j].AddForce(f, -m_Coeff);
             }
         }
 
@@ -530,7 +530,7 @@ namespace pi {
                 fordim (k) {
                     ff[k] = m_attrs(i,j).F[k];
                 }
-                ff.normalize();
+//                ff.normalize();
                 par.AddForce(ff.data_block(), m_Coeff);
             }
         }

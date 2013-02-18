@@ -27,11 +27,13 @@ namespace pi {
     };
 
     class ParticleCollision {
-    private:
-
+    public:
+        std::string binaryMaskCache;
+        std::string distanceMapCache;
+        bool applyMaskSmoothing;
         
     public:
-        ParticleCollision(): m_ApplySmoothing(false) {}
+        ParticleCollision(): applyMaskSmoothing(false) {}
         ~ParticleCollision() {}
 
         inline bool IsCrossing(IntIndex& xm) {
@@ -46,30 +48,29 @@ namespace pi {
             return m_RegionPicker->IsInsideBuffer(xp);
         }
 
+        inline LabelImage::Pointer GetBinaryMask() {
+            return m_BinaryMask;
+        }
+
         bool ComputeContactPoint(DataReal* x0, DataReal* x1, ContactPoint& cp);
         bool ComputeNormal(DataReal* cp, DataReal* normal);
         DataReal ComputeDistance(DataReal* x1, DataReal* cp);
         void ComputeClosestBoundary(DataReal* x1, DataReal* cp);
-        void SetBinaryMask(LabelImage::Pointer binary);
-        void UseBinaryMaskSmoothing();
-        void UseBinaryMaskSmoothingCache(const char* cacheName);
-        void UseDistanceMapCache(const char* cacheName);
+
+        void SetLabelImage(LabelImage::Pointer labelImage);
+        void SetBinaryMask(LabelImage::Pointer labelImage);
+
         void UpdateImages();
 
-        bool LoadBinaryMask(std::string file);
-        bool LoadDistanceMap(const char* filename);
-        void SaveDistanceMap(const char* filename);
-        void SaveGradientMagnitude(const char* filename);
-        void Write(std::string b, std::string c);
+        bool LoadBinaryMask(std::string smoothingCache);
+        bool LoadDistanceMap(std::string cache);
 
         void HandleCollision(ParticleSubject& subj);
         void HandleCollision(ParticleSubjectArray& subj);
 
     private:
-        bool m_ApplySmoothing;
+        LabelImage::Pointer m_LabelImage;
         LabelImage::Pointer m_BinaryMask;
-        LabelImage::Pointer m_AntiAliasedMask;
-        LabelImage::Pointer m_InvertedBinaryMask;
         LabelImage::Pointer m_ZeroCrossing;
         VectorImage::Pointer m_DistanceMap;
         GradientImage::Pointer m_Gradient;
@@ -77,9 +78,6 @@ namespace pi {
         NNLabelInterpolatorType::Pointer m_RegionPicker;
         GradientInterpolatorType::Pointer m_NormalPicker;
         NNVectorImageInterpolatorType::Pointer m_DistOffsetPicker;
-
-        std::string m_BinaryMaskSmoothingCacheName;
-        std::string m_DistanceMapCacheName;
 
     };
 }

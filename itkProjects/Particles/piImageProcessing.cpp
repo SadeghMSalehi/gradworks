@@ -273,16 +273,9 @@ namespace pi {
     }
 
 
-    VectorImage::Pointer ImageProcessing::DistanceMap(LabelImage::Pointer img) {
+    VectorImage::Pointer ImageProcessing::ComputeDistanceMap(LabelImage::Pointer img) {
         cout << "Computing distance map ..." << flush;
-        // create binary image for a mask for a correct distance map
-        BinaryThreshFilterType::Pointer binThreshFilter = BinaryThreshFilterType::New();
-        binThreshFilter->SetInput(img);
-        binThreshFilter->SetInsideValue(1);
-        binThreshFilter->SetOutsideValue(0);
-        binThreshFilter->SetLowerThreshold(1);
-        binThreshFilter->SetUpperThreshold(255);
-        LabelImage::Pointer binaryMap = binThreshFilter->GetOutput();
+        LabelImage::Pointer binaryMap = ThresholdToBinary(img);
 
         // construct signed distance filter
         SignedDistanceMapFilterType::Pointer distmapFilter = SignedDistanceMapFilterType::New();
@@ -364,4 +357,14 @@ namespace pi {
         return output;
     }
 
+    LabelImage::Pointer ImageProcessing::ThresholdToBinary(LabelImage::Pointer img) {
+        BinaryThreshFilterType::Pointer binThreshFilter = BinaryThreshFilterType::New();
+        binThreshFilter->SetInput(img);
+        binThreshFilter->SetInsideValue(1);
+        binThreshFilter->SetOutsideValue(0);
+        binThreshFilter->SetLowerThreshold(1);
+        binThreshFilter->SetUpperThreshold(255);
+        binThreshFilter->Update();
+        return binThreshFilter->GetOutput();
+    }
 }

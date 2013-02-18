@@ -13,6 +13,7 @@
 #include "itkTransformFileWriter.h"
 #include "itkResampleImageFilter.h"
 #include "itkLinearInterpolateImageFunction.h"
+#include "itkExceptionObject.h"
 #include "itkMath.h"
 #include "iostream"
 
@@ -180,10 +181,14 @@ namespace itkcmds {
 				writer->UseCompressionOn();
 			}
 			writer->SetInput(image);
-			std::cout << "Writing " << filename;
+			std::cout << "Writing '" << filename;
 			std::cout.flush();
-			writer->Write();
-			std::cout << " done." << std::endl;
+            try {
+                writer->Write();
+            } catch (itk::ExceptionObject& e) {
+                e.Print(cout);
+            }
+			std::cout << "' done." << std::endl;
 			return 0;
 		}
 

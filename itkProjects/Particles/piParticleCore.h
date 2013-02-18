@@ -47,16 +47,10 @@ namespace pi {
 
         Particle();
         ~Particle();
-
-        inline void Set(LabelImage::IndexType idx) {
-            fordim(i) { x[i] = idx[i]; }
-            x[__Dim] = 1;
-        }
         
         void Zero();
         void Sub(const Particle& p, DataReal* nx);
         void AddForce(const DataReal* ff, DataReal alpha = 1);
-        void SubForce(const DataReal* ff, DataReal alpha = 1);
         DataReal Dist2(const Particle& p);
 
         Particle& operator=(const Particle& other);

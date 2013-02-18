@@ -28,10 +28,11 @@ namespace pi {
         GradientImage::Pointer ComputeGradient(RealImage::Pointer img);
         RealImage::Pointer ComputeMagnitudeMap(VectorImage::Pointer img);
         RealImage::Pointer ComputeMagnitudeMap(GradientImage::Pointer img);
+        VectorImage::Pointer ComputeDistanceMap(LabelImage::Pointer img);
 
+        LabelImage::Pointer ThresholdToBinary(LabelImage::Pointer img);
         RealImage::Pointer ComputeGaussianGradientMagnitude(RealImage::Pointer img, double sigma = -1);
         LabelImage::Pointer Ellipse(int* outputSize, double* center, double* radius);
-        VectorImage::Pointer DistanceMap(LabelImage::Pointer img);
         vtkPolyData* ConvertToMesh(LabelImage::Pointer image);
         RealImage::Pointer NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label);
 

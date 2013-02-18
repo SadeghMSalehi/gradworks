@@ -11,6 +11,7 @@
 #include "itkInvertIntensityImageFilter.h"
 #include "itkImageIO.h"
 #include "piImageProcessing.h"
+#include "boost/algorithm/string/predicate.hpp"
 
 #ifdef DIMENSION3
 #define IsEqual(x, y) (x[0]==y[0]&&x[1]==y[1]&&x[2]==y[2])
@@ -115,61 +116,61 @@ namespace pi {
     }
 
     void ParticleCollision::ComputeClosestBoundary(DataReal *x1, DataReal * cp) {
-        IntIndex idx;
+        RealIndex idx;
         fordim (k) {
             idx[k] = x1[k];
         }
-        VectorType offset = m_DistOffsetPicker->EvaluateAtIndex(idx);
+        // compute offset as interpolated value
+        // wondering if this is not going to cause any problem
+        VectorType offset = m_DistOffsetPicker->EvaluateAtContinuousIndex(idx);
         fordim (k) {
             cp[k] = x1[k] + offset[k];
         }
+#ifndef NDEBUG
+        fordim(k) {
+            idx[k] = cp[k];
+        }
+        if (!m_DistOffsetPicker->IsInsideBuffer(idx)) {
+            cout << "fail to find closest boundary" << endl;
+            // rollback
+            fordim (k) {
+                cp[k] = x1[k];
+            }
+        };
+#endif
     }
 
-    void ParticleCollision::SetBinaryMask(LabelImage::Pointer binary) {
-        m_BinaryMask = binary;
+    void ParticleCollision::SetLabelImage(LabelImage::Pointer labelImage) {
+        m_LabelImage = labelImage;
     }
 
-    void ParticleCollision::UseBinaryMaskSmoothing() {
-        m_ApplySmoothing = true;
-    }
-
-    void ParticleCollision::UseBinaryMaskSmoothingCache(const char *cacheName) {
-        m_BinaryMaskSmoothingCacheName = cacheName;
-    }
-
-    void ParticleCollision::UseDistanceMapCache(const char *cacheName) {
-        m_DistanceMapCacheName = cacheName;
+    void ParticleCollision::SetBinaryMask(LabelImage::Pointer labelImage) {
+        m_BinaryMask = labelImage;
     }
 
     void ParticleCollision::UpdateImages() {
         ImageProcessing proc;
         itkcmds::itkImageIO<LabelImage> io;
-        if (m_ApplySmoothing) {
-            bool generateNewMask = true;
-            if (m_BinaryMaskSmoothingCacheName != "") {
-                if (io.FileExists(m_BinaryMaskSmoothingCacheName.c_str())) {
-                    m_BinaryMask = io.ReadImageT(m_BinaryMaskSmoothingCacheName.c_str());
-                    generateNewMask = false;
-                }
-            }
-            if (generateNewMask) {
-                m_BinaryMask = proc.SmoothLabelMap(m_BinaryMask);
-                if (m_BinaryMaskSmoothingCacheName != "") {
-                    io.WriteImageT(m_BinaryMaskSmoothingCacheName.c_str(), m_BinaryMask);
-                }
-            }
+
+        if (!LoadBinaryMask(binaryMaskCache)) {
+            cout << "binary mask creation error!!" << endl;
+            return;
+        };
+        if (!LoadDistanceMap(distanceMapCache)) {
+            cout << "distance map creation error!!" << endl;
+            return;
         }
-        
+
         typedef itk::InvertIntensityImageFilter<LabelImage,LabelImage> InvertFilterType;
         InvertFilterType::Pointer invertFilter = InvertFilterType::New();
         invertFilter->SetInput(m_BinaryMask);
         invertFilter->SetMaximum(255);
         invertFilter->Update();
-        m_InvertedBinaryMask = invertFilter->GetOutput();
+        LabelImage::Pointer invertedMask = invertFilter->GetOutput();
 
         typedef itk::ZeroCrossingImageFilter<LabelImage,LabelImage> FilterType;
         FilterType::Pointer filter = FilterType::New();
-        filter->SetInput(m_InvertedBinaryMask);
+        filter->SetInput(invertedMask);
         filter->SetForegroundValue(1);
         filter->SetBackgroundValue(0);
         filter->Update();
@@ -186,66 +187,55 @@ namespace pi {
         m_NormalPicker = GradientInterpolatorType::New();
         m_NormalPicker->SetInputImage(m_Gradient);
 
-        if (m_DistanceMapCacheName != "") {
-            LoadDistanceMap(m_DistanceMapCacheName.c_str());
-        }
+        m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
+        m_DistOffsetPicker->SetInputImage(m_DistanceMap);
 
-        if (m_DistanceMap.IsNull()) {
-            m_DistanceMap = proc.DistanceMap(m_BinaryMask);
-            m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
-            m_DistOffsetPicker->SetInputImage(m_DistanceMap);
-            if (m_DistanceMapCacheName != "") {
-                SaveDistanceMap(m_DistanceMapCacheName.c_str());
-            }
-        }
     }
 
 
-    bool ParticleCollision::LoadBinaryMask(std::string file) {
-        itkcmds::itkImageIO<LabelImage> io;
-        if (io.FileExists(file.c_str())) {
-            m_BinaryMask = io.ReadImageT(file.c_str());
+    bool ParticleCollision::LoadBinaryMask(std::string maskCache) {
+        if (m_BinaryMask.IsNotNull()) {
             return true;
         }
-        return false;
-    }
-
-    bool ParticleCollision::LoadDistanceMap(const char* filename) {
-        itkcmds::itkImageIO<VectorImage> io;
-        if (m_DistanceMap.IsNull() && io.FileExists(filename)) {
-            m_DistanceMap = io.ReadImageT(filename);
-            if (m_DistanceMap.IsNotNull()) {
-                m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
-                m_DistOffsetPicker->SetInputImage(m_DistanceMap);
-                return true;
-            }
+        itkcmds::itkImageIO<LabelImage> io;
+        if (io.FileExists(maskCache.c_str())) {
+            // use cache regardless of using mask smoothing
+            m_BinaryMask = io.ReadImageT(maskCache.c_str());
+            return true;
         }
-        return false;
-    }
-
-    void ParticleCollision::SaveGradientMagnitude(const char* filename) {
-        itkcmds::itkImageIO<RealImage> io;
-        if (m_Gradient.IsNotNull()) {
-            ImageProcessing proc;
-            RealImage::Pointer mag = proc.ComputeMagnitudeMap(m_Gradient);
-            io.WriteImageT(filename, mag);
+        // to create binary mask, the label image is mandatory
+        if (m_LabelImage.IsNull()) {
+            return false;
         }
+        ImageProcessing proc;
+        m_BinaryMask = proc.ThresholdToBinary(m_LabelImage);
+        if (applyMaskSmoothing) {
+            m_BinaryMask = proc.SmoothLabelMap(m_BinaryMask);
+        }
+        
+        // store cache
+        if (maskCache != "") {
+            io.WriteImageT(maskCache.c_str(), m_BinaryMask);
+        }
+        return m_BinaryMask.IsNotNull();
     }
 
-
-    void ParticleCollision::SaveDistanceMap(const char* filename) {
+    bool ParticleCollision::LoadDistanceMap(string filename) {
         itkcmds::itkImageIO<VectorImage> io;
         if (m_DistanceMap.IsNotNull()) {
-            io.WriteImageT(filename, m_DistanceMap);
+            // if already exist, then do nothing
+            return false;
         }
-    }
-    
-    
-    void ParticleCollision::Write(std::string b, std::string c) {
-        itkcmds::itkImageIO<LabelImage> io;
-        io.WriteImageT("/tmpfs/binary.nrrd", m_BinaryMask);
-//        io.WriteImageT(b.c_str(), m_InvertedBinaryMask);
-        io.WriteImageT("/tmpfs/edge.nrrd", m_ZeroCrossing);
+        if (io.FileExists(filename.c_str())) {
+            m_DistanceMap = io.ReadImageT(filename.c_str());
+        } else {
+            ImageProcessing proc;
+            m_DistanceMap = proc.ComputeDistanceMap(m_BinaryMask);
+            if (filename != "") {
+                io.WriteImageT(filename.c_str(), m_DistanceMap, !boost::algorithm::ends_with(filename, ".nrrd"));
+            }
+        }
+        return true;
     }
 
     void ParticleCollision::HandleCollision(ParticleSubject& subj) {
@@ -264,15 +254,19 @@ namespace pi {
             if (isValidRegion && !isContacting) {
                 continue;
             }
+
+            DataReal cp[__Dim];
             
+            // initialize contact point as current point
+            forset (p.x, cp);
             if (!isValidRegion) {
                 // important!!
                 // this function will move current out-of-region point into the closest boundary
-                ComputeClosestBoundary(p.x, p.x);
+                ComputeClosestBoundary(p.x, cp);
             }
-            
+
             // project velocity and forces
-            ComputeNormal(p.x, normal.data_block());
+            ComputeNormal(cp, normal.data_block());
             normal.normalize();
             DataReal nv = dimdot(p.v, normal);
             DataReal nf = dimdot(p.f, normal);

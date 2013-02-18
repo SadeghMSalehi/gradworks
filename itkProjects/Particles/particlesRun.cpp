@@ -26,6 +26,9 @@ int main(int argc, char* argv[]) {
         { 12, "--inputimage", SO_REQ_SEP },
         { 13, "--inputlabel", SO_REQ_SEP },
         { 14, "--normalizeIntensity", SO_NONE },
+        { 15, "--magnitude", SO_NONE },
+        { 16, "--distancemap", SO_NONE },
+        { 17, "--createmask", SO_NONE },
         SO_END_OF_OPTIONS
     };
     Options parser;
@@ -139,6 +142,40 @@ int main(int argc, char* argv[]) {
         RealImage::Pointer output = proc.NormalizeIntensity(input, label);
         
         iod.WriteImageT(args[2].c_str(), output);
+    } else if (parser.GetBool("--magnitude")) {
+        if (args.size() < 2) {
+            cout << "--magnitude requires [input-vector-image] [output-float-image]" << endl;
+            return 0;
+        }
+        itkcmds::itkImageIO<VectorImage> vio;
+        itkcmds::itkImageIO<RealImage> rio;
+
+        VectorImage::Pointer input = vio.ReadImageT(args[0].c_str());
+        ImageProcessing proc;
+        RealImage::Pointer output = proc.ComputeMagnitudeMap(input);
+        rio.WriteImageT(args[1].c_str(), output);
+    } else if (parser.GetBool("--distancemap")) {
+        if (args.size() < 2) {
+            cout << "--distancemap requires [input-label-image] [output-vector-image]" << endl;
+            return 0;
+        }
+        itkcmds::itkImageIO<LabelImage> lio;
+        itkcmds::itkImageIO<VectorImage> vio;
+
+        LabelImage::Pointer input = lio.ReadImageT(args[0].c_str());
+        ImageProcessing proc;
+        VectorImage::Pointer output = proc.ComputeDistanceMap(input);
+        vio.WriteImageT(args[1].c_str(), output);
+    } else if (parser.GetBool("--createmask")) {
+        if (args.size() < 2) {
+            cout << "--createmask requires [input-label-image] [input-label-image]" << endl;
+            return 0;
+        }
+        itkcmds::itkImageIO<LabelImage> lio;
+        LabelImage::Pointer input = lio.ReadImageT(args[0].c_str());
+        ImageProcessing proc;
+        LabelImage::Pointer output = proc.ThresholdToBinary(input);
+        lio.WriteImageT(args[1].c_str(), output);
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;

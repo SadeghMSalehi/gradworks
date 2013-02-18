@@ -14,6 +14,7 @@
 
 #include "fstream"
 #include "sstream"
+#include "piTimer.h"
 
 namespace pi {
     using namespace std;
@@ -101,20 +102,27 @@ namespace pi {
         string traceFile = m_Options.GetString("PreprocessingTrace:", "");
         const bool traceOn = traceFile != "";
         ParticleTrace trace;
+
+        ParticleCollision boundary;
+        boundary.applyMaskSmoothing = true;
+        m_Options.GetStringTo("InitialIntersectionMaskCache:", boundary.binaryMaskCache);
+        m_Options.GetStringTo("InitialIntersectionDistanceMapCache:", boundary.distanceMapCache);
         
         ParticleSubject& initial = m_System.GetInitialSubject();
         if (initial.GetNumberOfPoints() == 0) {
+
+            // compute intersection in combination with particle boundary
             itkcmds::itkImageIO<LabelImage> io;
-            string intersectionCache = m_Options.GetString("InitialIntersectionMaskCache:", "");
-            if (intersectionCache == "" || !io.FileExists(intersectionCache.c_str())) {
-                m_ImageContext.ComputeIntersection();
-                if (intersectionCache != "") {
-                    io.WriteImageT(intersectionCache.c_str(), m_ImageContext.GetIntersection());
-                }
+            if (io.FileExists(boundary.binaryMaskCache.c_str())) {
+                boundary.SetBinaryMask(io.ReadImageT(boundary.binaryMaskCache.c_str()));
             } else {
-                m_ImageContext.SetIntersection(io.ReadImageT(intersectionCache.c_str()));
+                m_ImageContext.ComputeIntersection();
+                boundary.SetLabelImage(m_ImageContext.GetIntersection());
             }
-            
+
+            boundary.UpdateImages();
+            m_ImageContext.SetIntersection(boundary.GetBinaryMask());
+
             initial.m_Name = "Intersection";
             initial.NewParticles(m_Options.GetInt("NumberOfParticles:", 0));
             initial.InitializeRandomPoints(m_ImageContext.GetIntersection());
@@ -135,16 +143,6 @@ namespace pi {
         DataReal t0 = m_Options.GetRealVectorValue("PreprocessingTimeRange:", 0);
         DataReal dt = m_Options.GetRealVectorValue("PreprocessingTimeRange:", 1);
         DataReal t1 = m_Options.GetRealVectorValue("PreprocessingTimeRange:", 2);
-        
-        
-        ParticleCollision boundary;
-        boundary.SetBinaryMask(m_ImageContext.GetIntersection());
-        boundary.UseBinaryMaskSmoothing();
-        boundary.UseBinaryMaskSmoothingCache(m_Options.GetString("InitialIntersectionMaskCache:", "").c_str());
-        boundary.UseDistanceMapCache(m_Options.GetString("InitialIntersectionDistanceMapCache:", "").c_str());
-        boundary.UpdateImages();
-        
-        //            SaveConfig("/tmpfs/temp.txt");
         
         EntropyInternalForce internalForce;
         m_Options.GetRealTo("InternalForceSigma:", internalForce.repulsionSigma);
@@ -217,6 +215,17 @@ namespace pi {
                 m_System[n].Initialize(system.GetInitialSubject().m_Particles);
             }
         }
+
+        const bool useEnsemble = m_Options.GetBool("ensemble");
+        const bool useIntensity = m_Options.GetBool("intensity");
+        const bool noInternal = m_Options.GetBool("no_internal");
+        const bool noBoundary = m_Options.GetBool("no_boundary");
+
+        // check label images are loaded
+        if (!noBoundary && nSubz != m_ImageContext.GetLabelVector().size()) {
+            cout << "the same number of boundary mask files are required" << endl;
+            return;
+        }
         
         EntropyInternalForce internalForce;
         m_Options.GetRealTo("InternalForceSigma:", internalForce.repulsionSigma);
@@ -242,10 +251,10 @@ namespace pi {
         collisionHandlers.resize(nSubz);
         
         for (int n = 0; n < nSubz; n++) {
-            collisionHandlers[n].SetBinaryMask(m_ImageContext.GetLabel(n));
-            collisionHandlers[n].UseBinaryMaskSmoothing();
-            collisionHandlers[n].UseBinaryMaskSmoothingCache(m_Options.GetStringVectorValue("BinaryMaskSmoothingCache:", n).c_str());
-            collisionHandlers[n].UseDistanceMapCache(m_Options.GetStringVectorValue("BinaryMaskDistanceMapCache:", n).c_str());
+            collisionHandlers[n].applyMaskSmoothing = true;
+            m_Options.GetStringVectorValueTo("BinaryMaskCache:", n, collisionHandlers[n].binaryMaskCache);
+            m_Options.GetStringVectorValueTo("BinaryMaskDistanceMapCache:", n, collisionHandlers[n].distanceMapCache);
+            collisionHandlers[n].SetLabelImage(m_ImageContext.GetLabel(n));
             collisionHandlers[n].UpdateImages();
         }
         
@@ -253,11 +262,6 @@ namespace pi {
         const DataReal dt = system.GetSystemOptions().GetRealVectorValue("TimeRange:", 1);
         const DataReal t1 = system.GetSystemOptions().GetRealVectorValue("TimeRange:", 2);
         
-        const bool useEnsemble = m_Options.GetBool("ensemble");
-        const bool useIntensity = m_Options.GetBool("intensity");
-        const bool noInternal = m_Options.GetBool("no_internal");
-        const bool noBoundary = m_Options.GetBool("no_boundary");
-
         if (useEnsemble) cout << "ensemble term enabled" << endl; else cout << "ensemble term disabled" << endl;
         if (useIntensity) cout << "intensity term enabled" << endl; else cout << "intensity term disabled" << endl;
         if (noInternal) cout << "internal force disabled" << endl; else cout << "internal force enabled" << endl;

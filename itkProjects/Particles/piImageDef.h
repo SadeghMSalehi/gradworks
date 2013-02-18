@@ -62,7 +62,7 @@ namespace pi {
     typedef float DataReal;
     typedef itk::Image<ImageReal,__Dim> RealImage;
     typedef itk::Image<LabelPixel,__Dim> LabelImage;
-    typedef itk::Vector<ImageReal,__Dim> VectorType;
+    typedef itk::Vector<DataReal,__Dim> VectorType;
     typedef itk::Image<VectorType,__Dim> VectorImage;
     typedef itk::Offset<__Dim> OffsetType;
     typedef itk::Image<OffsetType,__Dim> OffsetImage;
