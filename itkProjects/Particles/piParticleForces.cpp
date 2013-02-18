@@ -116,6 +116,7 @@ namespace pi {
     
     void EntropyInternalForce::ComputeForce(ParticleSubject& subj) {
         const int nPoints = subj.GetNumberOfPoints();
+#pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             Particle& pi = subj.m_Particles[i];
             // iteration over particles
@@ -437,7 +438,6 @@ namespace pi {
         assert(m_attrs.size1() == nSubj && m_attrs.size2() == nPoints);
         
         // column sum
-        #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             for (int j = 0; j < Attr::NATTRS; j++) {
                 m_attrsMean[i][j] = 0;
@@ -450,7 +450,7 @@ namespace pi {
         m_attrsMean /= nSubj;
 
         // compute mean differences
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int i = 0; i < nSubj; i++) {
             for (int j = 0; j < nPoints; j++) {
                 for (int k = 0; k < Attr::NATTRS; k++) {
@@ -462,6 +462,7 @@ namespace pi {
 
         VNLMatrix eye(nSubj, nSubj);
         eye.set_identity();
+#pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             // covariance matrix
             VNLMatrix cov(nSubj, nSubj);
