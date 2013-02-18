@@ -223,7 +223,12 @@ namespace pi {
         if (internalForce.useAdaptiveSampling) {
             m_System.LoadKappaImages(m_Options, &m_ImageContext);
         }
-
+        if (internalForce.repulsionCutoff < internalForce.repulsionSigma) {
+            internalForce.repulsionCutoff = internalForce.repulsionSigma * 5;
+            cout << "repulsion sigma: " << internalForce.repulsionSigma << endl;
+            cout << "adjusted repulsion cutoff: " << internalForce.repulsionCutoff << endl;
+        }
+        
         EnsembleForce ensembleForce(1);
         ensembleForce.SetImageContext(&m_ImageContext);
 

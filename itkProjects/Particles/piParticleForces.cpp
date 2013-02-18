@@ -109,16 +109,8 @@ namespace pi {
     
     void EntropyInternalForce::ComputeForce(ParticleSubject& subj) {
         const int nPoints = subj.GetNumberOfPoints();
-        if (repulsionCutoff < repulsionSigma) {
-            repulsionCutoff = repulsionSigma * 5;
-            cout << "repulsion sigma: " << repulsionSigma << endl;
-            cout << "adjusted repulsion cutoff: " << repulsionCutoff << endl;
-        }
 
         bool useKappa = useAdaptiveSampling && subj.kappa.IsNotNull();
-        if (useKappa) {
-            cout << "use adaptive sampling" << endl;
-        }
 #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             Particle& pi = subj.m_Particles[i];
