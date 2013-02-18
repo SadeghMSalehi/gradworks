@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
         { 11, "--srcsubj", SO_REQ_SEP },
         { 12, "--inputimage", SO_REQ_SEP },
         { 13, "--inputlabel", SO_REQ_SEP },
+        { 14, "--normalizeIntensity", SO_REQ_SEP },
         SO_END_OF_OPTIONS
     };
     Options parser;
