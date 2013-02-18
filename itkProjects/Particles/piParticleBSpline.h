@@ -20,7 +20,7 @@ namespace pi {
     typedef itk::BSplineScatteredDataPointSetToImageFilter
     <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
     typedef BSplineFilterType::WeightsContainerType WeightsContainerType;
-    typedef itk::BSplineTransform<double,__Dim,3> BSplineTransform;
+    typedef itk::BSplineTransform<PointReal,__Dim,3> BSplineTransform;
     typedef itk::WarpImageFilter<DoubleImage, DoubleImage, DisplacementFieldType> WarpImageFilterType;
 
 

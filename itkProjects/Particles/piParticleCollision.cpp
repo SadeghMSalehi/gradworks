@@ -21,7 +21,7 @@
 #define x2string1(x) (x[0]+1)<<","<<(x[1]+1)<<","<<(x[2]+1)
 
 namespace pi {
-    bool ParticleCollision::ComputeContactPoint(double *p0, double *p1, ContactPoint& cp) {
+    bool ParticleCollision::ComputeContactPoint(DataReal *p0, DataReal *p1, ContactPoint& cp) {
         // do binary search between x0 and x1;
         IntIndex x0, x1, xm;
         RealIndex y0, y1, ym;
@@ -93,12 +93,12 @@ namespace pi {
         return true;
     }
 
-    bool ParticleCollision::ComputeNormal(double *cp, double* ret) {
+    bool ParticleCollision::ComputeNormal(DataReal *cp, DataReal* ret) {
         RealIndex idx;
         fordim (k) {
             idx[k] = cp[k];
         }
-        VectorType normal = m_NormalPicker->EvaluateAtContinuousIndex(idx);
+        GradientPixel normal = m_NormalPicker->EvaluateAtContinuousIndex(idx);
         fordim (k) {
             ret[k] = -normal[k];
         }
@@ -106,15 +106,15 @@ namespace pi {
         return true;
     }
 
-    double ParticleCollision::ComputeDistance(double *x1, double *cp) {
-        double dist = 0;
+    DataReal ParticleCollision::ComputeDistance(DataReal *x1, DataReal *cp) {
+        DataReal dist = 0;
         fordim (k) {
             dist = (x1[k] - cp[k]) * (x1[k] - cp[k]);
         }
         return sqrt(dist);
     }
 
-    void ParticleCollision::ComputeClosestBoundary(double *x1, double * cp) {
+    void ParticleCollision::ComputeClosestBoundary(DataReal *x1, DataReal * cp) {
         IntIndex idx;
         fordim (k) {
             idx[k] = x1[k];
@@ -175,7 +175,7 @@ namespace pi {
         filter->Update();
         m_ZeroCrossing = filter->GetOutput();
 
-        m_Gradient = proc.ComputeGradient(m_BinaryMask);
+        m_Gradient = proc.ComputeGaussianGradient(m_BinaryMask);
 
         m_CrossingPicker = NNLabelInterpolatorType::New();
         m_CrossingPicker->SetInputImage(m_ZeroCrossing);
@@ -183,7 +183,7 @@ namespace pi {
         m_RegionPicker = NNLabelInterpolatorType::New();
         m_RegionPicker->SetInputImage(m_BinaryMask);
 
-        m_NormalPicker = LinearVectorImageInterpolatorType::New();
+        m_NormalPicker = GradientInterpolatorType::New();
         m_NormalPicker->SetInputImage(m_Gradient);
 
         if (m_DistanceMapCacheName != "") {
@@ -274,8 +274,8 @@ namespace pi {
             // project velocity and forces
             ComputeNormal(p.x, normal.data_block());
             normal.normalize();
-            double nv = dimdot(p.v, normal);
-            double nf = dimdot(p.f, normal);
+            DataReal nv = dimdot(p.v, normal);
+            DataReal nf = dimdot(p.f, normal);
             fordim (k) {
                 p.v[k] = (p.v[k] - nv * normal[k]);
                 p.f[k] -= nf * normal[k];

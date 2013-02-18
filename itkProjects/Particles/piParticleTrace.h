@@ -23,18 +23,18 @@ namespace pi {
         ParticleSetSeries();
         int subjId;
         int maxIdx;
-        double lastTime;
+        DataReal lastTime;
         Particle boundingBox;
         ParticleVectorSeries timeSeries;
-        bool AppendParticle(Particle& p, double t);
+        bool AppendParticle(Particle& p, DataReal t);
     };
 
     class ParticleTrace {
     public:
         void Clear();
         void Resize(int n);
-        void Add(double t, ParticleSubject& subj);
-        void Add(double t, ParticleArray& array, int subj = 0);
+        void Add(DataReal t, ParticleSubject& subj);
+        void Add(DataReal t, ParticleArray& array, int subj = 0);
         void Write(std::ostream& os);
         void Read(std::istream& is);
         static void Read(std::istream& is, ParticleVector& trace);

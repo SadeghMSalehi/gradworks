@@ -23,13 +23,6 @@
 #define __showcmd(x,m,n,cmd) for (int _=0;_<m;_++) { for (int __=0;__<n;__++) cmd; cout << endl; }; cout << endl
 
 namespace pi {
-
-    typedef itk::ConstNeighborhoodIterator<GradientImage> VectorImageNeighborhoodIteratorType;
-    typedef itk::GradientRecursiveGaussianImageFilter<DoubleImage, GradientImage> GaussianGradientFilterType;
-    typedef itk::VectorLinearInterpolateImageFunction<GradientPixel> GradientInterpolatorType;
-    typedef itk::ConstNeighborhoodIterator<DoubleImage> DoubleImageNeighborhoodIteratorType;
-    typedef itk::ConstNeighborhoodIterator<GradientImage> GradientImageNeighborhoodIteratorType;
-
     ostream& operator<<(ostream& os, Attr& attr) {
         int p = os.precision();
         os.precision(8);
@@ -78,19 +71,19 @@ namespace pi {
     }
     
     void InternalForce::ComputeForce(Particle &pi, Particle &pj) {
-        const double sigma = 15 * 5;
-        const double coeff = M_PI_2 / sigma;
+        const DataReal sigma = repulsionSigma * 5;
+        const DataReal coeff = M_PI_2 / sigma;
         const bool useSimpleForce = false;
         
-        double fi[__Dim] = { 0 }, fj[__Dim] = { 0 };
-        double dx[__Dim] = { 0 };
+        DataReal fi[__Dim] = { 0 }, fj[__Dim] = { 0 };
+        DataReal dx[__Dim] = { 0 };
 
-        double rij2 = 0;
+        DataReal rij2 = 0;
         pi.Sub(pj, dx);
         fordim(k) {
             rij2 += (dx[k]*dx[k]);
         }
-        const double rij = std::sqrt(rij2);
+        const DataReal rij = std::sqrt(rij2);
 
         if (rij <= sigma) {
             if (useSimpleForce) {
@@ -101,9 +94,9 @@ namespace pi {
                 fordim(k) {
                     dx[k] /= rij;
                 }
-                const double crij = rij * coeff;
-                const double sin1crij = std::sin(crij);
-                const double sin2crij = sin1crij * sin1crij;
+                const DataReal crij = rij * coeff;
+                const DataReal sin1crij = std::sin(crij);
+                const DataReal sin2crij = sin1crij * sin1crij;
                 fordim(k) {
                     fj[k] = fi[k] = (dx[k] * (coeff * (1 - (1 / sin2crij))));
                 }
@@ -116,9 +109,21 @@ namespace pi {
     
     void EntropyInternalForce::ComputeForce(ParticleSubject& subj) {
         const int nPoints = subj.GetNumberOfPoints();
+        if (repulsionCutoff < repulsionSigma) {
+            repulsionCutoff = repulsionSigma * 5;
+            cout << "repulsion sigma: " << repulsionSigma << endl;
+            cout << "adjusted repulsion cutoff: " << repulsionCutoff << endl;
+        }
+
+        bool useKappa = useAdaptiveSampling && subj.kappa.IsNotNull();
+
 #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             Particle& pi = subj.m_Particles[i];
+            const DataReal sigma = repulsionSigma;
+            const DataReal sigma2 = sigma * sigma;
+            const DataReal cutoff = repulsionCutoff;
+
             // iteration over particles
             // may reduce use symmetric properties
             VNLVector weights(nPoints, 0);
@@ -128,23 +133,16 @@ namespace pi {
                     // there's no self interaction
                     weights[j] = 0;
                 } else {
-                    const double sigma = 3;
-                    double kappa = 1;
-                    double sigma2 = sigma * sigma;
-                    double cutoff = 15;
-                    /*
-                     // kappa should use jPos
-                     VNLVectorRef jPos(2, &gPos[n][nDim*j]);
-                     ContinuousIndexType jIdx;
-                     jIdx[0] = jPos[0];
-                     jIdx[1] = jPos[1];
-                     double kappa = 1;
-                     if (useAdaptiveSampling) {
-                     kappaIntp->EvaluateAtContinuousIndex(jIdx);
-                     kappa *= kappa;
-                     }
-                     */
-                    double dij = sqrt(pi.Dist2(pj));
+                    DataReal kappa = 1;
+                    if (useKappa) {
+                        RealIndex jIdx;
+                        fordim (k) {
+                            jIdx[k] = pj.x[k];
+                        }
+                        kappa = subj.kappa->EvaluateAtContinuousIndex(jIdx);
+                        kappa *= kappa;
+                    }
+                    DataReal dij = sqrt(pi.Dist2(pj));
                     if (dij > cutoff) {
                         weights[j] = 0;
                     } else {
@@ -152,7 +150,7 @@ namespace pi {
                     }
                 }
             }
-            double sumForce = weights.sum();
+            DataReal sumForce = weights.sum();
             if (sumForce > 0) {
                 weights /= sumForce;
             }
@@ -163,7 +161,7 @@ namespace pi {
                     continue;
                 }
                 Particle& pj = subj.m_Particles[j];
-                double weight = weights[j];
+                DataReal weight = weights[j];
                 VNLVector xixj(__Dim, 0);
                 fordim (k) {
                     xixj[k] = pi.x[k] - pj.x[k];
@@ -188,7 +186,7 @@ namespace pi {
     }
 
 
-    EnsembleForce::EnsembleForce(double coeff) : m_Coeff(coeff) {
+    EnsembleForce::EnsembleForce(DataReal coeff) : m_Coeff(coeff) {
 
     }
 
@@ -282,10 +280,10 @@ namespace pi {
                 FieldTransformType::JacobianType xJac;
                 xJac.set_size(__Dim,__Dim);
 
-                double f[__Dim] = { 0, };
-                double *x = iSubj.m_Particles[j].x;
-                double *y = iSubj.m_Particles[j].y;
-                double *my = m_MeanShape[j].y;
+                DataReal f[__Dim] = { 0, };
+                DataReal *x = iSubj.m_Particles[j].x;
+                DataReal *y = iSubj.m_Particles[j].y;
+                DataReal *my = m_MeanShape[j].y;
                 fordim(k) {
                     xPoint[k] = x[k];
                 }
@@ -315,8 +313,8 @@ namespace pi {
 
     //
 
-    IntensityForce::IntensityForce(double coeff) : m_Coeff(coeff), m_WorkAtWarpedSpace(false) {
-
+    IntensityForce::IntensityForce(DataReal coeff)
+    : coefficient(1.0), useGaussianGradient(true), gaussianSigma(1), useAttributesAtWarpedSpace(true) {
     }
 
     IntensityForce::~IntensityForce() {
@@ -325,10 +323,6 @@ namespace pi {
 
     void IntensityForce::SetImageContext(ImageContext* context) {
         m_ImageContext = context;
-    }
-
-    void IntensityForce::SetWorkAtWarpedSpace(bool check) {
-        m_WorkAtWarpedSpace = check;
     }
 
     void IntensityForce::ComputeAttributes(ParticleSystem* system) {
@@ -345,7 +339,7 @@ namespace pi {
         warpedImages.resize(nSubj);
         gradImages.resize(nSubj);
 
-        if (m_WorkAtWarpedSpace) {
+        if (useAttributesAtWarpedSpace) {
             // first create a warped image into the mean transform space
             // second create a gradient vector image per subject
             // third extract attributes (features)
@@ -387,10 +381,10 @@ namespace pi {
             //            sprintf(warpedname, "warped%d_%03d.nrrd", i, system->currentIteration);
             //            io.WriteImageT(warpedname, warpedImages[i]);
 
-            const bool useGaussianGradient = false;
             if (useGaussianGradient) {
                 GaussianGradientFilterType::Pointer grad = GaussianGradientFilterType::New();
                 grad->SetInput(warpedImages[i]);
+                grad->SetSigma(gaussianSigma);
                 grad->Update();
                 gradImages[i] = grad->GetOutput();
             } else {
@@ -442,7 +436,7 @@ namespace pi {
             for (int j = 0; j < Attr::NATTRS; j++) {
                 m_attrsMean[i][j] = 0;
                 for (int s = 0; s < nSubj; s++) {
-                    double attr = m_attrs(s, i).x[j];
+                    DataReal attr = m_attrs(s, i).x[j];
                     m_attrsMean[i][j] += attr;
                 }
             }
@@ -479,7 +473,7 @@ namespace pi {
             }
             cov /= (Attr::NATTRS - 1);
             cov = cov + eye;
-            VNLMatrix covInverse = vnl_matrix_inverse<double>(cov);
+            VNLMatrix covInverse = vnl_matrix_inverse<DataReal>(cov);
 
             for (int j = 0; j < nSubj; j++) {
                 Attr& jattr = m_attrs(j,i);
@@ -503,11 +497,11 @@ namespace pi {
 
         // compute force at subject space
         for (int i = 0; i < nSubj; i++) {
-            if (m_WorkAtWarpedSpace) {
+            if (useAttributesAtWarpedSpace) {
                 FieldTransformType::Pointer fieldTransform = shapes[i].m_InverseDeformableTransform;
                 for (int j = 0; j < nPoints; j++) {
-                    double* forcePtr = m_attrs(i,j).f;
-                    double* forceOutPtr = m_attrs(i,j).F;
+                    DataReal* forcePtr = m_attrs(i,j).f;
+                    DataReal* forceOutPtr = m_attrs(i,j).F;
                     FieldTransformType::InputPointType x;
                     fordim(k) {
                         x[k] = shapes[i][j].x[k];
@@ -516,7 +510,7 @@ namespace pi {
                     jac.set_size(__Dim, __Dim);
                     fieldTransform->ComputeInverseJacobianWithRespectToPosition(x, jac);
                     fordim(k) {
-                        double ff = 0;
+                        DataReal ff = 0;
                         if (__Dim == 3) {
                             ff = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k] + jac[2][k]*forcePtr[k];
                         } else if (__Dim == 2) {

@@ -30,22 +30,22 @@ namespace pi {
     public:
         int subj;
         int idx;
-        double t;
+        DataReal t;
 
         // the position x and the transformed point y
-        double x[4];
-        double y[4];
+        DataReal x[4];
+        DataReal y[4];
 
         // the current velocity v and the force f
-        double v[4];
-        double f[4];
+        DataReal v[4];
+        DataReal f[4];
 
         // temporary status
-        double w[4];
+        DataReal w[4];
 
         // the density and pressure of a particle
-        double density;
-        double pressure;
+        DataReal density;
+        DataReal pressure;
 
         Particle();
         ~Particle();
@@ -56,13 +56,10 @@ namespace pi {
         }
         
         void Zero();
-        void Sub(const Particle& p, double* nx);
-        void AddForce(const double* ff, double alpha = 1);
-        void SubForce(const double* ff, double alpha = 1);
-        double Dist2(const Particle& p);
-        void UpdateVelocity(double *vv);
-        void UpdateForce(double *ff);
-        void UpdateSystem(double dt);
+        void Sub(const Particle& p, DataReal* nx);
+        void AddForce(const DataReal* ff, DataReal alpha = 1);
+        void SubForce(const DataReal* ff, DataReal alpha = 1);
+        DataReal Dist2(const Particle& p);
 
         Particle& operator=(const Particle& other);
     };
@@ -78,8 +75,8 @@ namespace pi {
         int m_SubjId;
         string m_Name;
         ParticleArray m_Particles;
-
-
+        DoubleImage::Pointer kappaImage;
+        LinearImageInterpolatorType::Pointer kappa;
         AffineTransformType::Pointer m_AffineTransform;
         FieldTransformType::Pointer m_DeformableTransform;
         FieldTransformType::Pointer m_InverseDeformableTransform;
@@ -127,6 +124,7 @@ namespace pi {
     public:
         void LoadLabel(std::string filename);
         void LoadDoubleImage(std::string filename);
+
         void ComputeIntersection();
         void ComputeDistanceMaps();
         LabelImage::Pointer GetLabel(int j);
@@ -138,6 +136,7 @@ namespace pi {
         StringVector& GetFileNames();
         LabelVector& GetLabelVector();
         DoubleImageVector& GetDoubleImageVector();
+        DoubleImageVector& GetKappaImages();
         void Clear();
 
     private:
@@ -152,7 +151,7 @@ namespace pi {
 
     class ParticleSystem {
     public:
-        double currentTime;
+        DataReal currentTime;
         int currentIteration;
         
         ParticleSystem();
@@ -162,7 +161,8 @@ namespace pi {
         int GetNumberOfSubjects();
         int GetNumberOfParticles();
         void InitializeSystem(Options& options);
-        
+        void LoadKappaImages(Options& options, ImageContext* context);
+
         ParticleSubject& GetInitialSubject();
         void ComputeMeanSubject();
         const ParticleSubject& GetMeanSubject() const;

@@ -25,7 +25,7 @@
 #include "itkMesh.h"
 #include "itkVTKPolyDataWriter.h"
 #include "itkUnaryFunctorImageFilter.h"
-
+#include <itkGradientMagnitudeRecursiveGaussianImageFilter.h>
 #include "itkSignedDanielssonDistanceMapImageFilter.h"
 #include "itkDanielssonDistanceMapImageFilter.h"
 #include "itkVectorMagnitudeImageFilter.h"
@@ -42,7 +42,7 @@ namespace pi {
 #ifdef DIMENSION3
     typedef itk::EllipseSpatialObject<__Dim> EllipseType;
     typedef itk::SpatialObjectToImageFilter<EllipseType, LabelImage> SpatialObjectToImageFilterType;
-    typedef itk::Mesh<double> MeshType;
+    typedef itk::Mesh<PointReal> MeshType;
     typedef itk::BinaryMask3DMeshSource<LabelImage, MeshType> MeshSourceType;
 #endif
     typedef itk::ZeroCrossingImageFilter<LabelImage, LabelImage> ZeroCrossingFilterType;
@@ -58,7 +58,6 @@ namespace pi {
     typedef itk::BinaryErodeImageFilter<LabelImage, LabelImage, StructuringElementType> ErodeFilterType;
     typedef itk::SubtractImageFilter<LabelImage, LabelImage, LabelImage> SubtractFilterType;
     typedef itk::RecursiveGaussianImageFilter<DoubleImage> GaussianFilterType;
-    typedef itk::GradientRecursiveGaussianImageFilter<DoubleImage, VectorImage> GradientFilterType;
     typedef itk::SignedDanielssonDistanceMapImageFilter<LabelImage, DoubleImage> SignedDistanceMapFilterType;
     typedef itk::DanielssonDistanceMapImageFilter<LabelImage, DoubleImage> DistanceMapFilterType;
     typedef DistanceMapFilterType::VectorImageType DistanceVectorImageType;
@@ -182,16 +181,53 @@ namespace pi {
         return subFilter->GetOutput();
     }
 
-    VectorImage::Pointer ImageProcessing::ComputeGradient(LabelImage::Pointer img) {
+    GradientImage::Pointer ImageProcessing::ComputeGaussianGradient(LabelImage::Pointer img, double sigma) {
+        CastToRealFilterType::Pointer toReal = CastToRealFilterType::New();
+        toReal->SetInput(img);
+        toReal->Update();
+
+        GaussianGradientFilterType::Pointer gradientFilter = GaussianGradientFilterType::New();
+        gradientFilter->SetInput(toReal->GetOutput());
+        gradientFilter->SetSigma(sigma);
+        gradientFilter->Update();
+        return gradientFilter->GetOutput();
+    }
+    
+    GradientImage::Pointer ImageProcessing::ComputeGradient(LabelImage::Pointer img) {
         CastToRealFilterType::Pointer toReal = CastToRealFilterType::New();
         toReal->SetInput(img);
         toReal->Update();
 
         GradientFilterType::Pointer gradientFilter = GradientFilterType::New();
         gradientFilter->SetInput(toReal->GetOutput());
-        gradientFilter->SetSigma(1.5);
         gradientFilter->Update();
         return gradientFilter->GetOutput();
+    }
+
+    GradientImage::Pointer ImageProcessing::ComputeGaussianGradient(DoubleImage::Pointer img, double sigma) {
+        GaussianGradientFilterType::Pointer gradientFilter = GaussianGradientFilterType::New();
+        gradientFilter->SetInput(img);
+        gradientFilter->SetSigma(sigma);
+        gradientFilter->Update();
+        return gradientFilter->GetOutput();
+    }
+
+    GradientImage::Pointer ImageProcessing::ComputeGradient(DoubleImage::Pointer img) {
+        GradientFilterType::Pointer gradientFilter = GradientFilterType::New();
+        gradientFilter->SetInput(img);
+        gradientFilter->Update();
+        return gradientFilter->GetOutput();
+    }
+
+    DoubleImage::Pointer ImageProcessing::ComputeGaussianGradientMagnitude(DoubleImage::Pointer img, double sigma) {
+        typedef itk::GradientMagnitudeRecursiveGaussianImageFilter<DoubleImage> FilterType;
+        FilterType::Pointer filter = FilterType::New();
+        if (sigma > 0) {
+            filter->SetSigma(sigma);
+        }
+        filter->SetInput(img);
+        filter->Update();
+        return filter->GetOutput();
     }
 
     LabelImage::Pointer ImageProcessing::Ellipse(int* outputSize, double *center, double *radius) {
@@ -267,6 +303,14 @@ namespace pi {
         return magFilter->GetOutput();
     }
 
+    DoubleImage::Pointer ImageProcessing::ComputeMagnitudeMap(GradientImage::Pointer img) {
+        typedef itk::VectorMagnitudeImageFilter<GradientImage, DoubleImage> MagnitudeFilterType;
+        MagnitudeFilterType::Pointer magFilter = MagnitudeFilterType::New();
+        magFilter->SetInput(img);
+        magFilter->Update();
+        return magFilter->GetOutput();
+    }
+
     vtkPolyData* ImageProcessing::ConvertToMesh(LabelImage::Pointer image) {
 #ifdef DIMENSION3
         typedef itk::Mesh<double> MeshType;
@@ -293,7 +337,7 @@ namespace pi {
         iter2.GoToBegin();
         while (!iter.IsAtEnd()) {
             if (iter2.Get() > 0) {
-                double v = iter.Get();
+                ImageReal v = iter.Get();
                 sum += v;
                 sum2 += (v*v);
                 ++n;

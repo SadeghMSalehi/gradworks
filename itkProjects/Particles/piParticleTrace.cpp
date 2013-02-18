@@ -14,7 +14,7 @@ namespace pi {
         boundingBox.idx = 0;
     }
 
-    bool ParticleSetSeries::AppendParticle(Particle& p, double t) {
+    bool ParticleSetSeries::AppendParticle(Particle& p, DataReal t) {
         bool isNewTime = false;
         if (lastTime != t) {
             // new time series
@@ -47,11 +47,11 @@ namespace pi {
     }
 
 
-    void ParticleTrace::Add(double t, ParticleSubject& subj) {
+    void ParticleTrace::Add(DataReal t, ParticleSubject& subj) {
         Add(t, subj.m_Particles, subj.m_SubjId);
     }
 
-    void ParticleTrace::Add(double t, ParticleArray& array, int subj) {
+    void ParticleTrace::Add(DataReal t, ParticleArray& array, int subj) {
         if (subj < 0 || subj > 100) {
             cout << "Skipping possibly too large or negative subject index (" << subj << ")" << endl;
             return;

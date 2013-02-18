@@ -9,6 +9,7 @@
 #include "piParticleBSpline.h"
 #include "piParticleForces.h"
 #include "piParticleCollision.h"
+#include "piImageProcessing.h"
 
 namespace pi {
     ostream& operator<<(ostream& os, const Particle& par) {
@@ -49,53 +50,34 @@ namespace pi {
         density = pressure = 0;
     }
 
-    void Particle::Sub(const Particle& p, double* d) {
+    void Particle::Sub(const Particle& p, DataReal* d) {
         fordim(i) {
             d[i] = x[i] - p.x[i];
         }
     }
 
-    void Particle::AddForce(const double* ff, double alpha) {
+    void Particle::AddForce(const DataReal* ff, DataReal alpha) {
         fordim(i) {
             f[i] += (alpha * ff[i]);
         }
     }
 
-    void Particle::SubForce(const double* ff, double alpha) {
+    void Particle::SubForce(const DataReal* ff, DataReal alpha) {
         fordim(i) {
             f[i] -= (alpha * ff[i]);
         }
     }
 
-    double Particle::Dist2(const Particle& p) {
-        double d[__Dim];
+    DataReal Particle::Dist2(const Particle& p) {
+        DataReal d[__Dim];
         fordim(i) {
             d[i] = x[i] - p.x[i];
         }
-        double dist2 = 0;
+        DataReal dist2 = 0;
         fordim(k) {
             dist2 += (d[k]*d[k]);
         }
         return dist2;
-    }
-
-    void Particle::UpdateForce(double *ff) {
-        fordim(i) {
-            f[i] = ff[i];
-        }
-    }
-
-    void Particle::UpdateVelocity(double *vv) {
-        fordim(i) {
-            v[i] = vv[i];
-        }
-    }
-
-    void Particle::UpdateSystem(double dt) {
-        fordim(i) {
-            x[i] += dt * v[i];
-            v[i] += dt * f[i];
-        }
     }
 
     Particle& Particle::operator=(const Particle& other) {
@@ -328,6 +310,7 @@ namespace pi {
         m_DistanceMaps.clear();
     }
 
+
     void ImageContext::LoadLabel(std::string filename) {
         itkcmds::itkImageIO<LabelImage> io;
         LabelImage::Pointer image = io.ReadImageT(filename.c_str());
@@ -436,6 +419,38 @@ namespace pi {
         m_Subjects.resize(options.GetStringVector("Subjects:").size());
         for (int i = 0; i < m_Subjects.size(); i++) {
             m_Subjects[i].Initialize(i, options.GetStringVectorValue("Subjects:", i), options.GetInt("NumberOfParticles:", 0));
+        }
+    }
+
+    void ParticleSystem::LoadKappaImages(Options& options, ImageContext* context) {
+        StringVector& kappaNames = options.GetStringVector("KappaImages:");
+        if (kappaNames.size() != m_Subjects.size()) {
+            cout << "Kappa images and subjects are different set" << endl;
+            return;
+        }
+
+        DataReal sigma = options.GetReal("KappaGaussianKernelSigma:", 1);
+        DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 3);
+
+        itkcmds::itkImageIO<DoubleImage> io;
+        for (int i = 0; i < kappaNames.size(); i++) {
+            if (io.FileExists(kappaNames[i].c_str())) {
+                m_Subjects[i].kappaImage = io.ReadImageT(kappaNames[i].c_str());
+            } else {
+                DoubleImage::Pointer realImg = context->GetDoubleImage(i);
+                if (realImg.IsNotNull()) {
+                    ImageProcessing proc;
+                    DoubleImage::Pointer gradImg = proc.ComputeGaussianGradientMagnitude(realImg, sigma);
+                    DoubleImage::Pointer kappaImg = proc.RescaleIntensity<DoubleImage>(gradImg, 1.0, maxKappa);
+                    m_Subjects[i].kappaImage = kappaImg;
+                } else {
+                    cout << "Real image is null for subject: " << m_Subjects[i].m_Name << endl;
+                }
+            }
+            if (m_Subjects[i].kappaImage.IsNotNull()) {
+                m_Subjects[i].kappa = LinearImageInterpolatorType::New();
+                m_Subjects[i].kappa->SetInputImage(m_Subjects[i].kappaImage);
+            }
         }
     }
 

@@ -130,9 +130,9 @@ namespace pi {
             return;
         }
 
-        double t0 = m_Options.GetDoubleVectorValue("PreprocessingTimeRange:", 0);
-        double dt = m_Options.GetDoubleVectorValue("PreprocessingTimeRange:", 1);
-        double t1 = m_Options.GetDoubleVectorValue("PreprocessingTimeRange:", 2);
+        DataReal t0 = m_Options.GetRealVectorValue("PreprocessingTimeRange:", 0);
+        DataReal dt = m_Options.GetRealVectorValue("PreprocessingTimeRange:", 1);
+        DataReal t1 = m_Options.GetRealVectorValue("PreprocessingTimeRange:", 2);
         
         
         ParticleCollision boundary;
@@ -147,8 +147,8 @@ namespace pi {
         EntropyInternalForce internalForce;
         
         const int nPoints = initial.GetNumberOfPoints();
-        for (double t = t0; t < t1; t += dt) {
-            cout << "t: " << t << endl;
+        for (DataReal t = t0; t < t1; t += dt) {
+            cout << "t: " << t << " \r" << flush;
             ParticleSubject& sub = initial;
 
             for (int i = 0; i < nPoints; i++) {
@@ -212,13 +212,15 @@ namespace pi {
         }
         
         EntropyInternalForce internalForce;
+        m_Options.GetRealTo("RepulsionSigma", internalForce.repulsionSigma);
+        m_Options.GetRealTo("RepulsionCutoff", internalForce.repulsionCutoff);
 
         EnsembleForce ensembleForce(1);
         ensembleForce.SetImageContext(&m_ImageContext);
 
         IntensityForce intensityForce(1);
         intensityForce.SetImageContext(&m_ImageContext);
-        intensityForce.SetWorkAtWarpedSpace(true);
+        intensityForce.useAttributesAtWarpedSpace = true;
 
         std::vector<ParticleCollision> collisionHandlers;
         collisionHandlers.resize(nSubz);
@@ -231,9 +233,9 @@ namespace pi {
             collisionHandlers[n].UpdateImages();
         }
         
-        const double t0 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 0);
-        const double dt = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 1);
-        const double t1 = system.GetSystemOptions().GetDoubleVectorValue("TimeRange:", 2);
+        const DataReal t0 = system.GetSystemOptions().GetRealVectorValue("TimeRange:", 0);
+        const DataReal dt = system.GetSystemOptions().GetRealVectorValue("TimeRange:", 1);
+        const DataReal t1 = system.GetSystemOptions().GetRealVectorValue("TimeRange:", 2);
         
         const bool useEnsemble = m_Options.GetBool("ensemble");
         const bool useIntensity = m_Options.GetBool("intensity");
@@ -246,11 +248,11 @@ namespace pi {
         if (noBoundary) cout << "boundary term disabled" << endl; else cout << "boundary term enabled" << endl;
         
         m_System.currentIteration = -1;
-        for (double t = t0; t < t1; t += dt) {
+        for (DataReal t = t0; t < t1; t += dt) {
             m_System.currentTime = t;
             m_System.currentIteration++;
             
-            cout << "t: " << t << endl;
+            cout << "t: " << t << " \r" << flush;
             m_System.ComputeMeanSubject();
 
             // compute internal force

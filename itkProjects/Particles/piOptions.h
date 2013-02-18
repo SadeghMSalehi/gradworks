@@ -33,8 +33,9 @@
  */
 #define OPTION_END "==option_end=="
 namespace pi {
+    typedef float OptionReal;
     typedef std::vector<std::string> StringVector;
-    typedef std::vector<double> DoubleVector;
+    typedef std::vector<OptionReal> RealVector;
     typedef std::vector<int> IntVector;
     
     class Options {
@@ -43,37 +44,42 @@ namespace pi {
         typedef std::pair<std::string, std::string> StringPair;
         typedef std::map<std::string, int> IntMap;
         typedef std::pair<std::string, int> IntPair;
-        typedef std::map<std::string, double> DoubleMap;
-        typedef std::pair<std::string, double> DoublePair;
+        typedef std::map<std::string, OptionReal> RealMap;
+        typedef std::pair<std::string, OptionReal> RealPair;
         typedef std::map<std::string, bool> BoolMap;
         typedef std::pair<std::string, bool> BoolPair;
         typedef std::map<std::string, StringVector> StringVectorMap;
         typedef std::pair<std::string, StringVector> StringVectorPair;
-        typedef std::map<std::string, DoubleVector> DoubleVectorMap;
-        typedef std::pair<std::string, DoubleVector> DoubleVectorPair;
+        typedef std::map<std::string, RealVector> RealVectorMap;
+        typedef std::pair<std::string, RealVector> RealVectorPair;
         typedef std::map<std::string, IntVector> IntVectorMap;
         typedef std::pair<std::string, IntVector> IntVectorPair;
     public:
         void SetBool(std::string name, bool value);
         void SetInt(std::string name, int value);
-        void SetDouble(std::string name, double value);
+        void SetReal(std::string name, OptionReal value);
         void SetString(std::string name, std::string value);
         void AppendString(std::string name, std::string value);
-        void AppendDouble(std::string name, double value);
+        void AppendReal(std::string name, OptionReal value);
         void AppendInt(std::string name, int value);
+
+        bool GetBoolTo(std::string name, bool& var);
+        bool GetIntTo(std::string name, int& var);
+        bool GetRealTo(std::string name, OptionReal& var);
+        bool GetStringTo(std::string name, std::string& var);
 
         bool GetBool(std::string name, bool def = false);
         int GetInt(std::string name, int def);
         int GetStringAsInt(std::string name, int def);
-        double GetDouble(std::string name, double def);
-        double GetStringAsDouble(std::string name, double def);
+        OptionReal GetReal(std::string name, OptionReal def);
+        OptionReal GetStringAsReal(std::string name, OptionReal def);
         std::string GetString(std::string name, std::string def);
 
         StringVector& GetStringVector(std::string name);
         std::string GetStringVectorValue(std::string name, int i, std::string def = "");
         
-        DoubleVector& GetDoubleVector(std::string name);
-        double GetDoubleVectorValue(std::string name, int nth, double def = 0);
+        RealVector& GetRealVector(std::string name);
+        OptionReal GetRealVectorValue(std::string name, int nth, OptionReal def = 0);
 
         IntVector& GetIntVector(std::string name);
         int GetIntVectorValue(std::string name, int nth, int def = 0);
@@ -84,9 +90,9 @@ namespace pi {
         BoolMap _boolMap;
         StringMap _stringMap;
         IntMap _intMap;
-        DoubleMap _doubleMap;
+        RealMap _realMap;
         StringVectorMap _stringVectorMap;
-        DoubleVectorMap _doubleVectorMap;
+        RealVectorMap _realVectorMap;
         IntVectorMap _intVectorMap;
 
         friend std::ostream & operator<<(std::ostream &os, const Options& opt);

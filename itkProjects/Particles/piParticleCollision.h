@@ -22,7 +22,7 @@ namespace pi {
     static const int ENDING_CONTACT = 3;
 
     struct ContactPoint {
-        double cp[__Dim];
+        DataReal cp[__Dim];
         int status;
     };
 
@@ -46,10 +46,10 @@ namespace pi {
             return m_RegionPicker->IsInsideBuffer(xp);
         }
 
-        bool ComputeContactPoint(double* x0, double* x1, ContactPoint& cp);
-        bool ComputeNormal(double* cp, double* normal);
-        double ComputeDistance(double* x1, double* cp);
-        void ComputeClosestBoundary(double* x1, double* cp);
+        bool ComputeContactPoint(DataReal* x0, DataReal* x1, ContactPoint& cp);
+        bool ComputeNormal(DataReal* cp, DataReal* normal);
+        DataReal ComputeDistance(DataReal* x1, DataReal* cp);
+        void ComputeClosestBoundary(DataReal* x1, DataReal* cp);
         void SetBinaryMask(LabelImage::Pointer binary);
         void UseBinaryMaskSmoothing();
         void UseBinaryMaskSmoothingCache(const char* cacheName);
@@ -72,10 +72,10 @@ namespace pi {
         LabelImage::Pointer m_InvertedBinaryMask;
         LabelImage::Pointer m_ZeroCrossing;
         VectorImage::Pointer m_DistanceMap;
-        VectorImage::Pointer m_Gradient;
+        GradientImage::Pointer m_Gradient;
         NNLabelInterpolatorType::Pointer m_CrossingPicker;
         NNLabelInterpolatorType::Pointer m_RegionPicker;
-        LinearVectorImageInterpolatorType::Pointer m_NormalPicker;
+        GradientInterpolatorType::Pointer m_NormalPicker;
         NNVectorImageInterpolatorType::Pointer m_DistOffsetPicker;
 
         std::string m_BinaryMaskSmoothingCacheName;

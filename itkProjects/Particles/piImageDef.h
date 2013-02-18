@@ -19,6 +19,8 @@
 #include "itkAffineTransform.h"
 #include "itkCompositeTransform.h"
 #include "itkTransform.h"
+#include "itkGradientImageFilter.h"
+#include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkPointSet.h"
 #include "vnl/vnl_vector.h"
 
@@ -55,9 +57,12 @@ const static int __Dim = 2;
 namespace pi {
     // type definitions
     typedef unsigned short LabelPixel;
-    typedef itk::Image<double,__Dim> DoubleImage;
+    typedef float ImageReal;
+    typedef double PointReal;
+    typedef float DataReal;
+    typedef itk::Image<ImageReal,__Dim> DoubleImage;
     typedef itk::Image<LabelPixel,__Dim> LabelImage;
-    typedef itk::Vector<double,__Dim> VectorType;
+    typedef itk::Vector<ImageReal,__Dim> VectorType;
     typedef itk::Image<VectorType,__Dim> VectorImage;
     typedef itk::Offset<__Dim> OffsetType;
     typedef itk::Image<OffsetType,__Dim> OffsetImage;
@@ -78,23 +83,35 @@ namespace pi {
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
     typedef itk::ImageRegionIteratorWithIndex<DoubleImage> DoubleImageIteratorType;
 
+    // gradient computation
+    typedef itk::GradientImageFilter<DoubleImage> GradientFilterType;
+    typedef GradientFilterType::OutputImageType GradientImage;
+    typedef GradientFilterType::OutputPixelType GradientPixel;
+    typedef itk::ConstNeighborhoodIterator<GradientImage> VectorImageNeighborhoodIteratorType;
+    typedef itk::GradientRecursiveGaussianImageFilter<DoubleImage, GradientImage> GaussianGradientFilterType;
+    typedef itk::VectorLinearInterpolateImageFunction<GradientImage> GradientInterpolatorType;
+    typedef itk::ConstNeighborhoodIterator<DoubleImage> DoubleImageNeighborhoodIteratorType;
+    typedef itk::ConstNeighborhoodIterator<GradientImage> GradientImageNeighborhoodIteratorType;
+    
     // definition for transforms
-    typedef itk::Transform<double,__Dim,__Dim> TransformType;
-    typedef itk::CompositeTransform<double,__Dim> CompositeTransformType;
-    typedef itk::AffineTransform<double,__Dim> AffineTransformType;
+    typedef itk::Transform<PointReal,__Dim,__Dim> TransformType;
+    typedef itk::CompositeTransform<PointReal,__Dim> CompositeTransformType;
+    typedef itk::AffineTransform<PointReal,__Dim> AffineTransformType;
 
     // definition for displacement field
     typedef itk::PointSet<int,__Dim> IntPointSetType;
     typedef itk::PointSet<VectorType,__Dim> DisplacementFieldPointSetType;
-    typedef itk::DisplacementFieldTransform<double,__Dim> FieldTransformType;
+    typedef itk::DisplacementFieldTransform<PointReal,__Dim> FieldTransformType;
     typedef itk::Image<FieldTransformType::OutputVectorType,__Dim> DisplacementFieldType;
 
     // auxiliary data structures
     typedef std::vector<std::string> StringVector;
 
     // VNL related types
-    typedef vnl_vector<double> VNLVector;
-    typedef vnl_matrix<double> VNLMatrix;
+    typedef vnl_vector<DataReal> VNLVector;
+    typedef vnl_matrix<DataReal> VNLMatrix;
+    typedef vnl_vector<double> VNLDoubleVector;
+    typedef vnl_vector<double> VNLDoubleMatrix;
 }
 
 #endif

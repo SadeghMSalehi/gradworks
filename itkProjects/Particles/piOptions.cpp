@@ -28,8 +28,8 @@ namespace pi {
         }
     }
 
-    void Options::SetDouble(std::string name, double value) {
-        std::pair<DoubleMap::iterator, bool> result = _doubleMap.insert(DoublePair(name, value));
+    void Options::SetReal(std::string name, OptionReal value) {
+        std::pair<RealMap::iterator, bool> result = _realMap.insert(RealPair(name, value));
         if (!result.second) {
             result.first->second = value;
         }    }
@@ -45,12 +45,45 @@ namespace pi {
         _stringVectorMap[name].push_back(value);
     }
 
-    void Options::AppendDouble(std::string name, double value) {
-        _doubleVectorMap[name].push_back(value);
+    void Options::AppendReal(std::string name, OptionReal value) {
+        _realVectorMap[name].push_back(value);
     }
 
     void Options::AppendInt(std::string name, int value) {
         _intVectorMap[name].push_back(value);
+    }
+
+
+    bool Options::GetBoolTo(std::string name, bool& var) {
+        if (_boolMap.find(name) == _boolMap.end()) {
+            return false;
+        }
+        var = _boolMap.at(name);
+        return true;
+    }
+
+    bool Options::GetIntTo(std::string name, int& var) {
+        if (_intMap.find(name) == _intMap.end()) {
+            return false;
+        }
+        var = _intMap.at(name);
+        return true;
+    }
+
+    bool Options::GetRealTo(std::string name, OptionReal& var) {
+        if (_realMap.find(name) == _realMap.end()) {
+            return false;
+        }
+        var = _realMap.at(name);
+        return true;
+    }
+
+    bool Options::GetStringTo(std::string name, std::string& var) {
+        if (_stringMap.find(name) == _stringMap.end()) {
+            return false;
+        }
+        var = _stringMap.at(name);
+        return true;
     }
 
     bool Options::GetBool(std::string name, bool def) {
@@ -74,15 +107,15 @@ namespace pi {
         return def;
     }
 
-    double Options::GetDouble(std::string name, double def) {
-        if (_doubleMap.find(name) == _doubleMap.end()) {
+    OptionReal Options::GetReal(std::string name, OptionReal def) {
+        if (_realMap.find(name) == _realMap.end()) {
             return def;
         } else {
-            return _doubleMap.at(name);
+            return _realMap.at(name);
         }
     }
 
-    double Options::GetStringAsDouble(std::string name, double def) {
+    OptionReal Options::GetStringAsReal(std::string name, OptionReal def) {
         return def;
     }
 
@@ -106,12 +139,12 @@ namespace pi {
         return def;
     }
 
-    DoubleVector& Options::GetDoubleVector(std::string name) {
-        return _doubleVectorMap[name];
+    RealVector& Options::GetRealVector(std::string name) {
+        return _realVectorMap[name];
     }
 
-    double Options::GetDoubleVectorValue(std::string name, int nth, double def) {
-        DoubleVector& vector = _doubleVectorMap[name];
+    OptionReal Options::GetRealVectorValue(std::string name, int nth, OptionReal def) {
+        RealVector& vector = _realVectorMap[name];
         if (vector.size() > nth) {
             return vector[nth];
         }
@@ -178,8 +211,8 @@ namespace pi {
         for(Options::IntMap::const_iterator iter = opt._intMap.begin(); iter != opt._intMap.end(); ++iter) {
             os << iter->first << " int " << iter->second << endl;
         }
-        for(Options::DoubleMap::const_iterator iter = opt._doubleMap.begin(); iter != opt._doubleMap.end(); ++iter) {
-            os << iter->first << " double " << iter->second << endl;
+        for(Options::RealMap::const_iterator iter = opt._realMap.begin(); iter != opt._realMap.end(); ++iter) {
+            os << iter->first << " real " << iter->second << endl;
         }
         for(Options::StringMap::const_iterator iter = opt._stringMap.begin(); iter != opt._stringMap.end(); ++iter) {
             os << iter->first << " string " << iter->second << endl;
@@ -194,9 +227,9 @@ namespace pi {
             os << endl;
         }
 
-        for(Options::DoubleVectorMap::const_iterator iter = opt._doubleVectorMap.begin(); iter != opt._doubleVectorMap.end(); ++iter) {
-            DoubleVector vector = iter->second;
-            os << iter->first << " doubles";
+        for(Options::RealVectorMap::const_iterator iter = opt._realVectorMap.begin(); iter != opt._realVectorMap.end(); ++iter) {
+            RealVector vector = iter->second;
+            os << iter->first << " reals";
             for (int i = 0; i < vector.size(); i++) {
                 os << " " << vector[i];
             }
@@ -245,10 +278,10 @@ namespace pi {
                     int value;
                     ss >> value;
                     opt.SetInt(name, value);
-                } else if (type == "double") {
-                    double value;
+                } else if (type == "real") {
+                    OptionReal value;
                     ss >> value;
-                    opt.SetDouble(name, value);
+                    opt.SetReal(name, value);
                 } else if (type == "bool") {
                     string value;
                     ss >> value;
@@ -263,11 +296,11 @@ namespace pi {
                         ss >> val;
                         opt.AppendInt(name, val);
                     }
-                } else if (type == "doubles") {
+                } else if (type == "reals") {
                     while (ss.good()) {
-                        double val;
+                        OptionReal val;
                         ss >> val;
-                        opt.AppendDouble(name, val);
+                        opt.AppendReal(name, val);
                     }
                 } else if (type == "strings") {
                     int len;

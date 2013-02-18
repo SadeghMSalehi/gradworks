@@ -14,9 +14,6 @@
 #include "itkGradientImageFilter.h"
 
 namespace pi {
-    typedef itk::GradientImageFilter<DoubleImage> GradientFilterType;
-    typedef GradientFilterType::OutputImageType GradientImage;
-    typedef GradientFilterType::OutputPixelType GradientPixel;
 
     class InternalForce {
     public:
@@ -25,21 +22,27 @@ namespace pi {
         void ComputeForce(ParticleSubject& subj);
         void ComputeForce(ParticleSubjectArray& shapes);
         void ComputeForce(Particle& a, Particle& b);
+        DataReal repulsionSigma;
     };
 
     class EntropyInternalForce {
     public:
-        EntropyInternalForce() {}
+        EntropyInternalForce() :repulsionSigma(3), repulsionCutoff(repulsionSigma*5), useAdaptiveSampling(false), maxKappa(3) {}
         ~EntropyInternalForce() {}
 
         void ComputeForce(ParticleSubject& subj);
         void ComputeForce(ParticleSubjectArray& subjs);
         void ComputeForce(Particle& a, Particle& b);
+
+        DataReal repulsionSigma;
+        DataReal repulsionCutoff;
+        bool useAdaptiveSampling;
+        DataReal maxKappa;
     };
 
     class EnsembleForce {
     public:
-        EnsembleForce(double coeff);
+        EnsembleForce(DataReal coeff);
         ~EnsembleForce();
         void SetImageContext(ImageContext* context);
         void ComputeEnsembleForce(ParticleSystem& system);
@@ -48,7 +51,7 @@ namespace pi {
         ImageContext* m_ImageContext;
         ParticleSubject m_MeanShape;
         void ComputeMeanShape(ParticleSubjectArray& shapes);
-        double m_Coeff;
+        DataReal m_Coeff;
     };
 
 
@@ -56,22 +59,22 @@ namespace pi {
     class ParticleAttribute3D {
     public:
         const static int NATTRS = N*N*N;
-        double f[__Dim];
-        double F[__Dim];
-        double x[NATTRS];
-        double y[NATTRS];
-        double g[NATTRS][__Dim];
+        DataReal f[__Dim];
+        DataReal F[__Dim];
+        DataReal x[NATTRS];
+        DataReal y[NATTRS];
+        DataReal g[NATTRS][__Dim];
     };
 
     template <int N>
     class ParticleAttribute2D {
     public:
         const static int NATTRS = N*N;
-        double f[__Dim];
-        double F[__Dim];
-        double x[NATTRS];
-        double y[NATTRS];
-        double g[NATTRS][__Dim];
+        DataReal f[__Dim];
+        DataReal F[__Dim];
+        DataReal x[NATTRS];
+        DataReal y[NATTRS];
+        DataReal g[NATTRS][__Dim];
     };
 
 #ifdef DIMENSION3
@@ -82,10 +85,16 @@ namespace pi {
 
     class IntensityForce {
     public:
-        IntensityForce(double coeff);
+        DataReal coefficient;
+        bool useGaussianGradient;
+        DataReal gaussianSigma;
+        bool useAttributesAtWarpedSpace;
+
+    public:
+        IntensityForce(DataReal coeff);
         ~IntensityForce();
+        
         void SetImageContext(ImageContext* context);
-        void SetWorkAtWarpedSpace(bool check);
         void ComputeIntensityForce(ParticleSystem* system);
     private:
         void ComputeAttributes(ParticleSystem* system);
@@ -95,8 +104,7 @@ namespace pi {
         AttrMatrix m_attrs;
         VNLMatrix m_attrsMean;
         ImageContext* m_ImageContext;
-        double m_Coeff;
-        bool m_WorkAtWarpedSpace;
+        DataReal m_Coeff;
     };
 }
 
