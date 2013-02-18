@@ -116,7 +116,9 @@ namespace pi {
         }
 
         bool useKappa = useAdaptiveSampling && subj.kappa.IsNotNull();
-
+        if (useKappa) {
+            cout << "use adaptive sampling" << endl;
+        }
 #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             Particle& pi = subj.m_Particles[i];

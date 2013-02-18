@@ -220,6 +220,9 @@ namespace pi {
         m_Options.GetRealTo("InternalForceSigma:", internalForce.repulsionSigma);
         m_Options.GetRealTo("InternalForceCutoff:", internalForce.repulsionCutoff);
         m_Options.GetBoolTo("adaptive_sampling", internalForce.useAdaptiveSampling);
+        if (internalForce.useAdaptiveSampling) {
+            m_System.LoadKappaImages(m_Options, &m_ImageContext);
+        }
 
         EnsembleForce ensembleForce(1);
         ensembleForce.SetImageContext(&m_ImageContext);
