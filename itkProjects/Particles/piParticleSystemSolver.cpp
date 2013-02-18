@@ -145,7 +145,12 @@ namespace pi {
         //            SaveConfig("/tmpfs/temp.txt");
         
         EntropyInternalForce internalForce;
-        
+        m_Options.GetRealTo("InternalForceSigma:", internalForce.repulsionSigma);
+        m_Options.GetRealTo("InternalForceCutoff:", internalForce.repulsionCutoff);
+
+        // this must be off for preprocessing
+        internalForce.useAdaptiveSampling = false;
+
         const int nPoints = initial.GetNumberOfPoints();
         for (DataReal t = t0; t < t1; t += dt) {
             cout << "t: " << t << " \r" << flush;
@@ -212,8 +217,9 @@ namespace pi {
         }
         
         EntropyInternalForce internalForce;
-        m_Options.GetRealTo("RepulsionSigma", internalForce.repulsionSigma);
-        m_Options.GetRealTo("RepulsionCutoff", internalForce.repulsionCutoff);
+        m_Options.GetRealTo("InternalForceSigma:", internalForce.repulsionSigma);
+        m_Options.GetRealTo("InternalForceCutoff:", internalForce.repulsionCutoff);
+        m_Options.GetBoolTo("adaptive_sampling", internalForce.useAdaptiveSampling);
 
         EnsembleForce ensembleForce(1);
         ensembleForce.SetImageContext(&m_ImageContext);

@@ -421,14 +421,16 @@ namespace pi {
         }
     }
 
+    // load images for adaptive sampling, or create them
+    // adaptive sampling can be turned on by option '+adaptve_sampling'
     void ParticleSystem::LoadKappaImages(Options& options, ImageContext* context) {
-        StringVector& kappaNames = options.GetStringVector("KappaImages:");
+        StringVector& kappaNames = options.GetStringVector("KappaImageCache:");
         if (kappaNames.size() != m_Subjects.size()) {
             cout << "Kappa images and subjects are different set" << endl;
             return;
         }
 
-        DataReal sigma = options.GetReal("KappaGaussianKernelSigma:", 1);
+        DataReal sigma = options.GetReal("AdaptiveSamplingBlurSigma:", 1);
         DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 3);
 
         itkcmds::itkImageIO<RealImage> io;
@@ -442,6 +444,7 @@ namespace pi {
                     RealImage::Pointer gradImg = proc.ComputeGaussianGradientMagnitude(realImg, sigma);
                     RealImage::Pointer kappaImg = proc.RescaleIntensity<RealImage>(gradImg, 1.0, maxKappa);
                     m_Subjects[i].kappaImage = kappaImg;
+                    io.WriteImageT(kappaNames[i].c_str(), kappaImg);
                 } else {
                     cout << "Real image is null for subject: " << m_Subjects[i].m_Name << endl;
                 }
