@@ -152,8 +152,10 @@ namespace pi {
         internalForce.useAdaptiveSampling = false;
 
         const int nPoints = initial.GetNumberOfPoints();
+        Timer timer;
         for (DataReal t = t0; t < t1; t += dt) {
-            cout << "t: " << t << " \r" << flush;
+            timer.start();
+            cout << "t: " << t << " " << flush;
             ParticleSubject& sub = initial;
 
             for (int i = 0; i < nPoints; i++) {
@@ -185,6 +187,9 @@ namespace pi {
             if (traceOn) {
                 trace.Add(t, sub.m_Particles, 0);
             }
+
+            double elapsedTime = timer.getElapsedTimeInSec();
+            cout << "; elapsed time: " << elapsedTime << " sec                   \r" << flush;
         }
 
         if (traceOn) {
@@ -269,11 +274,13 @@ namespace pi {
         if (internalForce.useAdaptiveSampling) cout << "adaptive sampling enabled" << endl; else cout << "adaptive sampling disabled" << endl;
         
         m_System.currentIteration = -1;
+        Timer timer;
         for (DataReal t = t0; t < t1; t += dt) {
+            timer.start();
             m_System.currentTime = t;
             m_System.currentIteration++;
             
-            cout << "t: " << t << " \r" << flush;
+            cout << "t: " << t << " " << flush;
             m_System.ComputeMeanSubject();
 
             // compute internal force
@@ -315,7 +322,7 @@ namespace pi {
                     }
 
                     if (!collisionHandlers[n].IsBufferInside(pIdx)) {
-                        cout << "Stop system: out of region" << endl;
+                        cout << "\nStop system: out of region" << endl;
                         goto quit;
                     }
                 }
@@ -323,6 +330,8 @@ namespace pi {
                     trace.Add(t, sub);
                 }
             }
+            double elapsedTime = timer.getElapsedTimeInSec();
+            cout << "; elapsed time: " << elapsedTime << " secs; estimated remaining time: about " << int((elapsedTime*(t1 - t)/dt)/60) << " mins                   \r" << flush;
         }
 
     quit:
