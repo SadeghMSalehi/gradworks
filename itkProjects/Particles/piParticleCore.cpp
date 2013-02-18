@@ -5,7 +5,6 @@
 #include <boost/timer.hpp>
 
 #include "piParticleCore.h"
-#include "piParticleConstraint.h"
 #include "piParticleBSpline.h"
 #include "piParticleForces.h"
 #include "piParticleCollision.h"
@@ -324,24 +323,24 @@ namespace pi {
         m_FileNames.push_back(filename);
     }
 
-    void ImageContext::LoadDoubleImage(std::string filename) {
-        itkcmds::itkImageIO<DoubleImage> io;
-        DoubleImage::Pointer image = io.ReadImageT(filename.c_str());
+    void ImageContext::LoadRealImage(std::string filename) {
+        itkcmds::itkImageIO<RealImage> io;
+        RealImage::Pointer image = io.ReadImageT(filename.c_str());
         m_Images.push_back(image);
 
         // set default spacing to 1 to match index and physical coordinate space
-        DoubleImage::SpacingType defaultSpacing;
+        RealImage::SpacingType defaultSpacing;
         defaultSpacing.Fill(1);
         m_Images.back()->SetSpacing(defaultSpacing);
         
-        m_DoubleImageFileNames.push_back(filename);
+        m_RealImageFileNames.push_back(filename);
     }
 
     LabelImage::Pointer ImageContext::GetLabel(int j) {
         return m_LabelImages[j];
     }
 
-    DoubleImage::Pointer ImageContext::GetDoubleImage(int j) {
+    RealImage::Pointer ImageContext::GetRealImage(int j) {
         return m_Images[j];
     }
 
@@ -383,8 +382,8 @@ namespace pi {
         }
     }
     
-    StringVector& ImageContext::GetDoubleImageFileNames() {
-        return m_DoubleImageFileNames;
+    StringVector& ImageContext::GetRealImageFileNames() {
+        return m_RealImageFileNames;
     }
     
     StringVector& ImageContext::GetFileNames() {
@@ -395,7 +394,7 @@ namespace pi {
         return m_LabelImages;
     }
     
-    DoubleImageVector& ImageContext::GetDoubleImageVector() {
+    RealImageVector& ImageContext::GetRealImageVector() {
         return m_Images;
     }
 
@@ -432,16 +431,16 @@ namespace pi {
         DataReal sigma = options.GetReal("KappaGaussianKernelSigma:", 1);
         DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 3);
 
-        itkcmds::itkImageIO<DoubleImage> io;
+        itkcmds::itkImageIO<RealImage> io;
         for (int i = 0; i < kappaNames.size(); i++) {
             if (io.FileExists(kappaNames[i].c_str())) {
                 m_Subjects[i].kappaImage = io.ReadImageT(kappaNames[i].c_str());
             } else {
-                DoubleImage::Pointer realImg = context->GetDoubleImage(i);
+                RealImage::Pointer realImg = context->GetRealImage(i);
                 if (realImg.IsNotNull()) {
                     ImageProcessing proc;
-                    DoubleImage::Pointer gradImg = proc.ComputeGaussianGradientMagnitude(realImg, sigma);
-                    DoubleImage::Pointer kappaImg = proc.RescaleIntensity<DoubleImage>(gradImg, 1.0, maxKappa);
+                    RealImage::Pointer gradImg = proc.ComputeGaussianGradientMagnitude(realImg, sigma);
+                    RealImage::Pointer kappaImg = proc.RescaleIntensity<RealImage>(gradImg, 1.0, maxKappa);
                     m_Subjects[i].kappaImage = kappaImg;
                 } else {
                     cout << "Real image is null for subject: " << m_Subjects[i].m_Name << endl;

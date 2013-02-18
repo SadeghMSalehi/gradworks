@@ -36,7 +36,7 @@ namespace pi {
         
         StringVector& realImages = m_Options.GetStringVector("RealImages:");
         for (int i = 0; i < realImages.size(); i++) {
-            m_ImageContext.LoadDoubleImage(realImages[i]);
+            m_ImageContext.LoadRealImage(realImages[i]);
         }
         
         while (in.good()) {

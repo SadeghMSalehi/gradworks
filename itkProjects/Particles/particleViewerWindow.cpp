@@ -187,8 +187,8 @@ void ParticleViewerWindow::updateScene() {
                 const pi::Particle* refPar = g_Slice.Get(currentSlice, 0)[i];
                 const int idx = refPar->idx;
                 const pi::Particle& par = subjects[n][idx];
-                DataReal x = par.x[dim1];
-                DataReal y = par.x[dim2];
+                pi::DataReal x = par.x[dim1];
+                pi::DataReal y = par.x[dim2];
                 // better if we have random color palette
                 QColor pointColor = Qt::black;
                 if (n == 0) {

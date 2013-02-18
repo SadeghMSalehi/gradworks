@@ -13,7 +13,6 @@
 #include "boost/numeric/ublas/matrix.hpp"
 #include "vector"
 #include "piImageDef.h"
-//#include "vnlCommon.h"
 #include "itkImage.h"
 #include "itkImageIO.h"
 #include "itkOffset.h"
@@ -22,7 +21,6 @@
 
 namespace pi {
 
-    class ParticleConstraint;
     class ImageContext;
     class ParticleSystem;
 
@@ -75,7 +73,7 @@ namespace pi {
         int m_SubjId;
         string m_Name;
         ParticleArray m_Particles;
-        DoubleImage::Pointer kappaImage;
+        RealImage::Pointer kappaImage;
         LinearImageInterpolatorType::Pointer kappa;
         AffineTransformType::Pointer m_AffineTransform;
         FieldTransformType::Pointer m_DeformableTransform;
@@ -123,28 +121,28 @@ namespace pi {
         friend class ParticleSystem;
     public:
         void LoadLabel(std::string filename);
-        void LoadDoubleImage(std::string filename);
+        void LoadRealImage(std::string filename);
 
         void ComputeIntersection();
         void ComputeDistanceMaps();
         LabelImage::Pointer GetLabel(int j);
-        DoubleImage::Pointer GetDoubleImage(int j);
+        RealImage::Pointer GetRealImage(int j);
         LabelImage::Pointer GetIntersection();
         void SetIntersection(LabelImage::Pointer intersection);
         OffsetImage GetDistanceMap(int j);
-        StringVector& GetDoubleImageFileNames();
+        StringVector& GetRealImageFileNames();
         StringVector& GetFileNames();
         LabelVector& GetLabelVector();
-        DoubleImageVector& GetDoubleImageVector();
-        DoubleImageVector& GetKappaImages();
+        RealImageVector& GetRealImageVector();
+        RealImageVector& GetKappaImages();
         void Clear();
 
     private:
-        StringVector m_DoubleImageFileNames;
+        StringVector m_RealImageFileNames;
         StringVector m_FileNames;
         LabelImage::Pointer m_Intersection;
         LabelVector m_LabelImages;
-        DoubleImageVector m_Images;
+        RealImageVector m_Images;
         OffsetImageVector m_DistanceMaps;
         std::string m_IntersectionOutput;
     };

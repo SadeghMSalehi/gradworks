@@ -46,9 +46,9 @@ namespace pi {
     typedef itk::BinaryMask3DMeshSource<LabelImage, MeshType> MeshSourceType;
 #endif
     typedef itk::ZeroCrossingImageFilter<LabelImage, LabelImage> ZeroCrossingFilterType;
-    typedef itk::CastImageFilter<LabelImage ,DoubleImage > CastToRealFilterType;
-    typedef itk::AntiAliasBinaryImageFilter<DoubleImage, DoubleImage> AntiAliasFilterType;
-    typedef itk::RescaleIntensityImageFilter<DoubleImage, LabelImage > RescaleFilter;
+    typedef itk::CastImageFilter<LabelImage ,RealImage > CastToRealFilterType;
+    typedef itk::AntiAliasBinaryImageFilter<RealImage, RealImage> AntiAliasFilterType;
+    typedef itk::RescaleIntensityImageFilter<RealImage, LabelImage > RescaleFilter;
     typedef itk::ConnectedComponentImageFilter<LabelImage, LabelImage> ConnectedComponentFilterType;
     typedef itk::RelabelComponentImageFilter<LabelImage, LabelImage> RelabelFilterType;
     typedef itk::BinaryThresholdImageFilter<LabelImage, LabelImage> BinaryThreshFilterType;
@@ -57,12 +57,12 @@ namespace pi {
     typedef itk::BinaryDilateImageFilter<LabelImage, LabelImage, StructuringElementType> DilateFilterType;
     typedef itk::BinaryErodeImageFilter<LabelImage, LabelImage, StructuringElementType> ErodeFilterType;
     typedef itk::SubtractImageFilter<LabelImage, LabelImage, LabelImage> SubtractFilterType;
-    typedef itk::RecursiveGaussianImageFilter<DoubleImage> GaussianFilterType;
-    typedef itk::SignedDanielssonDistanceMapImageFilter<LabelImage, DoubleImage> SignedDistanceMapFilterType;
-    typedef itk::DanielssonDistanceMapImageFilter<LabelImage, DoubleImage> DistanceMapFilterType;
+    typedef itk::RecursiveGaussianImageFilter<RealImage> GaussianFilterType;
+    typedef itk::SignedDanielssonDistanceMapImageFilter<LabelImage, RealImage> SignedDistanceMapFilterType;
+    typedef itk::DanielssonDistanceMapImageFilter<LabelImage, RealImage> DistanceMapFilterType;
     typedef DistanceMapFilterType::VectorImageType DistanceVectorImageType;
     typedef DistanceVectorImageType::PixelType DistancePixelType;
-    typedef itk::VectorMagnitudeImageFilter<VectorImage, DoubleImage> GradientMagnitudeFilterType;
+    typedef itk::VectorMagnitudeImageFilter<VectorImage, RealImage> GradientMagnitudeFilterType;
 
     class OffsetToVector {
     public:
@@ -98,7 +98,7 @@ namespace pi {
         antiAliasFilter->SetNumberOfLayers(2);
         antiAliasFilter->Update();
 
-//        itkcmds::itkImageIO<DoubleImage> iox;
+//        itkcmds::itkImageIO<RealImage> iox;
 //        iox.WriteImageT("/tmpfs/aadouble.nrrd", antiAliasFilter->GetOutput());
 
         RescaleFilter::Pointer rescale = RescaleFilter::New();
@@ -204,7 +204,7 @@ namespace pi {
         return gradientFilter->GetOutput();
     }
 
-    GradientImage::Pointer ImageProcessing::ComputeGaussianGradient(DoubleImage::Pointer img, double sigma) {
+    GradientImage::Pointer ImageProcessing::ComputeGaussianGradient(RealImage::Pointer img, double sigma) {
         GaussianGradientFilterType::Pointer gradientFilter = GaussianGradientFilterType::New();
         gradientFilter->SetInput(img);
         gradientFilter->SetSigma(sigma);
@@ -212,15 +212,15 @@ namespace pi {
         return gradientFilter->GetOutput();
     }
 
-    GradientImage::Pointer ImageProcessing::ComputeGradient(DoubleImage::Pointer img) {
+    GradientImage::Pointer ImageProcessing::ComputeGradient(RealImage::Pointer img) {
         GradientFilterType::Pointer gradientFilter = GradientFilterType::New();
         gradientFilter->SetInput(img);
         gradientFilter->Update();
         return gradientFilter->GetOutput();
     }
 
-    DoubleImage::Pointer ImageProcessing::ComputeGaussianGradientMagnitude(DoubleImage::Pointer img, double sigma) {
-        typedef itk::GradientMagnitudeRecursiveGaussianImageFilter<DoubleImage> FilterType;
+    RealImage::Pointer ImageProcessing::ComputeGaussianGradientMagnitude(RealImage::Pointer img, double sigma) {
+        typedef itk::GradientMagnitudeRecursiveGaussianImageFilter<RealImage> FilterType;
         FilterType::Pointer filter = FilterType::New();
         if (sigma > 0) {
             filter->SetSigma(sigma);
@@ -233,7 +233,7 @@ namespace pi {
     LabelImage::Pointer ImageProcessing::Ellipse(int* outputSize, double *center, double *radius) {
 #ifdef DIMENSION3
         SpatialObjectToImageFilterType::Pointer imageFilter = SpatialObjectToImageFilterType::New();
-        DoubleImage::SizeType size;
+        RealImage::SizeType size;
         fordim (k) {
             size[k] = outputSize[k];
         }
@@ -296,15 +296,15 @@ namespace pi {
         return caster->GetOutput();
     }
 
-    DoubleImage::Pointer ImageProcessing::ComputeMagnitudeMap(VectorImage::Pointer img) {
+    RealImage::Pointer ImageProcessing::ComputeMagnitudeMap(VectorImage::Pointer img) {
         GradientMagnitudeFilterType::Pointer magFilter = GradientMagnitudeFilterType::New();
         magFilter->SetInput(img);
         magFilter->Update();
         return magFilter->GetOutput();
     }
 
-    DoubleImage::Pointer ImageProcessing::ComputeMagnitudeMap(GradientImage::Pointer img) {
-        typedef itk::VectorMagnitudeImageFilter<GradientImage, DoubleImage> MagnitudeFilterType;
+    RealImage::Pointer ImageProcessing::ComputeMagnitudeMap(GradientImage::Pointer img) {
+        typedef itk::VectorMagnitudeImageFilter<GradientImage, RealImage> MagnitudeFilterType;
         MagnitudeFilterType::Pointer magFilter = MagnitudeFilterType::New();
         magFilter->SetInput(img);
         magFilter->Update();
@@ -325,13 +325,13 @@ namespace pi {
         return NULL;
     }
     
-    DoubleImage::Pointer ImageProcessing::NormalizeIntensity(DoubleImage::Pointer image, LabelImage::Pointer label) {
+    RealImage::Pointer ImageProcessing::NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label) {
         double sum = 0, sum2 = 0;
-        itkcmds::itkImageIO<DoubleImage> io;
-        DoubleImage::Pointer output = io.NewImageT(image);
-        DoubleImageIteratorType iter(image, image->GetBufferedRegion());
+        itkcmds::itkImageIO<RealImage> io;
+        RealImage::Pointer output = io.NewImageT(image);
+        RealImageIteratorType iter(image, image->GetBufferedRegion());
         LabelImageIteratorType iter2(label, image->GetBufferedRegion());
-        DoubleImageIteratorType oiter(output, image->GetBufferedRegion());
+        RealImageIteratorType oiter(output, image->GetBufferedRegion());
         int n = 0;
         iter.GoToBegin();
         iter2.GoToBegin();

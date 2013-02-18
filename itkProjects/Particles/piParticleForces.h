@@ -98,7 +98,7 @@ namespace pi {
         void ComputeIntensityForce(ParticleSystem* system);
     private:
         void ComputeAttributes(ParticleSystem* system);
-        DoubleImageVector warpedImages;
+        RealImageVector warpedImages;
         std::vector<GradientImage::Pointer> gradImages;
         typedef boost::numeric::ublas::matrix<Attr> AttrMatrix;
         AttrMatrix m_attrs;

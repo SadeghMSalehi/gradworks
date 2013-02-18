@@ -24,11 +24,11 @@ namespace pi {
 
     class ParticleConstraint {
     public:
-        typedef itk::SignedDanielssonDistanceMapImageFilter<LabelImage, DoubleImage> SignedDistanceMapFilterType;
-        typedef itk::DanielssonDistanceMapImageFilter<LabelImage, DoubleImage> DistanceMapFilterType;
+        typedef itk::SignedDanielssonDistanceMapImageFilter<LabelImage, RealImage> SignedDistanceMapFilterType;
+        typedef itk::DanielssonDistanceMapImageFilter<LabelImage, RealImage> DistanceMapFilterType;
         typedef DistanceMapFilterType::VectorImageType DistanceVectorImageType;
         typedef DistanceVectorImageType::PixelType DistanceVectorType;
-        typedef itk::NearestNeighborInterpolateImageFunction<DoubleImage> InterpolatorType;
+        typedef itk::NearestNeighborInterpolateImageFunction<RealImage> InterpolatorType;
         typedef InterpolatorType::ContinuousIndexType ContinuousIndexType;
         typedef itk::GradientRecursiveGaussianImageFilter<LabelImage, VectorImage> LabelImageGradientFilterType;
         typedef LabelImageGradientFilterType::OutputPixelType GradientPixelType;
@@ -40,8 +40,8 @@ namespace pi {
         bool IsInsideRegion(int subjId, LinearImageInterpolatorType::ContinuousIndexType& idx) const;
         bool IsInsideRegion(int subjId, LinearImageInterpolatorType::IndexType& idx) const;
         double GetDistance(int subjId, LinearImageInterpolatorType::ContinuousIndexType& idx) const;
-        DistanceVectorImageType::PixelType GetInsideOffset(int subjId, DoubleImage::IndexType& idx) const;
-        DistanceVectorImageType::PixelType GetOutsideOffset(int subjId, DoubleImage::IndexType& idx) const;
+        DistanceVectorImageType::PixelType GetInsideOffset(int subjId, RealImage::IndexType& idx) const;
+        DistanceVectorImageType::PixelType GetOutsideOffset(int subjId, RealImage::IndexType& idx) const;
         GradientPixelType GetGradient(int subjId, GradientInterpolatorType::ContinuousIndexType& idx) const;
 
         //void ApplyConstraint(OptimizerParametersType& params) const;
@@ -53,7 +53,7 @@ namespace pi {
         void ApplyConstraint(ParticleSubjectArray& shapes);
         
     private:
-        std::vector<DoubleImage::Pointer> m_DistanceMaps;
+        std::vector<RealImage::Pointer> m_DistanceMaps;
         std::vector<LinearImageInterpolatorType::Pointer> m_DistanceMapInterpolators;
         std::vector<DistanceVectorImageType::Pointer> m_InsideDistanceVectorMaps;
         std::vector<DistanceVectorImageType::Pointer> m_OutsideDistanceVectorMaps;

@@ -48,7 +48,7 @@ namespace pi {
     }
 
     
-//    static void ExtractAttributes(DoubleImage::Pointer image, VectorImage::Pointer grad, Particle& par);
+//    static void ExtractAttributes(RealImage::Pointer image, VectorImage::Pointer grad, Particle& par);
 
     void InternalForce::ComputeForce(ParticleSubject& subj) {
         const int nPoints = subj.m_Particles.size();
@@ -332,7 +332,7 @@ namespace pi {
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
         const int nRadius = 1;
-        itkcmds::itkImageIO<DoubleImage> io;
+        itkcmds::itkImageIO<RealImage> io;
 
         m_attrs.resize(nSubj, nPoints);
         m_attrsMean.set_size(nPoints, Attr::NATTRS);
@@ -353,7 +353,7 @@ namespace pi {
                 bspline.EstimateTransform(meanSubject, subject);
                 FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
                 subject.m_InverseDeformableTransform = deformableTransform;
-                warpedImages[i] = bspline.WarpImage(m_ImageContext->GetDoubleImage(i));
+                warpedImages[i] = bspline.WarpImage(m_ImageContext->GetRealImage(i));
 
 
                 if (subject.m_DeformableTransform.IsNull()) {
@@ -366,7 +366,7 @@ namespace pi {
             }
         } else {
             for (int i = 0; i < nSubj; i++) {
-                warpedImages[i] = m_ImageContext->GetDoubleImage(i);
+                warpedImages[i] = m_ImageContext->GetRealImage(i);
                 ParticleSubject& subject = shapes[i];
                 for (int j = 0; j < nPoints; j++) {
                     forcopy (subject.m_Particles[j].x, subject.m_Particles[j].y);
@@ -394,14 +394,14 @@ namespace pi {
                 gradImages[i] = grad->GetOutput();
             }
 
-            DoubleImage& warpedImage = *(warpedImages[i].GetPointer());
+            RealImage& warpedImage = *(warpedImages[i].GetPointer());
             GradientImage& gradImage = *(gradImages[i].GetPointer());
 
             // extract attributes
-            DoubleImage::SizeType radius;
+            RealImage::SizeType radius;
             radius.Fill(nRadius);
-            DoubleImageNeighborhoodIteratorType iiter(radius, warpedImages[i], warpedImages[i]->GetBufferedRegion());
-            DoubleImage::IndexType idx;
+            RealImageNeighborhoodIteratorType iiter(radius, warpedImages[i], warpedImages[i]->GetBufferedRegion());
+            RealImage::IndexType idx;
 #pragma omp parallel for
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subject.m_Particles[j];

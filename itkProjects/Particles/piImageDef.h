@@ -60,7 +60,7 @@ namespace pi {
     typedef float ImageReal;
     typedef double PointReal;
     typedef float DataReal;
-    typedef itk::Image<ImageReal,__Dim> DoubleImage;
+    typedef itk::Image<ImageReal,__Dim> RealImage;
     typedef itk::Image<LabelPixel,__Dim> LabelImage;
     typedef itk::Vector<ImageReal,__Dim> VectorType;
     typedef itk::Image<VectorType,__Dim> VectorImage;
@@ -68,11 +68,11 @@ namespace pi {
     typedef itk::Image<OffsetType,__Dim> OffsetImage;
     typedef std::vector<LabelImage::Pointer> LabelVector;
     typedef std::vector<OffsetImage::Pointer> OffsetImageVector;
-    typedef std::vector<DoubleImage::Pointer> DoubleImageVector;
+    typedef std::vector<RealImage::Pointer> RealImageVector;
     typedef std::vector<VectorImage::Pointer> VectorImageVector;
 
-    typedef itk::LinearInterpolateImageFunction<DoubleImage> LinearImageInterpolatorType;
-    typedef itk::NearestNeighborInterpolateImageFunction<DoubleImage> NNImageInterpolatorType;
+    typedef itk::LinearInterpolateImageFunction<RealImage> LinearImageInterpolatorType;
+    typedef itk::NearestNeighborInterpolateImageFunction<RealImage> NNImageInterpolatorType;
     typedef itk::NearestNeighborInterpolateImageFunction<LabelImage> NNLabelInterpolatorType;
     typedef itk::VectorLinearInterpolateImageFunction<VectorImage> LinearVectorImageInterpolatorType;
     typedef itk::VectorNearestNeighborInterpolateImageFunction<VectorImage> NNVectorImageInterpolatorType;
@@ -81,16 +81,16 @@ namespace pi {
     typedef LinearVectorImageInterpolatorType::ContinuousIndexType RealIndex;
     
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
-    typedef itk::ImageRegionIteratorWithIndex<DoubleImage> DoubleImageIteratorType;
+    typedef itk::ImageRegionIteratorWithIndex<RealImage> RealImageIteratorType;
 
     // gradient computation
-    typedef itk::GradientImageFilter<DoubleImage> GradientFilterType;
+    typedef itk::GradientImageFilter<RealImage> GradientFilterType;
     typedef GradientFilterType::OutputImageType GradientImage;
     typedef GradientFilterType::OutputPixelType GradientPixel;
     typedef itk::ConstNeighborhoodIterator<GradientImage> VectorImageNeighborhoodIteratorType;
-    typedef itk::GradientRecursiveGaussianImageFilter<DoubleImage, GradientImage> GaussianGradientFilterType;
+    typedef itk::GradientRecursiveGaussianImageFilter<RealImage, GradientImage> GaussianGradientFilterType;
     typedef itk::VectorLinearInterpolateImageFunction<GradientImage> GradientInterpolatorType;
-    typedef itk::ConstNeighborhoodIterator<DoubleImage> DoubleImageNeighborhoodIteratorType;
+    typedef itk::ConstNeighborhoodIterator<RealImage> RealImageNeighborhoodIteratorType;
     typedef itk::ConstNeighborhoodIterator<GradientImage> GradientImageNeighborhoodIteratorType;
     
     // definition for transforms

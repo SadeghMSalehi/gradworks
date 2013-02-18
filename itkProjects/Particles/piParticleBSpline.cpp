@@ -31,9 +31,9 @@ namespace pi {
 
     }
 
-    DoubleImage::Pointer ParticleBSpline::WarpImage(DoubleImage::Pointer srcImage) {
+    RealImage::Pointer ParticleBSpline::WarpImage(RealImage::Pointer srcImage) {
         if (m_DisplacementField.IsNull()) {
-            return DoubleImage::Pointer(NULL);
+            return RealImage::Pointer(NULL);
         }
         WarpImageFilterType::Pointer warpFilter = WarpImageFilterType::New();
         warpFilter->SetInput(srcImage);

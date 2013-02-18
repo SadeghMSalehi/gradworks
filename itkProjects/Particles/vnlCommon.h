@@ -24,25 +24,25 @@
  
 
 
-typedef vnl_vector<double> VNLVector;
-typedef vnl_matrix<double> VNLMatrix;
-typedef vnl_diag_matrix<double> VNLDiagMatrix;
-typedef vnl_vector_ref<double> VNLVectorRef;
-typedef vnl_vector_fixed<double, 3> VNLVec3;
-typedef vnl_vector_fixed<double, 2> VNLVec2;
-typedef vnl_matrix_fixed<double, 3, 3> VNLMat3x3;
-typedef vnl_matrix_fixed<double, 2, 3> VNLMat2x3;
-typedef vnl_matrix_fixed<double, 2, 2> VNLMat2x2;
-typedef vnl_matrix_fixed<double, 4, 4> VNLMat4x4;
-typedef vnl_vector_fixed_ref<double, 2> VNLVec2Ref;
-typedef vnl_vector_fixed_ref<double, 3> VNLVec3Ref;
-typedef vnl_c_vector<double> VNLCVector;
-typedef vnl_sse<double> VNLSSE;
+typedef vnl_vector<float> VNLVector;
+typedef vnl_matrix<float> VNLMatrix;
+typedef vnl_diag_matrix<float> VNLDiagMatrix;
+typedef vnl_vector_ref<float> VNLVectorRef;
+typedef vnl_vector_fixed<float, 3> VNLVec3;
+typedef vnl_vector_fixed<float, 2> VNLVec2;
+typedef vnl_matrix_fixed<float, 3, 3> VNLMat3x3;
+typedef vnl_matrix_fixed<float, 2, 3> VNLMat2x3;
+typedef vnl_matrix_fixed<float, 2, 2> VNLMat2x2;
+typedef vnl_matrix_fixed<float, 4, 4> VNLMat4x4;
+typedef vnl_vector_fixed_ref<float, 2> VNLVec2Ref;
+typedef vnl_vector_fixed_ref<float, 3> VNLVec3Ref;
+typedef vnl_c_vector<float> VNLCVector;
+typedef vnl_sse<float> VNLSSE;
 
 typedef std::vector<VNLMatrix> VNLMatrixArray;
 typedef std::vector<VNLVector> VNLVectorArray;
 typedef std::vector<VNLVectorRef> VNLVectorRefArray;
-typedef std::vector<double> STDDoubleArray;
+typedef std::vector<float> STDDoubleArray;
 
 class VNLMatrixRef: public VNLMatrix {
 public:
@@ -146,7 +146,7 @@ struct VNLAlgebra {
     int R;
     int C;
     VNLAlgebra(int r, int c) { R = r; C = c; }
-    inline void multiply_matrix_vector(const double* A, const double* b, double* c) {
+    inline void multiply_matrix_vector(const float* A, const float* b, float* c) {
         VNLSSE::matrix_x_vector(A, b, c, R, C);
     }
 };

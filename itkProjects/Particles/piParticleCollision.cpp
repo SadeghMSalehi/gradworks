@@ -224,10 +224,10 @@ namespace pi {
     }
 
     void ParticleCollision::SaveGradientMagnitude(const char* filename) {
-        itkcmds::itkImageIO<DoubleImage> io;
+        itkcmds::itkImageIO<RealImage> io;
         if (m_Gradient.IsNotNull()) {
             ImageProcessing proc;
-            DoubleImage::Pointer mag = proc.ComputeMagnitudeMap(m_Gradient);
+            RealImage::Pointer mag = proc.ComputeMagnitudeMap(m_Gradient);
             io.WriteImageT(filename, mag);
         }
     }

@@ -21,7 +21,7 @@ namespace pi {
     <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
     typedef BSplineFilterType::WeightsContainerType WeightsContainerType;
     typedef itk::BSplineTransform<PointReal,__Dim,3> BSplineTransform;
-    typedef itk::WarpImageFilter<DoubleImage, DoubleImage, DisplacementFieldType> WarpImageFilterType;
+    typedef itk::WarpImageFilter<RealImage, RealImage, DisplacementFieldType> WarpImageFilterType;
 
 
     class ParticleBSpline {
@@ -34,7 +34,7 @@ namespace pi {
         void EstimateTransform(const ParticleSubject& a, const ParticleSubject& b);
         template <class T> void EstimateTransform(const T& src, const T& dst, const int nPoints);
         void ApplyTransform(ParticleSubject& a);
-        DoubleImage::Pointer WarpImage(DoubleImage::Pointer image);
+        RealImage::Pointer WarpImage(RealImage::Pointer image);
         LabelImage::Pointer WarpLabel(LabelImage::Pointer srcImage);
         FieldTransformType::Pointer GetTransform();
 
@@ -84,9 +84,9 @@ namespace pi {
         BSplineFilterType::ArrayType numControlPoints;
         numControlPoints.Fill(nSize + splineOrder);
 
-        DoubleImage::SizeType imageSize = m_RefImage->GetBufferedRegion().GetSize();
-        DoubleImage::SpacingType imageSpacing = m_RefImage->GetSpacing();
-        DoubleImage::PointType imageOrigin = m_RefImage->GetOrigin();
+        RealImage::SizeType imageSize = m_RefImage->GetBufferedRegion().GetSize();
+        RealImage::SpacingType imageSpacing = m_RefImage->GetSpacing();
+        RealImage::PointType imageOrigin = m_RefImage->GetOrigin();
 
         try {
             // debug: reparameterized point component is outside

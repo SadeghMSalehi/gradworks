@@ -83,8 +83,8 @@ int main(int argc, char* argv[]) {
             doingSomething = true;
         }
         if (input != "") {
-			itkcmds::itkImageIO<DoubleImage> io;
-        	DoubleImage::Pointer outputImage = particleTransform.WarpImage(io.ReadImageT(input.c_str()));
+			itkcmds::itkImageIO<RealImage> io;
+        	RealImage::Pointer outputImage = particleTransform.WarpImage(io.ReadImageT(input.c_str()));
         	io.WriteImageT(output.c_str(), outputImage);
             doingSomething = true;
         }
@@ -129,14 +129,14 @@ int main(int argc, char* argv[]) {
             cout << "normalization requires [input-image] [mask-image] [output-image]" << endl;
             return 0;
         }
-        itkcmds::itkImageIO<DoubleImage> iod;
+        itkcmds::itkImageIO<RealImage> iod;
         itkcmds::itkImageIO<LabelImage> iol;
         
-        DoubleImage::Pointer input = iod.ReadImageT(args[0].c_str());
+        RealImage::Pointer input = iod.ReadImageT(args[0].c_str());
         LabelImage::Pointer label = iol.ReadImageT(args[1].c_str());
         
         ImageProcessing proc;
-        DoubleImage::Pointer output = proc.NormalizeIntensity(input, label);
+        RealImage::Pointer output = proc.NormalizeIntensity(input, label);
         
         iod.WriteImageT(args[2].c_str(), output);
     } else {

@@ -24,16 +24,16 @@ namespace pi {
         
         GradientImage::Pointer ComputeGaussianGradient(LabelImage::Pointer img, double sigma = -1);
         GradientImage::Pointer ComputeGradient(LabelImage::Pointer img);
-        GradientImage::Pointer ComputeGaussianGradient(DoubleImage::Pointer img, double sigma = -1);
-        GradientImage::Pointer ComputeGradient(DoubleImage::Pointer img);
-        DoubleImage::Pointer ComputeMagnitudeMap(VectorImage::Pointer img);
-        DoubleImage::Pointer ComputeMagnitudeMap(GradientImage::Pointer img);
+        GradientImage::Pointer ComputeGaussianGradient(RealImage::Pointer img, double sigma = -1);
+        GradientImage::Pointer ComputeGradient(RealImage::Pointer img);
+        RealImage::Pointer ComputeMagnitudeMap(VectorImage::Pointer img);
+        RealImage::Pointer ComputeMagnitudeMap(GradientImage::Pointer img);
 
-        DoubleImage::Pointer ComputeGaussianGradientMagnitude(DoubleImage::Pointer img, double sigma = -1);
+        RealImage::Pointer ComputeGaussianGradientMagnitude(RealImage::Pointer img, double sigma = -1);
         LabelImage::Pointer Ellipse(int* outputSize, double* center, double* radius);
         VectorImage::Pointer DistanceMap(LabelImage::Pointer img);
         vtkPolyData* ConvertToMesh(LabelImage::Pointer image);
-        DoubleImage::Pointer NormalizeIntensity(DoubleImage::Pointer image, LabelImage::Pointer label);
+        RealImage::Pointer NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label);
 
         template <class T>
         typename T::Pointer RescaleIntensity(typename T::Pointer srcImg, typename T::PixelType min, typename T::PixelType max) const {
