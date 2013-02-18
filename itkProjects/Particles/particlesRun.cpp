@@ -21,15 +21,10 @@ int main(int argc, char* argv[]) {
         { 7, "--dstidx", SO_REQ_SEP },
         { 5, "--useEnsemble", SO_NONE },
         { 6, "--noTrace", SO_NONE },
-<<<<<<< HEAD
-        { 10, "--normalizeIntensity", SO_NONE },
-=======
         { 10, "--markTrace", SO_NONE },
         { 11, "--srcsubj", SO_REQ_SEP },
         { 12, "--inputimage", SO_REQ_SEP },
         { 13, "--inputlabel", SO_REQ_SEP },
-
->>>>>>> intensity term added and test
         SO_END_OF_OPTIONS
     };
     Options parser;
@@ -128,7 +123,6 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-<<<<<<< HEAD
     } else if (parser.GetBool("--normalizeIntensity")) {
         if (args.size() < 3) {
             cout << "normalization requires [input-image] [mask-image] [output-image]" << endl;
@@ -144,9 +138,6 @@ int main(int argc, char* argv[]) {
         DoubleImage::Pointer output = proc.NormalizeIntensity(input, label);
         
         iod.WriteImageT(args[2].c_str(), output);
-=======
-        io.WriteImageT(args[2].c_str(), canvas);
->>>>>>> intensity term added and test
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;
