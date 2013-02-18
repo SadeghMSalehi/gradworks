@@ -415,6 +415,130 @@ namespace pi {
         }
     }
 
+
+    bool IntensityForce::ComputeCovariance(AttrMatrix& attrs, int pointIdx, VNLDoubleMatrix& cov, double alpha) {
+        const int L = Attr::NATTRS;
+        const int S = attrs.size1();
+        
+        const bool useDualCOV = L > S;
+        const int dimCov = useDualCOV ? S : L;
+        cov.set_size(dimCov, dimCov);
+        cov.fill(0);
+
+        if (useDualCOV) {
+            // compute Y'Y
+            // Y : (l x s) matrix
+            // result: s x s matrix
+            // SxL LxS
+            // loop in the order of S S L
+            for (int j = 0; j < S; j++) {
+                Attr& jattr = attrs(j,pointIdx);
+                for (int k = j; k < S; k++) {
+                    Attr& kattr = attrs(k,pointIdx);
+                    for (int l = 0; l < L; l++) {
+                        cov[j][k] += jattr.y[l] * kattr.y[l];
+                    }
+                    cov[k][j] = cov[j][k];
+                }
+            }
+            cov /= (L - 1);
+        } else {
+            // compute YY'
+            // Y : (L x S) matrix
+            // Y' : (S x L) matrix
+            // result: L x L matrix
+
+            // loop in the order of L S S L
+            for (int j = 0; j < L; j++) {
+                for (int k = 0; k < L; k++) {
+                    for (int l = 0; l < S; l++) {
+                        Attr& lattr = attrs(l,pointIdx);
+                        cov[j][k] += lattr.y[j] * lattr.y[k];
+                    }
+                }
+            }
+            cov /= (S - 1);
+        }
+
+        for (int i = 0; i < dimCov; i++) {
+//            cov[i][i] = cov[i][i] + alpha;
+        }
+
+        return useDualCOV;
+    }
+
+    void IntensityForce::ComputeGradient(AttrMatrix& attrs, VNLDoubleMatrix& invC, int pointIdx, bool useDual) {
+        const int L = Attr::NATTRS;
+        const int S = attrs.size1();
+
+        if (useDual) {
+            // invC: S x S
+            // Y: L x S
+            // grad = Y x invC
+            // multply inverse of covariance and compute gradient of entropy
+            for (int j = 0; j < S; j++) {
+                Attr& jattr = attrs(j,pointIdx);
+                fordim (k) {
+                    jattr.f[k] = 0;
+                }
+                for (int l = 0; l < Attr::NATTRS; l++) {
+                    jattr.x[l] = 0;
+                    for (int k = 0; k < S; k++) {
+                        Attr& kattr = attrs(k,pointIdx);
+                        jattr.x[l] += kattr.y[l] * invC[k][j];
+                    }
+                    fordim (k) {
+                        jattr.f[k] += jattr.x[l] * jattr.g[l][k];
+                    }
+                }
+            }
+        } else {
+            // invC: L x L
+            // Y: L x S
+            // grad =  invC x Y
+            // LxS * SxL
+            // loop over L S L
+            // initialize force for particle
+            for (int s = 0; s < S; s++) {
+                fordim (k) {
+                    attrs(s, pointIdx).f[k] = 0;
+                }
+            }
+
+            for (int j = 0; j < L; j++) {
+                for (int l = 0; l < S; l++) {
+                    double o = 0;
+                    Attr& attr = attrs(l, pointIdx);
+                    for (int k = 0; k < L; k++) {
+                        o += invC[j][k] * attr.y[l];
+                    }
+                    attr.x[j] = o;
+                    fordim (k) {
+                        attr.f[k] += attr.x[l] * attr.g[l][k];
+                    }
+                }
+            }
+        }
+    }
+
+    void IntensityForce::NormalizeAttributes(AttrMatrix& attrs) {
+        // compute average attr value across subject
+        const int nPoints = attrs.size2();
+        const int nSubj = attrs.size1();
+
+        for (int i = 0; i < nPoints; i++) {
+            for (int j = 0; j < Attr::NATTRS; j++) {
+                double sum = 0;
+                for (int s = 0; s < nSubj; s++) {
+                    sum += attrs(s, i).x[j];
+                }
+                for (int s = 0; s < nSubj; s++) {
+                    attrs(s,i).y[j] =  attrs(s, i).x[j] - sum/nSubj;
+                }
+            }
+        }
+    }
+
     void IntensityForce::ComputeIntensityForce(ParticleSystem* system) {
         ParticleSubjectArray& shapes = system->GetSubjects();
         const int nSubj = shapes.size();
@@ -424,70 +548,17 @@ namespace pi {
 
         // assume all attributes are computed already
         assert(m_attrs.size1() == nSubj && m_attrs.size2() == nPoints);
-        
-        // column sum
-        for (int i = 0; i < nPoints; i++) {
-            for (int j = 0; j < Attr::NATTRS; j++) {
-                m_attrsMean[i][j] = 0;
-                for (int s = 0; s < nSubj; s++) {
-                    DataReal attr = m_attrs(s, i).x[j];
-                    m_attrsMean[i][j] += attr;
-                }
-            }
-        }
-        m_attrsMean /= nSubj;
 
-        // compute mean differences
-#pragma omp parallel for
-        for (int i = 0; i < nSubj; i++) {
-            for (int j = 0; j < nPoints; j++) {
-                for (int k = 0; k < Attr::NATTRS; k++) {
-                    m_attrs(i,j).y[k] = m_attrs(i,j).x[k] - m_attrsMean[j][k];
-                }
-            }
-        }
-//        __showmatrix(m_attrs, nSubj, nPoints);
+        NormalizeAttributes(m_attrs);
 
-        VNLMatrix eye(nSubj, nSubj);
-        eye.set_identity();
 #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             // covariance matrix
-            VNLMatrix cov(nSubj, nSubj);
-            cov.fill(0);
-            for (int j = 0; j < nSubj; j++) {
-                Attr& jattr = m_attrs(j,i);
-                for (int k = j; k < nSubj; k++) {
-                    Attr& kattr = m_attrs(k,i);
-                    for (int l = 0; l < Attr::NATTRS; l++) {
-                        cov[j][k] += jattr.y[l] * kattr.y[l];
-                    }
-                    cov[k][j] = cov[j][k];
-                }
-            }
-            cov /= (Attr::NATTRS - 1);
-            cov = cov + eye;
-            VNLMatrix covInverse = vnl_matrix_inverse<DataReal>(cov);
-
-            for (int j = 0; j < nSubj; j++) {
-                Attr& jattr = m_attrs(j,i);
-                fordim (k) {
-                    jattr.f[k] = 0;
-                }
-                for (int l = 0; l < Attr::NATTRS; l++) {
-                    jattr.x[l] = 0;
-                    for (int k = 0; k < nSubj; k++) {
-                        Attr& kattr = m_attrs(k,i);
-                        jattr.x[l] += kattr.y[l] * covInverse[k][j];
-                    }
-                    fordim (k) {
-                        jattr.f[k] += jattr.x[l] * jattr.g[l][k];
-                    }
-                }
-            }
+            VNLDoubleMatrix cov;
+            bool useDual = ComputeCovariance(m_attrs, i, cov);
+            VNLDoubleMatrix invC = vnl_matrix_inverse<double>(cov);
+            ComputeGradient(m_attrs, invC, i, useDual);
         }
-//        __showcmd(attrs, nSubj, nPoints, cout << m_attrs(_,__).f[0] << "," << m_attrs(_,__).f[1]);
-
 
         // compute force at subject space
         for (int i = 0; i < nSubj; i++) {

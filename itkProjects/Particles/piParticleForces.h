@@ -13,6 +13,11 @@
 #include "piParticleCore.h"
 #include "itkGradientImageFilter.h"
 
+
+#ifndef ATTR_DIM
+#define ATTR_DIM 3
+#endif
+
 namespace pi {
 
     class InternalForce {
@@ -78,13 +83,15 @@ namespace pi {
     };
 
 #ifdef DIMENSION3
-    typedef ParticleAttribute3D<3> Attr;
+    typedef ParticleAttribute3D<ATTR_DIM> Attr;
 #else
-    typedef ParticleAttribute2D<3> Attr;
+    typedef ParticleAttribute2D<ATTR_DIM> Attr;
 #endif
 
     class IntensityForce {
     public:
+        typedef boost::numeric::ublas::matrix<Attr> AttrMatrix;
+
         DataReal coefficient;
         bool useGaussianGradient;
         DataReal gaussianSigma;
@@ -96,11 +103,16 @@ namespace pi {
         
         void SetImageContext(ImageContext* context);
         void ComputeIntensityForce(ParticleSystem* system);
+
+        // attrmatrix has S subject rows and N point columns
+        void NormalizeAttributes(AttrMatrix& attrs);
+        bool ComputeCovariance(AttrMatrix& attrs, int pointIdx, VNLDoubleMatrix& cov, double alpha = 1);
+        void ComputeGradient(AttrMatrix& attrs, VNLDoubleMatrix& invC, int pointIdx, bool useDual);
+
     private:
         void ComputeAttributes(ParticleSystem* system);
         RealImageVector warpedImages;
         std::vector<GradientImage::Pointer> gradImages;
-        typedef boost::numeric::ublas::matrix<Attr> AttrMatrix;
         AttrMatrix m_attrs;
         VNLMatrix m_attrsMean;
         ImageContext* m_ImageContext;

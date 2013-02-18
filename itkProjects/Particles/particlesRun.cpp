@@ -193,6 +193,13 @@ int main(int argc, char* argv[]) {
         
         if (!options.GetBool("no_preprocessing")) {
             solver.Preprocessing();
+        } else {
+            cout << "Skipping preprocessing; continue with given particles from the input" << endl;
+            cout << "the first particle of each subject: " << endl;
+            for (int i = 0; i < system.GetNumberOfSubjects(); i++) {
+                cout << system[i][0] << endl;
+            }
+            cout << "continue optimization;" << endl;
         }
         
         solver.Run();

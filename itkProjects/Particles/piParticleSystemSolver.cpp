@@ -251,6 +251,9 @@ namespace pi {
         IntensityForce intensityForce(1);
         intensityForce.SetImageContext(&m_ImageContext);
         intensityForce.useAttributesAtWarpedSpace = true;
+#ifdef ATTR_DIM
+        m_Options.SetInt("AttributeDimension:", ATTR_DIM);
+#endif
 
         std::vector<ParticleCollision> collisionHandlers;
         collisionHandlers.resize(nSubz);

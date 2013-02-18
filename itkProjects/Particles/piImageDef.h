@@ -111,7 +111,7 @@ namespace pi {
     typedef vnl_vector<DataReal> VNLVector;
     typedef vnl_matrix<DataReal> VNLMatrix;
     typedef vnl_vector<double> VNLDoubleVector;
-    typedef vnl_vector<double> VNLDoubleMatrix;
+    typedef vnl_matrix<double> VNLDoubleMatrix;
 }
 
 #endif
