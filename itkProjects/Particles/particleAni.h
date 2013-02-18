@@ -36,6 +36,8 @@ public slots:
     void on_actionLabel_Registration_triggered();
     void on_actionMark_At_Image_triggered();
     void on_actionCreate_Pathline_triggered();
+    void on_timeStepSpin_valueChanged(int value);
+    void on_timeSteps_valueChanged(int value);
 
 
     // Tools

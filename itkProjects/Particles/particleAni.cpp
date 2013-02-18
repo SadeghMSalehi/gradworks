@@ -136,6 +136,7 @@ void AniWindow::CreateParticles() {
 void AniWindow::on_actionOpen_Trace_triggered() {
     g_showType = SHOW_TRACE;
 
+    ui.timeSteps->show();
     g_Trace.Clear();
     ui.subjects->clear();
 
@@ -157,6 +158,9 @@ void AniWindow::on_actionOpen_Trace_triggered() {
             ui.subjects->addItem(QString("subj-%1").arg(i));
         }
     }
+    ui.timeSteps->setMaximum(g_Trace.system[0].timeSeries.size()-1);
+    ui.timeStepSpin->setMaximum(g_Trace.system[0].timeSeries.size()-1);
+    ui.timeSteps->setEnabled(true);
 
 }
 
@@ -182,7 +186,7 @@ void AniWindow::on_actionOpen_System_triggered() {
     for (int i = 0; i < g_Solver.m_System.GetNumberOfSubjects(); i++) {
         ui.subjects->addItem(QString::fromStdString(g_Solver.m_System[i].m_Name));
     }
-
+    ui.timeSteps->setEnabled(false);
 }
 
 void AniWindow::on_subjects_currentIndexChanged(int n) {
@@ -365,6 +369,18 @@ void AniWindow::on_actionImage_Particle_View_triggered(bool checked) {
     }
 }
 
+void AniWindow::on_timeStepSpin_valueChanged(int value) {
+    ui.timeSteps->setValue(ui.timeStepSpin->value());
+}
+
+
+void AniWindow::on_timeSteps_valueChanged(int value) {
+    if (g_showType == SHOW_TRACE) {
+        g_CurrentFrame = ui.timeSteps->value();
+        ui.timeStepSpin->setValue(g_CurrentFrame);
+        ShowTraceParticles();
+    }
+}
 
 void AniWindow::on_glyphRadius_valueChanged(double r) {
     on_subjects_currentIndexChanged(ui.subjects->currentIndex());
