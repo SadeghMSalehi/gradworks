@@ -127,4 +127,16 @@ namespace pi {
             trace.push_back(p);
         }
     }
+
+    ostream& operator<<(ostream& os, ParticleTrace& trace) {
+        cout << "# subjects: " << trace.system.size() << endl;
+        if (trace.system.size() == 0) {
+            return os;
+        }
+        cout << "# times: " << trace.system[0].timeSeries.size() << endl;
+        if (trace.system[0].timeSeries.size() > 0) {
+            cout << "# particles: " << trace.system[0].timeSeries[0].size() << endl;
+        }
+        return os;
+    }
 }

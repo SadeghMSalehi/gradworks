@@ -158,17 +158,17 @@ namespace itkcmds {
 		}
 
 		ImagePointer ReadImageT(const char* filename) {
-			cout << "Reading " << filename << flush;
+			cout << "Reading '" << filename << flush;
             if (CheckExists(filename)) {
                 typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
                 reader->SetFileName(filename);
                 reader->Update();
                 GetImageInfo(reader);
-                std::cout << " [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
+                std::cout << "' [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
                 std::cout << " done." << std::endl;
                 return reader->GetOutput();
             } else {
-                cout << " failed. (file not exist)" << endl;
+                cout << "' failed. (file not exist)" << endl;
                 return ImagePointer();
             }
 		}

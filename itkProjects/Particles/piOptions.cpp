@@ -230,9 +230,11 @@ namespace pi {
                     while (ss.good()) {
                         string option;
                         ss >> option;
-                        bool value = (option[0] == '+');
-                        string optionname = option.substr(1);
-                        opt.SetBool(optionname, value);
+                        if (option.length() > 0 && ss.good()) {
+                            bool value = (option[0] == '+');
+                            string optionname = option.substr(1);
+                            opt.SetBool(optionname, value);
+                        }
                     }
                 }
                 ss >> type;

@@ -13,7 +13,7 @@ using namespace pi;
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
         { 9, "--seeConfig", SO_NONE },
-        { 1, "-r", SO_NONE },
+        { 1, "-w", SO_NONE },
         { 8, "-d", SO_NONE },
         { 2, "-o", SO_REQ_SEP },
         { 3, "--mean", SO_NONE },
@@ -21,7 +21,15 @@ int main(int argc, char* argv[]) {
         { 7, "--dstidx", SO_REQ_SEP },
         { 5, "--useEnsemble", SO_NONE },
         { 6, "--noTrace", SO_NONE },
+<<<<<<< HEAD
         { 10, "--normalizeIntensity", SO_NONE },
+=======
+        { 10, "--markTrace", SO_NONE },
+        { 11, "--srcsubj", SO_REQ_SEP },
+        { 12, "--inputimage", SO_REQ_SEP },
+        { 13, "--inputlabel", SO_REQ_SEP },
+
+>>>>>>> intensity term added and test
         SO_END_OF_OPTIONS
     };
     Options parser;
@@ -39,9 +47,9 @@ int main(int argc, char* argv[]) {
         if (args.size() > 1) {
             solver.SaveConfig(args[1].c_str());
         }
-    } else if (parser.GetBool("-r", false)) {
+    } else if (parser.GetBool("-w", false)) {
         if (args.size() < 1 || output == "") {
-            cout << "registration requires [config.txt] -o [outputimage]" << endl;
+            cout << "warping requires [config.txt] -o [outputimage]" << endl;
             return 0;
         }
 
@@ -61,19 +69,66 @@ int main(int argc, char* argv[]) {
             particleTransform.EstimateTransform(system.GetMeanSubject(), system[srcIdx]);
         } else {
             particleTransform.EstimateTransform(system[dstIdx], system[srcIdx]);
+            cout << "warping from " << srcIdx << " to " << dstIdx << endl;
         }
 
-        bool labelWarp = !parser.GetBool("-d", false);
-        if (labelWarp) {
-			LabelImage::Pointer outputImage = particleTransform.WarpLabel(imageCtx.GetLabel(srcIdx));
+
+        string input = parser.GetString("--inputimage", "");
+        string label = parser.GetString("--inputlabel", "");
+
+        cout << parser << endl;
+
+        bool doingSomething = false;
+        if (label != "") {
 			// write image
 			itkcmds::itkImageIO<LabelImage> io;
+            LabelImage::Pointer outputImage = particleTransform.WarpLabel(io.ReadImageT(label.c_str()));
 			io.WriteImageT(output.c_str(), outputImage);
-        } else {
-        	DoubleImage::Pointer outputImage = particleTransform.WarpImage(imageCtx.GetDoubleImage(srcIdx));
-        	itkcmds::itkImageIO<DoubleImage> io;
-        	io.WriteImageT(output.c_str(), outputImage);
+            doingSomething = true;
         }
+        if (input != "") {
+			itkcmds::itkImageIO<DoubleImage> io;
+        	DoubleImage::Pointer outputImage = particleTransform.WarpImage(io.ReadImageT(input.c_str()));
+        	io.WriteImageT(output.c_str(), outputImage);
+            doingSomething = true;
+        }
+        if (!doingSomething) {
+            cout << "-w requires --inputimage or --inputlabel to warp" << endl;
+        }
+    } else if (parser.GetBool("--markTrace")) {
+        if (args.size() < 2) {
+        	cout << "--markTrace requires [trace.txt] [reference-image] [output-image]" << endl;
+            return 0;
+        }
+        ifstream in(args[0].c_str());
+        ParticleTrace trace;
+        trace.Read(in);
+        in.close();
+        cout << trace << endl;
+
+        int srcIdx = atoi(parser.GetString("--srcidx", "-1").c_str());
+        int srcSubj = atoi(parser.GetString("--srcsubj", "-1").c_str());
+        
+        itkcmds::itkImageIO<LabelImage> io;
+        LabelImage::Pointer ref = io.ReadImageT(args[1].c_str());
+        LabelImage::Pointer canvas = io.NewImageT(ref);
+        for (int i = 0; i < trace.system.size(); i++) {
+            if (srcSubj == -1 || srcSubj == i) {
+                for (int j = 0; j < trace.system[i].timeSeries.size(); j++) {
+                    for (int k = 0; k <= trace.system[i].maxIdx; k++) {
+                        if (srcIdx == -1 || srcIdx == k) {
+                            Particle& p = trace.system[i].timeSeries[j][k];
+                            IntIndex idx;
+                            fordim (l) {
+                                idx[l] = p.x[l] + 0.5;
+                            }
+                            (*canvas)[idx] = j;
+                        }
+                    }
+                }
+            }
+        }
+<<<<<<< HEAD
     } else if (parser.GetBool("--normalizeIntensity")) {
         if (args.size() < 3) {
             cout << "normalization requires [input-image] [mask-image] [output-image]" << endl;
@@ -89,6 +144,9 @@ int main(int argc, char* argv[]) {
         DoubleImage::Pointer output = proc.NormalizeIntensity(input, label);
         
         iod.WriteImageT(args[2].c_str(), output);
+=======
+        io.WriteImageT(args[2].c_str(), canvas);
+>>>>>>> intensity term added and test
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;

@@ -45,6 +45,8 @@ namespace pi {
     private:
         bool AddParticle(Particle& p, int subj = -1);
     };
+
+    ostream& operator<<(ostream& os, ParticleTrace& trace);
 }
 
 #endif /* defined(__ParticlesGUI__piParticleTrace__) */

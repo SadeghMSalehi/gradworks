@@ -27,7 +27,6 @@ public:
     void CreateParticles();
 
 public slots:
-    void on_action_Open_triggered();
     void on_actionOpen_Trace_triggered();
     void on_actionOpen_System_triggered();
     void on_actionForward_triggered();

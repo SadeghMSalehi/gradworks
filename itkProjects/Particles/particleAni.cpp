@@ -52,7 +52,6 @@ static pivtk::PropScene g_PropScene;
 
 AniWindow::AniWindow(QWidget* parent) {
     ui.setupUi(this);
-    ui.toolBar->addAction(ui.action_Open);
     ui.toolBar->addAction(ui.actionReset_Camera);
     ui.toolBar->addAction(ui.actionBackward);
     ui.toolBar->addAction(ui.actionForward);
@@ -132,11 +131,6 @@ void AniWindow::CreateParticles() {
 
     g_PropScene.AddProp("particles", actor);
     ui.vtkwidget->GetRenderWindow()->Render();
-}
-
-
-void AniWindow::on_action_Open_triggered() {
-    on_actionOpen_Trace_triggered();
 }
 
 void AniWindow::on_actionOpen_Trace_triggered() {

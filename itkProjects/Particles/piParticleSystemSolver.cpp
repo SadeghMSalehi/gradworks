@@ -218,6 +218,7 @@ namespace pi {
 
         IntensityForce intensityForce(1);
         intensityForce.SetImageContext(&m_ImageContext);
+        intensityForce.SetWorkAtWarpedSpace(true);
 
         std::vector<ParticleCollision> collisionHandlers;
         collisionHandlers.resize(nSubz);
@@ -238,6 +239,11 @@ namespace pi {
         const bool useIntensity = m_Options.GetBool("intensity");
         const bool noInternal = m_Options.GetBool("no_internal");
         const bool noBoundary = m_Options.GetBool("no_boundary");
+
+        if (useEnsemble) cout << "ensemble term enabled" << endl; else cout << "ensemble term disabled" << endl;
+        if (useIntensity) cout << "intensity term enabled" << endl; else cout << "intensity term disabled" << endl;
+        if (noInternal) cout << "internal force disabled" << endl; else cout << "internal force enabled" << endl;
+        if (noBoundary) cout << "boundary term disabled" << endl; else cout << "boundary term enabled" << endl;
         
         m_System.currentIteration = -1;
         for (double t = t0; t < t1; t += dt) {
