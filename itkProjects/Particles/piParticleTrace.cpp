@@ -14,7 +14,7 @@ namespace pi {
         boundingBox.idx = 0;
     }
 
-    bool ParticleSetSeries::AppendParticle(Particle& p, DataReal t) {
+    bool ParticleSetSeries::AppendParticle(int subj, Particle& p, DataReal t) {
         bool isNewTime = false;
         if (lastTime != t) {
             // new time series
@@ -26,6 +26,7 @@ namespace pi {
         ParticleVector& snapshot = timeSeries.back();
         snapshot.push_back(p);
         snapshot.back().t = t;
+        snapshot.back().subj = subj;
         maxIdx = ::max(maxIdx, p.idx);
         if (boundingBox.idx == 0) {
             forcopy (p.x, boundingBox.x);
@@ -65,7 +66,7 @@ namespace pi {
 
         const int n = array.size();
         for (int i = 0; i < n; i++) {
-            system[subj].AppendParticle(array[i], t);
+            system[subj].AppendParticle(subj, array[i], t);
         }
     }
 
@@ -108,7 +109,7 @@ namespace pi {
                 system.resize(p.subj + 1);
             }
             ParticleSetSeries& series = system[p.subj];
-            series.AppendParticle(p, p.t);
+            series.AppendParticle(p.subj, p, p.t);
         }
     }
 

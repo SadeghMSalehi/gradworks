@@ -27,8 +27,10 @@ namespace pi {
         in >> m_Options;
         
         // this requires 'NumberOfParticles:', 'Subjects:'
+        m_System = ParticleSystem();
         m_System.InitializeSystem(m_Options);
 
+        m_ImageContext.Clear();
         StringVector& labelImages = m_Options.GetStringVector("LabelImages:");
         for (int i = 0; i < labelImages.size(); i++) {
             m_ImageContext.LoadLabel(labelImages[i]);

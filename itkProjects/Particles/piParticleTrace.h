@@ -26,7 +26,7 @@ namespace pi {
         DataReal lastTime;
         Particle boundingBox;
         ParticleVectorSeries timeSeries;
-        bool AppendParticle(Particle& p, DataReal t);
+        bool AppendParticle(int subj, Particle& p, DataReal t);
     };
 
     class ParticleTrace {

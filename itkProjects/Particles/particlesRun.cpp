@@ -64,8 +64,8 @@ int main(int argc, char* argv[]) {
             system.ComputeMeanSubject();
             particleTransform.EstimateTransform(system.GetMeanSubject(), system[srcIdx]);
         } else {
-            particleTransform.EstimateTransform(system[dstIdx], system[srcIdx]);
             cout << "warping from " << srcIdx << " to " << dstIdx << endl;
+            particleTransform.EstimateTransform(system[dstIdx], system[srcIdx]);
         }
 
 
@@ -178,6 +178,25 @@ int main(int argc, char* argv[]) {
                 ParticleArray& data = system[i].m_Particles;
                 MarkAtImage<ParticleArray>(data, data.size(), canvas, 1);
                 io.WriteImageT(markingImages[i].c_str(), canvas);
+            }
+        }
+
+        StringVector& warpedLabels = solver.m_Options.GetStringVector("OutputLabelToFirst:");
+        if (warpedLabels.size() > 0) {
+            itkcmds::itkImageIO<LabelImage> io;
+            StringVector& labelImages = solver.m_Options.GetStringVector("LabelImages:");
+            if (warpedLabels.size() != labelImages.size()) {
+                cout << "OutputLabelToFirst: and LabeImages: size are different" << endl;
+            } else {
+                for (int i = 0; i < warpedLabels.size(); i++) {
+                    LabelImage::Pointer label = io.ReadImageT(labelImages[i].c_str());
+                    // bspline resampling
+                    ParticleBSpline particleTransform;
+                    particleTransform.SetReferenceImage(label);
+                    particleTransform.EstimateTransform(system[0], system[i]);
+                    LabelImage::Pointer outputImage = particleTransform.WarpLabel(label);
+                    io.WriteImageT(warpedLabels[i].c_str(), outputImage);
+                }
             }
         }
     }
