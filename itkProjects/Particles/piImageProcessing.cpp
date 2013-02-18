@@ -188,7 +188,9 @@ namespace pi {
 
         GaussianGradientFilterType::Pointer gradientFilter = GaussianGradientFilterType::New();
         gradientFilter->SetInput(toReal->GetOutput());
-        gradientFilter->SetSigma(sigma);
+        if (sigma > -1) {
+            gradientFilter->SetSigma(sigma);
+        }
         gradientFilter->Update();
         return gradientFilter->GetOutput();
     }
@@ -207,7 +209,9 @@ namespace pi {
     GradientImage::Pointer ImageProcessing::ComputeGaussianGradient(RealImage::Pointer img, double sigma) {
         GaussianGradientFilterType::Pointer gradientFilter = GaussianGradientFilterType::New();
         gradientFilter->SetInput(img);
-        gradientFilter->SetSigma(sigma);
+        if (sigma > -1) {
+            gradientFilter->SetSigma(sigma);
+        }
         gradientFilter->Update();
         return gradientFilter->GetOutput();
     }
