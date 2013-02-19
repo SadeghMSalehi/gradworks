@@ -275,6 +275,7 @@ namespace pi {
         if (noInternal) cout << "internal force disabled" << endl; else cout << "internal force enabled" << endl;
         if (noBoundary) cout << "boundary term disabled" << endl; else cout << "boundary term enabled" << endl;
         if (internalForce.useAdaptiveSampling) cout << "adaptive sampling enabled" << endl; else cout << "adaptive sampling disabled" << endl;
+        cout << Attr::NATTRS << " attributes per particle" << endl;
         
         m_System.currentIteration = -1;
         Timer timer;
