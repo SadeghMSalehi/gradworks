@@ -136,6 +136,10 @@ namespace pi {
             std::random_shuffle(indexes.begin(), indexes.end());
         }
 
+        if (indexes.size() <= nPoints) {
+            cout << "too small intersection points...[" << indexes.size() << "]" << endl;
+            return;
+        }
 
         for (int i = 0; i < nPoints; i++) {
             LabelImage::IndexType idx = indexes[i];
@@ -323,6 +327,11 @@ namespace pi {
         m_LabelImages.back()->SetSpacing(defaultSpacing);
 
         m_FileNames.push_back(filename);
+
+        cout << filename << endl;
+        char buf[128];
+        sprintf(buf, "%02d.label_.nrrd", (int) m_LabelImages.size());
+        io.WriteImageT(buf, image);
     }
 
     void ImageContext::LoadRealImage(std::string filename) {
@@ -354,7 +363,7 @@ namespace pi {
         m_Intersection = intersection;
     }
 
-    void ImageContext::ComputeIntersection() {
+    int ImageContext::ComputeIntersection() {
         itkcmds::itkImageIO<LabelImage> io;
         LabelImage::Pointer intersection = io.NewImageT(m_LabelImages[0]);
         LabelImage::RegionType region = intersection->GetBufferedRegion();
@@ -362,12 +371,21 @@ namespace pi {
         // set as member variable to reuse
         m_Intersection = intersection;
 
+        // debug if any of them is empty
+        for (int i = 0; i < m_LabelImages.size(); i++) {
+            char buf[128];
+            sprintf(buf, "%02d.label.nrrd", i);
+            io.WriteImageT(buf, m_LabelImages[i]);
+        }
+
+
         // compute intersection by looping over region
         std::vector<LabelImage::IndexType> indexes;
         LabelImageIteratorType iter(intersection, region);
+        int nIntersectionPixels = 0;
         for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
             LabelImage::IndexType idx = iter.GetIndex();
-            LabelImage::PixelType pixel = 255;
+            LabelImage::PixelType pixel = 1;
             const int pixelThreshold = 1;
             for (int i = 0; i < m_LabelImages.size(); i++) {
                 if (m_LabelImages[i]->GetPixel(idx) < pixelThreshold) {
@@ -376,12 +394,14 @@ namespace pi {
                 }
             }
             if (pixel > 0) {
+                nIntersectionPixels++;
                 intersection->SetPixel(idx, 255);
             }
         }
         if (m_IntersectionOutput != "") {
             io.WriteImageT(m_IntersectionOutput.c_str(), intersection);
         }
+        return nIntersectionPixels;
     }
     
     StringVector& ImageContext::GetRealImageFileNames() {

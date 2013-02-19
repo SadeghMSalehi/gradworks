@@ -14,8 +14,8 @@
 #include "itkGradientImageFilter.h"
 
 
-#ifndef ATTR_DIM
-#define ATTR_DIM 3
+#ifndef ATTR_SIZE
+#define ATTR_SIZE 3
 #endif
 
 namespace pi {
@@ -83,9 +83,9 @@ namespace pi {
     };
 
 #ifdef DIMENSION3
-    typedef ParticleAttribute3D<ATTR_DIM> Attr;
+    typedef ParticleAttribute3D<ATTR_SIZE> Attr;
 #else
-    typedef ParticleAttribute2D<ATTR_DIM> Attr;
+    typedef ParticleAttribute2D<ATTR_SIZE> Attr;
 #endif
 
     class IntensityForce {

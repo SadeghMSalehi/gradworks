@@ -25,6 +25,11 @@ namespace pi {
             cout << "Can't open " << name << endl;
             return false;
         }
+
+        cout << "loading " << name << " ..." << endl;
+#ifdef ATTR_SIZE
+        cout << "attribute size: " << ATTR_SIZE << endl;
+#endif
         in >> m_Options;
         
         // this requires 'NumberOfParticles:', 'Subjects:'
@@ -116,7 +121,12 @@ namespace pi {
             if (io.FileExists(boundary.binaryMaskCache.c_str())) {
                 boundary.SetBinaryMask(io.ReadImageT(boundary.binaryMaskCache.c_str()));
             } else {
-                m_ImageContext.ComputeIntersection();
+                int npixels = m_ImageContext.ComputeIntersection();
+                if (npixels == 0) {
+                    cout << "invalid intersection.. halt" << endl;
+                    exit(0);
+                    return;
+                }
                 boundary.SetLabelImage(m_ImageContext.GetIntersection());
             }
 
@@ -251,8 +261,8 @@ namespace pi {
         IntensityForce intensityForce(1);
         intensityForce.SetImageContext(&m_ImageContext);
         intensityForce.useAttributesAtWarpedSpace = true;
-#ifdef ATTR_DIM
-        m_Options.SetInt("AttributeDimension:", ATTR_DIM);
+#ifdef ATTR_SIZE
+        m_Options.SetInt("AttributeDimension:", ATTR_SIZE);
 #endif
 
         std::vector<ParticleCollision> collisionHandlers;

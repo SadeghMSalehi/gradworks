@@ -117,7 +117,7 @@ namespace pi {
         void LoadLabel(std::string filename);
         void LoadRealImage(std::string filename);
 
-        void ComputeIntersection();
+        int ComputeIntersection();
         void ComputeDistanceMaps();
         LabelImage::Pointer GetLabel(int j);
         RealImage::Pointer GetRealImage(int j);
