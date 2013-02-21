@@ -38,7 +38,7 @@ namespace pi {
         LabelImage::Pointer NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer label);
 
         template <class T>
-        typename T::Pointer TransformImage(typename T::Pointer srcImg, string transform) {
+        typename T::Pointer TransformImage(typename T::Pointer srcImg, std::string transform) {
 
         }
         
