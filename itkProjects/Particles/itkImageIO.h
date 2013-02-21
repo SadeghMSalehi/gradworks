@@ -239,12 +239,12 @@ namespace itkcmds {
         
        	bool FileExists(const char* fileName) {
 			ifstream ifile(fileName);
-			return ifile;
+			return ifile != NULL;
 		}
         
         bool CheckExists(const char* filename) {
             ifstream fin(filename);
-            return fin;
+            return fin != NULL;
         }
         
         static int GetImageDimension() {

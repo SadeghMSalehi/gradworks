@@ -253,9 +253,7 @@ namespace pi {
             bspline.EstimateTransform(system[i], meanSubj);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
             system[i].TransformY2Z(deformableTransform.GetPointer());
-            system[i].m_DeformableTransform = deformableTransform;
         }
-
 
         // now we work at z-space and compute the gradient
         // the gradient is calculated from the entropy of the position matrix;
@@ -287,7 +285,7 @@ namespace pi {
                         f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]);
                     }
                 }
-                iSubj.m_Particles[j].AddForce(f, -m_Coeff);
+//                iSubj.m_Particles[j].AddForce(f, -m_Coeff);
             }
         }
 
