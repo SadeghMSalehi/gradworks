@@ -31,6 +31,7 @@
 #include "itkVectorMagnitudeImageFilter.h"
 #include "itkMesh.h"
 #include "itkBinaryMask3DMeshSource.h"
+#include <itkStatisticsImageFilter.h>
 
 #include "itkImageIO.h"
 
@@ -63,6 +64,7 @@ namespace pi {
     typedef DistanceMapFilterType::VectorImageType DistanceVectorImageType;
     typedef DistanceVectorImageType::PixelType DistancePixelType;
     typedef itk::VectorMagnitudeImageFilter<VectorImage, RealImage> GradientMagnitudeFilterType;
+    typedef itk::StatisticsImageFilter<RealImage> RealImageStatisticsFilterType;
 
     class OffsetToVector {
     public:
@@ -321,7 +323,38 @@ namespace pi {
 #endif
         return NULL;
     }
-    
+
+    LabelImage::Pointer ImageProcessing::NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer mask) {
+        itkcmds::itkImageIO<LabelImage> io;
+        LabelImage::Pointer output = io.NewImageT<RealImage>(src);
+
+        LabelImageIteratorType itermask(mask, mask->GetBufferedRegion());
+        LabelImageIteratorType iterout(output, output->GetBufferedRegion());
+        RealImageIteratorType iterin(src, src->GetBufferedRegion());
+
+        iterout.GoToBegin();
+        iterin.GoToBegin();
+
+        RealImageStatisticsFilterType::Pointer filter = RealImageStatisticsFilterType::New();
+        filter->SetInput(src);
+        filter->Update();
+        DataReal inMax = filter->GetMaximum();
+        DataReal inMin = filter->GetMinimum();
+
+        while (!iterout.IsAtEnd()) {
+            if (itermask.Get() > 0) {
+                DataReal in = iterin.Get();
+                LabelPixel out = (max - min) * (in - inMin) / (inMax - inMin) + min;
+                iterout.Set(out);
+            }
+            ++iterout;
+            ++iterin;
+            ++itermask;
+        }
+
+        return output;
+    }
+
     RealImage::Pointer ImageProcessing::NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label) {
         double sum = 0, sum2 = 0;
         itkcmds::itkImageIO<RealImage> io;

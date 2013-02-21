@@ -327,11 +327,6 @@ namespace pi {
         m_LabelImages.back()->SetSpacing(defaultSpacing);
 
         m_FileNames.push_back(filename);
-
-        cout << filename << endl;
-        char buf[128];
-        sprintf(buf, "%02d.label_.nrrd", (int) m_LabelImages.size());
-        io.WriteImageT(buf, image);
     }
 
     void ImageContext::LoadRealImage(std::string filename) {
@@ -370,14 +365,6 @@ namespace pi {
 
         // set as member variable to reuse
         m_Intersection = intersection;
-
-        // debug if any of them is empty
-        for (int i = 0; i < m_LabelImages.size(); i++) {
-            char buf[128];
-            sprintf(buf, "%02d.label.nrrd", i);
-            io.WriteImageT(buf, m_LabelImages[i]);
-        }
-
 
         // compute intersection by looping over region
         std::vector<LabelImage::IndexType> indexes;

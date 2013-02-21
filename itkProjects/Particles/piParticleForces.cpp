@@ -325,7 +325,7 @@ namespace pi {
 
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
-        const int nRadius = 1;
+        const int nRadius = (int) (ATTR_SIZE / 2);
         itkcmds::itkImageIO<RealImage> io;
 
         m_attrs.resize(nSubj, nPoints);

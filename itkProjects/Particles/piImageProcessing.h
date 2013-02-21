@@ -35,7 +35,13 @@ namespace pi {
         LabelImage::Pointer Ellipse(int* outputSize, double* center, double* radius);
         vtkPolyData* ConvertToMesh(LabelImage::Pointer image);
         RealImage::Pointer NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label);
+        LabelImage::Pointer NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer label);
 
+        template <class T>
+        typename T::Pointer TransformImage(typename T::Pointer srcImg, string transform) {
+
+        }
+        
         template <class T>
         typename T::Pointer RescaleIntensity(typename T::Pointer srcImg, typename T::PixelType min, typename T::PixelType max) const {
             typedef itk::RescaleIntensityImageFilter<T> RescaleFilter;

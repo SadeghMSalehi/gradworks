@@ -27,9 +27,6 @@ namespace pi {
         }
 
         cout << "loading " << name << " ..." << endl;
-#ifdef ATTR_SIZE
-        cout << "attribute size: " << ATTR_SIZE << endl;
-#endif
         in >> m_Options;
         
         // this requires 'NumberOfParticles:', 'Subjects:'

@@ -28,6 +28,8 @@ int main(int argc, char* argv[]) {
         { 15, "--magnitude", SO_NONE },
         { 16, "--distancemap", SO_NONE },
         { 17, "--createmask", SO_NONE },
+        { 18, "--rescaletoshort", SO_NONE },
+        { 19, "--mask", SO_REQ_SEP },
         SO_END_OF_OPTIONS
     };
     Options parser;
@@ -153,6 +155,34 @@ int main(int argc, char* argv[]) {
         ImageProcessing proc;
         RealImage::Pointer output = proc.ComputeMagnitudeMap(input);
         rio.WriteImageT(args[1].c_str(), output);
+    } else if (parser.GetBool("--rescaletoshort")) {
+        if (args.size() < 2) {
+            cout << "--rescaletoshort requires [input-real-image] [output-short-image] [output-min] [output-max] (--mask mask-input)" << endl;
+            return 0;
+        }
+        itkcmds::itkImageIO<RealImage> rio;
+        itkcmds::itkImageIO<LabelImage> lio;
+
+
+        string maskInput;
+        parser.GetStringTo("--mask", maskInput);
+        LabelImage::Pointer mask;
+        if (maskInput != "") {
+            mask = lio.ReadImageT(maskInput.c_str());
+        }
+
+        LabelPixel outMax = 10000;
+        LabelPixel outMin = 0;
+        if (args.size() > 2) {
+            outMin = atoi(args[2].c_str());
+        }
+        if (args.size() > 3) {
+            outMax = atoi(args[3].c_str());
+        }
+        RealImage::Pointer input = rio.ReadImageT(args[0].c_str());
+        ImageProcessing proc;
+        LabelImage::Pointer output = proc.NormalizeToIntegralType(input, outMin, outMax, mask);
+        lio.WriteImageT(args[1].c_str(), output);
     } else if (parser.GetBool("--distancemap")) {
         if (args.size() < 2) {
             cout << "--distancemap requires [input-label-image] [output-vector-image]" << endl;
@@ -175,6 +205,22 @@ int main(int argc, char* argv[]) {
         ImageProcessing proc;
         LabelImage::Pointer output = proc.ThresholdToBinary(input);
         lio.WriteImageT(args[1].c_str(), output);
+    } else if (parser.GetBool("--transform")) {
+//        string realInput, labelInput;
+//        parser.GetStringTo("--inputimage", realInput);
+//        parser.GetStringTo("--inputlabel", labelInput);
+//        string transform;
+//        ImageProcessing proc;
+//        if (realInput != "") {
+//            itkcmds::itkImageIO<RealImage> io;
+//            RealImage::Pointer output = proc.TransformImage<RealImage>(io.ReadImageT(realInput.c_str()));
+//            io.WriteImageT(args[0].c_str(), output);
+//        }
+//        if (labelInput != "") {
+//            itkcmds::itkImageIO<LabelImage> io;
+//            LabelImage::Pointer output = proc.TransformImage<LabelImage>(io.ReadImageT(labelInput.c_str()));
+//            io.WriteImageT(args[0].c_str(), output);
+//        }
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;
