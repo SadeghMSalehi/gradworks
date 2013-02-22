@@ -234,12 +234,14 @@ namespace pi {
         }
     }
 
-    void ParticleSubject::ComputeAlignment(ParticleSubject& dst) {
+    void ParticleSubject::ComputeAlignment(ParticleSubject& dst, bool useSimilarity) {
         typedef vtkSmartPointer<vtkLandmarkTransform> vtkLandmarkTransformType;
         dst.SyncPointsCopy();
         SyncPointsCopy();
         vtkLandmarkTransformType landmarkTransform = vtkLandmarkTransformType::New();
-        landmarkTransform->SetModeToRigidBody();
+        if (useSimilarity) {
+            landmarkTransform->SetModeToSimilarity();
+        }
         landmarkTransform->SetSourceLandmarks(pointscopy);
         landmarkTransform->SetTargetLandmarks(dst.pointscopy);
         landmarkTransform->Update();
