@@ -664,6 +664,17 @@ namespace pi {
                 }
 //                ff.normalize();
                 subj.inverseAlignment->TransformVector(ff.data_block(), m_attrs(i,j).F);
+#ifndef BATCH
+                if (::abs(m_attrs(i,j).F[0]) > 2 || ::abs(m_attrs(i,j).F[1]) > 2 || ::abs(m_attrs(i,j).F[2]) > 2) {
+                    //cout << "too big intensity term! at " << i << " subj " << j << " points: x=" << par.x[0]<< "," << par.x[1] << "," << par.x[2] <<  ";f=" << m_attrs(i,j).F[0] << "," << m_attrs(i,j).F[1] << "," << m_attrs(i,j).F[2] << endl;
+                    cout << i << "." << j << " ";
+                    ff.copy_in(m_attrs(i,j).F);
+                    ff.normalize();
+                    fordim (k) {
+                        m_attrs(i,j).F[k] = ff[k];
+                    }
+                }
+#endif
                 par.AddForce(m_attrs(i,j).F, -coeff);
             }
         }

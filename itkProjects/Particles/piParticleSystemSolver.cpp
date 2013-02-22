@@ -184,9 +184,9 @@ namespace pi {
                 forset(pi.x, pi.w);
                 forfill(pi.f, 0);
             }
-            
+            boundary.ConstrainPoint(sub);
             internalForce.ComputeForce(initial);
-            boundary.HandleCollision(initial);
+            boundary.ProjectForceAndVelocity(sub);
             
             for (int i = 0; i < nPoints; i++) {
                 Particle& p = sub[i];

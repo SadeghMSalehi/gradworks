@@ -126,7 +126,11 @@ namespace pi {
         fordim (k) {
             cp[k] = x1[k] + offset[k];
         }
-#ifndef NDEBUG
+
+#ifndef BATCH
+        if (::abs(offset[0]) > 10 || ::abs(offset[1]) > 10 || ::abs(offset[2]) > 10)  {
+                cout << "too large projection length: " << offset[0] << "," << offset[1] << "," << offset[2] << " at " << x1[0] << "," << x1[1] << "," << x1[2] << endl;
+            }
         fordim(k) {
             idx[k] = cp[k];
         }

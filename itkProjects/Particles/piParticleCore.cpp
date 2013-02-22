@@ -86,9 +86,9 @@ namespace pi {
     }
 
     void Particle::AddForce(DataReal* ff, DataReal alpha) {
-#ifndef NDEBUG
+#ifndef BATCH
         if (abs(ff[0]) > 10 || abs(ff[1]) > 10 || abs(ff[2]) > 10) {
-            cout << "too large force " << endl;
+            cout << "too large force at [" << x[0] << "," << x[1] << "," << x[2] << endl;
         }
 #endif
         fordim(i) {
@@ -225,9 +225,6 @@ namespace pi {
     }
 
     void ParticleSubject::SyncPointsCopy() {
-#ifndef NDEBUG
-        
-#endif
         const int npoints = m_Particles.size();
         for (int i = 0; i < npoints; i++) {
             pointscopy->SetPoint(i, m_Particles[i].x);

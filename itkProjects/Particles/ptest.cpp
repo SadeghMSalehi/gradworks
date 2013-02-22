@@ -186,6 +186,6 @@ void cleanImage(const char* a, const char* b) {
 
 int main(int argc, char* argv[]) {
 //    covtest();
-    entropytest();
-//    cleanImage(argv[1], argv[2]);
+//    entropytest();
+    cleanImage(argv[1], argv[2]);
 }
