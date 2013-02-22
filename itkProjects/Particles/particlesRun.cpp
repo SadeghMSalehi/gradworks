@@ -7,7 +7,6 @@
 #include "piParticleForces.h"
 #include "piParticleBSpline.h"
 #include "piImageProcessing.h"
-#include "piImageWarp.h"
 
 using namespace std;
 using namespace pi;

@@ -14,7 +14,7 @@
 using namespace pi;
 
 void covtest() {
-    IntensityForce force(1);
+    IntensityForce force;
 
     // case L > S
     const int L = Attr::NATTRS;
@@ -168,7 +168,24 @@ void entropytest() {
     cout << gradientOut << endl;
 }
 
-int main() {
+void cleanImage(const char* a, const char* b) {
+    typedef itk::Image<short,3> I;
+    itkcmds::itkImageIO<I> io;
+    I::Pointer img = io.ReadImageT(a);
+
+    itk::ImageRegionIterator<I> iter(img, img->GetBufferedRegion());
+    iter.GoToBegin();
+    while (!iter.IsAtEnd()) {
+        if (iter.Get() < 0) {
+            iter.Set(0);
+        }
+        ++iter;
+    }
+    io.WriteImageT(b, img);
+}
+
+int main(int argc, char* argv[]) {
 //    covtest();
     entropytest();
+//    cleanImage(argv[1], argv[2]);
 }

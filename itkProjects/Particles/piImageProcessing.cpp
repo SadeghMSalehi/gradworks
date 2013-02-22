@@ -342,7 +342,7 @@ namespace pi {
         DataReal inMin = filter->GetMinimum();
 
         while (!iterout.IsAtEnd()) {
-            if (itermask.Get() > 0) {
+            if (mask.IsNull() || itermask.Get() > 0) {
                 DataReal in = iterin.Get();
                 LabelPixel out = (max - min) * (in - inMin) / (inMax - inMin) + min;
                 iterout.Set(out);

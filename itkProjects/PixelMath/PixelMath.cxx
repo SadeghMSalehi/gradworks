@@ -2,7 +2,7 @@
 
 #include "itkImageCommon.h"
 #include "PixelMathImageFilter.h"
-typedef itk::Image<unsigned int,3> ImageType;
+typedef itk::Image<short,3> ShortImageType;
 
 #include "itkUnaryFunctorImageFilter.h"
 
@@ -34,22 +34,23 @@ PixelMath - pixel-wise math expression evaluator\n\n\
 
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 
+template <class T>
 void run(vector<string> &inputfiles, string &outfile, string &eq, bool query) {
 	int ret;
-	typedef PixelMathImageFilter<ImageType,ImageType> PixelMathFilter;
-	PixelMathFilter::Pointer pixelMath = PixelMathFilter::New();
+	typedef PixelMathImageFilter<T,T> PixelMathFilter;
+	typename PixelMathFilter::Pointer pixelMath = PixelMathFilter::New();
 	if (inputfiles.size() > 5) {
 		cout << "Currently, up to 5 images can be processed" << endl;
 		return;
 	}
 	for (unsigned int i = 0; i < inputfiles.size(); i++) {
-		ImageType::Pointer input = ReadImageT<ImageType>(inputfiles[i].c_str(),ret);
+		typename T::Pointer input = ReadImageT<T>(inputfiles[i].c_str(),ret);
 		pixelMath->PushBackInput(input);
 	}
 	pixelMath->SetEquation(eq);
 	pixelMath->Update();
-	ImageType::Pointer output = pixelMath->GetOutput();
-	WriteImageT<ImageType>(outfile.c_str(), output);
+	typename T::Pointer output = pixelMath->GetOutput();
+	WriteImageT<T>(outfile.c_str(), output);
 }
 
 int main(int argc, char* argv[]) {
@@ -84,5 +85,5 @@ int main(int argc, char* argv[]) {
 	}
 
 	vector<string> inputFiles = vm["files"].as< vector<string> >();
-	run(inputFiles, outfile, eq, query);
+	run<ShortImageType>(inputFiles, outfile, eq, query);
 }

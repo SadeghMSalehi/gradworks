@@ -329,26 +329,27 @@ namespace pi {
 
                 // compute internal force
                 for (int n = 0; n < nSubz; n++) {
-                    ParticleSubject& sub = subs[n];
                     for (int i = 0; i < nPoints; i++) {
-                        Particle& pi = sub[i];
+                        Particle& pi = m_System[n][i];
                         forfill(pi.f, 0);
                     }
-                    collisionHandlers[n].ConstrainPoint(sub);
-                    if (!noInternal) {
-                        internalForce.ComputeForce(sub);
-                    }
+                    collisionHandlers[n].ConstrainPoint(m_System[n]);
                 }
-                
-                
+                m_System.ComputeMeanSubject();
+                if (!noInternal) {
+                    for (int n = 0; n < nSubz; n++) {
+                        m_System[n].ComputeAlignment(m_System.GetMeanSubject());
+                        m_System[n].AlignmentTransformX2Y();
+                        internalForce.ComputeForce(m_System[n]);
+                    }
+                    m_System.ComputeMeanSubject();
+                }
                 if (useEnsemble) {
                     ensembleForce.ComputeEnsembleForce(m_System);
                 }
-                
                 if (useIntensity) {
                     intensityForce.ComputeIntensityForce(&m_System);
                 }
-                
                 // system update
                 for (int n = 0; n < nSubz; n++) {
                     ParticleSubject& sub = subs[n];
