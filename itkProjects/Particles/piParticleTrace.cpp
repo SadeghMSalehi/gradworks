@@ -102,9 +102,15 @@ namespace pi {
                 cout << "subject id is negative or larger than 100" << endl;
                 continue;
             }
-            fordim (k) {
-                is >> p.x[k];
+
+            if (isFullTrace) {
+                is >> p;
+            } else {
+                fordim (k) {
+                    is >> p.x[k];
+                }
             }
+
             if (p.subj >= system.size()) {
                 system.resize(p.subj + 1);
             }

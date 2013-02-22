@@ -38,6 +38,7 @@
     </property>
     <addaction name="actionOpen_System"/>
     <addaction name="actionOpen_Trace"/>
+    <addaction name="actionOpen_FullTrace"/>
     <addaction name="action_Close"/>
    </widget>
    <widget class="QMenu" name="menuPlay">
@@ -340,6 +341,11 @@
   <action name="actionMark_At_Image">
    <property name="text">
     <string>Mark At Image</string>
+   </property>
+  </action>
+  <action name="actionOpen_FullTrace">
+   <property name="text">
+    <string>Open FullTrace</string>
    </property>
   </action>
  </widget>

@@ -91,6 +91,7 @@ namespace pi {
         VNLDoubleVector mean;
         VNLDoubleMatrix covariance;
         VNLDoubleMatrix inverseCovariance;
+        VNLDoubleMatrix gradient;
 
         EntropyComputer(int data, int samples, int elems)
             : dataMatrix(data,samples*elems), dataIter(dataMatrix.data_block(),samples, elems),
@@ -100,7 +101,7 @@ namespace pi {
         void MoveToCenter();
         // in dual space
         bool ComputeCovariance(double alpha = 1);
-        bool ComputeGradient(VNLDoubleMatrix& gradientOut);
+        bool ComputeGradient();
 
     private:
         EntropyComputer() :dataIter(NULL,0,0){};

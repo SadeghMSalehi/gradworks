@@ -245,57 +245,85 @@ namespace pi {
             system[i].AlignmentTransformX2Y();
         }
 
+        ParticleSubject& meanSubj = system.GetMeanSubject();        
+        // compute mean(Y)
+        for (int j = 0; j < nPoints; j++) {
+            fordim (k) {
+                meanSubj[j].y[k] = 0;
+            }
+            for (int i = 0; i < nSubjects; i++) {
+                fordim (k) {
+                    meanSubj[j].y[k] += system[i][j].y[k];
+                }
+            }
+            fordim (k) {
+                meanSubj[j].y[k] /= nSubjects;
+            }
+        }
+        
         // now working at y-space estimating b-spline transform from the subject to the mean
-        ParticleSubject& meanSubj = system.GetMeanSubject();
         for (int i = 0; i < nSubjects; i++) {
             ParticleBSpline bspline;
             bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
-            bspline.EstimateTransform(system[i], meanSubj);
+            bspline.EstimateTransformY(system[i], meanSubj);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
             system[i].TransformY2Z(deformableTransform.GetPointer());
+            system[i].m_DeformableTransform = deformableTransform;
         }
+
 
         // now we work at z-space and compute the gradient
         // the gradient is calculated from the entropy of the position matrix;
         // later we may have to change to consolidate attribute function
         // for that, we create a big array at a system so that we can compute it later
         // let's use plenty of memory space!
+        // now i'm back, and let's compute point gradient
+        
+        EntropyComputer comp(nSubjects, nPoints, __Dim);
+        comp.dataIter.FirstData();
+        for (int i = 0; i < nSubjects; i++) {
+            ParticleSubject& subj = system[i];
+            for (int j = 0; j < nPoints; j++) {
+                Particle& p = subj[j];
+                fordim (k) {
+                    comp.dataIter.sample[k] = p.z[k];
+                }
+                comp.dataIter.NextSample();
+            }
+            comp.dataIter.NextData();
+        }
+        comp.MoveToCenter();
+        comp.ComputeCovariance();
+        comp.ComputeGradient();
 
+        DataIterator3 gradIter(comp.gradient.data_block(), nPoints, __Dim);
+        gradIter.FirstData();
         for (int i = 0; i < nSubjects; i++) {
             ParticleSubject& iSubj = system[i];
             #pragma omp parallel for
             for (int j = 0; j < nPoints; j++) {
-                FieldTransformType::InputPointType xPoint;
-                FieldTransformType::JacobianType xJac;
-                xJac.set_size(__Dim,__Dim);
-
-                DataReal f[__Dim] = { 0, };
-                DataReal *x = iSubj.m_Particles[j].x;
-                DataReal *y = iSubj.m_Particles[j].y;
-                DataReal *my = meanSubj[j].y;
+                Particle& pj = iSubj[j];
+                FieldTransformType::InputPointType xJac;
+                FieldTransformType::JacobianType invJac;
+                invJac.set_size(__Dim,__Dim);
                 fordim(k) {
-                    xPoint[k] = x[k];
+                    xJac[k] = pj.y[k];
                 }
-                iSubj.m_DeformableTransform->ComputeInverseJacobianWithRespectToPosition(xPoint, xJac);
-//                shapes[i].m_Transform->ComputeJacobianWithRespectToPosition(xPoint, xJac);
+                iSubj.m_DeformableTransform->ComputeInverseJacobianWithRespectToPosition(xJac, invJac);
+                DataReal fM[__Dim];
                 fordim(k) {
-                    if (__Dim == 3) {
-                        f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]) + xJac[2][k]*(y[2]-my[2]);
-                    } else if (__Dim == 2) {
-                        f[k] = xJac[0][k]*(y[0]-my[0]) + xJac[1][k]*(y[1]-my[1]);
+                    fM[k] = 0;
+                    fordim(l) {
+                        fM[k] += invJac[l][k]*gradIter.sample[l];
                     }
                 }
-//                iSubj.m_Particles[j].AddForce(f, -m_Coeff);
+                DataReal fV[__Dim];
+                iSubj.inverseAlignment->TransformVector(fM, fV);
+                pj.AddForce(fV, -m_Coeff);
+                gradIter.NextSample();
             }
+            gradIter.NextData();
         }
-
-//        // recover coordinates of particles
-//        for (int i = 0; i < nSubjects; i++) {
-//            ParticleSubject& subject = system[i];
-//            AffineTransformType::Pointer inverse = AffineTransformType::New();
-//            subject.m_AffineTransform->GetInverse(inverse.GetPointer());
-////            subject.TransformX2X(inverse);
-//        }
     }
 
 

@@ -26,6 +26,7 @@ int main(int argc, char* argv[]) {
         { 7, "--dstidx", SO_REQ_SEP },
         { 6, "--noTrace", SO_NONE },
         { 10, "--markTrace", SO_NONE },
+        { 23, "--markOutput", SO_NONE },
         { 11, "--srcsubj", SO_REQ_SEP },
         { 12, "--inputimage", SO_REQ_SEP },
         { 13, "--inputlabel", SO_REQ_SEP },
@@ -38,6 +39,7 @@ int main(int argc, char* argv[]) {
         { 20, "--align", SO_NONE },
         { 21, "--warp", SO_NONE },
         { 22, "--norigidalign", SO_NONE },
+        { 24, "--onlyrigidalign", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
@@ -139,7 +141,7 @@ int main(int argc, char* argv[]) {
             if (refImageName != "") {
                 refImage = realIO.ReadImageT(refImageName.c_str());
             }
-            RealImage::Pointer output = warp_image<RealImage>(system[dstIdx], system[srcIdx], realIO.ReadImageT(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"));
+            RealImage::Pointer output = warp_image<RealImage>(system[dstIdx], system[srcIdx], realIO.ReadImageT(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
             realIO.WriteImageT(outputName.c_str(), output);
         }
         if (inputLabel != "") {
@@ -148,7 +150,7 @@ int main(int argc, char* argv[]) {
             if (refImageName != "") {
                 refImage = labelIO.ReadImageT(refImageName.c_str());
             }
-            LabelImage::Pointer output = warp_image<LabelImage>(system[dstIdx], system[srcIdx], labelIO.ReadImageT(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"));
+            LabelImage::Pointer output = warp_image<LabelImage>(system[dstIdx], system[srcIdx], labelIO.ReadImageT(inputLabel.c_str()), refImage, true, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
             labelIO.WriteImageT(outputName.c_str(), output);
         }
     } else if (parser.GetBool("--markTrace")) {
@@ -184,6 +186,14 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
+    } else if (parser.GetBool("--markOutput")) {
+        if (args.size() < 1) {
+            cout << "--markOutput requires [output.txt] [output-image]" << endl;
+        }
+        solver.LoadConfig(args[0].c_str());
+        LabelImage::Pointer label = labelIO.NewImageT(solver.m_ImageContext.GetLabel(srcIdx));
+        MarkAtImage(system[srcIdx], system[srcIdx].GetNumberOfPoints(), label, 1);
+        labelIO.WriteImageT(args[1].c_str(), label);
     } else if (parser.GetBool("--normalize")) {
         if (args.size() < 3) {
             cout << "--normalize requires [input-image] [mask-image] [output-image]" << endl;

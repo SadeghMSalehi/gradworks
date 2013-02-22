@@ -31,6 +31,8 @@ namespace pi {
 
     class ParticleTrace {
     public:
+        ParticleTrace() : isFullTrace(false) {}
+        bool isFullTrace;
         void Clear();
         void Resize(int n);
         void Add(DataReal t, ParticleSubject& subj);

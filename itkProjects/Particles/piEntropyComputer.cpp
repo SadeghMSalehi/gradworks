@@ -84,7 +84,7 @@ namespace pi {
 
 
 
-    bool EntropyComputer::ComputeGradient(VNLDoubleMatrix& gradient) {
+    bool EntropyComputer::ComputeGradient() {
         // Y*(K+I)^-1
         dataIter.FirstData();
         gradient.set_size(ndata, ndatasize);

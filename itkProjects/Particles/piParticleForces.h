@@ -12,6 +12,7 @@
 #include <iostream>
 #include "piParticleCore.h"
 #include "itkGradientImageFilter.h"
+#include "piEntropyComputer.h"
 
 
 #ifndef ATTR_SIZE

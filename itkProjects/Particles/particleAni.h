@@ -28,6 +28,7 @@ public:
 
 public slots:
     void on_actionOpen_Trace_triggered();
+    void on_actionOpen_FullTrace_triggered();
     void on_actionOpen_System_triggered();
     void on_actionForward_triggered();
     void on_actionBackward_triggered();
@@ -47,6 +48,7 @@ public slots:
     void on_glyphRadius_valueChanged(double r);
     
 private:
+    void OpenTrace(const char* file, bool useFullTrace = false);
     void ShowTraceParticles();
 
 private:

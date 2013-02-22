@@ -76,7 +76,7 @@ namespace pi {
         int GetStringAsInt(std::string name, int def);
         OptionReal GetReal(std::string name, OptionReal def);
         OptionReal GetStringAsReal(std::string name, OptionReal def);
-        std::string GetString(std::string name, std::string def);
+        std::string GetString(std::string name, std::string def = "");
 
         StringVector& GetStringVector(std::string name);
         std::string GetStringVectorValue(std::string name, int i, std::string def = "");

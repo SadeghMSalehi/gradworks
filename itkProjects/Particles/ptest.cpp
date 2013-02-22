@@ -161,7 +161,7 @@ void entropytest() {
     comp.ComputeCovariance();
 
     VNLDoubleMatrix gradientOut;
-    comp.ComputeGradient(gradientOut);
+    comp.ComputeGradient();
     cout << comp.covariance << endl;
     cout << comp.inverseCovariance << endl;
     cout << comp.dataMatrix << endl;

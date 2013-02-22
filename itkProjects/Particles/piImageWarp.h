@@ -16,7 +16,7 @@
 
 namespace pi {
     template <class S>
-    typename S::Pointer warp_image(ParticleSubject& fixed, ParticleSubject& moving, typename S::Pointer m, typename S::Pointer ref, bool useNN, bool noRigidAlign) {
+    typename S::Pointer warp_image(ParticleSubject& fixed, ParticleSubject& moving, typename S::Pointer m, typename S::Pointer ref, bool useNN, bool noRigidAlign, bool onlyRigidAlign) {
 
         // We warp a given image m to m' based on a set of landmarks fixed and moving.
         // We do not assume that the landmarks are rigidly aligned.
@@ -43,11 +43,22 @@ namespace pi {
         if (ref.IsNull()) {
             ref = m;
         }
-        bsp.EstimateTransform<ParticleYCaster,S>(fixed, moving, fixed.GetNumberOfPoints(), ref);
+        if (!onlyRigidAlign) {
+            if (!noRigidAlign) {
+                bsp.EstimateTransform<ParticleYCaster,S>(fixed, moving, fixed.GetNumberOfPoints(), ref);
+            } else {
+                bsp.EstimateTransform<ParticleXCaster,S>(fixed, moving, fixed.GetNumberOfPoints(), ref);
+            }
+        }
 
         typedef itk::CompositeTransform<PointReal,__Dim> CompositeTransformType;
         typename CompositeTransformType::Pointer transform = CompositeTransformType::New();
-        transform->AddTransform(bsp.GetTransform());
+//        if (!noRigidAlign) {
+//            transform->AddTransform(affineTransform->GetInverseTransform());
+//        }
+        if (!onlyRigidAlign) {
+            transform->AddTransform(bsp.GetTransform());
+        }
         if (!noRigidAlign) {
             transform->AddTransform(affineTransform);
         }

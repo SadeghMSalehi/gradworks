@@ -84,7 +84,7 @@ namespace pi {
         }
     }
 
-    void Particle::AddForce(const DataReal* ff, DataReal alpha) {
+    void Particle::AddForce(DataReal* ff, DataReal alpha) {
 #ifndef NDEBUG
         if (abs(ff[0]) > 10 || abs(ff[1]) > 10 || abs(ff[2]) > 10) {
             cout << "too large force " << endl;
@@ -155,6 +155,8 @@ namespace pi {
         if (alignment.GetPointer() == NULL) {
             alignment = vtkTransformType::New();
             inverseAlignment = vtkTransformType::New();
+            alignment->Identity();
+            inverseAlignment->Identity();
         }
     }
 
@@ -588,8 +590,12 @@ namespace pi {
                 // sum over all subject j
                 for (int j = 0; j < nSubjects; j++) {
                     m_MeanSubject[i].x[k] += m_Subjects[j][i].x[k];
+                    m_MeanSubject[i].y[k] += m_Subjects[j][i].y[k];
+                    m_MeanSubject[i].z[k] += m_Subjects[j][i].z[k];
                 }
                 m_MeanSubject[i].x[k] /= nSubjects;
+                m_MeanSubject[i].y[k] /= nSubjects;
+                m_MeanSubject[i].z[k] /= nSubjects;
             }
         }
         return m_MeanSubject;

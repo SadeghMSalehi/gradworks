@@ -38,7 +38,7 @@ public:
 
 int main(int argc, char* argv[]) {
     using namespace pi;
-    CSimpleOpt::SOption[] options ={
+    CSimpleOpt::SOption options[] ={
         { 1, "--gui", SO_NONE },
         SO_END_OF_OPTIONS
     };

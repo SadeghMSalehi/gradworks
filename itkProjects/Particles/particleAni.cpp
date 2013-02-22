@@ -133,19 +133,17 @@ void AniWindow::CreateParticles() {
     ui.vtkwidget->GetRenderWindow()->Render();
 }
 
-void AniWindow::on_actionOpen_Trace_triggered() {
+void AniWindow::OpenTrace(const char* file, bool useFullTrace) {
     g_showType = SHOW_TRACE;
-
+    
     ui.timeSteps->show();
     g_Trace.Clear();
     ui.subjects->clear();
-
-    QString filename = QFileDialog::getOpenFileName(this, "Open Trace File", ".", "*.txt");
-    if (filename.isNull()) {
-        return;
-    }
-
-    ifstream in(filename.toUtf8().data());
+   
+    
+    ifstream in(file);
+    g_Trace.isFullTrace = useFullTrace;
+    
     if (in.is_open()) {
         g_Trace.Read(in);
         int n = g_Trace.system.size();
@@ -153,7 +151,7 @@ void AniWindow::on_actionOpen_Trace_triggered() {
             return;
         }
         ui.statusbar->showMessage(QString("%1 Points and %2 Times and %3 Subjects" ).arg(g_Trace.system[0].maxIdx + 1).arg(g_Trace.system[0].timeSeries.size()).arg(g_Trace.system.size()));
-
+        
         for (int i = 0; i < n; i++) {
             ui.subjects->addItem(QString("subj-%1").arg(i));
         }
@@ -161,7 +159,22 @@ void AniWindow::on_actionOpen_Trace_triggered() {
     ui.timeSteps->setMaximum(g_Trace.system[0].timeSeries.size()-1);
     ui.timeStepSpin->setMaximum(g_Trace.system[0].timeSeries.size()-1);
     ui.timeSteps->setEnabled(true);
+}
 
+void AniWindow::on_actionOpen_Trace_triggered() {
+    QString filename = QFileDialog::getOpenFileName(this, "Open Trace File", ".", "*.txt");
+    if (filename.isNull()) {
+        return;
+    }
+    OpenTrace(filename.toUtf8().data(), false);
+}
+
+void AniWindow::on_actionOpen_FullTrace_triggered() {
+    QString filename = QFileDialog::getOpenFileName(this, "Open Trace File", ".", "*.txt");
+    if (filename.isNull()) {
+        return;
+    }
+    OpenTrace(filename.toUtf8().data(), true);
 }
 
 void AniWindow::on_actionOpen_System_triggered() {
@@ -303,7 +316,7 @@ void AniWindow::on_actionLabel_Registration_triggered() {
         if (g_Trace.system.size() > 1) {
             ParticleVector& srcVector = g_Trace.system[0].timeSeries[g_CurrentFrame];
             ParticleVector& dstVector = g_Trace.system[1].timeSeries[g_CurrentFrame];
-            particleTransform.EstimateTransform<ParticleVector>(srcVector, dstVector, srcVector.size());
+            particleTransform.EstimateTransform<ParticleXCaster, LabelImage, ParticleVector>(srcVector, dstVector, srcVector.size(), sourceImage);
         } else {
             cout << "Not enough subject for registration" << endl;
             return;
