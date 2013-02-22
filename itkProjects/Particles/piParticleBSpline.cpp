@@ -12,8 +12,6 @@
 
 
 namespace pi {
-
-
     LabelImage::Pointer ParticleBSpline::GetReferenceImage() {
         return m_RefImage;
     }
@@ -23,9 +21,16 @@ namespace pi {
     }
 
     void ParticleBSpline::EstimateTransform(const ParticleSubject& src, const ParticleSubject& dst) {
-        this->EstimateTransform<ParticleSubject>(src, dst, src.GetNumberOfPoints());
+        this->EstimateTransform<ParticleXCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
     }
 
+    void ParticleBSpline::EstimateTransformY(const ParticleSubject& src, const ParticleSubject& dst) {
+        this->EstimateTransform<ParticleYCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
+    }
+
+    void ParticleBSpline::EstimateTransformZ(const ParticleSubject& src, const ParticleSubject& dst) {
+        this->EstimateTransform<ParticleZCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
+    }
 
     void ParticleBSpline::ApplyTransform(ParticleSubject& a) {
 

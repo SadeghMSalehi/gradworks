@@ -17,6 +17,15 @@
 #include "boost/numeric/ublas/matrix.hpp"
 #include "boost/numeric/ublas/io.hpp"
 
+#include <vtkProcrustesAlignmentFilter.h>
+#include <vtkLandmarkTransform.h>
+#include "vtkPolyData.h"
+#include "vtkPoints.h"
+#include "vtkPolyDataWriter.h"
+#include "vtkFloatArray.h"
+#include "vtkPointData.h"
+#include "piVTK.h"
+
 #define __show2(t,x,m,n) for (int _=0;_<m;_++) { cout << t << " #" << _ << ":"; for (int __=0;__<n;__++) cout << " " << x[__+_*n]; cout << endl; }
 #define __show1(x,m) cout << #x << ":"; for (int _=0;_<m;_++) cout << " " << x[_]; cout << endl;
 #define __showmatrix(x,m,n) for (int _=0;_<m;_++) { for (int __=0;__<n;__++) cout << x(_,__); cout << endl; }; cout << endl
@@ -110,7 +119,7 @@ namespace pi {
     void EntropyInternalForce::ComputeForce(ParticleSubject& subj) {
         const int nPoints = subj.GetNumberOfPoints();
 
-        bool useKappa = useAdaptiveSampling && subj.kappa.IsNotNull();
+        bool useKappa = useAdaptiveSampling && subj.kappaSampler.IsNotNull();
 #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             Particle& pi = subj.m_Particles[i];
@@ -133,7 +142,7 @@ namespace pi {
                         fordim (k) {
                             jIdx[k] = pj.x[k];
                         }
-                        kappa = subj.kappa->EvaluateAtContinuousIndex(jIdx);
+                        kappa = subj.kappaSampler->EvaluateAtContinuousIndex(jIdx);
                         kappa *= kappa;
                     }
                     DataReal dij = sqrt(pi.Dist2(pj));
@@ -180,7 +189,7 @@ namespace pi {
     }
 
 
-    EnsembleForce::EnsembleForce(DataReal coeff) : m_Coeff(coeff) {
+    EnsembleForce::EnsembleForce(DataReal coeff) : m_Coeff(coeff), useBSplineAlign(false) {
 
     }
 
@@ -192,30 +201,30 @@ namespace pi {
         m_ImageContext = context;
     }
 
-    void EnsembleForce::ComputeMeanShape(ParticleSubjectArray& shapes) {
-        if (shapes.size() < 1) {
-            return;
-        }
-        
-        const int nSubjects = shapes.size();
-        const int nPoints = shapes[0].GetNumberOfPoints();
+//    void EnsembleForce::ComputeMeanShape(ParticleSubjectArray& shapes) {
+//        if (shapes.size() < 1) {
+//            return;
+//        }
+//        
+//        const int nSubjects = shapes.size();
+//        const int nPoints = shapes[0].GetNumberOfPoints();
+//
+//        m_MeanShape.m_SubjId = -1;
+//        m_MeanShape.NewParticles(shapes[0].GetNumberOfPoints());
+//
+//        // for every dimension k
+//        fordim(k) {
+//            // for every point i
+//            for (int i = 0; i < nPoints; i++) {
+//                // sum over all subject j
+//                for (int j = 0; j < nSubjects; j++) {
+//                    m_MeanShape[i].x[k] += shapes[j][i].x[k];
+//                }
+//                m_MeanShape[i].x[k] /= nSubjects;
+//            }
+//        }
+//    }
 
-        m_MeanShape.m_SubjId = -1;
-        m_MeanShape.NewParticles(shapes[0].GetNumberOfPoints());
-
-        // for every dimension k
-        fordim(k) {
-            // for every point i
-            for (int i = 0; i < nPoints; i++) {
-                // sum over all subject j
-                for (int j = 0; j < nSubjects; j++) {
-                    m_MeanShape[i].x[k] += shapes[j][i].x[k];
-                }
-                m_MeanShape[i].x[k] /= nSubjects;
-            }
-        }
-    }
-    
     void EnsembleForce::ComputeEnsembleForce(ParticleSystem& system) {
         if (system.GetNumberOfSubjects() < 2) {
             return;
@@ -223,48 +232,36 @@ namespace pi {
         const int nPoints = system.GetNumberOfParticles();
         const int nSubjects = system.GetNumberOfSubjects();
 
-        // Compute offset for origin-centered shapes
-        VNLMatrix centers(nSubjects, 4);
-        centers.fill(0);
+        // Here, we align particles with the mean subject
+        // Let y be an aligned coordinate of a particle position x.
+        // The deformed coordinate z is estimated from the bspline landmark transform from y
+        // An ensemble force f_z in z-space is computed.
+        // An ensemble force f_y in y-space is computed by multiplying jacobian of the bspline
+        // An ensemble force f_x in the original x-space is computed by multiplying the jacobian of the alignment transform
+
+        // we assume that the mean and its corresponding alignment is already computed
+        // therefore, we store y from x
         for (int i = 0; i < nSubjects; i++) {
-            ParticleSubject& subject = system[i];
-            fordim(k) {
-                for (int j = 0; j < nPoints; j++) {
-                    Particle& par = subject[j];
-                    centers[i][k] += par.x[k];
-                }
-                centers[i][k] /= nPoints;
-            }
-            AffineTransformType::Pointer affineTransform = AffineTransformType::New();
-            AffineTransformType::OutputVectorType offset;
-            fordim(k) {
-                offset[k] -= centers[i][k];
-            }
-            affineTransform->Translate(offset);
-            subject.m_AffineTransform = affineTransform;
-//            subject.TransformX2X(affineTransform.GetPointer());
+            system[i].AlignmentTransformX2Y();
         }
-        
-        // Compute xMeanShape
-        ComputeMeanShape(system.GetSubjects());
+
+        // now working at y-space estimating b-spline transform from the subject to the mean
+        ParticleSubject& meanSubj = system.GetMeanSubject();
         for (int i = 0; i < nSubjects; i++) {
             ParticleBSpline bspline;
             bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
-            bspline.EstimateTransform(system[i], m_MeanShape);
+            bspline.EstimateTransform(system[i], meanSubj);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
-            system[i].TransformX2Y(deformableTransform.GetPointer());
+            system[i].TransformY2Z(deformableTransform.GetPointer());
             system[i].m_DeformableTransform = deformableTransform;
         }
 
-        // Compute yMeanShape
-        fordim(k) {
-            for (int j = 0; j < nPoints; j++) {
-                for (int i = 0; i < nSubjects; i++) {
-                    m_MeanShape[j].y[k] += system[i][j].y[k];
-                }
-                m_MeanShape[j].y[k] /= nSubjects;
-            }
-        }
+
+        // now we work at z-space and compute the gradient
+        // the gradient is calculated from the entropy of the position matrix;
+        // later we may have to change to consolidate attribute function
+        // for that, we create a big array at a system so that we can compute it later
+        // let's use plenty of memory space!
 
         for (int i = 0; i < nSubjects; i++) {
             ParticleSubject& iSubj = system[i];
@@ -277,7 +274,7 @@ namespace pi {
                 DataReal f[__Dim] = { 0, };
                 DataReal *x = iSubj.m_Particles[j].x;
                 DataReal *y = iSubj.m_Particles[j].y;
-                DataReal *my = m_MeanShape[j].y;
+                DataReal *my = meanSubj[j].y;
                 fordim(k) {
                     xPoint[k] = x[k];
                 }
@@ -294,17 +291,17 @@ namespace pi {
             }
         }
 
-        // recover coordinates of particles
-        for (int i = 0; i < nSubjects; i++) {
-            ParticleSubject& subject = system[i];
-            AffineTransformType::Pointer inverse = AffineTransformType::New();
-            subject.m_AffineTransform->GetInverse(inverse.GetPointer());
-//            subject.TransformX2X(inverse);
-        }
+//        // recover coordinates of particles
+//        for (int i = 0; i < nSubjects; i++) {
+//            ParticleSubject& subject = system[i];
+//            AffineTransformType::Pointer inverse = AffineTransformType::New();
+//            subject.m_AffineTransform->GetInverse(inverse.GetPointer());
+////            subject.TransformX2X(inverse);
+//        }
     }
 
 
-
+    
     //
 
     IntensityForce::IntensityForce(DataReal coeff)

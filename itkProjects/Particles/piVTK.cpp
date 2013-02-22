@@ -18,6 +18,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkProperty.h"
 #include "vtkPolyDataReader.h"
+#include "vtkPolyDataWriter.h"
 #include "vtkRenderer.h"
 #include "vtkDiskSource.h"
 #include "vtkPlaneSource.h"
@@ -189,5 +190,14 @@ namespace pivtk {
     void PropScene::Clear() {
         m_PropMap.clear();
         m_Renderer->RemoveAllViewProps();
+    }
+
+
+    void vtk_write_polydata(const char* f, vtkPolyData* p) {
+        vtkPolyDataWriter* w = vtkPolyDataWriter::New();
+        w->SetInput(p);
+        w->SetFileName(f);
+        w->Write();
+        w->Delete();
     }
 }

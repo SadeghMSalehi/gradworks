@@ -9,6 +9,12 @@
 #include "piParticleForces.h"
 #include "piParticleCollision.h"
 #include "piImageProcessing.h"
+#include "vtkMatrix4x4.h"
+#include "vtkPolyData.h"
+#include "vtkFloatArray.h"
+#include "vtkPointData.h"
+#include "piVTK.h"
+#include "vtkLandmarkTransform.h"
 
 namespace pi {
     ostream& operator<<(ostream& os, const Particle& par) {
@@ -31,6 +37,29 @@ namespace pi {
         return is;
     }
 
+    ostream& operator<<(ostream& os, const vtkTransformType& t) {
+        vtkMatrix4x4* mat = t->GetMatrix();
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                os << mat->GetElement(i, j) << " ";
+            }
+        }
+        return os;
+    }
+
+    istream& operator>>(istream& is, vtkTransformType& t) {
+        vtkMatrix4x4* mat = t->GetMatrix();
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                double v;
+                is >> v;
+                mat->SetElement(i, j, v);
+            }
+        }
+        t->SetMatrix(mat);
+        return is;
+    }
+    
     // constructor
     // set every member variable as zero
     Particle::Particle() {
@@ -91,6 +120,9 @@ namespace pi {
         return (*this);
     }
 
+    ParticleSubject::ParticleSubject(): m_SubjId(-1) {
+    }
+
     ParticleSubject::ParticleSubject(int subjid, int npoints) : m_SubjId(subjid) {
         NewParticles(npoints);
     }
@@ -115,7 +147,15 @@ namespace pi {
 
     void ParticleSubject::NewParticles(int n) {
         m_Particles.resize(n);
+        if (pointscopy.GetPointer() == NULL) {
+            pointscopy = vtkPointsType::New();
+            pointscopy->SetNumberOfPoints(n);
+        }
         Zero();
+        if (alignment.GetPointer() == NULL) {
+            alignment = vtkTransformType::New();
+            inverseAlignment = vtkTransformType::New();
+        }
     }
 
     void ParticleSubject::InitializeRandomPoints(LabelImage::Pointer intersection) {
@@ -155,8 +195,7 @@ namespace pi {
         if (name != "") {
             m_Name = name;
         }
-        m_Particles.resize(nPoints);
-        Zero();
+        NewParticles(nPoints);
     }
     
     void ParticleSubject::Initialize(int subj, std::string name, const ParticleSubject& shape) {
@@ -165,7 +204,7 @@ namespace pi {
             m_Name = name;
         }
         const int nPoints = shape.GetNumberOfPoints();
-        m_Particles.resize(nPoints);
+        NewParticles(shape.m_Particles.size());
         for (int i = 0; i < nPoints; i++) {
             m_Particles[i] = shape.m_Particles[i];
             m_Particles[i].idx = i;
@@ -174,10 +213,7 @@ namespace pi {
 
     void ParticleSubject::Initialize(const ParticleArray& array) {
         const int nPoints = array.size();
-        if (GetNumberOfPoints() != nPoints) {
-            m_Particles.resize(nPoints);
-        }
-
+        NewParticles(nPoints);
         for (int i = 0; i < nPoints; i++) {
             m_Particles[i] = array[i];
             m_Particles[i].idx = i;
@@ -185,8 +221,37 @@ namespace pi {
         }
     }
 
-    void ParticleSubject::ApplyMatrix(VNLMatrix &mat) {
+    void ParticleSubject::SyncPointsCopy() {
+#ifndef NDEBUG
+        
+#endif
+        const int npoints = m_Particles.size();
+        for (int i = 0; i < npoints; i++) {
+            pointscopy->SetPoint(i, m_Particles[i].x);
+        }
+    }
 
+    void ParticleSubject::ComputeAlignment(ParticleSubject& dst) {
+        typedef vtkSmartPointer<vtkLandmarkTransform> vtkLandmarkTransformType;
+        dst.SyncPointsCopy();
+        SyncPointsCopy();
+        vtkLandmarkTransformType landmarkTransform = vtkLandmarkTransformType::New();
+        landmarkTransform->SetModeToRigidBody();
+        landmarkTransform->SetSourceLandmarks(pointscopy);
+        landmarkTransform->SetTargetLandmarks(dst.pointscopy);
+        landmarkTransform->Update();
+
+        alignment->SetMatrix(landmarkTransform->GetMatrix());
+        inverseAlignment->SetMatrix(alignment->GetMatrix());
+        inverseAlignment->Inverse();
+    }
+    
+    void ParticleSubject::AlignmentTransformX2Y() {
+        const int npoints = m_Particles.size();
+        for (int i = 0; i < npoints; i++) {
+            Particle& p = m_Particles[i];
+            alignment->TransformPoint(p.x, p.y);
+        }
     }
 
     void ParticleSubject::TransformX2Y(TransformType* transform) {
@@ -267,6 +332,38 @@ namespace pi {
         }
     }
 
+    void ParticleSubject::TransformY2Z(TransformType* transform) {
+        const int nPoints = GetNumberOfPoints();
+        if (transform != NULL) {
+            for (int i = 0; i < nPoints; i++) {
+                TransformType::InputPointType inputPoint;
+                fordim (j) {
+                    inputPoint[j] = m_Particles[i].y[j];
+                }
+                TransformType::OutputPointType outputPoint = transform->TransformPoint(inputPoint);
+                fordim (j) {
+                    m_Particles[i].z[j] = outputPoint[j];
+                }
+            }
+        }
+    }
+
+    void ParticleSubject::TransformZ2Y(TransformType* transform) {
+        const int nPoints = GetNumberOfPoints();
+        if (transform != NULL) {
+            for (int i = 0; i < nPoints; i++) {
+                TransformType::InputPointType inputPoint;
+                fordim (j) {
+                    inputPoint[j] = m_Particles[i].z[j];
+                }
+                TransformType::OutputPointType outputPoint = transform->TransformPoint(inputPoint);
+                fordim (j) {
+                    m_Particles[i].y[j] = outputPoint[j];
+                }
+            }
+        }
+    }
+
     void ParticleSubject::ReadParticlePositions(std::istream& is, int nPoints) {
         if (m_Particles.size() != nPoints) {
             m_Particles.resize(nPoints);
@@ -307,6 +404,14 @@ namespace pi {
         for (int i = 0; i < m_Particles.size(); i++) {
             os << m_Particles[i] << endl;
         }
+    }
+
+    void ParticleSubject::ReadAlignment(std::istream& is) {
+
+    }
+
+    void ParticleSubject::WriteAlignment(std::ostream& os) {
+
     }
 
     void ImageContext::Clear() {
@@ -459,8 +564,8 @@ namespace pi {
                 }
             }
             if (m_Subjects[i].kappaImage.IsNotNull()) {
-                m_Subjects[i].kappa = LinearImageInterpolatorType::New();
-                m_Subjects[i].kappa->SetInputImage(m_Subjects[i].kappaImage);
+                m_Subjects[i].kappaSampler = LinearImageInterpolatorType::New();
+                m_Subjects[i].kappaSampler->SetInputImage(m_Subjects[i].kappaImage);
             }
         }
     }
@@ -469,7 +574,7 @@ namespace pi {
         return m_InitialSubject;
     }
 
-    void ParticleSystem::ComputeMeanSubject() {
+    ParticleSubject& ParticleSystem::ComputeMeanSubject() {
         const int nPoints = m_Subjects[0].GetNumberOfPoints();
         const int nSubjects = m_Subjects.size();
 
@@ -487,13 +592,84 @@ namespace pi {
                 m_MeanSubject[i].x[k] /= nSubjects;
             }
         }
+        return m_MeanSubject;
     }
 
-    const ParticleSubject& ParticleSystem::GetMeanSubject() const {
+    ParticleSubject& ParticleSystem::GetMeanSubject() {
         return m_MeanSubject;
     }
 
     ParticleSubjectArray& ParticleSystem::GetSubjects() {
         return m_Subjects;
+    }
+
+    void export2vtk(ParticleSubject& sub, const char* vtkname, int field) {
+        int np = sub.m_Particles.size();
+        vtkPolyData* vtk = vtkPolyData::New();
+        vtkPoints* points = vtkPoints::New();
+        vtkFloatArray* f = vtkFloatArray::New();
+        f->SetName("F");
+        f->SetNumberOfComponents(3);
+        f->SetNumberOfTuples(np);
+        vtkFloatArray* v = vtkFloatArray::New();
+        v->SetName("V");
+        v->SetNumberOfComponents(3);
+        v->SetNumberOfTuples(np);
+        vtkFloatArray* w = vtkFloatArray::New();
+        w->SetName("W");
+        w->SetNumberOfComponents(3);
+        w->SetNumberOfTuples(np);
+        vtk->SetPoints(points);
+
+        bool useV = (field&2) > 0;
+        if (useV) {
+            vtk->GetPointData()->AddArray(v);
+        }
+        bool useF = (field&4) > 0;
+        if (useF) {
+            vtk->GetPointData()->AddArray(f);
+        }
+        const bool useW = (field&8) > 0;
+        if (useW) {
+            vtk->GetPointData()->AddArray(w);
+        }
+        points->SetNumberOfPoints(np);
+        // field \in [0,15]
+        for (int j = 0; j < np; j++) {
+            Particle& p = sub[j];
+            if ((field & 1) == 0) {
+                points->SetPoint(j, p.x);
+            }
+            if ((field & 1) > 0) {
+                points->SetPoint(j, p.y);
+            }
+            if (useV) {
+                v->SetTuple(j, p.v);
+            }
+            if (useF) {
+                f->SetTuple(j, p.f);
+            }
+            if (useW) {
+                w->SetTuple(j, p.w);
+            }
+        }
+        pivtk::vtk_write_polydata(vtkname, vtk);
+        v->Delete();
+        f->Delete();
+        w->Delete();
+        points->Delete();
+        vtk->Delete();
+    }
+
+
+    vtkPolyData* convert2vtk(ParticleArray& parray) {
+        vtkPolyData* out = vtkPolyData::New();
+        vtkPoints* points = vtkPoints::New();
+        points->SetNumberOfPoints(parray.size());
+        for (int i = 0; i < parray.size(); i++) {
+            points->SetPoint(i, parray[i].x);
+        }
+        out->SetPoints(points);
+        return out;
     }
 }

@@ -38,7 +38,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
-SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp)
+SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piImageWarp.h piEntropyComputer.h piEntropyComputer.cpp)
 
 SET (PI_LIBS_SOURCE )
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)
@@ -47,22 +47,22 @@ FILE(GLOB ITK_SOURCES "itk*.h" "itk*.hxx" "itk*.cxx")
 
 ADD_EXECUTABLE(prun2 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 SET_TARGET_PROPERTIES(prun2 PROPERTIES DEBUG_POSTFIX "d")
-TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
+TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
 
 ADD_EXECUTABLE(prun3 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_FLAGS -DDIMENSION3)
 SET_TARGET_PROPERTIES(prun3 PROPERTIES DEBUG_POSTFIX "d")
-TARGET_LINK_LIBRARIES(prun3 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
+TARGET_LINK_LIBRARIES(prun3 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
 
 ADD_EXECUTABLE(prun3a5 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 SET_TARGET_PROPERTIES(prun3a5 PROPERTIES COMPILE_FLAGS "-DDIMENSION3 -DATTR_SIZE=5")
 SET_TARGET_PROPERTIES(prun3a5 PROPERTIES DEBUG_POSTFIX "d")
-TARGET_LINK_LIBRARIES(prun3a5 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
+TARGET_LINK_LIBRARIES(prun3a5 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
 
 
 ADD_EXECUTABLE(ptest ptest.cpp ${MY_PARTICLE_WORKS_SOURCES})
 SET_TARGET_PROPERTIES(ptest PROPERTIES COMPILE_FLAGS -DDIMENSION3)
-TARGET_LINK_LIBRARIES(ptest ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
+TARGET_LINK_LIBRARIES(ptest ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
 
 
 ADD_EXECUTABLE(pani3 piParticleAniMain.cpp piParticleAniMain.h ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS} piVTK.cpp piVTK.h)

@@ -4,11 +4,16 @@
 #include "piParticleTools.h"
 #include "piParticleTrace.h"
 #include "piOptions.h"
+#include "piParticleForces.h"
 #include "piParticleBSpline.h"
 #include "piImageProcessing.h"
+#include "piImageWarp.h"
 
 using namespace std;
 using namespace pi;
+
+
+#define PRINT_IDX() cout << "using src: " << srcIdx << ", dst: " << dstIdx << endl
 
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
@@ -30,8 +35,13 @@ int main(int argc, char* argv[]) {
         { 17, "--createmask", SO_NONE },
         { 18, "--rescaletoshort", SO_NONE },
         { 19, "--mask", SO_REQ_SEP },
+        { 20, "--align", SO_NONE },
+        { 21, "--warp", SO_NONE },
+        { 22, "--norigidalign", SO_NONE },
         SO_END_OF_OPTIONS
     };
+
+    cout << argv[0] << " version compiled at " << __TIMESTAMP__ << endl;
     Options parser;
     parser.ParseOptions(argc, argv, specs);
     StringVector& args = parser.GetStringVector("args");
@@ -40,6 +50,14 @@ int main(int argc, char* argv[]) {
     ParticleSystemSolver solver;
     ParticleSystem& system = solver.m_System;
     Options& options = solver.m_Options;
+
+
+    int srcIdx = atoi(parser.GetString("--srcidx", "1").c_str());
+    int dstIdx = atoi(parser.GetString("--dstidx", "0").c_str());
+
+    
+    itkcmds::itkImageIO<RealImage> realIO;
+    itkcmds::itkImageIO<LabelImage> labelIO;
 
     if (parser.GetBool("--seeConfig")) {
         solver.LoadConfig(args[0].c_str());
@@ -95,9 +113,47 @@ int main(int argc, char* argv[]) {
         if (!doingSomething) {
             cout << "-w requires --inputimage or --inputlabel to warp" << endl;
         }
+    } else if (parser.GetBool("--warp")) {
+        if (args.size() < 2) {
+        	cout << "--warp requires [output.txt] [source-image] [warped-output-image]" << endl;
+            return 0;
+        }
+
+        PRINT_IDX();
+        string outputName = args[1];
+        string inputImage, inputLabel, refImageName;
+        parser.GetStringTo("--inputimage", inputImage);
+        parser.GetStringTo("--inputlabel", inputLabel);
+        parser.GetStringTo("--reference", refImageName);
+
+        solver.LoadConfig(args[0].c_str());
+
+        
+        if (system.size() < 2) {
+            cout << "system is not loaded successfully" << endl;
+            return 0;
+        }
+        if (inputImage != "") {
+            RealImage::Pointer refImage;
+            // warp from srcidx to dstidx
+            if (refImageName != "") {
+                refImage = realIO.ReadImageT(refImageName.c_str());
+            }
+            RealImage::Pointer output = warp_image<RealImage>(system[dstIdx], system[srcIdx], realIO.ReadImageT(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"));
+            realIO.WriteImageT(outputName.c_str(), output);
+        }
+        if (inputLabel != "") {
+            LabelImage::Pointer refImage;
+            // warp from srcidx to dstidx
+            if (refImageName != "") {
+                refImage = labelIO.ReadImageT(refImageName.c_str());
+            }
+            LabelImage::Pointer output = warp_image<LabelImage>(system[dstIdx], system[srcIdx], labelIO.ReadImageT(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"));
+            labelIO.WriteImageT(outputName.c_str(), output);
+        }
     } else if (parser.GetBool("--markTrace")) {
         if (args.size() < 2) {
-        	cout << "--markTrace requires [trace.txt] [reference-image] [output-image]" << endl;
+        	cout << "--markTrace requires [output.txt] [reference-image] [output-image]" << endl;
             return 0;
         }
         ifstream in(args[0].c_str());
@@ -221,6 +277,24 @@ int main(int argc, char* argv[]) {
 //            LabelImage::Pointer output = proc.TransformImage<LabelImage>(io.ReadImageT(labelInput.c_str()));
 //            io.WriteImageT(args[0].c_str(), output);
 //        }
+    } else if (parser.GetBool("--align")) {
+        // we align #1 to #0
+        int src = atoi(parser.GetString("--srcidx", "1").c_str());
+        int dst = atoi(parser.GetString("--dstidx", "0").c_str());
+        if (args.size() > -1) {
+            cout << "--align requires [config.txt] [output.vtk]" << endl;
+        }
+        solver.LoadConfig(args[0].c_str());
+        if (system.points() == 0) {
+            cout << "no points loaded" << endl;
+        }
+
+        system[1].ComputeAlignment(system[0]);
+        system[1].AlignmentTransformX2Y();
+        cout << system[1].alignment << endl;
+        cout << system[1].inverseAlignment << endl;
+        export2vtk(system[0], "0.vtk", 0);
+        export2vtk(system[1], "1.vtk", 1);
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;

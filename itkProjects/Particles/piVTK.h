@@ -28,6 +28,7 @@ namespace pivtk {
     __vtk(PolyData);
     __vtk(PolyLine);
 
+    void vtk_write_polydata(const char* f, vtkPolyData* p);
     PolyDataPointer ConstructPathLines(pi::ParticleSetSeries& snapshot);
 
     class PropScene {

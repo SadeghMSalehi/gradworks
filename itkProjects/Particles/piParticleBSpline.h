@@ -32,7 +32,10 @@ namespace pi {
         LabelImage::Pointer GetReferenceImage();
         void SetReferenceImage(LabelImage::Pointer img);
         void EstimateTransform(const ParticleSubject& a, const ParticleSubject& b);
-        template <class T> void EstimateTransform(const T& src, const T& dst, const int nPoints);
+        void EstimateTransformY(const ParticleSubject& a, const ParticleSubject& b);
+        void EstimateTransformZ(const ParticleSubject& a, const ParticleSubject& b);
+
+        template <class C, class R = LabelImage, class T = ParticleSubject> void EstimateTransform(const T& src, const T& dst, const int nPoints, typename R::Pointer refImage);
         void ApplyTransform(ParticleSubject& a);
         RealImage::Pointer WarpImage(RealImage::Pointer image);
         LabelImage::Pointer WarpLabel(LabelImage::Pointer srcImage);
@@ -48,8 +51,12 @@ namespace pi {
         int m_ControlPoints;
     };
 
-    template <class T>
-    void ParticleBSpline::EstimateTransform(const T& src, const T& dst, const int nPoints) {
+    template <class C,class R,class T>
+    void ParticleBSpline::EstimateTransform(const T& src, const T& dst, const int nPoints, typename R::Pointer refImage) {
+        if (refImage.IsNull()) {
+            cout << "Cannot estimate grid size without reference image!" << endl;
+            return;
+        }
         if (m_FieldPoints.IsNull()) {
             m_FieldPoints = DisplacementFieldPointSetType::New();
         }
@@ -62,15 +69,17 @@ namespace pi {
         srcPoints->Initialize();
         dstPoints->Initialize();
 
+        // casting object C;
+        C caster;
         int n = nPoints;
         for (int i = 0; i < n; i++) {
             IntPointSetType::PointType iPoint;
             fordim(j) {
-                iPoint[j] = src[i].x[j];
+                iPoint[j] = caster.cast(src[i],j);
             }
             VectorType vector;
             fordim(j) {
-                vector[j] = dst[i].x[j] - src[i].x[j];
+                vector[j] = caster.cast(dst[i],j) - caster.cast(src[i],j);
             }
             m_FieldPoints->SetPoint(i, iPoint);
             m_FieldPoints->SetPointData(i, vector);
@@ -84,9 +93,9 @@ namespace pi {
         BSplineFilterType::ArrayType numControlPoints;
         numControlPoints.Fill(nSize + splineOrder);
 
-        RealImage::SizeType imageSize = m_RefImage->GetBufferedRegion().GetSize();
-        RealImage::SpacingType imageSpacing = m_RefImage->GetSpacing();
-        RealImage::PointType imageOrigin = m_RefImage->GetOrigin();
+        typename R::SizeType imageSize = refImage->GetBufferedRegion().GetSize();
+        typename R::SpacingType imageSpacing = refImage->GetSpacing();
+        typename R::PointType imageOrigin = refImage->GetOrigin();
 
         try {
             // debug: reparameterized point component is outside

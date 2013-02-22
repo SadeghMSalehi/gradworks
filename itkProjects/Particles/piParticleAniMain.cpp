@@ -16,6 +16,7 @@
 #include "vtkGenericCell.h"
 
 #include "QApplication"
+#include "piOptions.h"
 
 class MainApps: public QApplication {
 public:
@@ -36,8 +37,21 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-    MainApps apps(argc, argv);
-    AniWindow w;
-    w.show();
-    return apps.exec();
+    using namespace pi;
+    CSimpleOpt::SOption[] options ={
+        { 1, "--gui", SO_NONE },
+        SO_END_OF_OPTIONS
+    };
+
+    Options parser;
+    StringVector& args = parser.ParseOptions(argc, argv, options);
+
+    if (args.size() == 0 || parser.GetBool("--gui")) {
+        MainApps apps(argc, argv);
+        AniWindow w;
+        w.show();
+        return apps.exec();
+    } else {
+
+    }
 }

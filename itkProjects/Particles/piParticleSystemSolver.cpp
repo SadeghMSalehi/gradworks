@@ -67,6 +67,15 @@ namespace pi {
                     ss >> nPoints;
                     m_System.GetInitialSubject().ReadParticlePositions(in, nPoints);
                     cout << "Read " << nPoints << " initial particles" << endl;
+                } else if (name == "ParticleAlignment:") {
+                    int nsubj;
+                    ss >> nsubj;
+                    for (int i = 0; i < nsubj; i++) {
+                        in.getline(buf, sizeof(buf));
+                        string line(buf);
+                        stringstream ss(line);
+                        ss >> m_System[i].alignment;
+                    }
                 }
             }
         }
@@ -88,6 +97,10 @@ namespace pi {
         const int nSubj = m_System.GetNumberOfSubjects();
         const int nParticles = m_System.GetNumberOfParticles();
         if (nSubj > 0) {
+            for (int i = 0; i < nSubj; i++) {
+                out << "ParticleAlignment: " << i << " " << nParticles << endl;
+                out << m_System[i].alignment << endl;
+            }
             for (int i = 0; i < nSubj; i++) {
                 out << "Particles: " << i << " " << nParticles << endl;
                 if (m_Options.GetBool("save_position_only")) {

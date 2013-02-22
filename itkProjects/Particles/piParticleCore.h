@@ -18,8 +18,19 @@
 #include "itkOffset.h"
 #include "piOptions.h"
 #include "iostream"
+#include "vnl/vnl_matrix_fixed.h"
+#include "vtkSmartPointer.h"
+#include "vtkPoints.h"
+#include "vtkTransform.h"
+#include "vtkMatrix4x4.h"
+
+class vtkPolyData;
 
 namespace pi {
+
+    typedef vtkSmartPointer<vtkTransform> vtkTransformType;
+    typedef vtkSmartPointer<vtkPoints> vtkPointsType;
+    typedef vtkSmartPointer<vtkMatrix4x4> vtkMatrixType;
 
     class ImageContext;
     class ParticleSystem;
@@ -38,12 +49,13 @@ namespace pi {
         DataReal v[4];
         DataReal f[4];
 
-        // temporary status
-        DataReal w[4];
-
         // the density and pressure of a particle
         DataReal density;
         DataReal pressure;
+
+        // temporary status
+        DataReal w[4];
+        DataReal z[4];
 
         Particle();
         ~Particle();
@@ -55,9 +67,30 @@ namespace pi {
 
         Particle& operator=(const Particle& other);
     };
+
+    // utility classes
+    class ParticleXCaster {
+    public:
+        inline float cast(const Particle& p, int i) const { return p.x[i]; }
+    };
+
+    class ParticleYCaster {
+    public:
+        inline float cast(const Particle& p, int i) const { return p.y[i]; }
+    };
+
+    class ParticleZCaster {
+    public:
+        inline float cast(const Particle& p, int i) const { return p.z[i]; }
+    };
+    
+    
+
     // utility operator overloading
     ostream& operator<<(ostream& os, const Particle& par);
     istream& operator>>(istream& is, Particle& par);
+    ostream& operator<<(ostream& os, const vtkTransformType& par);
+    istream& operator>>(istream& is, vtkTransformType& par);
 
     typedef boost::numeric::ublas::vector<Particle> ParticleArray;
     typedef std::vector<Particle> ParticleVector;
@@ -68,12 +101,19 @@ namespace pi {
         string m_Name;
         ParticleArray m_Particles;
         RealImage::Pointer kappaImage;
-        LinearImageInterpolatorType::Pointer kappa;
-        AffineTransformType::Pointer m_AffineTransform;
+        LinearImageInterpolatorType::Pointer kappaSampler;
+
+        // vtk related variables
+        vtkTransformType alignment;
+        vtkTransformType inverseAlignment;
+        vtkPointsType pointscopy;
+//        AffineTransformType::Pointer m_AffineTransform;
+
+        // deformable transforms
         FieldTransformType::Pointer m_DeformableTransform;
         FieldTransformType::Pointer m_InverseDeformableTransform;
 
-        ParticleSubject() : m_SubjId(-1) { }
+        ParticleSubject();
         ParticleSubject(int subjid, int npoints);
         ~ParticleSubject();
 
@@ -87,15 +127,22 @@ namespace pi {
         void Initialize(int subj, std::string name, int nPoints);
         void Initialize(int subj, std::string name, const ParticleSubject& shape);
         void Initialize(const ParticleArray& array);
-        void ApplyMatrix(VNLMatrix& mat);
+        void SyncPointsCopy();
+        void ComputeAlignment(ParticleSubject& subj);
+        void AlignmentTransformX2Y();
         void TransformX2Y(TransformType* transform);
         void TransformY2X(TransformType* transform);
         void TransformX2X(TransformType* transform);
         void TransformY2Y(TransformType* transform);
+        void TransformY2Z(TransformType* transform);
+        void TransformZ2Y(TransformType* transform);
+
         void ReadParticlePositions(std::istream& is, int nPoints);
         void WriteParticlePositions(std::ostream& os);
         void ReadParticles(std::istream& is, int nPoints);
         void WriteParticles(std::ostream& os);
+        void ReadAlignment(std::istream& is);
+        void WriteAlignment(std::ostream& os);
 
         inline Particle& operator[](int i) {
             return m_Particles[i];
@@ -105,9 +152,6 @@ namespace pi {
             return m_Particles[i];
         }
     };
-
-    ostream& operator<<(ostream& os, const Particle& par);
-
     typedef boost::numeric::ublas::vector<ParticleSubject> ParticleSubjectArray;
 
 
@@ -149,15 +193,17 @@ namespace pi {
         ParticleSystem();
         ~ParticleSystem() {
         }
-        
+
+        const int size() const { return m_Subjects.size(); }
+        const int points() const { return size() > 0 ? m_Subjects[0].m_Particles.size() : 0; }
         int GetNumberOfSubjects();
         int GetNumberOfParticles();
         void InitializeSystem(Options& options);
         void LoadKappaImages(Options& options, ImageContext* context);
 
         ParticleSubject& GetInitialSubject();
-        void ComputeMeanSubject();
-        const ParticleSubject& GetMeanSubject() const;
+        ParticleSubject& ComputeMeanSubject();
+        ParticleSubject& GetMeanSubject();
         ParticleSubjectArray& GetSubjects();
         
         Options& GetSystemOptions() {
@@ -180,6 +226,9 @@ namespace pi {
         Options* m_Options;
     };
 
+
+    void export2vtk(ParticleSubject& sub, const char* vtkname, int field);
+    vtkPolyData* convert2vtk(ParticleArray& parray);
 }
 
 #endif

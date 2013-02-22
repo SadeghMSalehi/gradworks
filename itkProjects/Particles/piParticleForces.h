@@ -18,6 +18,8 @@
 #define ATTR_SIZE 3
 #endif
 
+class vtkPolyData;
+
 namespace pi {
 
     class InternalForce {
@@ -49,14 +51,15 @@ namespace pi {
     public:
         EnsembleForce(DataReal coeff);
         ~EnsembleForce();
+
         void SetImageContext(ImageContext* context);
         void ComputeEnsembleForce(ParticleSystem& system);
         void ComputeImageForce(ParticleSystem& system);
     private:
         ImageContext* m_ImageContext;
-        ParticleSubject m_MeanShape;
-        void ComputeMeanShape(ParticleSubjectArray& shapes);
         DataReal m_Coeff;
+
+        bool useBSplineAlign;
     };
 
 

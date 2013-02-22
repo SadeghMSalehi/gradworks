@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "piParticleForces.h"
+#include "piEntropyComputer.h"
 
 using namespace pi;
 
@@ -27,7 +28,7 @@ void covtest() {
      0.0100    0.0677   -0.0041
      -0.0046   -0.0041    0.0911
      */
-    double data[L][3] = {
+    double data[L][S] = {
         { 0.913800, 0.335311, 0.823574}
         ,{ 0.706715, 0.299225, 0.175010}
         ,{ 0.557789, 0.452593, 0.163570}
@@ -94,19 +95,19 @@ void covtest() {
             mat(i,0).x[j] = data[j][i];
         }
     }
-    for (int i = 0; i < S; i++) {
-        for (int j = 0; j < L; j++) {
-            cout << " " << mat(i,0).x[j];
-        }
-        cout << endl;
-    }
+//    for (int i = 0; i < S; i++) {
+//        for (int j = 0; j < L; j++) {
+//            cout << " " << mat(i,0).x[j];
+//        }
+//        cout << endl;
+//    }
     force.NormalizeAttributes(mat);
-    for (int i = 0; i < S; i++) {
-        for (int j = 0; j < L; j++) {
-            cout << " " << mat(i,0).y[j];
-        }
-        cout << endl;
-    }
+//    for (int i = 0; i < S; i++) {
+//        for (int j = 0; j < L; j++) {
+//            cout << " " << mat(i,0).y[j];
+//        }
+//        cout << endl;
+//    }
 
 
     // covariance computes on y
@@ -125,10 +126,49 @@ void covtest() {
         // covariance computes on y
         VNLDoubleMatrix cov;
         force.ComputeCovariance(mat, 0, cov);
-        cout << cov << endl;
+//        cout << cov << endl;
     }
+
+    EntropyComputer comp(S,L,1);
+    for (int i = 0; i < S; i++) {
+        for (int j = 0; j < L; j++) {
+            comp.dataIter.At(i,j) = data[j][i];
+        }
+    }
+
+//    cout << comp.dataMatrix << endl; 
+    comp.MoveToCenter();
+//    cout << comp.dataMatrix << endl;
+
+    comp.ComputeCovariance();
+    cout << comp.mean << endl;
+    cout << comp.covariance << endl;
+
+    
+}
+
+void entropytest() {
+    const int S = 2;
+    const int L = 3;
+    double data[S][L] = { { 0, 0, 0}, { 1, 1, 0} };
+    EntropyComputer comp(S,L,1);
+    for (int i = 0; i < S; i++) {
+        for (int j = 0; j < L; j++) {
+            comp.dataIter.At(i,j) = data[i][j];
+        }
+    }
+    comp.MoveToCenter();
+    comp.ComputeCovariance();
+
+    VNLDoubleMatrix gradientOut;
+    comp.ComputeGradient(gradientOut);
+    cout << comp.covariance << endl;
+    cout << comp.inverseCovariance << endl;
+    cout << comp.dataMatrix << endl;
+    cout << gradientOut << endl;
 }
 
 int main() {
-    covtest();
+//    covtest();
+    entropytest();
 }
