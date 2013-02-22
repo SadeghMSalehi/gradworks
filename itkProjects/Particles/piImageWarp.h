@@ -38,6 +38,7 @@ namespace pi {
             affineParams[__Dim*__Dim + i] = fixed.alignment->GetMatrix()->GetElement(i,3);
         }
         affineTransform->SetParameters(affineParams);
+        cout << affineParams << endl;
         
         ParticleBSpline bsp;
         if (ref.IsNull()) {
@@ -45,6 +46,7 @@ namespace pi {
         }
         if (!onlyRigidAlign) {
             if (!noRigidAlign) {
+                moving.TransformX2Y();
                 bsp.EstimateTransform<ParticleYCaster,S>(fixed, moving, fixed.GetNumberOfPoints(), ref);
             } else {
                 bsp.EstimateTransform<ParticleXCaster,S>(fixed, moving, fixed.GetNumberOfPoints(), ref);

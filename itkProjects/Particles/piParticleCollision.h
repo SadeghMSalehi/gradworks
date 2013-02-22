@@ -68,6 +68,9 @@ namespace pi {
         void HandleCollision(ParticleSubject& subj);
         void HandleCollision(ParticleSubjectArray& subj);
 
+        void ConstrainPoint(ParticleSubject& subj);
+        void ProjectForceAndVelocity(ParticleSubject& subj);
+
     private:
         LabelImage::Pointer m_LabelImage;
         LabelImage::Pointer m_BinaryMask;

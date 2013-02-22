@@ -270,14 +270,20 @@ namespace pi {
             cout << "repulsion sigma: " << internalForce.repulsionSigma << endl;
             cout << "adjusted repulsion cutoff: " << internalForce.repulsionCutoff << endl;
         }
+
         
         
-        EnsembleForce ensembleForce(1);
+        EnsembleForce ensembleForce;
         ensembleForce.SetImageContext(&m_ImageContext);
         
-        IntensityForce intensityForce(1);
+        IntensityForce intensityForce;
         intensityForce.SetImageContext(&m_ImageContext);
         intensityForce.useAttributesAtWarpedSpace = true;
+
+        internalForce.coeff = 0.3;
+        ensembleForce.coeff = 0.3;
+        intensityForce.coeff = 0.3;
+        
 #ifdef ATTR_SIZE
         m_Options.SetInt("AttributeDimension:", ATTR_SIZE);
 #endif
@@ -306,7 +312,7 @@ namespace pi {
         
         m_System.currentIteration = -1;
         Timer timer;
-        ofstream err("error.txt");
+//        ofstream err("error.txt");
 
         try {
             for (DataReal t = t0; t < t1; t += dt) {
@@ -328,10 +334,10 @@ namespace pi {
                         Particle& pi = sub[i];
                         forfill(pi.f, 0);
                     }
+                    collisionHandlers[n].ConstrainPoint(sub);
                     if (!noInternal) {
                         internalForce.ComputeForce(sub);
                     }
-                    collisionHandlers[n].HandleCollision(sub);
                 }
                 
                 
@@ -346,6 +352,7 @@ namespace pi {
                 // system update
                 for (int n = 0; n < nSubz; n++) {
                     ParticleSubject& sub = subs[n];
+                    collisionHandlers[n].ProjectForceAndVelocity(sub);
                     for (int i = 0; i < nPoints; i++) {
                         Particle& p = sub[i];
                         LabelImage::IndexType pIdx;
@@ -355,8 +362,6 @@ namespace pi {
                             p.x[k] += dt*p.v[k];
                             pIdx[k] = p.x[k] + 0.5;
                         }
-                        
-//                        err << t << " " << n << " " << i << " " << p << endl;
                         if (!collisionHandlers[n].IsBufferInside(pIdx)) {
                             cout << "\nStop system: out of region" << endl;
                             goto quit;
@@ -381,7 +386,7 @@ namespace pi {
         } catch (itk::ExceptionObject& ex) {
             ex.Print(cout);
         }
-        err.close();
+//        err.close();
         if (traceOn) {
             ofstream traceOut(traceFile.c_str());
             trace.Write(traceOut);

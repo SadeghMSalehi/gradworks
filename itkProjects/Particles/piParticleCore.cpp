@@ -73,9 +73,10 @@ namespace pi {
     void Particle::Zero() {
         t = 0;
         for4(j) {
-            x[j] = y[j] = v[j] = f[j] = w[j] = 0;
+            x[j] = y[j] = z[j] = v[j] = f[j] = w[j] = 0;
         }
         density = pressure = 0;
+        collisionEvent = false;
     }
 
     void Particle::Sub(const Particle& p, DataReal* d) {

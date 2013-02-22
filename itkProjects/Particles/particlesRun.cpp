@@ -289,8 +289,6 @@ int main(int argc, char* argv[]) {
 //        }
     } else if (parser.GetBool("--align")) {
         // we align #1 to #0
-        int src = atoi(parser.GetString("--srcidx", "1").c_str());
-        int dst = atoi(parser.GetString("--dstidx", "0").c_str());
         if (args.size() > -1) {
             cout << "--align requires [config.txt] [output.vtk]" << endl;
         }
@@ -299,12 +297,12 @@ int main(int argc, char* argv[]) {
             cout << "no points loaded" << endl;
         }
 
-        system[1].ComputeAlignment(system[0]);
-        system[1].AlignmentTransformX2Y();
-        cout << system[1].alignment << endl;
-        cout << system[1].inverseAlignment << endl;
-        export2vtk(system[0], "0.vtk", 0);
-        export2vtk(system[1], "1.vtk", 1);
+        system[srcIdx].ComputeAlignment(system[dstIdx]);
+        system[srcIdx].AlignmentTransformX2Y();
+        cout << system[srcIdx].alignment << endl;
+        cout << system[srcIdx].inverseAlignment << endl;
+        export2vtk(system[srcIdx], "src.vtk", 0);
+        export2vtk(system[dstIdx], "dst.vtk", 1);
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;
@@ -356,14 +354,11 @@ int main(int argc, char* argv[]) {
             if (warpedLabels.size() != labelImages.size()) {
                 cout << "OutputLabelToFirst: and LabeImages: size are different" << endl;
             } else {
-                for (int i = 0; i < warpedLabels.size(); i++) {
+                for (int i = 1; i < warpedLabels.size(); i++) {
                     LabelImage::Pointer label = io.ReadImageT(labelImages[i].c_str());
                     // bspline resampling
-                    ParticleBSpline particleTransform;
-                    particleTransform.SetReferenceImage(label);
-                    particleTransform.EstimateTransform(system[0], system[i]);
-                    LabelImage::Pointer outputImage = particleTransform.WarpLabel(label);
-                    io.WriteImageT(warpedLabels[i].c_str(), outputImage);
+                    LabelImage::Pointer output = warp_image<LabelImage>(system[0], system[1], label, label, true, false, false);
+                    io.WriteImageT(warpedLabels[i].c_str(), output);
                 }
             }
         }

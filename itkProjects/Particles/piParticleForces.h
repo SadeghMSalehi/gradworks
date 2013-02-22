@@ -35,7 +35,7 @@ namespace pi {
 
     class EntropyInternalForce {
     public:
-        EntropyInternalForce() :repulsionSigma(3), repulsionCutoff(repulsionSigma*5), useAdaptiveSampling(false), maxKappa(3) {}
+        EntropyInternalForce() :repulsionSigma(3), repulsionCutoff(repulsionSigma*5), useAdaptiveSampling(false), maxKappa(3), coeff(1) {}
         ~EntropyInternalForce() {}
 
         void ComputeForce(ParticleSubject& subj);
@@ -46,11 +46,13 @@ namespace pi {
         DataReal repulsionCutoff;
         bool useAdaptiveSampling;
         DataReal maxKappa;
+        DataReal coeff;
     };
 
     class EnsembleForce {
     public:
-        EnsembleForce(DataReal coeff);
+        DataReal coeff;
+        EnsembleForce();
         ~EnsembleForce();
 
         void SetImageContext(ImageContext* context);
@@ -58,7 +60,6 @@ namespace pi {
         void ComputeImageForce(ParticleSystem& system);
     private:
         ImageContext* m_ImageContext;
-        DataReal m_Coeff;
 
         bool useBSplineAlign;
     };
@@ -96,13 +97,13 @@ namespace pi {
     public:
         typedef boost::numeric::ublas::matrix<Attr> AttrMatrix;
 
-        DataReal coefficient;
+        DataReal coeff;
         bool useGaussianGradient;
         DataReal gaussianSigma;
         bool useAttributesAtWarpedSpace;
 
     public:
-        IntensityForce(DataReal coeff);
+        IntensityForce();
         ~IntensityForce();
         
         void SetImageContext(ImageContext* context);
@@ -120,7 +121,6 @@ namespace pi {
         AttrMatrix m_attrs;
         VNLMatrix m_attrsMean;
         ImageContext* m_ImageContext;
-        DataReal m_Coeff;
     };
 }
 

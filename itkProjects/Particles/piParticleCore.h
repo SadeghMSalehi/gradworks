@@ -57,6 +57,8 @@ namespace pi {
         DataReal w[4];
         DataReal z[4];
 
+        bool collisionEvent;
+
         Particle();
         ~Particle();
         
@@ -130,8 +132,8 @@ namespace pi {
         void SyncPointsCopy();
         void ComputeAlignment(ParticleSubject& subj);
         void AlignmentTransformX2Y();
-        void TransformX2Y(TransformType* transform);
-        void TransformY2X(TransformType* transform);
+        void TransformX2Y(TransformType* transform = NULL);
+        void TransformY2X(TransformType* transform = NULL);
         void TransformX2X(TransformType* transform);
         void TransformY2Y(TransformType* transform);
         void TransformY2Z(TransformType* transform);

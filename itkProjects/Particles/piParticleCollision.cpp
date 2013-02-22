@@ -238,6 +238,58 @@ namespace pi {
         return true;
     }
 
+    void ParticleCollision::ConstrainPoint(ParticleSubject& subj) {
+        const int nPoints = subj.GetNumberOfPoints();
+        for (int i = 0; i < nPoints; i++) {
+            Particle &p = subj.m_Particles[i];
+            VNLVector normal(__Dim, 0);
+            LabelImage::IndexType idx;
+            fordim (k) {
+                idx[k] = p.x[k];
+            }
+
+            const bool isValidRegion = IsRegionInside(idx);
+            const bool isContacting = IsCrossing(idx);
+
+            if (isValidRegion && !isContacting) {
+                p.collisionEvent = false;
+                continue;
+            }
+
+            DataReal cp[__Dim];
+
+            // initialize contact point as current point
+            forset (p.x, cp);
+            if (!isValidRegion) {
+                // important!!
+                // this function will move current out-of-region point into the closest boundary
+                ComputeClosestBoundary(p.x, cp);
+            }
+            forset (cp, p.x);
+            p.collisionEvent = true;
+        }
+    }
+
+    void ParticleCollision::ProjectForceAndVelocity(pi::ParticleSubject &subj) {
+        const int nPoints = subj.GetNumberOfPoints();
+        VNLVector normal(__Dim);
+        for (int i = 0; i < nPoints; i++) {
+            Particle& p = subj[i];
+            normal.fill(0);
+            if (p.collisionEvent) {
+                // project velocity and forces
+                ComputeNormal(p.x, normal.data_block());
+                normal.normalize();
+                DataReal nv = dimdot(p.v, normal);
+                DataReal nf = dimdot(p.f, normal);
+                fordim (k) {
+                    p.v[k] = (p.v[k] - nv * normal[k]);
+                    p.f[k] -= nf * normal[k];
+                }
+            }
+        }
+    }
+
     void ParticleCollision::HandleCollision(ParticleSubject& subj) {
         const int nPoints = subj.GetNumberOfPoints();
         for (int i = 0; i < nPoints; i++) {

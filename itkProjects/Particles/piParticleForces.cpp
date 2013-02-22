@@ -171,7 +171,7 @@ namespace pi {
                 }
                 xixj.normalize();
                 fordim (k) {
-                    pi.f[k] += (weight * (pi.x[k] - pj.x[k]));
+                    pi.f[k] += (coeff * weight * (pi.x[k] - pj.x[k]));
                 }
             }
         }
@@ -189,7 +189,7 @@ namespace pi {
     }
 
 
-    EnsembleForce::EnsembleForce(DataReal coeff) : m_Coeff(coeff), useBSplineAlign(false) {
+    EnsembleForce::EnsembleForce() : coeff(1), useBSplineAlign(false) {
 
     }
 
@@ -241,11 +241,12 @@ namespace pi {
 
         // we assume that the mean and its corresponding alignment is already computed
         // therefore, we store y from x
+        ParticleSubject& meanSubj = system.GetMeanSubject();
         for (int i = 0; i < nSubjects; i++) {
+            system[i].ComputeAlignment(meanSubj);
             system[i].AlignmentTransformX2Y();
         }
 
-        ParticleSubject& meanSubj = system.GetMeanSubject();        
         // compute mean(Y)
         for (int j = 0; j < nPoints; j++) {
             fordim (k) {
@@ -319,7 +320,7 @@ namespace pi {
                 }
                 DataReal fV[__Dim];
                 iSubj.inverseAlignment->TransformVector(fM, fV);
-                pj.AddForce(fV, -m_Coeff);
+                pj.AddForce(fV, -coeff);
                 gradIter.NextSample();
             }
             gradIter.NextData();
@@ -330,8 +331,8 @@ namespace pi {
     
     //
 
-    IntensityForce::IntensityForce(DataReal coeff)
-    : coefficient(1.0), useGaussianGradient(true), gaussianSigma(1), useAttributesAtWarpedSpace(true) {
+    IntensityForce::IntensityForce()
+    : coeff(1.0), useGaussianGradient(true), gaussianSigma(1), useAttributesAtWarpedSpace(true) {
     }
 
     IntensityForce::~IntensityForce() {
@@ -625,7 +626,7 @@ namespace pi {
                     ff[k] = m_attrs(i,j).F[k];
                 }
 //                ff.normalize();
-                par.AddForce(ff.data_block(), m_Coeff);
+                par.AddForce(ff.data_block(), coeff);
             }
         }
     }
