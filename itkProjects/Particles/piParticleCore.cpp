@@ -76,6 +76,7 @@ namespace pi {
             x[j] = y[j] = z[j] = v[j] = f[j] = w[j] = 0;
         }
         density = pressure = 0;
+        label = 0;
         collisionEvent = false;
     }
 
@@ -531,6 +532,7 @@ namespace pi {
     
     void ParticleSystem::InitializeSystem(Options& options) {
         m_Options = &options;
+        m_Subjects.clear();
         m_Subjects.resize(options.GetStringVector("Subjects:").size());
         for (int i = 0; i < m_Subjects.size(); i++) {
             m_Subjects[i].Initialize(i, options.GetStringVectorValue("Subjects:", i), options.GetInt("NumberOfParticles:", 0));
@@ -576,7 +578,7 @@ namespace pi {
         return m_InitialSubject;
     }
 
-    ParticleSubject& ParticleSystem::ComputeMeanSubject() {
+    ParticleSubject& ParticleSystem::ComputeXMeanSubject() {
         const int nPoints = m_Subjects[0].GetNumberOfPoints();
         const int nSubjects = m_Subjects.size();
 
@@ -590,12 +592,29 @@ namespace pi {
                 // sum over all subject j
                 for (int j = 0; j < nSubjects; j++) {
                     m_MeanSubject[i].x[k] += m_Subjects[j][i].x[k];
-                    m_MeanSubject[i].y[k] += m_Subjects[j][i].y[k];
-                    m_MeanSubject[i].z[k] += m_Subjects[j][i].z[k];
                 }
                 m_MeanSubject[i].x[k] /= nSubjects;
+            }
+        }
+        return m_MeanSubject;
+    }
+
+    ParticleSubject& ParticleSystem::ComputeYMeanSubject() {
+        const int nPoints = m_Subjects[0].GetNumberOfPoints();
+        const int nSubjects = m_Subjects.size();
+
+        m_MeanSubject.m_SubjId = -1;
+        m_MeanSubject.NewParticles(nPoints);
+
+        // for every dimension k
+        fordim(k) {
+            // for every point i
+            for (int i = 0; i < nPoints; i++) {
+                // sum over all subject j
+                for (int j = 0; j < nSubjects; j++) {
+                    m_MeanSubject[i].y[k] += m_Subjects[j][i].y[k];
+                }
                 m_MeanSubject[i].y[k] /= nSubjects;
-                m_MeanSubject[i].z[k] /= nSubjects;
             }
         }
         return m_MeanSubject;

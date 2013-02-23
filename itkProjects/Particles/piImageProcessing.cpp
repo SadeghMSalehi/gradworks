@@ -400,4 +400,55 @@ namespace pi {
         binThreshFilter->Update();
         return binThreshFilter->GetOutput();
     }
+
+
+    void AtlasSimilarityScore::Add(LabelPixel a, LabelPixel b) {
+        if (labelMap.size() <= a || labelMap.size() <= b) {
+            labelMap.resize(std::max(a,b)+1);
+        }
+        labelMap[a].L = a;
+        labelMap[b].L = b;
+        if (a == b) {
+            labelMap[a].AB++;
+        } else {
+            labelMap[a].A++;
+            labelMap[b].B++;
+        }
+    }
+
+    void AtlasSimilarityScore::Compute(LabelImage::Pointer a, LabelImage::Pointer b) {
+        int na = a->GetPixelContainer()->Size();
+        int nb = b->GetPixelContainer()->Size();
+
+        if (na != nb) {
+            cout << "the size of image is different!" << endl;
+        }
+
+        const LabelPixel* pa = a->GetBufferPointer();
+        const LabelPixel* pb = b->GetBufferPointer();
+        for (int i = 0; i < na; i++) {
+            Add(*pa, *pb);
+            pa++;
+            pb++;
+        }
+    }
+
+    ostream& operator<<(ostream& os, const LabelSimilarityScore& score) {
+        if (score.L > 0) {
+            os << score.L << " " << score.A << " " << score.AB << " " << score.B << " " << score.total() << " " << score.dice();
+        }
+        return os;
+    }
+
+    ostream& operator<<(ostream& os, const AtlasSimilarityScore& score) {
+        for (int i = 0; i < score.labelMap.size(); i++) {
+            if (score.labelMap[i].L > 0) {
+                os << score.labelMap[i] << endl;
+            }
+        }
+        return os;
+    }
+
+
+
 }

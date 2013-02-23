@@ -21,6 +21,8 @@
 using namespace std;
 
 namespace itkcmds {
+    static int __noverbose = 0;
+
 	template <typename T>
 	class itkImageIO {
 	private:
@@ -160,17 +162,23 @@ namespace itkcmds {
 		}
         
 		ImagePointer ReadImageT(const char* filename) {
-			cout << "Reading '" << filename << flush;
+            if (!__noverbose) {
+                cout << "Reading '" << filename << flush;
+            }
             if (CheckExists(filename)) {
                 typename itk::ImageFileReader<T>::Pointer reader = itk::ImageFileReader<T>::New();
                 reader->SetFileName(filename);
                 reader->Update();
                 GetImageInfo(reader);
-                std::cout << "' [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
-                std::cout << " done." << std::endl;
+                if (!__noverbose) {
+                    std::cout << "' [" << GetComponentTypeString(_componentType) << ", " << GetPixelTypeString(_pixelType) << "]";
+                    std::cout << " done." << std::endl;
+                }
                 return reader->GetOutput();
             } else {
-                cout << "' failed. (file not exist)" << endl;
+                if (!__noverbose) {
+                    cout << "' failed. (file not exist)" << endl;
+                }
                 return ImagePointer();
             }
 		}

@@ -1,0 +1,609 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Simul2D</class>
+ <widget class="QMainWindow" name="Simul2D">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>934</width>
+    <height>771</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout_2">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <widget class="myQGraphicsView" name="graphicsView">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>600</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::NoFrame</enum>
+       </property>
+       <property name="renderHints">
+        <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::SmoothPixmapTransform|QPainter::TextAntialiasing</set>
+       </property>
+      </widget>
+      <widget class="QCustomPlot" name="costPlot" native="true">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>150</height>
+        </size>
+       </property>
+       <property name="autoFillBackground">
+        <bool>false</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>934</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <widget class="QMenu" name="menuTransform">
+     <property name="title">
+      <string>Transform</string>
+     </property>
+     <addaction name="actionTPS"/>
+     <addaction name="actionEBS"/>
+     <addaction name="actionR2LogRTPS"/>
+     <addaction name="separator"/>
+     <addaction name="actionBSpline"/>
+     <addaction name="actionShowBSplineControlPoints"/>
+    </widget>
+    <addaction name="actionAddImage"/>
+    <addaction name="actionAddLabel"/>
+    <addaction name="actionSaveSlices"/>
+    <addaction name="menuTransform"/>
+    <addaction name="actionOpenCompareWindow"/>
+   </widget>
+   <widget class="QMenu" name="menuParticles">
+    <property name="title">
+     <string>Particles</string>
+    </property>
+    <widget class="QMenu" name="menuParticle_Colors">
+     <property name="title">
+      <string>Particle Colors</string>
+     </property>
+     <addaction name="actionParticleBlack"/>
+     <addaction name="actionParticleRed"/>
+     <addaction name="actionParticleGreen"/>
+     <addaction name="actionParticleBlue"/>
+     <addaction name="actionParticleWhite"/>
+     <addaction name="actionParticleHSV"/>
+     <addaction name="actionPressureMap"/>
+    </widget>
+    <addaction name="actionNewParticles"/>
+    <addaction name="actionRunImageParticles"/>
+    <addaction name="actionLoadParticles"/>
+    <addaction name="actionSaveParticles"/>
+    <addaction name="actionAnimation"/>
+    <addaction name="separator"/>
+    <addaction name="actionUseSurfaceForce"/>
+    <addaction name="actionUseEnsembleForce"/>
+    <addaction name="actionUseImageForce"/>
+    <addaction name="actionUseBoundaryConditions"/>
+    <addaction name="actionUseAdaptiveControl"/>
+    <addaction name="separator"/>
+    <addaction name="actionShowParticles"/>
+    <addaction name="actionShowDisplacement"/>
+    <addaction name="actionShowCorrespondence"/>
+    <addaction name="menuParticle_Colors"/>
+    <addaction name="actionUseODESolver"/>
+    <addaction name="separator"/>
+    <addaction name="actionLoadParticleWorks"/>
+    <addaction name="actionLoadParticleWorksSingle"/>
+   </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="actionOpenBSplineVis"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuParticles"/>
+   <addaction name="menuTools"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionNewParticles"/>
+   <addaction name="actionLoadParticles"/>
+   <addaction name="actionRunImageParticles"/>
+   <addaction name="actionAnimation"/>
+  </widget>
+  <widget class="QDockWidget" name="dockWidget">
+   <property name="minimumSize">
+    <size>
+     <width>220</width>
+     <height>204</height>
+    </size>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <property name="margin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QToolBox" name="toolBox">
+       <property name="currentIndex">
+        <number>0</number>
+       </property>
+       <widget class="QWidget" name="imageSettings">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>280</width>
+          <height>575</height>
+         </rect>
+        </property>
+        <attribute name="label">
+         <string>Image Settings</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="verticalLayout_7">
+         <property name="spacing">
+          <number>-1</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>Configuration</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPlainTextEdit" name="config">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+            </font>
+           </property>
+           <property name="plainText">
+            <string>Options: +adaptive_sampling
+NumberOfParticles: int 100
+TimeRange: reals 0 0.05 30
+Subjects: strings 1
+00
+LabelImages: strings 1
+/NIRAL/work/joohwi/data/square/image_square_label.nrrd
+==option_end==</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="applyButton">
+           <property name="text">
+            <string>Load</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="runStepButton">
+           <property name="text">
+            <string>Run Step</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>13</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="modelSettings">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>280</width>
+          <height>575</height>
+         </rect>
+        </property>
+        <attribute name="label">
+         <string>Model Settings</string>
+        </attribute>
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <item>
+          <spacer name="verticalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>411</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="optimizerSettings">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>280</width>
+          <height>575</height>
+         </rect>
+        </property>
+        <attribute name="label">
+         <string>Optimizer Settings</string>
+        </attribute>
+        <layout class="QGridLayout" name="gridLayout_4"/>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <action name="actionAddImage">
+   <property name="text">
+    <string>&amp;Load Image</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+1</string>
+   </property>
+  </action>
+  <action name="actionOpenSurface">
+   <property name="text">
+    <string>Open Surface</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionCreateTargetSurface">
+   <property name="text">
+    <string>Create Target Surface</string>
+   </property>
+  </action>
+  <action name="actionAddLabel">
+   <property name="text">
+    <string>Load Label</string>
+   </property>
+   <property name="toolTip">
+    <string>Load Label Image</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+2</string>
+   </property>
+  </action>
+  <action name="actionAnimation">
+   <property name="text">
+    <string>Animate Trace</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="actionRunImageParticles">
+   <property name="text">
+    <string>Run Particles</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
+  <action name="actionNewParticles">
+   <property name="text">
+    <string>New Particles</string>
+   </property>
+  </action>
+  <action name="actionShowParticles">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Particles</string>
+   </property>
+  </action>
+  <action name="actionParticleBlack">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Black</string>
+   </property>
+  </action>
+  <action name="actionParticleRed">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Red</string>
+   </property>
+  </action>
+  <action name="actionParticleGreen">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Green</string>
+   </property>
+  </action>
+  <action name="actionParticleBlue">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Blue</string>
+   </property>
+  </action>
+  <action name="actionParticleWhite">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>White</string>
+   </property>
+  </action>
+  <action name="actionParticleHSV">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>HSV</string>
+   </property>
+  </action>
+  <action name="actionContinue">
+   <property name="text">
+    <string>Continue</string>
+   </property>
+  </action>
+  <action name="actionTest">
+   <property name="text">
+    <string>Test</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+T</string>
+   </property>
+  </action>
+  <action name="actionSurfaceSmoothing">
+   <property name="text">
+    <string>Surface Smoothing</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionSurfaceSmoothingContinue">
+   <property name="text">
+    <string>Surface Smoothing Continue</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="actionUseODESolver">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use ODE Solver</string>
+   </property>
+  </action>
+  <action name="actionTPS">
+   <property name="text">
+    <string>Thin Plate Spline</string>
+   </property>
+  </action>
+  <action name="actionEBS">
+   <property name="text">
+    <string>Elastic Body Spline</string>
+   </property>
+  </action>
+  <action name="actionOpenCompareWindow">
+   <property name="text">
+    <string>Open Compare Window</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionR2LogRTPS">
+   <property name="text">
+    <string>R2LogR Thin Plate Spline</string>
+   </property>
+  </action>
+  <action name="actionShowDisplacement">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Displacement</string>
+   </property>
+  </action>
+  <action name="actionBSpline">
+   <property name="text">
+    <string>BSpline</string>
+   </property>
+  </action>
+  <action name="actionShowBSplineControlPoints">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Control Points</string>
+   </property>
+  </action>
+  <action name="actionShowCorrespondence">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Correspondence</string>
+   </property>
+  </action>
+  <action name="actionUseSurfaceForce">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use Surface Force</string>
+   </property>
+  </action>
+  <action name="actionUseImageForce">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use Image Force</string>
+   </property>
+  </action>
+  <action name="actionUseBoundaryConditions">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use Boundary Conditions</string>
+   </property>
+  </action>
+  <action name="actionUseAdaptiveControl">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use Adaptive Control</string>
+   </property>
+  </action>
+  <action name="actionOpenBSplineVis">
+   <property name="text">
+    <string>Open BSpline Vis</string>
+   </property>
+  </action>
+  <action name="actionUseEnsembleForce">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Use Ensemble Force</string>
+   </property>
+  </action>
+  <action name="actionSaveParticles">
+   <property name="text">
+    <string>Save Particles</string>
+   </property>
+  </action>
+  <action name="actionLoadParticles">
+   <property name="text">
+    <string>Load Particles</string>
+   </property>
+  </action>
+  <action name="actionPressureMap">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Pressure Map</string>
+   </property>
+  </action>
+  <action name="actionLoadParticleWorks">
+   <property name="text">
+    <string>Load Particle Works</string>
+   </property>
+  </action>
+  <action name="actionLoadParticleWorksSingle">
+   <property name="text">
+    <string>Load Particle Works (Single)</string>
+   </property>
+  </action>
+  <action name="actionSaveSlices">
+   <property name="text">
+    <string>Save Slices</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="3"/>
+ <customwidgets>
+  <customwidget>
+   <class>myQGraphicsView</class>
+   <extends>QGraphicsView</extends>
+   <header>myQGraphicsView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QCustomPlot</class>
+   <extends>QWidget</extends>
+   <header>qcustomplot.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

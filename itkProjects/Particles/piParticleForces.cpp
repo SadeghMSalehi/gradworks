@@ -117,6 +117,14 @@ namespace pi {
 
     
     void EntropyInternalForce::ComputeForce(ParticleSubject& subj) {
+        if (useHetereoForce) {
+            ComputeHeteroForce(subj);
+        } else {
+            ComputeHomoForce(subj);
+        }
+    }
+
+    void EntropyInternalForce::ComputeHomoForce(ParticleSubject& subj) {
         const int nPoints = subj.GetNumberOfPoints();
 
         bool useKappa = useAdaptiveSampling && subj.kappaSampler.IsNotNull();
@@ -176,7 +184,80 @@ namespace pi {
             }
         }
     }
-    
+
+    void EntropyInternalForce::ComputeHeteroForce(ParticleSubject& subj) {
+        const int nPoints = subj.GetNumberOfPoints();
+
+        bool useKappa = useAdaptiveSampling && subj.kappaSampler.IsNotNull();
+#pragma omp parallel for
+        for (int i = 0; i < nPoints; i++) {
+            Particle& pi = subj.m_Particles[i];
+            const DataReal sigma = repulsionSigma;
+            const DataReal sigma2 = sigma * sigma;
+            const DataReal friendSigma2 = friendSigma*friendSigma;
+            const DataReal cutoff = repulsionCutoff;
+
+            // iteration over particles
+            // may reduce use symmetric properties
+            VNLVector weights(nPoints, 0);
+            for (int j = 0; j < nPoints; j++) {
+                Particle& pj = subj.m_Particles[j];
+                if (i == j) {
+                    // there's no self interaction
+                    weights[j] = 0;
+                } else {
+                    DataReal kappa = 1;
+                    if (useKappa) {
+                        RealIndex jIdx;
+                        fordim (k) {
+                            jIdx[k] = pj.x[k];
+                        }
+                        kappa = subj.kappaSampler->EvaluateAtContinuousIndex(jIdx);
+                        kappa *= kappa;
+                    }
+                    DataReal dij = sqrt(pi.Dist2(pj));
+
+                    const bool isFriend = pi.label == pj.label;
+                    if (!isFriend) {
+                        if (dij > cutoff) {
+                            weights[j] = 0;
+                        } else {
+                            weights[j] = exp(-dij*dij*kappa/(sigma2));
+                        }
+                    } else {
+                        if (dij > friendCutoff) {
+                            weights[j] = 0;
+                        } else {
+                            weights[j] = exp(-dij*dij*kappa/(friendSigma2));
+                        }
+                    }
+                }
+            }
+            
+            DataReal sumForce = weights.sum();
+            if (sumForce > 0) {
+                weights /= sumForce;
+            }
+
+            // update force for neighboring particles
+            for (int j = 0; j < nPoints; j++) {
+                if (i == j || weights[j] == 0) {
+                    continue;
+                }
+                Particle& pj = subj.m_Particles[j];
+                DataReal weight = weights[j];
+                VNLVector xixj(__Dim, 0);
+                fordim (k) {
+                    xixj[k] = pi.x[k] - pj.x[k];
+                }
+                xixj.normalize();
+                fordim (k) {
+                    pi.f[k] += (coeff * weight * (pi.x[k] - pj.x[k]));
+                }
+            }
+        }
+    }
+
     void EntropyInternalForce::ComputeForce(ParticleSubjectArray& subjs) {
         const int nSubjs = subjs.size();
         for (int n = 0; n < nSubjs; n++) {

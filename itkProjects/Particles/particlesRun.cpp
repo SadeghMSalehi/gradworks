@@ -39,6 +39,8 @@ int main(int argc, char* argv[]) {
         { 21, "--warp", SO_NONE },
         { 22, "--norigidalign", SO_NONE },
         { 24, "--onlyrigidalign", SO_NONE },
+        { 25, "--showpoints", SO_NONE },
+        { 26, "--eval", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
@@ -59,6 +61,7 @@ int main(int argc, char* argv[]) {
     
     itkcmds::itkImageIO<RealImage> realIO;
     itkcmds::itkImageIO<LabelImage> labelIO;
+
 
     if (parser.GetBool("--seeConfig")) {
         solver.LoadConfig(args[0].c_str());
@@ -154,7 +157,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (parser.GetBool("--markTrace")) {
         if (args.size() < 2) {
-        	cout << "--markTrace requires [output.txt] [reference-image] [output-image]" << endl;
+        	cout << "--markTrace requires [output.txt] [reference-image] [output-image] --srcidx [point-index] --srcsubj [subject-index]" << endl;
             return 0;
         }
         ifstream in(args[0].c_str());
@@ -191,8 +194,23 @@ int main(int argc, char* argv[]) {
         }
         solver.LoadConfig(args[0].c_str());
         LabelImage::Pointer label = labelIO.NewImageT(solver.m_ImageContext.GetLabel(srcIdx));
+        int nPoints = system[srcIdx].GetNumberOfPoints();
+        cout << "Marking " << nPoints << " points ..." << endl;
         MarkAtImage(system[srcIdx], system[srcIdx].GetNumberOfPoints(), label, 1);
         labelIO.WriteImageT(args[1].c_str(), label);
+    } else if (parser.GetBool("--showpoints")) {
+        if (args.size() < 1) {
+            cout << "--showpoints requires [output.txt]" << endl;
+            return 0;
+        }
+        solver.LoadConfig(args[0].c_str());
+        for (int i = 0; i < system.size(); i++) {
+            cout << "Subject " << i << endl;
+            for (int j = 0; j < system[i].GetNumberOfPoints(); j++) {
+                cout << system[i][j] << endl;
+            }
+        }
+
     } else if (parser.GetBool("--normalize")) {
         if (args.size() < 3) {
             cout << "--normalize requires [input-image] [mask-image] [output-image]" << endl;
@@ -302,6 +320,15 @@ int main(int argc, char* argv[]) {
         cout << system[srcIdx].inverseAlignment << endl;
         export2vtk(system[srcIdx], "src.vtk", 0);
         export2vtk(system[dstIdx], "dst.vtk", 1);
+    } else if (parser.GetBool("--eval")) {
+        if (args.size() < 2) {
+            cout << "--eval requires [label1] [label2]" << endl;
+            return 0;
+        }
+        AtlasSimilarityScore score;
+        score.Compute(labelIO.ReadImageT(args[0].c_str()), labelIO.ReadImageT(args[1].c_str()));
+        cout << score << endl;
+        return 0; 
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;

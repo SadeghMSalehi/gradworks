@@ -39,6 +39,8 @@ namespace pi {
     public:
         int subj;
         int idx;
+        int label;
+        
         DataReal t;
 
         // the position x and the transformed point y
@@ -119,6 +121,7 @@ namespace pi {
         ParticleSubject(int subjid, int npoints);
         ~ParticleSubject();
 
+        inline const int size() const { return m_Particles.size(); }
         inline const int GetNumberOfPoints() const { return m_Particles.size(); }
         inline int GetNumberOfPoints() { return m_Particles.size(); }
 
@@ -160,6 +163,8 @@ namespace pi {
     class ImageContext {
         friend class ParticleSystem;
     public:
+        LabelVector m_LabelImages;
+
         void LoadLabel(std::string filename);
         void LoadRealImage(std::string filename);
 
@@ -181,7 +186,6 @@ namespace pi {
         StringVector m_RealImageFileNames;
         StringVector m_FileNames;
         LabelImage::Pointer m_Intersection;
-        LabelVector m_LabelImages;
         RealImageVector m_Images;
         OffsetImageVector m_DistanceMaps;
         std::string m_IntersectionOutput;
@@ -204,7 +208,8 @@ namespace pi {
         void LoadKappaImages(Options& options, ImageContext* context);
 
         ParticleSubject& GetInitialSubject();
-        ParticleSubject& ComputeMeanSubject();
+        ParticleSubject& ComputeXMeanSubject();
+        ParticleSubject& ComputeYMeanSubject();
         ParticleSubject& GetMeanSubject();
         ParticleSubjectArray& GetSubjects();
         

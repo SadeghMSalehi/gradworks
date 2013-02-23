@@ -15,7 +15,42 @@
 
 class vtkPolyData;
 
+
+using namespace std;
+
 namespace pi {
+
+    class LabelSimilarityScore {
+    public:
+        int L;
+        int A;
+        int B;
+        int AB;
+        double minDist;
+        double maxDist;
+        int total() const { return (A+B+AB); }
+        double dice() const { return (2.0*AB)/(A+B+2*AB+0.0); }
+        double overlap() const { return AB / total(); }
+        LabelSimilarityScore() {
+            L = A = B = AB = 0;
+            minDist = maxDist = 0;
+        }
+    };
+    typedef std::vector<LabelSimilarityScore> LabelScoreVector;
+
+    class AtlasSimilarityScore {
+    public:
+        LabelScoreVector labelMap;
+        void Compute(LabelImage::Pointer a, LabelImage::Pointer b);
+        void Add(LabelPixel a, LabelPixel b);
+        LabelSimilarityScore& operator()(int l) {
+            return labelMap[l];
+        }
+    };
+
+    ostream& operator<<(ostream& os, const LabelSimilarityScore& score);
+    ostream& operator<<(ostream& os, const AtlasSimilarityScore& score);
+
     class ImageProcessing {
     public:
         // anti-aliasing, connected component, and closing morphology
