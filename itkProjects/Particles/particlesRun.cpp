@@ -11,8 +11,92 @@
 using namespace std;
 using namespace pi;
 
+int srcIdx = 1;
+int dstIdx = 0;
 
 #define PRINT_IDX() cout << "using src: " << srcIdx << ", dst: " << dstIdx << endl
+
+
+itkcmds::itkImageIO<RealImage> realIO;
+itkcmds::itkImageIO<LabelImage> labelIO;
+
+void zeroCrossing(Options& parser, StringVector& args) {
+    if (args.size() < 2) {
+        cout << "--zercorssing requires [srcimg] [dstimg]" << endl;
+        return;
+    }
+    string srcImg = args[0];
+    string dstImg = args[1];
+
+
+    ImageProcessing proc;
+    LabelImage::Pointer label = labelIO.ReadImageT(args[0].c_str());
+    LabelImage::Pointer zeroCross = proc.ZeroCrossing(label);
+    labelIO.WriteImageT(args[1].c_str(), zeroCross);
+    
+    return;
+}
+
+void computeHistogram(Options& parser, StringVector& args) {
+    ImageProcessing proc;
+    int nbin = 16;
+    int rmin = 0;
+    int rmax = 10000;
+    parser.GetIntTo("--nbin", nbin);
+    parser.GetIntTo("--rmin", rmin);
+    parser.GetIntTo("--rmax", rmax);
+    cout << proc.ComputeHistogramToString(realIO.ReadImageT(args[0].c_str()), nbin, rmin, rmax) << endl;
+    return;
+}
+
+
+void traceWarp(Options& parser, StringVector& args) {
+    if (args.size() < 3) {
+        cout << "--traceWarp requires [trace.txt] [srcimg] [dstimg] [--srcidx n] [--interval 1.0]" << endl;
+        return;
+    }
+
+    string traceIn = args[0];
+    string srcImg = args[1];
+    string dstImg = args[2];
+
+    ParticleTrace trace;
+    ifstream is(traceIn.c_str());
+    trace.Read(is);
+
+    
+
+    
+    return;
+}
+
+
+LabelImage::Pointer RemoveBoundary(LabelImage::Pointer labelImage, int size) {
+    LabelImage::RegionType region = labelImage->GetBufferedRegion();
+    LabelImage::IndexType idx = region.GetIndex();
+    LabelImage::IndexType upIdx = region.GetUpperIndex();
+
+    cout << "Removing " << size << " border pixels ..." << endl;
+    fordim (k) {
+        idx[k] += size;
+        upIdx[k] -= size;
+    }
+    region.SetIndex(idx);
+    region.SetUpperIndex(upIdx);
+
+    LabelImage::RegionType wholeRegion = labelImage->GetBufferedRegion();
+    LabelImageIteratorType iter(labelImage, wholeRegion);
+
+    iter.GoToBegin();
+    while (!iter.IsAtEnd()) {
+        if (!region.IsInside(iter.GetIndex())) {
+            iter.Set(0);
+        }
+        ++iter;
+    }
+
+    return labelImage;
+}
 
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
@@ -41,6 +125,15 @@ int main(int argc, char* argv[]) {
         { 24, "--onlyrigidalign", SO_NONE },
         { 25, "--showpoints", SO_NONE },
         { 26, "--eval", SO_NONE },
+        { 27, "--histo", SO_NONE },
+        { 28, "--nbin", SO_NONE },
+        { 29, "--rmin", SO_NONE },
+        { 30, "--rmax", SO_NONE },
+        { 31, "--removeborder", SO_NONE },
+        { 32, "--size", SO_REQ_SEP },
+        { 33, "--traceWarp", SO_NONE },
+        { 34, "--interval", SO_REQ_SEP },
+        { 35, "--zerocrossing", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
@@ -55,13 +148,8 @@ int main(int argc, char* argv[]) {
     Options& options = solver.m_Options;
 
 
-    int srcIdx = atoi(parser.GetString("--srcidx", "1").c_str());
-    int dstIdx = atoi(parser.GetString("--dstidx", "0").c_str());
-
-    
-    itkcmds::itkImageIO<RealImage> realIO;
-    itkcmds::itkImageIO<LabelImage> labelIO;
-
+    srcIdx = atoi(parser.GetString("--srcidx", "1").c_str());
+    dstIdx = atoi(parser.GetString("--dstidx", "0").c_str());
 
     if (parser.GetBool("--seeConfig")) {
         solver.LoadConfig(args[0].c_str());
@@ -87,7 +175,7 @@ int main(int argc, char* argv[]) {
         int dstIdx = atoi(parser.GetString("--dstidx", "0").c_str());
 
         if (parser.GetBool("--mean")) {
-            system.ComputeMeanSubject();
+            system.ComputeXMeanSubject();
             particleTransform.EstimateTransform(system.GetMeanSubject(), system[srcIdx]);
         } else {
             cout << "warping from " << srcIdx << " to " << dstIdx << endl;
@@ -329,6 +417,22 @@ int main(int argc, char* argv[]) {
         score.Compute(labelIO.ReadImageT(args[0].c_str()), labelIO.ReadImageT(args[1].c_str()));
         cout << score << endl;
         return 0; 
+    } else if (parser.GetBool("--histo")) {
+        computeHistogram(parser, args);
+    } else if (parser.GetBool("--traceWarp")) {
+        traceWarp(parser, args);
+    } else if (parser.GetBool("--zerocrossing")) {
+        zeroCrossing(parser, args);
+    } else if (parser.GetBool("--removeborder")) {
+        if (args.size() < 2) {
+        	cout << "--removeborder requires [input-image] [output-image]" << endl;
+            return 0;
+        }
+
+        LabelImage::Pointer img = labelIO.ReadImageT(args[0].c_str());
+        RemoveBoundary(img, parser.GetStringAsInt("--size", 0));
+        labelIO.WriteImageT(args[1].c_str(), img);
+
     } else {
         if (args.size() < 2) {
         	cout << "registration requires [config.txt] [output.txt]" << endl;
@@ -383,7 +487,7 @@ int main(int argc, char* argv[]) {
                 for (int i = 1; i < warpedLabels.size(); i++) {
                     LabelImage::Pointer label = io.ReadImageT(labelImages[i].c_str());
                     // bspline resampling
-                    LabelImage::Pointer output = warp_image<LabelImage>(system[0], system[1], label, label, true, false, false);
+                    LabelImage::Pointer output = warp_image<LabelImage>(system[0], system[i], label, label, true, false, false);
                     io.WriteImageT(warpedLabels[i].c_str(), output);
                 }
             }

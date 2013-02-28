@@ -36,7 +36,7 @@ namespace pi {
         
         ImageSlice(): alpha(255),pixmapCache(NULL) {}
         
-        void SetLabel(typename T::Pointer label) {
+        void SetImage(typename T::Pointer label) {
             labelImage = label;
             typedef itk::ScalarToARGBColormapImageFilter<T, RGBAImageType> ScalarToRGBFilter;
             typename ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
@@ -45,6 +45,10 @@ namespace pi {
             rgbFilter->SetAlphaValue(alpha);
             rgbFilter->Update();
             rgbaImage = rgbFilter->GetOutput();
+        }
+
+        typename T::Pointer GetImage() {
+            return labelImage;
         }
 
         QPixmap GetPixmap() {

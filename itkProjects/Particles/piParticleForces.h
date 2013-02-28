@@ -36,14 +36,14 @@ namespace pi {
 
     class EntropyInternalForce {
     public:
-        EntropyInternalForce(): useHetereoForce(false),repulsionSigma(5), repulsionCutoff(repulsionSigma*5),friendSigma(3), friendCutoff(friendSigma*5),  useAdaptiveSampling(false), maxKappa(3), coeff(1) {}
+        EntropyInternalForce(): useMultiPhaseForce(false),repulsionSigma(5), repulsionCutoff(repulsionSigma*5),friendSigma(3), friendCutoff(friendSigma*5),  useAdaptiveSampling(false), maxKappa(3), coeff(1) {}
         ~EntropyInternalForce() {}
 
         void ComputeForce(ParticleSubject& subj);
         void ComputeForce(ParticleSubjectArray& subjs);
         void ComputeForce(Particle& a, Particle& b);
 
-        bool useHetereoForce;
+        bool useMultiPhaseForce;
         DataReal repulsionSigma;
         DataReal repulsionCutoff;
         DataReal friendSigma;

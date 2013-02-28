@@ -155,7 +155,13 @@ namespace pi {
         erodeFilter->SetInput(dilateFilter->GetOutput());
         erodeFilter->Update();
 
-        procImage = erodeFilter->GetOutput();
+        ErodeFilterType::Pointer erodeFilter2 = ErodeFilterType::New();
+        erodeFilter2->SetErodeValue(LABEL_VAL);
+        erodeFilter2->SetKernel(structuringElement);
+        erodeFilter2->SetInput(erodeFilter->GetOutput());
+        erodeFilter2->Update();
+
+        procImage = erodeFilter2->GetOutput();
 
         cout << "done" << endl;
         return procImage;
@@ -324,6 +330,15 @@ namespace pi {
         return NULL;
     }
 
+
+    LabelImage::Pointer ImageProcessing::ZeroCrossing(LabelImage::Pointer src) {
+        typedef itk::ZeroCrossingImageFilter<LabelImage, LabelImage> ZeroFilter;
+        ZeroFilter::Pointer zero = ZeroFilter::New();
+        zero->SetInput(src);
+        zero->Update();
+        return zero->GetOutput();
+    }
+    
     LabelImage::Pointer ImageProcessing::NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer mask) {
         itkcmds::itkImageIO<LabelImage> io;
         LabelImage::Pointer output = io.NewImageT<RealImage>(src);
@@ -400,6 +415,16 @@ namespace pi {
         binThreshFilter->Update();
         return binThreshFilter->GetOutput();
     }
+
+
+    ImageHistogramFilterType::HistogramPointer ImageProcessing::ComputeHistogram(RealImage::Pointer real, int nbin, DataReal rmin, DataReal rmax) {
+        return ImageHistogramFilterType::HistogramPointer();
+    }
+
+    string ImageProcessing::ComputeHistogramToString(RealImage::Pointer real, int nbin, DataReal rmin, DataReal rmax) {
+        return "";
+    }
+
 
 
     void AtlasSimilarityScore::Add(LabelPixel a, LabelPixel b) {

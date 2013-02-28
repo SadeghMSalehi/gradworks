@@ -31,9 +31,10 @@ namespace pi {
         std::string binaryMaskCache;
         std::string distanceMapCache;
         bool applyMaskSmoothing;
-        
+        ParticleSubject* subject;
+
     public:
-        ParticleCollision(): applyMaskSmoothing(false) {}
+        ParticleCollision(): applyMaskSmoothing(false), subject(NULL) {}
         ~ParticleCollision() {}
 
         inline bool IsCrossing(IntIndex& xm) {
@@ -55,7 +56,7 @@ namespace pi {
         bool ComputeContactPoint(DataReal* x0, DataReal* x1, ContactPoint& cp);
         bool ComputeNormal(DataReal* cp, DataReal* normal);
         DataReal ComputeDistance(DataReal* x1, DataReal* cp);
-        void ComputeClosestBoundary(DataReal* x1, DataReal* cp);
+        void ComputeClosestBoundary(Particle& p, DataReal* x1, DataReal* cp);
 
         void SetLabelImage(LabelImage::Pointer labelImage);
         void SetBinaryMask(LabelImage::Pointer labelImage);

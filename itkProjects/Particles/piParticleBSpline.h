@@ -16,6 +16,14 @@
 #include "itkBSplineTransform.h"
 #include "itkWarpImageFilter.h"
 
+#ifndef NCONTROL
+#define NCONTROL 8
+#endif
+
+#ifndef NORDER
+#define NORDER 3
+#endif
+
 namespace pi {
     typedef itk::BSplineScatteredDataPointSetToImageFilter
     <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
@@ -23,10 +31,12 @@ namespace pi {
     typedef itk::BSplineTransform<PointReal,__Dim,3> BSplineTransform;
     typedef itk::WarpImageFilter<RealImage, RealImage, DisplacementFieldType> WarpImageFilterType;
 
+    static int __SPLINE_ORDER__ = NORDER;
+    static int __SPLINE_CONTROL_POINTS__ = NCONTROL;
 
     class ParticleBSpline {
     public:
-        ParticleBSpline() : m_SplineOrder(3), m_SplineLevel(1), m_ControlPoints(8) {
+        ParticleBSpline() : m_SplineOrder(__SPLINE_ORDER__), m_SplineLevel(1), m_ControlPoints(__SPLINE_CONTROL_POINTS__) {
         }
 
         LabelImage::Pointer GetReferenceImage();
@@ -57,6 +67,7 @@ namespace pi {
             cout << "Cannot estimate grid size without reference image!" << endl;
             return;
         }
+        cout << "Using order: " << m_SplineOrder << "; # control points: " << m_ControlPoints << endl;
         if (m_FieldPoints.IsNull()) {
             m_FieldPoints = DisplacementFieldPointSetType::New();
         }
@@ -107,6 +118,10 @@ namespace pi {
             bspliner->SetSplineOrder(splineOrder);
             bspliner->SetNumberOfControlPoints(numControlPoints);
             bspliner->SetInput(m_FieldPoints);
+
+            /// Description: itk::ERROR: MultiThreader(0x7fd09c02b400): Exception occurred during SingleMethodExecute ??
+            // Error occurred due to particles out of the image itself
+//            bspliner->SetNumberOfThreads(1);
             bspliner->Update();
             m_DisplacementField = bspliner->GetOutput();
         } catch (itk::ExceptionObject& e) {

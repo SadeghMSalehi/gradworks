@@ -107,6 +107,16 @@ namespace pi {
         RealImage::Pointer kappaImage;
         LinearImageInterpolatorType::Pointer kappaSampler;
 
+        // Label sampler for multi-phase internal force
+        LabelImage::Pointer friendImage;
+        NNLabelInterpolatorType::Pointer friendSampler;
+
+        RealImage::Pointer realImage;
+        LinearImageInterpolatorType::Pointer realSampler;
+
+        GradientImage::Pointer gradImage;
+        GradientInterpolatorType::Pointer gradSampler;
+
         // vtk related variables
         vtkTransformType alignment;
         vtkTransformType inverseAlignment;
@@ -116,6 +126,8 @@ namespace pi {
         // deformable transforms
         FieldTransformType::Pointer m_DeformableTransform;
         FieldTransformType::Pointer m_InverseDeformableTransform;
+
+
 
         ParticleSubject();
         ParticleSubject(int subjid, int npoints);

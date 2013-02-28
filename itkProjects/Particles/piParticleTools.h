@@ -25,7 +25,6 @@ namespace pi {
             fordim (k) {
                 idx[k] = pi.x[k] + 0.5;
             }
-            cout << pi << endl;
             image->SetPixel(idx, val);
         }
     }

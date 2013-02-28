@@ -233,20 +233,23 @@ namespace pi {
     }
 
     void ParticleSubject::ComputeAlignment(ParticleSubject& dst, bool useSimilarity) {
-        typedef vtkSmartPointer<vtkLandmarkTransform> vtkLandmarkTransformType;
-        dst.SyncPointsCopy();
-        SyncPointsCopy();
-        vtkLandmarkTransformType landmarkTransform = vtkLandmarkTransformType::New();
-        if (useSimilarity) {
-            landmarkTransform->SetModeToSimilarity();
-        }
-        landmarkTransform->SetSourceLandmarks(pointscopy);
-        landmarkTransform->SetTargetLandmarks(dst.pointscopy);
-        landmarkTransform->Update();
+        const bool useAlignment = false;
+        if (useAlignment) {
+            typedef vtkSmartPointer<vtkLandmarkTransform> vtkLandmarkTransformType;
+            dst.SyncPointsCopy();
+            SyncPointsCopy();
+            vtkLandmarkTransformType landmarkTransform = vtkLandmarkTransformType::New();
+            if (useSimilarity) {
+                landmarkTransform->SetModeToSimilarity();
+            }
+            landmarkTransform->SetSourceLandmarks(pointscopy);
+            landmarkTransform->SetTargetLandmarks(dst.pointscopy);
+            landmarkTransform->Update();
 
-        alignment->SetMatrix(landmarkTransform->GetMatrix());
-        inverseAlignment->SetMatrix(alignment->GetMatrix());
-        inverseAlignment->Inverse();
+            alignment->SetMatrix(landmarkTransform->GetMatrix());
+            inverseAlignment->SetMatrix(alignment->GetMatrix());
+            inverseAlignment->Inverse();
+        }
     }
     
     void ParticleSubject::AlignmentTransformX2Y() {
@@ -427,6 +430,9 @@ namespace pi {
     void ImageContext::LoadLabel(std::string filename) {
         itkcmds::itkImageIO<LabelImage> io;
         LabelImage::Pointer image = io.ReadImageT(filename.c_str());
+        if (image.IsNull()) {
+            return;
+        }
         m_LabelImages.push_back(image);
 
         // set default spacing to 1 to match index and physical coordinate space
@@ -544,12 +550,12 @@ namespace pi {
     void ParticleSystem::LoadKappaImages(Options& options, ImageContext* context) {
         StringVector& kappaNames = options.GetStringVector("KappaImageCache:");
         if (kappaNames.size() != m_Subjects.size()) {
-            cout << "Kappa images and subjects are different set" << endl;
+            cout << "Kappa images and subjects are different set (KappaImageCache: missing?)" << endl;
             return;
         }
 
         DataReal sigma = options.GetReal("AdaptiveSamplingBlurSigma:", 1);
-        DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 3);
+        DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 2);
 
         itkcmds::itkImageIO<RealImage> io;
         for (int i = 0; i < kappaNames.size(); i++) {

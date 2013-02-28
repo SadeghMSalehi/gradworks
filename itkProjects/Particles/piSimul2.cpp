@@ -32,6 +32,8 @@ namespace pi {
     
     Simul2::Simul2(QWidget* parent) {
         ui.setupUi(this);
+//        ui.toolBar->addWidget(ui.showImage);
+
         ui.graphicsView->setScene(&m_scene);
         ui.graphicsView->setBackgroundBrush(QBrush(Qt::black));
 
@@ -50,12 +52,16 @@ namespace pi {
         }
     }
 
-    void Simul2::on_actionAddLabel_triggered() {
-
-    }
-
-    void Simul2::on_actionNewParticles_triggered() {
-
+    void Simul2::on_showImage_toggled(bool check) {
+        if (check) {
+            // constraint view
+            viewSlice.alpha = 60;
+            viewSlice.SetImage(labels[0]);
+            viewSlice.pixmapCache = m_scene.addPixmap(viewSlice.GetPixmap());
+            viewSlice.pixmapCache->setZValue(-1);
+        } else {
+            m_scene.removeItem((QGraphicsItem*) viewSlice.pixmapCache);
+        }
     }
 
     void Simul2::on_applyButton_clicked(bool value) {
@@ -69,12 +75,7 @@ namespace pi {
         setupParticles();
         updateParticles();
 
-        // constraint view
-        viewSlice.alpha = 60;
-        viewSlice.SetLabel(labels[0]);
-        m_scene.removeItem((QGraphicsItem*) viewSlice.pixmapCache);
-        viewSlice.pixmapCache = m_scene.addPixmap(viewSlice.GetPixmap());
-        viewSlice.pixmapCache->setZValue(-1);
+        ui.showImage->setChecked(true);
 
         // save current configuration
         ofstream cfg(configcache.c_str());
@@ -121,10 +122,12 @@ namespace pi {
         for (int i = 0; i < system.size(); i++) {
             for (int j = 0; j < system[i].size(); j++) {
                 Particle& p = system[i][j];
+                p.label = 1;
 //                p.label = p.x[1] > 80;
-                p.label = j%2;
+//                p.label = j%2;
             }
         }
+        system[0].friendImage = viewSlice.GetImage();
     }
 
     void Simul2::updateParticles() {

@@ -131,6 +131,10 @@ namespace pi {
     }
 
     int Options::GetStringAsInt(std::string name, int def) {
+        string val = GetString(name, "");
+        if (val != "") {
+            return atoi(val.c_str());
+        }
         return def;
     }
 

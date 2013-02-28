@@ -12,6 +12,7 @@
 #include <iostream>
 #include "piImageDef.h"
 #include "itkRescaleIntensityImageFilter.h"
+#include <itkImageToHistogramFilter.h>
 
 class vtkPolyData;
 
@@ -19,6 +20,8 @@ class vtkPolyData;
 using namespace std;
 
 namespace pi {
+
+    typedef itk::Statistics::ImageToHistogramFilter<RealImage> ImageHistogramFilterType;
 
     class LabelSimilarityScore {
     public:
@@ -28,7 +31,7 @@ namespace pi {
         int AB;
         double minDist;
         double maxDist;
-        int total() const { return (A+B+AB); }
+        int total() const { return (A+B+2*AB); }
         double dice() const { return (2.0*AB)/(A+B+2*AB+0.0); }
         double overlap() const { return AB / total(); }
         LabelSimilarityScore() {
@@ -71,6 +74,10 @@ namespace pi {
         vtkPolyData* ConvertToMesh(LabelImage::Pointer image);
         RealImage::Pointer NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label);
         LabelImage::Pointer NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer label);
+
+        LabelImage::Pointer ZeroCrossing(LabelImage::Pointer src);
+        ImageHistogramFilterType::HistogramPointer ComputeHistogram(RealImage::Pointer real, int nbin, DataReal rmin, DataReal rmax);
+        string ComputeHistogramToString(RealImage::Pointer real, int nbin, DataReal rmin, DataReal rmax);
 
         template <class T>
         typename T::Pointer TransformImage(typename T::Pointer srcImg, std::string transform) {

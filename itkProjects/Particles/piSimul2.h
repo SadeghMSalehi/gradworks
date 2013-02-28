@@ -25,10 +25,9 @@ namespace pi {
         void removeParticles();
 
     public slots:
-        void on_actionNewParticles_triggered();
-        void on_actionAddLabel_triggered();
         void on_applyButton_clicked(bool value);
         void on_runStepButton_clicked();
+        void on_showImage_toggled(bool value);
         void tick();
 
     private:

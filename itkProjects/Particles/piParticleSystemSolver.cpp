@@ -11,6 +11,7 @@
 #include "piParticleForces.h"
 #include "piOptions.h"
 #include "piParticleTrace.h"
+#include "piImageProcessing.h"
 #include "itkExceptionObject.h"
 
 #include "fstream"
@@ -79,16 +80,17 @@ namespace pi {
                     ss >> nPoints;
                     m_System.GetInitialSubject().ReadParticlePositions(in, nPoints);
                     cout << "Read " << nPoints << " initial particles" << endl;
-                } else if (name == "ParticleAlignment:") {
-                    int nsubj;
-                    ss >> nsubj;
-                    for (int i = 0; i < nsubj; i++) {
-                        in.getline(buf, sizeof(buf));
-                        string line(buf);
-                        stringstream ss(line);
-                        ss >> m_System[i].alignment;
-                    }
                 }
+//                else if (name == "ParticleAlignment:") {
+//                    int nsubj;
+//                    ss >> nsubj;
+//                    for (int i = 0; i < nsubj; i++) {
+//                        in.getline(buf, sizeof(buf));
+//                        string line(buf);
+//                        stringstream ss(line);
+//                        ss >> m_System[i].alignment;
+//                    }
+//                }
             }
         }
         return true;
@@ -104,9 +106,12 @@ namespace pi {
         const int nSubj = m_System.GetNumberOfSubjects();
         const int nParticles = m_System.GetNumberOfParticles();
 
-        if (nSubj > 0) {
-            out << "ParticleAlignment: " << nSubj << " " << nParticles << endl;
-        }
+//        if (nSubj > 0) {
+//            out << "ParticleAlignment: " << nSubj << " " << nParticles << endl;
+//        for (int i = 0; i < nSubj; i++) {
+//            out << m_System[i].alignment << endl;
+//        }
+//        }
         const int nInitialPoints = m_System.GetInitialSubject().GetNumberOfPoints();
         if (nInitialPoints > 0) {
             out << "InitialParticles: " << nInitialPoints << endl;
@@ -114,9 +119,7 @@ namespace pi {
         }
 
         if (nSubj > 0) {
-            for (int i = 0; i < nSubj; i++) {
-                out << m_System[i].alignment << endl;
-            }
+
             for (int i = 0; i < nSubj; i++) {
                 out << "Particles: " << i << " " << nParticles << endl;
                 if (m_Options.GetBool("save_position_only")) {
@@ -252,8 +255,19 @@ namespace pi {
 
         if (!m_Options.GetBool("use_previous_position")) {
             if (system.GetInitialSubject().size() > 0) {
+                ImageProcessing proc;
                 for (int n = 0; n < nSubz; n++) {
-                    m_System[n].Initialize(system.GetInitialSubject().m_Particles);
+                    ParticleSubject& s = m_System[n];
+                    s.Initialize(system.GetInitialSubject().m_Particles);
+                    s.friendImage = m_ImageContext.GetLabel(n);
+                    s.friendSampler = NNLabelInterpolatorType::New();
+                    s.friendSampler->SetInputImage(s.friendImage);
+                    s.realImage = m_ImageContext.GetRealImage(n);
+                    s.realSampler = LinearImageInterpolatorType::New();
+                    s.realSampler->SetInputImage(s.realImage);
+                    s.gradImage = proc.ComputeGaussianGradient(m_System[n].realImage, 1);
+                    s.gradSampler = GradientInterpolatorType::New();
+                    s.gradSampler->SetInputImage(s.gradImage);
                 }
             }
         }
@@ -274,7 +288,7 @@ namespace pi {
         m_Options.GetRealTo("InternalForceFriendSigma:", internalForce.friendSigma);
         m_Options.GetRealTo("InternalForceFriendCutoff:", internalForce.friendCutoff);
         m_Options.GetBoolTo("adaptive_sampling", internalForce.useAdaptiveSampling);
-        m_Options.GetBoolTo("hetero_force", internalForce.useHetereoForce);
+        m_Options.GetBoolTo("multiphase_force", internalForce.useMultiPhaseForce);
 
 
         if (internalForce.useAdaptiveSampling) {
@@ -297,13 +311,22 @@ namespace pi {
         ensembleForce.coeff = 0.3;
         intensityForce.coeff = 0.3;
 
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, internalForce.coeff);
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, ensembleForce.coeff);
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, intensityForce.coeff);        
+
 #ifdef ATTR_SIZE
         m_Options.SetInt("AttributeDimension:", ATTR_SIZE);
 #endif
 
+
+        ///////////////////////////////////////////////
+        // Collison Handler Setup
+        //
         collisionHandlers.resize(nSubz);
 
         for (int n = 0; n < nSubz; n++) {
+            collisionHandlers[n].subject = &m_System[n];
             collisionHandlers[n].applyMaskSmoothing = true;
             m_Options.GetStringVectorValueTo("BinaryMaskCache:", n, collisionHandlers[n].binaryMaskCache);
             m_Options.GetStringVectorValueTo("BinaryMaskDistanceMapCache:", n, collisionHandlers[n].distanceMapCache);
@@ -311,6 +334,10 @@ namespace pi {
             collisionHandlers[n].UpdateImages();
         }
 
+
+        ////////////////////////////////////////////////
+        // Time Range Setup
+        //
         RealVector& times = m_Options.GetRealVector("TimeRange:");
         if (times.size() > 0) {
             t0 = times[0];
@@ -318,11 +345,15 @@ namespace pi {
             t1 = times[2];
         }
 
+        ////////////////////////////////////////////////
+        // Active Option Listing
+        //
         if (useEnsemble) cout << "ensemble term enabled" << endl; else cout << "ensemble term disabled" << endl;
         if (useIntensity) cout << "intensity term enabled" << endl; else cout << "intensity term disabled" << endl;
         if (noInternal) cout << "internal force disabled" << endl; else cout << "internal force enabled" << endl;
         if (noBoundary) cout << "boundary term disabled" << endl; else cout << "boundary term enabled" << endl;
         if (internalForce.useAdaptiveSampling) cout << "adaptive sampling enabled" << endl; else cout << "adaptive sampling disabled" << endl;
+        if (internalForce.useMultiPhaseForce) cout << "multi-phase force enabled" << endl; else cout << "multi-pahse force disabled" << endl;
         cout << Attr::NATTRS << " attributes per particle" << endl;
 
         m_System.currentIteration = -1;
@@ -363,6 +394,13 @@ namespace pi {
         return;
     }
 
+
+
+    //////////////////////////////////////////////////////
+    //
+    // Actual Computation: IMPORTANT!!
+    //
+    //
     int ParticleSystemSolver::RunStep() {
         ParticleSystem& system = m_System;
 
@@ -389,6 +427,8 @@ namespace pi {
             }
             collisionHandlers[n].ConstrainPoint(m_System[n]);
         }
+
+        // compute alignment and apply internal force
         m_System.ComputeXMeanSubject();
         if (!noInternal) {
             if (nSubz > 1) {
@@ -417,11 +457,19 @@ namespace pi {
             for (int i = 0; i < nPoints; i++) {
                 Particle& p = sub[i];
                 LabelImage::IndexType pIdx;
-                fordim (k) {
-                    p.f[k] -= p.v[k];
-                    p.v[k] += dt*p.f[k];
-                    p.x[k] += dt*p.v[k];
-                    pIdx[k] = p.x[k] + 0.5;
+                const bool useVelocity = true;
+                if (useVelocity) {
+                    fordim (k) {
+                        p.f[k] -= p.v[k];
+                        p.v[k] += dt*p.f[k];
+                        p.x[k] += dt*p.v[k];
+                        pIdx[k] = p.x[k] + 0.5;
+                    }
+                } else {
+                    fordim (k) {
+                        p.x[k] += dt*p.f[k];
+                        pIdx[k] = p.x[k] + 0.5;
+                    }
                 }
                 if (!collisionHandlers[n].IsBufferInside(pIdx)) {
                     cout << "\nStop system: out of region" << endl;
