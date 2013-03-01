@@ -57,6 +57,7 @@ namespace pi {
         bool noBoundary;
         bool traceOn;
         bool verbose;
+        bool useVelocity;
 
         // time management
         DataReal t0;

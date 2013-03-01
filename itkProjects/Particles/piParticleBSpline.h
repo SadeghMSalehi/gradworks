@@ -39,6 +39,10 @@ namespace pi {
         ParticleBSpline() : m_SplineOrder(__SPLINE_ORDER__), m_SplineLevel(1), m_ControlPoints(__SPLINE_CONTROL_POINTS__) {
         }
 
+        int m_SplineOrder;
+        int m_SplineLevel;
+        int m_ControlPoints;
+
         LabelImage::Pointer GetReferenceImage();
         void SetReferenceImage(LabelImage::Pointer img);
         void EstimateTransform(const ParticleSubject& a, const ParticleSubject& b);
@@ -56,9 +60,6 @@ namespace pi {
         DisplacementFieldPointSetType::Pointer m_FieldPoints;
         DisplacementFieldType::Pointer m_DisplacementField;
 
-        int m_SplineOrder;
-        int m_SplineLevel;
-        int m_ControlPoints;
     };
 
     template <class C,class R,class T>
@@ -67,7 +68,6 @@ namespace pi {
             cout << "Cannot estimate grid size without reference image!" << endl;
             return;
         }
-        cout << "Using order: " << m_SplineOrder << "; # control points: " << m_ControlPoints << endl;
         if (m_FieldPoints.IsNull()) {
             m_FieldPoints = DisplacementFieldPointSetType::New();
         }

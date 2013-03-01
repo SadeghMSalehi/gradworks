@@ -276,7 +276,14 @@ namespace pi {
         useIntensity = m_Options.GetBool("intensity");
         noInternal = m_Options.GetBool("no_internal");
         noBoundary = m_Options.GetBool("no_boundary");
+        useVelocity = m_Options.GetBool("use_velocity");
 
+        m_Options.SetBool("use_velocity", useVelocity);
+        m_Options.SetBool("intensity", useIntensity);
+        m_Options.SetBool("no_internal", noInternal);
+        m_Options.SetBool("no_boundary", noBoundary);
+        m_Options.SetBool("ensemble", useEnsemble);        
+        
         // check label images are loaded
         if (!noBoundary && nSubz != m_ImageContext.GetLabelVector().size()) {
             cout << "the same number of boundary mask files are required" << endl;
@@ -312,8 +319,15 @@ namespace pi {
         intensityForce.coeff = 0.3;
 
         m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, internalForce.coeff);
-        m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, ensembleForce.coeff);
-        m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, intensityForce.coeff);        
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 1, ensembleForce.coeff);
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 2, intensityForce.coeff);
+
+        RealVector forceCoefficients = m_Options.GetRealVector("ForceCoefficients:");
+        forceCoefficients.clear();
+        forceCoefficients.push_back(internalForce.coeff);
+        forceCoefficients.push_back(ensembleForce.coeff);
+        forceCoefficients.push_back(intensityForce.coeff);
+
 
 #ifdef ATTR_SIZE
         m_Options.SetInt("AttributeDimension:", ATTR_SIZE);
@@ -352,8 +366,12 @@ namespace pi {
         if (useIntensity) cout << "intensity term enabled" << endl; else cout << "intensity term disabled" << endl;
         if (noInternal) cout << "internal force disabled" << endl; else cout << "internal force enabled" << endl;
         if (noBoundary) cout << "boundary term disabled" << endl; else cout << "boundary term enabled" << endl;
+        if (useVelocity) cout << "velocity system enabled" << endl; else cout << "velocity system disabled" << endl;
         if (internalForce.useAdaptiveSampling) cout << "adaptive sampling enabled" << endl; else cout << "adaptive sampling disabled" << endl;
-        if (internalForce.useMultiPhaseForce) cout << "multi-phase force enabled" << endl; else cout << "multi-pahse force disabled" << endl;
+        if (internalForce.useMultiPhaseForce) cout << "multi-phase force enabled" << endl; else cout << "multi-phase force disabled" << endl;
+
+        cout << "ForceCoefficients: " << internalForce.coeff << ", " << ensembleForce.coeff << ", " << intensityForce.coeff << endl;
+        
         cout << Attr::NATTRS << " attributes per particle" << endl;
 
         m_System.currentIteration = -1;
@@ -457,7 +475,6 @@ namespace pi {
             for (int i = 0; i < nPoints; i++) {
                 Particle& p = sub[i];
                 LabelImage::IndexType pIdx;
-                const bool useVelocity = true;
                 if (useVelocity) {
                     fordim (k) {
                         p.f[k] -= p.v[k];
