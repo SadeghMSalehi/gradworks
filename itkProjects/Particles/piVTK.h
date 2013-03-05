@@ -28,6 +28,8 @@ namespace pivtk {
     __vtk(PolyData);
     __vtk(PolyLine);
 
+
+    PolyDataPointer CreateSphere(int phiRes, int thetaRes);
     void vtk_write_polydata(const char* f, vtkPolyData* p);
     PolyDataPointer ConstructPathLines(pi::ParticleSetSeries& snapshot);
 

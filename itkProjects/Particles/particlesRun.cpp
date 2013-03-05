@@ -134,6 +134,7 @@ int main(int argc, char* argv[]) {
         { 33, "--traceWarp", SO_NONE },
         { 34, "--interval", SO_REQ_SEP },
         { 35, "--zerocrossing", SO_NONE },
+        { 36, "--meanwarp", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
@@ -243,9 +244,50 @@ int main(int argc, char* argv[]) {
             LabelImage::Pointer output = warp_image<LabelImage>(system[dstIdx], system[srcIdx], labelIO.ReadImageT(inputLabel.c_str()), refImage, true, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
             labelIO.WriteImageT(outputName.c_str(), output);
         }
+    } else if (parser.GetBool("--meanwarp")) {
+        if (args.size() < 2) {
+        	cout << "--meanwarp requires [output.txt] --inputimage|--inputlabel [source-image] [warped-output-image]" << endl;
+            return 0;
+        }
+
+        PRINT_IDX();
+        string outputName = args[1];
+        string inputImage, inputLabel, refImageName;
+        parser.GetStringTo("--inputimage", inputImage);
+        parser.GetStringTo("--inputlabel", inputLabel);
+        parser.GetStringTo("--reference", refImageName);
+
+        solver.LoadConfig(args[0].c_str());
+
+
+        ParticleSubject meanSubj = system.ComputeXMeanSubject();
+        
+        if (system.size() < 2) {
+            cout << "system is not loaded successfully" << endl;
+            return 0;
+        }
+        if (inputImage != "") {
+            RealImage::Pointer refImage;
+            // warp from srcidx to dstidx
+            if (refImageName != "") {
+                refImage = realIO.ReadImageT(refImageName.c_str());
+            }
+            RealImage::Pointer output = warp_image<RealImage>(meanSubj, system[srcIdx], realIO.ReadImageT(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
+            realIO.WriteImageT(outputName.c_str(), output);
+        }
+        if (inputLabel != "") {
+            LabelImage::Pointer refImage;
+            // warp from srcidx to dstidx
+            if (refImageName != "") {
+                refImage = labelIO.ReadImageT(refImageName.c_str());
+            }
+            LabelImage::Pointer output = warp_image<LabelImage>(meanSubj, system[srcIdx], labelIO.ReadImageT(inputLabel.c_str()), refImage, true, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
+            labelIO.WriteImageT(outputName.c_str(), output);
+        }
+
     } else if (parser.GetBool("--markTrace")) {
         if (args.size() < 2) {
-        	cout << "--markTrace requires [output.txt] [reference-image] [output-image] --srcidx [point-index] --srcsubj [subject-index]" << endl;
+        	cout << "--meanwarp requires [output.txt] [reference-image] [output-image] --srcidx [point-index] --srcsubj [subject-index]" << endl;
             return 0;
         }
         ifstream in(args[0].c_str());

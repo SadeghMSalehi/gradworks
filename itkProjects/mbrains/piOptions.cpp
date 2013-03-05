@@ -147,10 +147,6 @@ namespace pi {
     }
 
     OptionReal Options::GetStringAsReal(std::string name, OptionReal def) {
-        string val = GetString(name, "");
-        if (val != "") {
-            return atof(val.c_str());
-        }
         return def;
     }
 

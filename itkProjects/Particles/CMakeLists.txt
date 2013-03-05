@@ -5,6 +5,7 @@ SET (BUILD_2D False CACHE BOOL "Compile 2d version")
 SET (BUILD_PEVAL False CACHE BOOL "Compile peval for label evaluation")
 SET (BUILD_BIG False CACHE BOOL "Compile for distribution")
 SET (BUILD_GUI False CACHE BOOL "Compile GUI tools")
+SET (BUILD_MBRAINS False CACHE BOOL "Compile mbrains tools")
 
 FIND_PACKAGE(ITK 4 REQUIRED)
 FIND_PACKAGE(Qt COMPONENTS QtOpenGL REQUIRED)
@@ -50,7 +51,7 @@ SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
 SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piEntropyComputer.h piEntropyComputer.cpp)
 
-SET (PI_LIBS_SOURCE )
+SET (PI_LIBS_SOURCE itkImageIO.h piTimer.h piTimer.cpp piImageProcessing.cpp piImageProcessing.h piImageDef.h piOptions.h piOptions.cpp piVTK.cpp piVTK.h)
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)
 
 FILE(GLOB ITK_SOURCES "itk*.h" "itk*.hxx" "itk*.cxx")
@@ -142,3 +143,10 @@ TARGET_LINK_LIBRARIES(sgen3 ${ITK_LIBRARIES})
 #ADD_EXECUTABLE(itkcmds itkcmdsMain.cpp ${MY_PARTICLE_WORKS_SOURCES})
 #SET_TARGET_PROPERTIES(itkcmds PROPERTIES COMPILE_FLAGS -DDIMENSION3)
 #TARGET_LINK_LIBRARIES(itkcmds ${ITK_LIBRARIES} ${Boost_LIBRARIES})
+
+
+IF (${BUILD_MBRAINS})
+ADD_EXECUTABLE(gradmaps gradmaps.cpp ${PI_LIBS_SOURCE})
+TARGET_LINK_LIBRARIES(gradmaps ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+SET_TARGET_PROPERTIES(gradmaps PROPERTIES COMPILE_FLAGS -DDIMENSION3)
+ENDIF(${BUILD_MBRAINS})

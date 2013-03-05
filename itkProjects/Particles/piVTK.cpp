@@ -23,8 +23,19 @@
 #include "vtkDiskSource.h"
 #include "vtkPlaneSource.h"
 #include "vtkTriangleFilter.h"
+#include "vtkSphereSource.h"
 
 namespace pivtk {
+    PolyDataPointer CreateSphere(int phiRes, int thetaRes) {
+        __vtk(SphereSource);
+        SphereSourcePointer source = SphereSourcePointer::New();
+        source->SetPhiResolution(phiRes);
+        source->SetThetaResolution(thetaRes);
+        source->LatLongTessellationOn();
+        source->Update();
+        return PolyDataPointer(source->GetOutput());
+    }
+    
     PolyDataPointer ConstructPathLines(pi::ParticleSetSeries& snapshot) {
         PointsPointer points = PointsPointer::New();
         CellArrayPointer cells = CellArrayPointer::New();
