@@ -345,7 +345,6 @@ namespace pi {
 
         // we assume that the mean and its corresponding alignment is already computed
         // therefore, we store y from x
-        ParticleSubject& meanSubj = system.GetMeanSubject();
         /*
         // compute mean(Y)
         for (int j = 0; j < nPoints; j++) {
@@ -362,12 +361,16 @@ namespace pi {
             }
         }
         */
-        
+
+
         // now working at y-space estimating b-spline transform from the subject to the mean
+        system.ComputeZMeanSubject();
+        ParticleSubject& meanSubj = system.GetMeanSubject();
+
         for (int i = 0; i < nSubjects; i++) {
             ParticleBSpline bspline;
             bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
-            bspline.EstimateTransformY(system[i], meanSubj);
+            bspline.EstimateTransformYZ(system[i], meanSubj);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
             system[i].TransformY2Z(deformableTransform.GetPointer());
             system[i].m_DeformableTransform = deformableTransform;

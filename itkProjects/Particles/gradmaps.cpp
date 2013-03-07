@@ -27,6 +27,9 @@ int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
         { 0, "-t", SO_REQ_SEP },
         { 1, "-s", SO_REQ_SEP },
+        { 2, "--gradmag", SO_REQ_SEP },
+        { 3, "--phi", SO_REQ_SEP },
+        { 4, "--theta", SO_REQ_SEP },
         SO_END_OF_OPTIONS
     };
 
@@ -46,10 +49,13 @@ int main(int argc, char* argv[]) {
     t.start();
     GradientImage::Pointer gradImg = proc.ComputeGaussianGradient(img, sigma);
     RealImage::Pointer gradMag = proc.ComputeMagnitudeMap(gradImg);
-    io.WriteImageT("gradmag.nrrd", gradMag);
+    string gradMagMap = parser.GetString("--gradmag");
+    if (gradMagMap != "") {
+        io.WriteImageT("gradmag.nrrd", gradMag);
+    }
     cout << "Gradient Computation Done.. " << t.getElapsedTimeInSec() << endl;
 
-    PolyDataPointer sphere = CreateSphere(100, 100);
+    PolyDataPointer sphere = CreateSphere(parser.GetStringAsReal("--phi", 100), parser.GetStringAsReal("--theta", 100));
 
     __vtk(KdTreePointLocator);
     KdTreePointLocatorPointer pointsFinder  = KdTreePointLocatorPointer::New();

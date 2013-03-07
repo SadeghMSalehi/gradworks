@@ -351,6 +351,10 @@ namespace pi {
                     m_Particles[i].z[j] = outputPoint[j];
                 }
             }
+        } else {
+            for (int i = 0; i < nPoints; i++) {
+                m_Particles[i].z[i] = m_Particles[i].y[i];
+            }
         }
     }
 
@@ -584,6 +588,13 @@ namespace pi {
         return m_InitialSubject;
     }
 
+    ParticleSubject& ParticleSystem::InitializeMean() {
+        ComputeXMeanSubject();
+        m_MeanSubject.TransformX2Y(NULL);
+        m_MeanSubject.TransformY2Z(NULL);
+        return m_MeanSubject;
+    }
+
     ParticleSubject& ParticleSystem::ComputeXMeanSubject() {
         const int nPoints = m_Subjects[0].GetNumberOfPoints();
         const int nSubjects = m_Subjects.size();
@@ -621,6 +632,27 @@ namespace pi {
                     m_MeanSubject[i].y[k] += m_Subjects[j][i].y[k];
                 }
                 m_MeanSubject[i].y[k] /= nSubjects;
+            }
+        }
+        return m_MeanSubject;
+    }
+
+    ParticleSubject& ParticleSystem::ComputeZMeanSubject() {
+        const int nPoints = m_Subjects[0].GetNumberOfPoints();
+        const int nSubjects = m_Subjects.size();
+
+        m_MeanSubject.m_SubjId = -1;
+        m_MeanSubject.NewParticles(nPoints);
+
+        // for every dimension k
+        fordim(k) {
+            // for every point i
+            for (int i = 0; i < nPoints; i++) {
+                // sum over all subject j
+                for (int j = 0; j < nSubjects; j++) {
+                    m_MeanSubject[i].z[k] += m_Subjects[j][i].z[k];
+                }
+                m_MeanSubject[i].z[k] /= nSubjects;
             }
         }
         return m_MeanSubject;

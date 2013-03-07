@@ -75,20 +75,27 @@ namespace pi {
     // utility classes
     class ParticleXCaster {
     public:
-        inline float cast(const Particle& p, int i) const { return p.x[i]; }
+        inline float castSource(const Particle& p, int i) const { return p.x[i]; }
+        inline float castTarget(const Particle& p, int i) const { return p.x[i]; }
     };
 
     class ParticleYCaster {
     public:
-        inline float cast(const Particle& p, int i) const { return p.y[i]; }
+        inline float castSource(const Particle& p, int i) const { return p.y[i]; }
+        inline float castTarget(const Particle& p, int i) const { return p.y[i]; }
     };
 
     class ParticleZCaster {
     public:
-        inline float cast(const Particle& p, int i) const { return p.z[i]; }
+        inline float castSource(const Particle& p, int i) const { return p.z[i]; }
+        inline float castTarget(const Particle& p, int i) const { return p.z[i]; }
     };
     
-    
+    class ParticleYZCaster {
+    public:
+        inline float castSource(const Particle& p, int i) const { return p.y[i]; }
+        inline float castTarget(const Particle& p, int i) const { return p.z[i]; }
+    };
 
     // utility operator overloading
     ostream& operator<<(ostream& os, const Particle& par);
@@ -220,8 +227,11 @@ namespace pi {
         void LoadKappaImages(Options& options, ImageContext* context);
 
         ParticleSubject& GetInitialSubject();
+        ParticleSubject& InitializeMean();
         ParticleSubject& ComputeXMeanSubject();
         ParticleSubject& ComputeYMeanSubject();
+        ParticleSubject& ComputeZMeanSubject();
+
         ParticleSubject& GetMeanSubject();
         ParticleSubjectArray& GetSubjects();
         

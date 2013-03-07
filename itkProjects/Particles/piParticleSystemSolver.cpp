@@ -22,6 +22,7 @@ namespace pi {
     using namespace std;
 
     ParticleSystemSolver::ParticleSystemSolver() : verbose(true) {
+        useAlignment = false;
     }
 
     bool ParticleSystemSolver::LoadConfig(const char* name) {
@@ -271,18 +272,22 @@ namespace pi {
                 }
             }
         }
+        m_System.InitializeMean();
+
 
         useEnsemble = m_Options.GetBool("ensemble");
         useIntensity = m_Options.GetBool("intensity");
         noInternal = m_Options.GetBool("no_internal");
         noBoundary = m_Options.GetBool("no_boundary");
         useVelocity = m_Options.GetBool("use_velocity");
+        useAlignment = m_Options.GetBool("use_alignment");
 
         m_Options.SetBool("use_velocity", useVelocity);
         m_Options.SetBool("intensity", useIntensity);
         m_Options.SetBool("no_internal", noInternal);
         m_Options.SetBool("no_boundary", noBoundary);
-        m_Options.SetBool("ensemble", useEnsemble);        
+        m_Options.SetBool("ensemble", useEnsemble);
+        m_Options.SetBool("use_alignment", useAlignment);
         
         // check label images are loaded
         if (!noBoundary && nSubz != m_ImageContext.GetLabelVector().size()) {
@@ -376,6 +381,8 @@ namespace pi {
 
         m_System.currentIteration = -1;
         //        ofstream err("error.txt");
+
+
     }
     
     void ParticleSystemSolver::Run() {
@@ -447,12 +454,11 @@ namespace pi {
         }
 
         // compute alignment and apply internal force
-        m_System.ComputeXMeanSubject();
         if (!noInternal) {
-            if (nSubz > 1) {
+            if (nSubz > 1 && useAlignment) {
+                m_System.ComputeXMeanSubject();
                 for (int n = 0; n < nSubz; n++) {
                     internalForce.ComputeForce(m_System[n]);
-
                     // alignment for later procedures
                     m_System[n].ComputeAlignment(m_System.GetMeanSubject());
                     m_System[n].AlignmentTransformX2Y();

@@ -31,7 +31,7 @@ namespace pivtk {
         SphereSourcePointer source = SphereSourcePointer::New();
         source->SetPhiResolution(phiRes);
         source->SetThetaResolution(thetaRes);
-        source->LatLongTessellationOn();
+//        source->LatLongTessellationOn();
         source->Update();
         return PolyDataPointer(source->GetOutput());
     }

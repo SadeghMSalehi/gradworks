@@ -48,6 +48,8 @@ namespace pi {
         void EstimateTransform(const ParticleSubject& a, const ParticleSubject& b);
         void EstimateTransformY(const ParticleSubject& a, const ParticleSubject& b);
         void EstimateTransformZ(const ParticleSubject& a, const ParticleSubject& b);
+        void EstimateTransformYZ(const ParticleSubject& a, const ParticleSubject& b);
+
 
         template <class C, class R = LabelImage, class T = ParticleSubject> void EstimateTransform(const T& src, const T& dst, const int nPoints, typename R::Pointer refImage);
         void ApplyTransform(ParticleSubject& a);
@@ -86,11 +88,11 @@ namespace pi {
         for (int i = 0; i < n; i++) {
             IntPointSetType::PointType iPoint;
             fordim(j) {
-                iPoint[j] = caster.cast(src[i],j);
+                iPoint[j] = caster.castSource(src[i],j);
             }
             VectorType vector;
             fordim(j) {
-                vector[j] = caster.cast(dst[i],j) - caster.cast(src[i],j);
+                vector[j] = caster.castTarget(dst[i],j) - caster.castSource(src[i],j);
             }
             m_FieldPoints->SetPoint(i, iPoint);
             m_FieldPoints->SetPointData(i, vector);
