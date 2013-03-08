@@ -117,7 +117,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>280</width>
+          <width>220</width>
           <height>665</height>
          </rect>
         </property>
@@ -201,7 +201,7 @@ LabelImages: strings 1
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>280</width>
+          <width>220</width>
           <height>665</height>
          </rect>
         </property>
@@ -219,7 +219,7 @@ LabelImages: strings 1
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="checkBox">
+            <widget class="QCheckBox" name="showMoving">
              <property name="text">
               <string>Show</string>
              </property>
@@ -243,7 +243,7 @@ LabelImages: strings 1
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="checkBox_2">
+            <widget class="QCheckBox" name="showFixed">
              <property name="text">
               <string>Show</string>
              </property>
@@ -254,30 +254,47 @@ LabelImages: strings 1
          <item>
           <layout class="QVBoxLayout" name="verticalLayout">
            <item>
-            <widget class="QPushButton" name="pushButton_3">
+            <widget class="QPushButton" name="loadTrace">
              <property name="text">
               <string>Load Trace</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="pushButton_4">
+            <widget class="QPushButton" name="showWarped01">
              <property name="text">
               <string>Show Warped 0 -&gt; 1</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="pushButton_6">
+            <widget class="QPushButton" name="showWarped10">
              <property name="text">
               <string>Show Warped 1 -&gt; 0</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="pushButton_5">
+            <widget class="QPushButton" name="printAsPDF">
              <property name="text">
               <string>Print as PDF</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSlider" name="traceSteps">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLCDNumber" name="lcdNumber">
+             <property name="styleSheet">
+              <string notr="true">QLCDNumber {
+    color: rgb(122, 255, 100);    
+    background-color: rgb(0, 0, 0);
+}</string>
              </property>
             </widget>
            </item>
@@ -303,7 +320,7 @@ LabelImages: strings 1
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>280</width>
+          <width>220</width>
           <height>665</height>
          </rect>
         </property>
