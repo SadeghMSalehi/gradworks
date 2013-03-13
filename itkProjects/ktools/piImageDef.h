@@ -26,11 +26,11 @@
 
 #include "vector"
 
-#ifdef DIMENSION3
-const static int __Dim = 3;
-#else
-const static int __Dim = 2;
+#ifndef DIMENSIONS
+#define DIMENSIONS 3
 #endif
+
+const static int __Dim = DIMENSIONS;
 
 #define for4(i) for (int i = 0; i < 4; i++)
 #define fordim(i) for (int i = 0; i < __Dim; i++)

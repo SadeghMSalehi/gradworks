@@ -37,6 +37,7 @@ namespace pi {
     typedef std::vector<std::string> StringVector;
     typedef std::vector<OptionReal> RealVector;
     typedef std::vector<int> IntVector;
+    typedef std::vector<char> CharVector;
     
     class Options {
     private:
@@ -80,6 +81,7 @@ namespace pi {
 
         StringVector& GetStringVector(std::string name);
         std::string GetStringVectorValue(std::string name, int i, std::string def = "");
+        StringVector GetSplitString(std::string name, std::string tok, std::string def = "");
         
         RealVector& GetRealVector(std::string name);
         OptionReal GetRealVectorValue(std::string name, int nth, OptionReal def = 0);
@@ -88,6 +90,7 @@ namespace pi {
         int GetIntVectorValue(std::string name, int nth, int def = 0);
 
         StringVector& ParseOptions(int argc, char* argv[], CSimpleOpt::SOption*);
+        static StringVector Split(std::string str, std::string tok);
 
     private:
         BoolMap _boolMap;

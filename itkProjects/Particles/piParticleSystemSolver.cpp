@@ -451,6 +451,7 @@ namespace pi {
                 forfill(pi.f, 0);
             }
             collisionHandlers[n].ConstrainPoint(m_System[n]);
+            m_System[n].ComputeDensity();
         }
 
         // compute alignment and apply internal force

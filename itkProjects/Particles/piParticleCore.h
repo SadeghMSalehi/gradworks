@@ -152,7 +152,10 @@ namespace pi {
         void Initialize(int subj, std::string name, const ParticleSubject& shape);
         void Initialize(const ParticleArray& array);
         void SyncPointsCopy();
+
         void ComputeAlignment(ParticleSubject& subj, bool useSimilarity = false);
+        void ComputeDensity();
+
         void AlignmentTransformX2Y();
         void TransformX2Y(TransformType* transform = NULL);
         void TransformY2X(TransformType* transform = NULL);
@@ -160,6 +163,7 @@ namespace pi {
         void TransformY2Y(TransformType* transform);
         void TransformY2Z(TransformType* transform);
         void TransformZ2Y(TransformType* transform);
+
 
         void ReadParticlePositions(std::istream& is, int nPoints);
         void WriteParticlePositions(std::ostream& os);

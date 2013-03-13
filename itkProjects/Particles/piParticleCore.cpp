@@ -232,6 +232,23 @@ namespace pi {
         }
     }
 
+    //////////////////////////////////////////////////////////////////////////////////
+    //
+    // Density computation
+    //
+    // A density of a particle is defined by the inverse of average neighbor distances
+    //
+    void ParticleSubject::ComputeDensity() {
+        const int npoints = m_Particles.size();
+        for (int i = 0; i < npoints; i++) {
+            DataReal d = 0;
+            for (int j = 0; j < npoints; j++) {
+                d += sqrt(m_Particles[i].Dist2(m_Particles[j]));
+            }
+            m_Particles[i].density = npoints / d;
+        }
+    }
+
     void ParticleSubject::ComputeAlignment(ParticleSubject& dst, bool useSimilarity) {
         const bool useAlignment = false;
         if (useAlignment) {

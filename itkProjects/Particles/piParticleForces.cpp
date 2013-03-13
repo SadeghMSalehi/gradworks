@@ -180,7 +180,8 @@ namespace pi {
                 }
                 xixj.normalize();
                 fordim (k) {
-                    pi.f[k] += (coeff * weight * (pi.x[k] - pj.x[k]));
+                    //pi.f[k] += (coeff * weight * (pi.x[k] - pj.x[k]));
+                    pi.f[k] += (coeff * weight * xixj[k]);
                 }
             }
         }

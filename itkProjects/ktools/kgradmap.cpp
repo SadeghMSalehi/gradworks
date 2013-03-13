@@ -7,13 +7,12 @@
 //
 
 #include <stdio.h>
-#include "gradmaps.h"
 #include "piImageDef.h"
 #include "piImageProcessing.h"
 #include "piOptions.h"
 #include "piVTK.h"
 #include "piTimer.h"
-#include "itkImageIO.h"
+#include "piImageIO.h"
 #include <vtkKdTreePointLocator.h>
 #include <vtkPointData.h>
 
@@ -21,7 +20,7 @@ using namespace std;
 using namespace pi;
 using namespace pivtk;
 
-itkcmds::itkImageIO<RealImage> io;
+ImageIO<RealImage> io;
 
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
@@ -42,7 +41,7 @@ int main(int argc, char* argv[]) {
     double sigma = parser.GetStringAsReal("-s", 1);
     cout << "gaussian sigma: " << sigma << endl;
 
-    RealImage::Pointer img = io.ReadImageT(args[0].c_str());
+    RealImage::Pointer img = io.ReadCastedImage(args[0].c_str());
     ImageProcessing proc;
 
     Timer t;
@@ -51,7 +50,7 @@ int main(int argc, char* argv[]) {
     RealImage::Pointer gradMag = proc.ComputeMagnitudeMap(gradImg);
     string gradMagMap = parser.GetString("--gradmag");
     if (gradMagMap != "") {
-        io.WriteImageT("gradmag.nrrd", gradMag);
+        io.WriteImage("gradmag.nrrd", gradMag);
     }
     cout << "Gradient Computation Done.. " << t.getElapsedTimeInSec() << endl;
 

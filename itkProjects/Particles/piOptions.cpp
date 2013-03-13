@@ -354,5 +354,27 @@ namespace pi {
         delete[] cbuf;
         return is;
     }
+
+
+    StringVector Options::GetSplitString(std::string name, std::string tok, std::string def) {
+        std::string val = GetString(name, def);
+        return Split(val, tok);
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////////////////
+    //
+    // STATIC FUNCTIONS
+    //
+    //////////////////////////////////////////////////////////////////////////////////////
+    StringVector Options::Split(std::string str, std::string tok) {
+        StringVector data;
+        istringstream is(str);
+        string part;
+        while (getline(is, part, tok[0])) {
+            data.push_back(part);
+        }
+        return data;
+    }
 }
 

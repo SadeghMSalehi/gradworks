@@ -14,6 +14,7 @@
 #include "QGraphicsItem"
 #include "QGraphicsPixmapItem"
 #include "itkImageIO.h"
+#include "piTimer.h"
 
 
 
@@ -187,10 +188,15 @@ namespace pi {
     }
 
     void Simul2::on_loadTrace_clicked() {
+        Timer timer;
+        timer.start();
+        CharVector buf(1024*1024*10);
         ifstream is("/NIRAL/work/joohwi/data/synth/run_trace_f2dm2d.txt");
+        is.rdbuf()->pubsetbuf(&buf[0], buf.size());
         trace.Read(is);
         ui.traceSteps->setMaximum(trace.system[0].timeSeries.size()-1);
         ui.lcdNumber->display(0);
+        cout << timer.getElapsedTimeInSec() << " secs ..." << endl;
     }
 
     void Simul2::on_traceSteps_valueChanged(int n) {
