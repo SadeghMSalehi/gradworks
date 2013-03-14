@@ -13,6 +13,7 @@
 #include "piImageSlice.h"
 #include "QGraphicsItem"
 #include "QGraphicsPixmapItem"
+#include "QParticlesGraphicsItem.h"
 #include "itkImageIO.h"
 #include "piTimer.h"
 
@@ -28,6 +29,7 @@ namespace pi {
     ImageContext& images = main.m_ImageContext;
     LabelVector& labels = images.m_LabelImages;
     ParticleTrace trace;
+    QParticlesGraphicsItem* particles;
 
     // storage for particle drawing
     QTransform viewTransform;
@@ -60,6 +62,8 @@ namespace pi {
             buffer << in.rdbuf();
             ui.config->setPlainText(buffer.str().c_str());
         }
+        particles = new QParticlesGraphicsItem();
+        m_scene.addItem(particles);
     }
 
     void Simul2::on_showImage_toggled(bool check) {
@@ -104,7 +108,7 @@ namespace pi {
 
         main.verbose = false;
         main.Setup();
-        m_timer.start(200);
+        m_timer.start(100);
     }
     
     void Simul2::tick() {
@@ -114,7 +118,7 @@ namespace pi {
             return;
         }
         // procede 1 secs
-        DataReal nextT = main.t + 2;
+        DataReal nextT = main.t + 5;
         while (main.t < nextT) {
             main.RunStep();
         }
@@ -141,14 +145,23 @@ namespace pi {
     }
 
     void Simul2::updateParticles() {
-        removeParticles();
         for (int i = 0; i < system.size(); i++) {
+            particles->SetPen(Qt::NoPen);
+            particles->SetBrush(QBrush(Qt::red, Qt::SolidPattern));
+            particles->SetParticles(&system[i].m_Particles[0], system[i].m_Particles.size());
+            particles->ColorModeToDensity();
+            particles->update();
+
+            /*
+            m_scene.addItem(particles);
             for (int j = 0; j < system[i].size(); j++) {
+
                 Particle& p = system[i][j];
                 QColor pointColor = getColor(p.label);
                 QGraphicsEllipseItem* item = m_scene.addEllipse(p.x[0]-.5, p.x[1]-.5, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
                 ellipseItems.push_back(item);
             }
+            */
         }
     }
 

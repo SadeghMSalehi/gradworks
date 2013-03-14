@@ -20,12 +20,22 @@
 
 class QParticlesGraphicsItem : public QGraphicsItem {
 public:
+    enum ColorMode {
+        Brush,
+        Density,
+        Label
+    } colorMode;
+
     QParticlesGraphicsItem();
     virtual ~QParticlesGraphicsItem();
 
     void SetPen(QPen pen);
     void SetBrush(QBrush brush);
     void SetParticles(pi::Particle* particles, int n);
+    
+    void ColorModeToDensity() { colorMode = Density; }
+    void ColorModeToLabel() { colorMode = Label; }
+    void ColorModeToBrush() { colorMode = Brush; }
 
     QRectF boundingRect() const;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
@@ -33,7 +43,8 @@ public:
 private:
     pi::Particle* m_Particles;
     int m_Counts;
-    
+
+    float _md[2];
     QRectF m_Bounds;
     QPen m_Pen;
     QBrush m_Brush;
