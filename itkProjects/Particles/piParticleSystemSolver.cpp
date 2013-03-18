@@ -11,6 +11,7 @@
 #include "piParticleForces.h"
 #include "piOptions.h"
 #include "piParticleTrace.h"
+#include "piImageProcessing.h"
 #include "itkExceptionObject.h"
 
 #include "fstream"
@@ -19,17 +20,29 @@
 
 namespace pi {
     using namespace std;
-    
+
+    ParticleSystemSolver::ParticleSystemSolver() : verbose(true) {
+        useAlignment = false;
+    }
+
     bool ParticleSystemSolver::LoadConfig(const char* name) {
         ifstream in(name);
         if (!in.is_open()) {
             cout << "Can't open " << name << endl;
             return false;
         }
-        
         cout << "loading " << name << " ..." << endl;
+        return LoadConfig(in);
+    }
+
+    bool ParticleSystemSolver::LoadConfig(std::istream &in) {
+        m_Options = Options();
+
         in >> m_Options;
-        
+
+        // debug
+        cout << m_Options << endl;
+
         // this requires 'NumberOfParticles:', 'Subjects:'
         m_System = ParticleSystem();
         m_System.InitializeSystem(m_Options);
@@ -68,16 +81,17 @@ namespace pi {
                     ss >> nPoints;
                     m_System.GetInitialSubject().ReadParticlePositions(in, nPoints);
                     cout << "Read " << nPoints << " initial particles" << endl;
-                } else if (name == "ParticleAlignment:") {
-                    int nsubj;
-                    ss >> nsubj;
-                    for (int i = 0; i < nsubj; i++) {
-                        in.getline(buf, sizeof(buf));
-                        string line(buf);
-                        stringstream ss(line);
-                        ss >> m_System[i].alignment;
-                    }
                 }
+//                else if (name == "ParticleAlignment:") {
+//                    int nsubj;
+//                    ss >> nsubj;
+//                    for (int i = 0; i < nsubj; i++) {
+//                        in.getline(buf, sizeof(buf));
+//                        string line(buf);
+//                        stringstream ss(line);
+//                        ss >> m_System[i].alignment;
+//                    }
+//                }
             }
         }
         return true;
@@ -90,18 +104,23 @@ namespace pi {
             return false;
         }
         out << m_Options << OPTION_END << endl << endl;
+        const int nSubj = m_System.GetNumberOfSubjects();
+        const int nParticles = m_System.GetNumberOfParticles();
+
+//        if (nSubj > 0) {
+//            out << "ParticleAlignment: " << nSubj << " " << nParticles << endl;
+//        for (int i = 0; i < nSubj; i++) {
+//            out << m_System[i].alignment << endl;
+//        }
+//        }
         const int nInitialPoints = m_System.GetInitialSubject().GetNumberOfPoints();
         if (nInitialPoints > 0) {
             out << "InitialParticles: " << nInitialPoints << endl;
             m_System.GetInitialSubject().WriteParticlePositions(out);
         }
-        const int nSubj = m_System.GetNumberOfSubjects();
-        const int nParticles = m_System.GetNumberOfParticles();
+
         if (nSubj > 0) {
-            for (int i = 0; i < nSubj; i++) {
-                out << "ParticleAlignment: " << i << " " << nParticles << endl;
-                out << m_System[i].alignment << endl;
-            }
+
             for (int i = 0; i < nSubj; i++) {
                 out << "Particles: " << i << " " << nParticles << endl;
                 if (m_Options.GetBool("save_position_only")) {
@@ -184,9 +203,9 @@ namespace pi {
                 forset(pi.x, pi.w);
                 forfill(pi.f, 0);
             }
-            
+            boundary.ConstrainPoint(sub);
             internalForce.ComputeForce(initial);
-            boundary.HandleCollision(initial);
+            boundary.ProjectForceAndVelocity(sub);
             
             for (int i = 0; i < nPoints; i++) {
                 Particle& p = sub[i];
@@ -223,45 +242,67 @@ namespace pi {
         return;
     }
     
-    
-    void ParticleSystemSolver::Run() {
+
+    void ParticleSystemSolver::Setup() {
         ParticleSystem& system = m_System;
-        const int nSubz = system.GetNumberOfSubjects();
-        const int nPoints = system.GetNumberOfParticles();
-        ParticleSubjectArray& subs = system.GetSubjects();
-        
-        system.ComputeMeanSubject();
-        
-        string traceFile = m_Options.GetString("RunTrace:", "");
-        const bool traceOn = traceFile != "";
-        
-        string systemSnapshot;
+        int nSubz = system.size();
+
+        m_Options.GetStringTo("RunTrace:", traceFile);
+        traceOn = traceFile != "";
+
         m_Options.GetStringTo("SystemSnapshot:", systemSnapshot);
-        
-        ParticleTrace trace;
+
         trace.Resize(nSubz);
-        
+
         if (!m_Options.GetBool("use_previous_position")) {
-            for (int n = 0; n < nSubz; n++) {
-                m_System[n].Initialize(system.GetInitialSubject().m_Particles);
+            if (system.GetInitialSubject().size() > 0) {
+                ImageProcessing proc;
+                for (int n = 0; n < nSubz; n++) {
+                    ParticleSubject& s = m_System[n];
+                    s.Initialize(system.GetInitialSubject().m_Particles);
+                    s.friendImage = m_ImageContext.GetLabel(n);
+                    s.friendSampler = NNLabelInterpolatorType::New();
+                    s.friendSampler->SetInputImage(s.friendImage);
+                    s.realImage = m_ImageContext.GetRealImage(n);
+                    s.realSampler = LinearImageInterpolatorType::New();
+                    s.realSampler->SetInputImage(s.realImage);
+                    s.gradImage = proc.ComputeGaussianGradient(m_System[n].realImage, 1);
+                    s.gradSampler = GradientInterpolatorType::New();
+                    s.gradSampler->SetInputImage(s.gradImage);
+                }
             }
         }
-        
-        const bool useEnsemble = m_Options.GetBool("ensemble");
-        const bool useIntensity = m_Options.GetBool("intensity");
-        const bool noInternal = m_Options.GetBool("no_internal");
-        const bool noBoundary = m_Options.GetBool("no_boundary");
+        m_System.InitializeMean();
+
+
+        useEnsemble = m_Options.GetBool("ensemble");
+        useIntensity = m_Options.GetBool("intensity");
+        noInternal = m_Options.GetBool("no_internal");
+        noBoundary = m_Options.GetBool("no_boundary");
+        useVelocity = m_Options.GetBool("use_velocity");
+        useAlignment = m_Options.GetBool("use_alignment");
+
+        m_Options.SetBool("use_velocity", useVelocity);
+        m_Options.SetBool("intensity", useIntensity);
+        m_Options.SetBool("no_internal", noInternal);
+        m_Options.SetBool("no_boundary", noBoundary);
+        m_Options.SetBool("ensemble", useEnsemble);
+        m_Options.SetBool("use_alignment", useAlignment);
         
         // check label images are loaded
         if (!noBoundary && nSubz != m_ImageContext.GetLabelVector().size()) {
             cout << "the same number of boundary mask files are required" << endl;
             return;
         }
-        
-        EntropyInternalForce internalForce;
+
         m_Options.GetRealTo("InternalForceSigma:", internalForce.repulsionSigma);
         m_Options.GetRealTo("InternalForceCutoff:", internalForce.repulsionCutoff);
+        m_Options.GetRealTo("InternalForceFriendSigma:", internalForce.friendSigma);
+        m_Options.GetRealTo("InternalForceFriendCutoff:", internalForce.friendCutoff);
         m_Options.GetBoolTo("adaptive_sampling", internalForce.useAdaptiveSampling);
+        m_Options.GetBoolTo("multiphase_force", internalForce.useMultiPhaseForce);
+
+
         if (internalForce.useAdaptiveSampling) {
             m_System.LoadKappaImages(m_Options, &m_ImageContext);
         }
@@ -271,118 +312,101 @@ namespace pi {
             cout << "adjusted repulsion cutoff: " << internalForce.repulsionCutoff << endl;
         }
 
-        
-        
-        EnsembleForce ensembleForce;
+
+
         ensembleForce.SetImageContext(&m_ImageContext);
-        
-        IntensityForce intensityForce;
+
         intensityForce.SetImageContext(&m_ImageContext);
         intensityForce.useAttributesAtWarpedSpace = true;
 
         internalForce.coeff = 0.3;
         ensembleForce.coeff = 0.3;
         intensityForce.coeff = 0.3;
-        
+
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, internalForce.coeff);
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 1, ensembleForce.coeff);
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 2, intensityForce.coeff);
+
+        RealVector forceCoefficients = m_Options.GetRealVector("ForceCoefficients:");
+        forceCoefficients.clear();
+        forceCoefficients.push_back(internalForce.coeff);
+        forceCoefficients.push_back(ensembleForce.coeff);
+        forceCoefficients.push_back(intensityForce.coeff);
+
+
 #ifdef ATTR_SIZE
         m_Options.SetInt("AttributeDimension:", ATTR_SIZE);
 #endif
-        
-        std::vector<ParticleCollision> collisionHandlers;
+
+
+        ///////////////////////////////////////////////
+        // Collison Handler Setup
+        //
         collisionHandlers.resize(nSubz);
-        
+
         for (int n = 0; n < nSubz; n++) {
+            collisionHandlers[n].subject = &m_System[n];
             collisionHandlers[n].applyMaskSmoothing = true;
             m_Options.GetStringVectorValueTo("BinaryMaskCache:", n, collisionHandlers[n].binaryMaskCache);
             m_Options.GetStringVectorValueTo("BinaryMaskDistanceMapCache:", n, collisionHandlers[n].distanceMapCache);
             collisionHandlers[n].SetLabelImage(m_ImageContext.GetLabel(n));
             collisionHandlers[n].UpdateImages();
         }
-        
-        const DataReal t0 = m_Options.GetRealVectorValue("TimeRange:", 0);
-        const DataReal dt = m_Options.GetRealVectorValue("TimeRange:", 1);
-        const DataReal t1 = m_Options.GetRealVectorValue("TimeRange:", 2);
-        
+
+
+        ////////////////////////////////////////////////
+        // Time Range Setup
+        //
+        RealVector& times = m_Options.GetRealVector("TimeRange:");
+        if (times.size() > 0) {
+            t0 = times[0];
+            dt = times[1];
+            t1 = times[2];
+        }
+
+        ////////////////////////////////////////////////
+        // Active Option Listing
+        //
         if (useEnsemble) cout << "ensemble term enabled" << endl; else cout << "ensemble term disabled" << endl;
         if (useIntensity) cout << "intensity term enabled" << endl; else cout << "intensity term disabled" << endl;
         if (noInternal) cout << "internal force disabled" << endl; else cout << "internal force enabled" << endl;
         if (noBoundary) cout << "boundary term disabled" << endl; else cout << "boundary term enabled" << endl;
+        if (useVelocity) cout << "velocity system enabled" << endl; else cout << "velocity system disabled" << endl;
         if (internalForce.useAdaptiveSampling) cout << "adaptive sampling enabled" << endl; else cout << "adaptive sampling disabled" << endl;
-        cout << Attr::NATTRS << " attributes per particle" << endl;
+        if (internalForce.useMultiPhaseForce) cout << "multi-phase force enabled" << endl; else cout << "multi-phase force disabled" << endl;
+
+        cout << "ForceCoefficients: " << internalForce.coeff << ", " << ensembleForce.coeff << ", " << intensityForce.coeff << endl;
         
+        cout << Attr::NATTRS << " attributes per particle" << endl;
+
         m_System.currentIteration = -1;
-        Timer timer;
-//        ofstream err("error.txt");
+        //        ofstream err("error.txt");
 
+
+    }
+    
+    void ParticleSystemSolver::Run() {
+        ParticleSystem& system = m_System;
+        const int nSubz = system.GetNumberOfSubjects();
+        Setup();
         try {
-            for (DataReal t = t0; t < t1; t += dt) {
-                
-                timer.start();
-                m_System.currentTime = t;
-                m_System.currentIteration++;
-                
-                cout << "t: " << t << " " << flush;
-                m_System.ComputeMeanSubject();
-                if (systemSnapshot != "") {
-                    SaveConfig(systemSnapshot.c_str());
-                }
-
-                // compute internal force
-                for (int n = 0; n < nSubz; n++) {
-                    ParticleSubject& sub = subs[n];
-                    for (int i = 0; i < nPoints; i++) {
-                        Particle& pi = sub[i];
-                        forfill(pi.f, 0);
-                    }
-                    collisionHandlers[n].ConstrainPoint(sub);
-                    if (!noInternal) {
-                        internalForce.ComputeForce(sub);
-                    }
-                }
-                
-                
-                if (useEnsemble) {
-                    ensembleForce.ComputeEnsembleForce(m_System);
-                }
-                
-                if (useIntensity) {
-                    intensityForce.ComputeIntensityForce(&m_System);
-                }
-                
-                // system update
-                for (int n = 0; n < nSubz; n++) {
-                    ParticleSubject& sub = subs[n];
-                    collisionHandlers[n].ProjectForceAndVelocity(sub);
-                    for (int i = 0; i < nPoints; i++) {
-                        Particle& p = sub[i];
-                        LabelImage::IndexType pIdx;
-                        fordim (k) {
-                            p.f[k] -= p.v[k];
-                            p.v[k] += dt*p.f[k];
-                            p.x[k] += dt*p.v[k];
-                            pIdx[k] = p.x[k] + 0.5;
-                        }
-                        if (!collisionHandlers[n].IsBufferInside(pIdx)) {
-                            cout << "\nStop system: out of region" << endl;
-                            goto quit;
-                        }
-                    }
-
-                    if (traceOn) {
-                        trace.Add(t, sub);
-                    }
-                }
-                double elapsedTime = timer.getElapsedTimeInSec();
-                cout << "; elapsed time: " << elapsedTime << " secs; estimated remaining time: about " << int((elapsedTime*(t1 - t)/dt)/60+1) << " mins                   \r" << flush;
+            int stepResult = 0;
+            /////////////////////////////////
+            // t is automatically increases
+            ////////////////////////////////
+            for (t = t0; t < t1;) {
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // IMPORTANT STEP
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                stepResult = RunStep();
             }
-            
-            // last collision handling
-            for (int i = 0 ; i < nSubz; i++) {
-                collisionHandlers[i].HandleCollision(system[i]);
+            if (stepResult == 0) {
+                // last collision handling
+                for (int i = 0 ; i < nSubz; i++) {
+                    collisionHandlers[i].HandleCollision(system[i]);
+                }
+                cout << "Done ..." << endl;
             }
-            
-        quit:
-            cout << "Done ..." << endl;
         } catch (itk::ExceptionObject& ex) {
             ex.Print(cout);
         }
@@ -393,5 +417,104 @@ namespace pi {
             traceOut.close();
         }
         return;
+    }
+
+
+
+    //////////////////////////////////////////////////////
+    //
+    // Actual Computation: IMPORTANT!!
+    //
+    //
+    int ParticleSystemSolver::RunStep() {
+        ParticleSystem& system = m_System;
+
+        const int nSubz = system.GetNumberOfSubjects();
+        const int nPoints = system.GetNumberOfParticles();
+        ParticleSubjectArray& subs = system.GetSubjects();
+
+        timer.start();
+        m_System.currentTime = t;
+        m_System.currentIteration++;
+
+        if (verbose) {
+            cout << "t: " << t << " " << flush;
+        }
+        if (systemSnapshot != "") {
+            SaveConfig(systemSnapshot.c_str());
+        }
+
+        // compute internal force
+        for (int n = 0; n < nSubz; n++) {
+            for (int i = 0; i < nPoints; i++) {
+                Particle& pi = m_System[n][i];
+                forfill(pi.f, 0);
+            }
+            collisionHandlers[n].ConstrainPoint(m_System[n]);
+            m_System[n].ComputeDensity();
+        }
+
+        // compute alignment and apply internal force
+        if (!noInternal) {
+            if (nSubz > 1 && useAlignment) {
+                m_System.ComputeXMeanSubject();
+                for (int n = 0; n < nSubz; n++) {
+                    internalForce.ComputeForce(m_System[n]);
+                    // alignment for later procedures
+                    m_System[n].ComputeAlignment(m_System.GetMeanSubject());
+                    m_System[n].AlignmentTransformX2Y();
+                }
+                m_System.ComputeYMeanSubject();
+            } else {
+                internalForce.ComputeForce(m_System[0]);
+            }
+        }
+        if (useEnsemble) {
+            ensembleForce.ComputeEnsembleForce(m_System);
+        }
+        if (useIntensity) {
+            intensityForce.ComputeIntensityForce(&m_System);
+        }
+        // system update
+        for (int n = 0; n < nSubz; n++) {
+            ParticleSubject& sub = subs[n];
+            collisionHandlers[n].ProjectForceAndVelocity(sub);
+            for (int i = 0; i < nPoints; i++) {
+                Particle& p = sub[i];
+                LabelImage::IndexType pIdx;
+                if (useVelocity) {
+                    fordim (k) {
+                        p.f[k] -= p.v[k];
+                        p.v[k] += dt*p.f[k];
+                        p.x[k] += dt*p.v[k];
+                        pIdx[k] = p.x[k] + 0.5;
+                    }
+                } else {
+                    fordim (k) {
+                        p.x[k] += dt*p.f[k];
+                        pIdx[k] = p.x[k] + 0.5;
+                    }
+                }
+                if (!collisionHandlers[n].IsBufferInside(pIdx)) {
+                    cout << "\nStop system: out of region" << endl;
+                    return 1;
+                }
+            }
+
+            if (traceOn) {
+                trace.Add(t, sub);
+            }
+        }
+        
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // IMPORTANT
+        t += dt;
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        double elapsedTime = timer.getElapsedTimeInSec();
+        if (verbose) {
+            cout << "; elapsed time: " << elapsedTime << " secs; estimated remaining time: about " << int((elapsedTime*(t1 - t)/dt)/60+1) << " mins                   \r" << flush;
+        }
+        return 0;
     }
 }

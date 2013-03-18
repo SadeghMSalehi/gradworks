@@ -39,6 +39,8 @@ namespace pi {
     public:
         int subj;
         int idx;
+        int label;
+        
         DataReal t;
 
         // the position x and the transformed point y
@@ -73,20 +75,27 @@ namespace pi {
     // utility classes
     class ParticleXCaster {
     public:
-        inline float cast(const Particle& p, int i) const { return p.x[i]; }
+        inline float castSource(const Particle& p, int i) const { return p.x[i]; }
+        inline float castTarget(const Particle& p, int i) const { return p.x[i]; }
     };
 
     class ParticleYCaster {
     public:
-        inline float cast(const Particle& p, int i) const { return p.y[i]; }
+        inline float castSource(const Particle& p, int i) const { return p.y[i]; }
+        inline float castTarget(const Particle& p, int i) const { return p.y[i]; }
     };
 
     class ParticleZCaster {
     public:
-        inline float cast(const Particle& p, int i) const { return p.z[i]; }
+        inline float castSource(const Particle& p, int i) const { return p.z[i]; }
+        inline float castTarget(const Particle& p, int i) const { return p.z[i]; }
     };
     
-    
+    class ParticleYZCaster {
+    public:
+        inline float castSource(const Particle& p, int i) const { return p.y[i]; }
+        inline float castTarget(const Particle& p, int i) const { return p.z[i]; }
+    };
 
     // utility operator overloading
     ostream& operator<<(ostream& os, const Particle& par);
@@ -105,6 +114,16 @@ namespace pi {
         RealImage::Pointer kappaImage;
         LinearImageInterpolatorType::Pointer kappaSampler;
 
+        // Label sampler for multi-phase internal force
+        LabelImage::Pointer friendImage;
+        NNLabelInterpolatorType::Pointer friendSampler;
+
+        RealImage::Pointer realImage;
+        LinearImageInterpolatorType::Pointer realSampler;
+
+        GradientImage::Pointer gradImage;
+        GradientInterpolatorType::Pointer gradSampler;
+
         // vtk related variables
         vtkTransformType alignment;
         vtkTransformType inverseAlignment;
@@ -115,10 +134,13 @@ namespace pi {
         FieldTransformType::Pointer m_DeformableTransform;
         FieldTransformType::Pointer m_InverseDeformableTransform;
 
+
+
         ParticleSubject();
         ParticleSubject(int subjid, int npoints);
         ~ParticleSubject();
 
+        inline const int size() const { return m_Particles.size(); }
         inline const int GetNumberOfPoints() const { return m_Particles.size(); }
         inline int GetNumberOfPoints() { return m_Particles.size(); }
 
@@ -130,7 +152,10 @@ namespace pi {
         void Initialize(int subj, std::string name, const ParticleSubject& shape);
         void Initialize(const ParticleArray& array);
         void SyncPointsCopy();
-        void ComputeAlignment(ParticleSubject& subj);
+
+        void ComputeAlignment(ParticleSubject& subj, bool useSimilarity = false);
+        void ComputeDensity();
+
         void AlignmentTransformX2Y();
         void TransformX2Y(TransformType* transform = NULL);
         void TransformY2X(TransformType* transform = NULL);
@@ -138,6 +163,7 @@ namespace pi {
         void TransformY2Y(TransformType* transform);
         void TransformY2Z(TransformType* transform);
         void TransformZ2Y(TransformType* transform);
+
 
         void ReadParticlePositions(std::istream& is, int nPoints);
         void WriteParticlePositions(std::ostream& os);
@@ -160,6 +186,8 @@ namespace pi {
     class ImageContext {
         friend class ParticleSystem;
     public:
+        LabelVector m_LabelImages;
+
         void LoadLabel(std::string filename);
         void LoadRealImage(std::string filename);
 
@@ -181,7 +209,6 @@ namespace pi {
         StringVector m_RealImageFileNames;
         StringVector m_FileNames;
         LabelImage::Pointer m_Intersection;
-        LabelVector m_LabelImages;
         RealImageVector m_Images;
         OffsetImageVector m_DistanceMaps;
         std::string m_IntersectionOutput;
@@ -204,7 +231,11 @@ namespace pi {
         void LoadKappaImages(Options& options, ImageContext* context);
 
         ParticleSubject& GetInitialSubject();
-        ParticleSubject& ComputeMeanSubject();
+        ParticleSubject& InitializeMean();
+        ParticleSubject& ComputeXMeanSubject();
+        ParticleSubject& ComputeYMeanSubject();
+        ParticleSubject& ComputeZMeanSubject();
+
         ParticleSubject& GetMeanSubject();
         ParticleSubjectArray& GetSubjects();
         

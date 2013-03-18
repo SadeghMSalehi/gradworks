@@ -104,7 +104,7 @@ protected:
    * \sa ImageToImageFilter::ThreadedGenerateData(),
    *     ImageToImageFilter::GenerateData()  */
   void ThreadedGenerateData(const OutputImageRegionType& outputRegionForThread,
-                            int threadId );
+                            ThreadIdType threadId );
 
 private:
   PixelMathImageFilter(const Self&); //purposely not implemented
@@ -114,7 +114,7 @@ private:
 };
 
 #ifndef ITK_MANUAL_INSTANTIATION
-#include "PixelMathImageFilter.txx"
+#include "PixelMathImageFilter.hxx"
 #endif
 
 #endif

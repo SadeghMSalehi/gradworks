@@ -10,6 +10,7 @@
 #include "piParticleBSpline.h"
 #include "piParticleForces.h"
 #include "piParticleSystem.h"
+#include "piImageProcessing.h"
 #include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkVectorLinearInterpolateImageFunction.h"
 #include "itkConstNeighborhoodIterator.h"
@@ -117,6 +118,14 @@ namespace pi {
 
     
     void EntropyInternalForce::ComputeForce(ParticleSubject& subj) {
+        if (useMultiPhaseForce) {
+            ComputeHeteroForce(subj);
+        } else {
+            ComputeHomoForce(subj);
+        }
+    }
+
+    void EntropyInternalForce::ComputeHomoForce(ParticleSubject& subj) {
         const int nPoints = subj.GetNumberOfPoints();
 
         bool useKappa = useAdaptiveSampling && subj.kappaSampler.IsNotNull();
@@ -171,12 +180,108 @@ namespace pi {
                 }
                 xixj.normalize();
                 fordim (k) {
+                    //pi.f[k] += (coeff * weight * (pi.x[k] - pj.x[k]));
+                    pi.f[k] += (coeff * weight * xixj[k]);
+                }
+            }
+        }
+    }
+
+    void EntropyInternalForce::ComputeHeteroForce(ParticleSubject& subj) {
+        const int nPoints = subj.GetNumberOfPoints();
+
+        bool useKappa = useAdaptiveSampling && subj.kappaSampler.IsNotNull();
+        const DataReal sigma = repulsionSigma;
+        const DataReal sigma2 = sigma * sigma;
+        const DataReal friendSigma2 = friendSigma*friendSigma;
+        const DataReal cutoff = repulsionCutoff;
+
+        if (subj.friendImage.IsNull()) {
+            cout << "Multi-phase internal force computation not available without friend sampler." << endl;
+            return;
+        }
+        subj.friendSampler = NNLabelInterpolatorType::New();
+        subj.friendSampler->SetInputImage(subj.friendImage);
+
+
+#pragma omp parallel for
+        for (int i = 0; i < nPoints; i++) {
+
+
+            Particle& pi = subj.m_Particles[i];
+            IntIndex idx;
+            fordim (k) {
+                idx[k] = pi.x[k];
+            }
+            pi.label = subj.friendSampler->EvaluateAtIndex(idx);
+
+            // iteration over particles
+            // may reduce use symmetric properties
+            VNLVector weights(nPoints, 0);
+            for (int j = 0; j < nPoints; j++) {
+                Particle& pj = subj.m_Particles[j];
+                if (i == j) {
+                    weights[j] = 0;
+                    continue;
+                }
+
+                // label query
+                fordim (k) {
+                    idx[k] = pj.x[k] - 0.5;
+                }
+                pj.label = subj.friendSampler->EvaluateAtIndex(idx);
+
+                DataReal kappa = 1;
+                if (useKappa) {
+                    RealIndex jIdx;
+                    fordim (k) {
+                        jIdx[k] = pj.x[k];
+                    }
+                    kappa = subj.kappaSampler->EvaluateAtContinuousIndex(jIdx);
+                    kappa *= kappa;
+                }
+                DataReal dij = sqrt(pi.Dist2(pj));
+
+                const bool isFriend = pi.label == pj.label;
+                if (!isFriend) {
+                    if (dij > cutoff) {
+                        weights[j] = 0;
+                    } else {
+                        weights[j] = exp(-dij*dij*kappa/(sigma2));
+                    }
+                } else {
+                    if (dij > friendCutoff) {
+                        weights[j] = 0;
+                    } else {
+                        weights[j] = exp(-dij*dij*kappa/(friendSigma2));
+                    }
+                }
+            }
+
+            DataReal sumForce = weights.sum();
+            if (sumForce > 0) {
+                weights /= sumForce;
+            }
+
+            // update force for neighboring particles
+            for (int j = 0; j < nPoints; j++) {
+                if (i == j || weights[j] == 0) {
+                    continue;
+                }
+                Particle& pj = subj.m_Particles[j];
+                DataReal weight = weights[j];
+                VNLVector xixj(__Dim, 0);
+                fordim (k) {
+                    xixj[k] = pi.x[k] - pj.x[k];
+                }
+                xixj.normalize();
+                fordim (k) {
                     pi.f[k] += (coeff * weight * (pi.x[k] - pj.x[k]));
                 }
             }
         }
     }
-    
+
     void EntropyInternalForce::ComputeForce(ParticleSubjectArray& subjs) {
         const int nSubjs = subjs.size();
         for (int n = 0; n < nSubjs; n++) {
@@ -241,12 +346,7 @@ namespace pi {
 
         // we assume that the mean and its corresponding alignment is already computed
         // therefore, we store y from x
-        ParticleSubject& meanSubj = system.GetMeanSubject();
-        for (int i = 0; i < nSubjects; i++) {
-            system[i].ComputeAlignment(meanSubj);
-            system[i].AlignmentTransformX2Y();
-        }
-
+        /*
         // compute mean(Y)
         for (int j = 0; j < nPoints; j++) {
             fordim (k) {
@@ -261,12 +361,17 @@ namespace pi {
                 meanSubj[j].y[k] /= nSubjects;
             }
         }
-        
+        */
+
+
         // now working at y-space estimating b-spline transform from the subject to the mean
+        system.ComputeZMeanSubject();
+        ParticleSubject& meanSubj = system.GetMeanSubject();
+
         for (int i = 0; i < nSubjects; i++) {
             ParticleBSpline bspline;
             bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
-            bspline.EstimateTransformY(system[i], meanSubj);
+            bspline.EstimateTransformYZ(system[i], meanSubj);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
             system[i].TransformY2Z(deformableTransform.GetPointer());
             system[i].m_DeformableTransform = deformableTransform;
@@ -343,9 +448,46 @@ namespace pi {
         m_ImageContext = context;
     }
 
+
+
+    RealImage::Pointer WarpToMean(ParticleSubject& mean, ParticleSubject& subject, RealImage::Pointer m) {
+        typedef itk::AffineTransform<PointReal, __Dim> AffineTransformType;
+        AffineTransformType::Pointer affineTransform = AffineTransformType::New();
+        AffineTransformType::ParametersType affineParams;
+        affineParams.SetSize((__Dim+1)*(__Dim));
+        for (int i = 0; i < __Dim; i++) {
+            for (int j = 0; j < __Dim; j++) {
+                affineParams[i*__Dim + j] = subject.inverseAlignment->GetMatrix()->GetElement(i,j);
+            }
+            affineParams[__Dim*__Dim + i] = subject.inverseAlignment->GetMatrix()->GetElement(i,3);
+        }
+        affineTransform->SetParameters(affineParams);
+
+        ParticleBSpline bsp;
+        bsp.EstimateTransform<ParticleYCaster,RealImage>(mean, subject, mean.GetNumberOfPoints(), m);
+
+        typedef itk::CompositeTransform<PointReal,__Dim> CompositeTransformType;
+        CompositeTransformType::Pointer transform = CompositeTransformType::New();
+        transform->AddTransform(bsp.GetTransform());
+        transform->AddTransform(affineTransform);
+
+        typedef itk::ResampleImageFilter<RealImage,RealImage> ResampleFilterType;
+        ResampleFilterType::Pointer resampleFilter = ResampleFilterType::New();
+        resampleFilter->SetInput(m);
+        resampleFilter->SetTransform(transform);
+        resampleFilter->SetReferenceImage(m);
+        resampleFilter->UseReferenceImageOn();
+        resampleFilter->Update();
+        subject.m_InverseDeformableTransform = bsp.GetTransform();
+        return resampleFilter->GetOutput();
+    }
+
+    
     void IntensityForce::ComputeAttributes(ParticleSystem* system) {
+        const bool useResampling = true;
+
         ParticleSubjectArray& shapes = system->GetSubjects();
-        const ParticleSubject& meanSubject = system->GetMeanSubject();
+        ParticleSubject& meanSubject = system->GetMeanSubject();
 
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
@@ -357,29 +499,37 @@ namespace pi {
         warpedImages.resize(nSubj);
         gradImages.resize(nSubj);
 
+        // first create a warped image into the mean transform space
+        // second create a gradient vector image per subject
+        // third extract attributes (features)
+        ImageProcessing proc;
         if (useAttributesAtWarpedSpace) {
-            // first create a warped image into the mean transform space
-            // second create a gradient vector image per subject
-            // third extract attributes (features)
             for (int i = 0; i < nSubj; i++) {
                 ParticleSubject& subject = shapes[i];
                 LabelImage::Pointer refImage = m_ImageContext->GetLabel(i);
 
-                // warp the real image
-                ParticleBSpline bspline;
-                bspline.SetReferenceImage(refImage);
-                bspline.EstimateTransform(meanSubject, subject);
-                FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
-                subject.m_InverseDeformableTransform = deformableTransform;
-                warpedImages[i] = bspline.WarpImage(m_ImageContext->GetRealImage(i));
-
+                if (useResampling) {
+                    warpedImages[i] = WarpToMean(meanSubject, subject, m_ImageContext->GetRealImage(i));
+                    if (useGaussianGradient) {
+                        gradImages[i] = proc.ComputeGaussianGradient(warpedImages[i], gaussianSigma);
+                    } else {
+                        gradImages[i] = proc.ComputeGradient(warpedImages[i]);
+                    }
+                } else {
+                    // Assume No Alignment!!!!!
+                    ParticleBSpline backwardBspline;
+                    backwardBspline.EstimateTransform<ParticleYCaster,RealImage>(meanSubject, subject, meanSubject.GetNumberOfPoints(), subject.realImage);
+                    FieldTransformType::Pointer backwardTransform = backwardBspline.GetTransform();
+                    subject.m_InverseDeformableTransform = backwardTransform;
+                }
 
                 if (subject.m_DeformableTransform.IsNull()) {
                     ParticleBSpline forwardBspline;
                     forwardBspline.SetReferenceImage(refImage);
                     forwardBspline.EstimateTransform(subject, meanSubject);
-                    FieldTransformType::Pointer forwardTransform = bspline.GetTransform();
-                    subject.TransformX2Y(forwardTransform);
+                    FieldTransformType::Pointer forwardTransform = forwardBspline.GetTransform();
+                    subject.TransformY2Z(forwardTransform);
+                    cout << "Warping in intensity force not desirable" << endl;
                 }
             }
         } else {
@@ -387,7 +537,7 @@ namespace pi {
                 warpedImages[i] = m_ImageContext->GetRealImage(i);
                 ParticleSubject& subject = shapes[i];
                 for (int j = 0; j < nPoints; j++) {
-                    forcopy (subject.m_Particles[j].x, subject.m_Particles[j].y);
+                    forcopy (subject.m_Particles[j].y, subject.m_Particles[j].z);
                 }
             }
         }
@@ -399,41 +549,78 @@ namespace pi {
             //            sprintf(warpedname, "warped%d_%03d.nrrd", i, system->currentIteration);
             //            io.WriteImageT(warpedname, warpedImages[i]);
 
-            if (useGaussianGradient) {
-                GaussianGradientFilterType::Pointer grad = GaussianGradientFilterType::New();
-                grad->SetInput(warpedImages[i]);
-                grad->SetSigma(gaussianSigma);
-                grad->Update();
-                gradImages[i] = grad->GetOutput();
-            } else {
-                GradientFilterType::Pointer grad = GradientFilterType::New();
-                grad->SetInput(warpedImages[i]);
-                grad->Update();
-                gradImages[i] = grad->GetOutput();
-            }
-
+            
             RealImage& warpedImage = *(warpedImages[i].GetPointer());
             GradientImage& gradImage = *(gradImages[i].GetPointer());
 
             // extract attributes
             RealImage::SizeType radius;
             radius.Fill(nRadius);
-            RealImageNeighborhoodIteratorType iiter(radius, warpedImages[i], warpedImages[i]->GetBufferedRegion());
+            RealImageNeighborhoodIteratorType iiter(radius, subject.realImage, subject.realImage->GetBufferedRegion());
             RealImage::IndexType idx;
 #pragma omp parallel for
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subject.m_Particles[j];
                 fordim(k) {
-                    idx[k] = round(par.y[k]);
+                    idx[k] = round(par.z[k]);
                 }
                 iiter.SetLocation(idx);
                 Attr& jAttr = m_attrs(i, j);
+
+                FieldTransformType::InputPointType inputPoint;
+                FieldTransformType::OutputPointType outputPoint;
+                RealIndex samplePointAtSubjectSpace;
                 for (int k = 0; k < Attr::NATTRS; k++) {
                     IntIndex idx = iiter.GetIndex(k);
-                    jAttr.x[k] = warpedImage[idx];
-                    fordim (u) {
-                        jAttr.g[k][u] = gradImage[idx][u];
+                    fordim (l) {
+                        inputPoint[l] = idx[l];
                     }
+
+                    // mean to shape
+                    outputPoint = subject.m_InverseDeformableTransform->TransformPoint(inputPoint);
+                    DataReal y[__Dim], x[__Dim];
+                    fordim (l) {
+                        y[l] = outputPoint[l];
+                    }
+                    subject.inverseAlignment->TransformPoint(y, x);
+                    fordim (l) {
+                        samplePointAtSubjectSpace[l] = x[l];
+                    }
+
+                    if (!useResampling) {
+                        jAttr.x[k] = subject.realSampler->EvaluateAtContinuousIndex(samplePointAtSubjectSpace);
+                        GradientPixel grad = subject.gradSampler->EvaluateAtContinuousIndex(samplePointAtSubjectSpace);
+                        fordim (u) {
+                            jAttr.g[k][u] = grad[u];
+                        }
+                    } else {
+                    // sample intensity at the mean space
+                        jAttr.x[k] = warpedImage[idx];
+                        fordim (u) {
+                            jAttr.g[k][u] = gradImage[idx][u];
+                        }
+                    }
+
+
+                }
+            }
+        }
+    }
+
+
+    void IntensityForce::NormalizeAttributes(AttrMatrix& attrs) {
+        // compute average attr value across subject
+        const int nPoints = attrs.size2();
+        const int nSubj = attrs.size1();
+
+        for (int i = 0; i < nPoints; i++) {
+            for (int j = 0; j < Attr::NATTRS; j++) {
+                double sum = 0;
+                for (int s = 0; s < nSubj; s++) {
+                    sum += attrs(s, i).x[j];
+                }
+                for (int s = 0; s < nSubj; s++) {
+                    attrs(s,i).y[j] =  attrs(s, i).x[j] - sum/nSubj;
                 }
             }
         }
@@ -485,7 +672,7 @@ namespace pi {
         }
 
         for (int i = 0; i < dimCov; i++) {
-//            cov[i][i] = cov[i][i] + alpha;
+            cov[i][i] = cov[i][i] + alpha;
         }
 
         return useDualCOV;
@@ -545,24 +732,6 @@ namespace pi {
         }
     }
 
-    void IntensityForce::NormalizeAttributes(AttrMatrix& attrs) {
-        // compute average attr value across subject
-        const int nPoints = attrs.size2();
-        const int nSubj = attrs.size1();
-
-        for (int i = 0; i < nPoints; i++) {
-            for (int j = 0; j < Attr::NATTRS; j++) {
-                double sum = 0;
-                for (int s = 0; s < nSubj; s++) {
-                    sum += attrs(s, i).x[j];
-                }
-                for (int s = 0; s < nSubj; s++) {
-                    attrs(s,i).y[j] =  attrs(s, i).x[j] - sum/nSubj;
-                }
-            }
-        }
-    }
-
     void IntensityForce::ComputeIntensityForce(ParticleSystem* system) {
         ParticleSubjectArray& shapes = system->GetSubjects();
         const int nSubj = shapes.size();
@@ -589,23 +758,22 @@ namespace pi {
             if (useAttributesAtWarpedSpace) {
                 FieldTransformType::Pointer fieldTransform = shapes[i].m_InverseDeformableTransform;
                 for (int j = 0; j < nPoints; j++) {
-                    DataReal* forcePtr = m_attrs(i,j).f;
-                    DataReal* forceOutPtr = m_attrs(i,j).F;
-                    FieldTransformType::InputPointType x;
+                    FieldTransformType::InputPointType y;
                     fordim(k) {
-                        x[k] = shapes[i][j].x[k];
+                        y[k] = shapes[i][j].y[k];
                     }
                     FieldTransformType::JacobianType jac;
                     jac.set_size(__Dim, __Dim);
-                    fieldTransform->ComputeInverseJacobianWithRespectToPosition(x, jac);
+                    fieldTransform->ComputeInverseJacobianWithRespectToPosition(y, jac);
+                    Attr& attr = m_attrs(i,j);
                     fordim(k) {
                         DataReal ff = 0;
                         if (__Dim == 3) {
-                            ff = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k] + jac[2][k]*forcePtr[k];
+                            ff = jac[0][k]*attr.f[k] + jac[1][k]*attr.f[k] + jac[2][k]*attr.f[k];
                         } else if (__Dim == 2) {
-                            ff = jac[0][k]*forcePtr[k] + jac[1][k]*forcePtr[k];
+                            ff = jac[0][k]*attr.f[k] + jac[1][k]*attr.f[k];
                         }
-                        forceOutPtr[k] = ff;
+                        attr.F[k] = ff;
                     }
                 }
             } else {
@@ -626,7 +794,19 @@ namespace pi {
                     ff[k] = m_attrs(i,j).F[k];
                 }
 //                ff.normalize();
-                par.AddForce(ff.data_block(), coeff);
+                subj.inverseAlignment->TransformVector(ff.data_block(), m_attrs(i,j).F);
+#ifndef BATCH
+                if (::abs(m_attrs(i,j).F[0]) > 2 || ::abs(m_attrs(i,j).F[1]) > 2 || ::abs(m_attrs(i,j).F[2]) > 2) {
+                    //cout << "too big intensity term! at " << i << " subj " << j << " points: x=" << par.x[0]<< "," << par.x[1] << "," << par.x[2] <<  ";f=" << m_attrs(i,j).F[0] << "," << m_attrs(i,j).F[1] << "," << m_attrs(i,j).F[2] << endl;
+                    cout << i << "." << j << " ";
+                    ff.copy_in(m_attrs(i,j).F);
+                    ff.normalize();
+                    fordim (k) {
+                        m_attrs(i,j).F[k] = ff[k];
+                    }
+                }
+#endif
+                par.AddForce(m_attrs(i,j).F, -coeff);
             }
         }
     }

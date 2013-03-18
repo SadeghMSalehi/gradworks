@@ -79,7 +79,7 @@ namespace pi {
                 for (int i = 0; i < np; i++) {
                     Particle& p = snapshot[i];
                     os << p.t << " " << " " << p.subj << " " << p.idx;
-                    fordim (k) {
+                    for4 (k) {
                         os << " " << p.x[k];
                     }
                     os << endl;
@@ -106,7 +106,7 @@ namespace pi {
             if (isFullTrace) {
                 is >> p;
             } else {
-                fordim (k) {
+                for4 (k) {
                     is >> p.x[k];
                 }
             }

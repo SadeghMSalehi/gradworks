@@ -115,7 +115,7 @@ namespace pi {
         return sqrt(dist);
     }
 
-    void ParticleCollision::ComputeClosestBoundary(DataReal *x1, DataReal * cp) {
+    void ParticleCollision::ComputeClosestBoundary(Particle& pi, DataReal *x1, DataReal * cp) {
         RealIndex idx;
         fordim (k) {
             idx[k] = x1[k];
@@ -126,7 +126,11 @@ namespace pi {
         fordim (k) {
             cp[k] = x1[k] + offset[k];
         }
-#ifndef NDEBUG
+
+#ifndef BATCH
+        if (::abs(offset[0]) > 10 || ::abs(offset[1]) > 10 || ::abs(offset[2]) > 10)  {
+                cout << "too large projection offset = [" << offset[0] << "," << offset[1] << "," << offset[2] << "] at [" << x1[0] << "," << x1[1] << "," << x1[2] << "]" << "; particle subj = " << pi.subj << " id = " << pi.idx << endl;
+            }
         fordim(k) {
             idx[k] = cp[k];
         }
@@ -263,7 +267,7 @@ namespace pi {
             if (!isValidRegion) {
                 // important!!
                 // this function will move current out-of-region point into the closest boundary
-                ComputeClosestBoundary(p.x, cp);
+                ComputeClosestBoundary(p, p.x, cp);
             }
             forset (cp, p.x);
             p.collisionEvent = true;
@@ -314,7 +318,7 @@ namespace pi {
             if (!isValidRegion) {
                 // important!!
                 // this function will move current out-of-region point into the closest boundary
-                ComputeClosestBoundary(p.x, cp);
+                ComputeClosestBoundary(p, p.x, cp);
             }
 
             // project velocity and forces

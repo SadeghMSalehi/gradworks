@@ -25,7 +25,8 @@ namespace pi {
 
     class InternalForce {
     public:
-        InternalForce() {}
+        bool heteroForce;
+        InternalForce(): heteroForce(false) {}
         ~InternalForce() {}
         void ComputeForce(ParticleSubject& subj);
         void ComputeForce(ParticleSubjectArray& shapes);
@@ -35,19 +36,29 @@ namespace pi {
 
     class EntropyInternalForce {
     public:
-        EntropyInternalForce() :repulsionSigma(3), repulsionCutoff(repulsionSigma*5), useAdaptiveSampling(false), maxKappa(3), coeff(1) {}
+        EntropyInternalForce(): useMultiPhaseForce(false),repulsionSigma(5), repulsionCutoff(repulsionSigma*5),friendSigma(3), friendCutoff(friendSigma*5),  useAdaptiveSampling(false), maxKappa(3), coeff(1) {}
         ~EntropyInternalForce() {}
 
         void ComputeForce(ParticleSubject& subj);
         void ComputeForce(ParticleSubjectArray& subjs);
         void ComputeForce(Particle& a, Particle& b);
 
+        bool useMultiPhaseForce;
         DataReal repulsionSigma;
         DataReal repulsionCutoff;
+        DataReal friendSigma;
+        DataReal friendCutoff;
+
         bool useAdaptiveSampling;
         DataReal maxKappa;
         DataReal coeff;
+
+    private:
+        void ComputeHomoForce(ParticleSubject& sub);
+        void ComputeHeteroForce(ParticleSubject& sub);
     };
+
+    
 
     class EnsembleForce {
     public:

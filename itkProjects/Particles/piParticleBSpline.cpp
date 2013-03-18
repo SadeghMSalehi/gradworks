@@ -28,6 +28,10 @@ namespace pi {
         this->EstimateTransform<ParticleYCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
     }
 
+    void ParticleBSpline::EstimateTransformYZ(const ParticleSubject& src, const ParticleSubject& dst) {
+        this->EstimateTransform<ParticleYZCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
+    }
+
     void ParticleBSpline::EstimateTransformZ(const ParticleSubject& src, const ParticleSubject& dst) {
         this->EstimateTransform<ParticleZCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
     }

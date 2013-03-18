@@ -76,6 +76,7 @@ namespace pi {
             x[j] = y[j] = z[j] = v[j] = f[j] = w[j] = 0;
         }
         density = pressure = 0;
+        label = 0;
         collisionEvent = false;
     }
 
@@ -86,9 +87,9 @@ namespace pi {
     }
 
     void Particle::AddForce(DataReal* ff, DataReal alpha) {
-#ifndef NDEBUG
+#ifndef BATCH
         if (abs(ff[0]) > 10 || abs(ff[1]) > 10 || abs(ff[2]) > 10) {
-            cout << "too large force " << endl;
+            cout << "too large force at [" << x[0] << "," << x[1] << "," << x[2] << endl;
         }
 #endif
         fordim(i) {
@@ -225,28 +226,47 @@ namespace pi {
     }
 
     void ParticleSubject::SyncPointsCopy() {
-#ifndef NDEBUG
-        
-#endif
         const int npoints = m_Particles.size();
         for (int i = 0; i < npoints; i++) {
             pointscopy->SetPoint(i, m_Particles[i].x);
         }
     }
 
-    void ParticleSubject::ComputeAlignment(ParticleSubject& dst) {
-        typedef vtkSmartPointer<vtkLandmarkTransform> vtkLandmarkTransformType;
-        dst.SyncPointsCopy();
-        SyncPointsCopy();
-        vtkLandmarkTransformType landmarkTransform = vtkLandmarkTransformType::New();
-        landmarkTransform->SetModeToRigidBody();
-        landmarkTransform->SetSourceLandmarks(pointscopy);
-        landmarkTransform->SetTargetLandmarks(dst.pointscopy);
-        landmarkTransform->Update();
+    //////////////////////////////////////////////////////////////////////////////////
+    //
+    // Density computation
+    //
+    // A density of a particle is defined by the inverse of average neighbor distances
+    //
+    void ParticleSubject::ComputeDensity() {
+        const int npoints = m_Particles.size();
+        for (int i = 0; i < npoints; i++) {
+            DataReal d = 0;
+            for (int j = 0; j < npoints; j++) {
+                d += sqrt(m_Particles[i].Dist2(m_Particles[j]));
+            }
+            m_Particles[i].density = npoints / d;
+        }
+    }
 
-        alignment->SetMatrix(landmarkTransform->GetMatrix());
-        inverseAlignment->SetMatrix(alignment->GetMatrix());
-        inverseAlignment->Inverse();
+    void ParticleSubject::ComputeAlignment(ParticleSubject& dst, bool useSimilarity) {
+        const bool useAlignment = false;
+        if (useAlignment) {
+            typedef vtkSmartPointer<vtkLandmarkTransform> vtkLandmarkTransformType;
+            dst.SyncPointsCopy();
+            SyncPointsCopy();
+            vtkLandmarkTransformType landmarkTransform = vtkLandmarkTransformType::New();
+            if (useSimilarity) {
+                landmarkTransform->SetModeToSimilarity();
+            }
+            landmarkTransform->SetSourceLandmarks(pointscopy);
+            landmarkTransform->SetTargetLandmarks(dst.pointscopy);
+            landmarkTransform->Update();
+
+            alignment->SetMatrix(landmarkTransform->GetMatrix());
+            inverseAlignment->SetMatrix(alignment->GetMatrix());
+            inverseAlignment->Inverse();
+        }
     }
     
     void ParticleSubject::AlignmentTransformX2Y() {
@@ -348,6 +368,10 @@ namespace pi {
                     m_Particles[i].z[j] = outputPoint[j];
                 }
             }
+        } else {
+            for (int i = 0; i < nPoints; i++) {
+                m_Particles[i].z[i] = m_Particles[i].y[i];
+            }
         }
     }
 
@@ -427,6 +451,9 @@ namespace pi {
     void ImageContext::LoadLabel(std::string filename) {
         itkcmds::itkImageIO<LabelImage> io;
         LabelImage::Pointer image = io.ReadImageT(filename.c_str());
+        if (image.IsNull()) {
+            return;
+        }
         m_LabelImages.push_back(image);
 
         // set default spacing to 1 to match index and physical coordinate space
@@ -532,6 +559,7 @@ namespace pi {
     
     void ParticleSystem::InitializeSystem(Options& options) {
         m_Options = &options;
+        m_Subjects.clear();
         m_Subjects.resize(options.GetStringVector("Subjects:").size());
         for (int i = 0; i < m_Subjects.size(); i++) {
             m_Subjects[i].Initialize(i, options.GetStringVectorValue("Subjects:", i), options.GetInt("NumberOfParticles:", 0));
@@ -543,12 +571,12 @@ namespace pi {
     void ParticleSystem::LoadKappaImages(Options& options, ImageContext* context) {
         StringVector& kappaNames = options.GetStringVector("KappaImageCache:");
         if (kappaNames.size() != m_Subjects.size()) {
-            cout << "Kappa images and subjects are different set" << endl;
+            cout << "Kappa images and subjects are different set (KappaImageCache: missing?)" << endl;
             return;
         }
 
         DataReal sigma = options.GetReal("AdaptiveSamplingBlurSigma:", 1);
-        DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 3);
+        DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 2);
 
         itkcmds::itkImageIO<RealImage> io;
         for (int i = 0; i < kappaNames.size(); i++) {
@@ -577,7 +605,14 @@ namespace pi {
         return m_InitialSubject;
     }
 
-    ParticleSubject& ParticleSystem::ComputeMeanSubject() {
+    ParticleSubject& ParticleSystem::InitializeMean() {
+        ComputeXMeanSubject();
+        m_MeanSubject.TransformX2Y(NULL);
+        m_MeanSubject.TransformY2Z(NULL);
+        return m_MeanSubject;
+    }
+
+    ParticleSubject& ParticleSystem::ComputeXMeanSubject() {
         const int nPoints = m_Subjects[0].GetNumberOfPoints();
         const int nSubjects = m_Subjects.size();
 
@@ -591,11 +626,49 @@ namespace pi {
                 // sum over all subject j
                 for (int j = 0; j < nSubjects; j++) {
                     m_MeanSubject[i].x[k] += m_Subjects[j][i].x[k];
-                    m_MeanSubject[i].y[k] += m_Subjects[j][i].y[k];
-                    m_MeanSubject[i].z[k] += m_Subjects[j][i].z[k];
                 }
                 m_MeanSubject[i].x[k] /= nSubjects;
+            }
+        }
+        return m_MeanSubject;
+    }
+
+    ParticleSubject& ParticleSystem::ComputeYMeanSubject() {
+        const int nPoints = m_Subjects[0].GetNumberOfPoints();
+        const int nSubjects = m_Subjects.size();
+
+        m_MeanSubject.m_SubjId = -1;
+        m_MeanSubject.NewParticles(nPoints);
+
+        // for every dimension k
+        fordim(k) {
+            // for every point i
+            for (int i = 0; i < nPoints; i++) {
+                // sum over all subject j
+                for (int j = 0; j < nSubjects; j++) {
+                    m_MeanSubject[i].y[k] += m_Subjects[j][i].y[k];
+                }
                 m_MeanSubject[i].y[k] /= nSubjects;
+            }
+        }
+        return m_MeanSubject;
+    }
+
+    ParticleSubject& ParticleSystem::ComputeZMeanSubject() {
+        const int nPoints = m_Subjects[0].GetNumberOfPoints();
+        const int nSubjects = m_Subjects.size();
+
+        m_MeanSubject.m_SubjId = -1;
+        m_MeanSubject.NewParticles(nPoints);
+
+        // for every dimension k
+        fordim(k) {
+            // for every point i
+            for (int i = 0; i < nPoints; i++) {
+                // sum over all subject j
+                for (int j = 0; j < nSubjects; j++) {
+                    m_MeanSubject[i].z[k] += m_Subjects[j][i].z[k];
+                }
                 m_MeanSubject[i].z[k] /= nSubjects;
             }
         }

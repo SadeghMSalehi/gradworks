@@ -9,8 +9,10 @@
 #ifndef __ParticleGuidedRegistration__piVTK__
 #define __ParticleGuidedRegistration__piVTK__
 
+#include <map>
 #include <iostream>
-#include "piParticleTrace.h"
+//#include "piParticleTrace.h"
+
 #include "vtkSmartPointer.h"
 #include "vtkPolyData.h"
 #include "vtkPoints.h"
@@ -28,8 +30,10 @@ namespace pivtk {
     __vtk(PolyData);
     __vtk(PolyLine);
 
+
+    PolyDataPointer CreateSphere(int phiRes, int thetaRes);
     void vtk_write_polydata(const char* f, vtkPolyData* p);
-    PolyDataPointer ConstructPathLines(pi::ParticleSetSeries& snapshot);
+//    PolyDataPointer ConstructPathLines(pi::ParticleSetSeries& snapshot);
 
     class PropScene {
     public:
