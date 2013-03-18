@@ -31,11 +31,12 @@ namespace pivtk {
         SphereSourcePointer source = SphereSourcePointer::New();
         source->SetPhiResolution(phiRes);
         source->SetThetaResolution(thetaRes);
-//        source->LatLongTessellationOn();
+        source->LatLongTessellationOn();
         source->Update();
         return PolyDataPointer(source->GetOutput());
     }
-    
+
+    /*
     PolyDataPointer ConstructPathLines(pi::ParticleSetSeries& snapshot) {
         PointsPointer points = PointsPointer::New();
         CellArrayPointer cells = CellArrayPointer::New();
@@ -60,6 +61,7 @@ namespace pivtk {
 
         return polyData;
     }
+     */
 
     PropScene::PropScene() {
         m_LastActor = NULL;
