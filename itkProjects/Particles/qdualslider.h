@@ -27,6 +27,10 @@ public:
 
     void setRealMax(double v) { _realMax = v; }
     void setRealMin(double v) { _realMin = v; }
+    
+    void setRealLowValue(double v) { setLowValue(v/(_realMax-_realMin)*(maximum()-minimum())+minimum()); }
+    void setRealHighValue(double v) { setHighValue(v/(_realMax-_realMin)*(maximum()-minimum())+minimum()); }
+
     double realLowValue() { return _low*(_realMax-_realMin)/(maximum()-minimum())+_realMin; }
     double realHighValue() { return _high*(_realMax-_realMin)/(maximum()-minimum())+_realMin; }
     

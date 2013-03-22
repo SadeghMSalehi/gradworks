@@ -24,6 +24,8 @@
 #include "piImageIO.h"
 #include "itkARGBColorFunction.h"
 #include "itkScalarToARGBColormapImageFilter.h"
+#include "itkExtractImageFilter.h"
+#include "QGraphicsItem"
 
 
 using namespace std;
@@ -31,14 +33,17 @@ using namespace pi;
 
 typedef itk::Image<RGBAPixel, 3> RGBAVolumeType;
 
-void QGraphicsImageItem::updatePixmap() {
-    if (_srcImg.IsNull()) {
+QGraphicsVolumeItem::QGraphicsVolumeItem(QGraphicsItem* parent): QGraphicsPixmapItem(parent) {
+}
+
+void QGraphicsVolumeItem::updatePixmap() {
+    if (_resampledImg.IsNull()) {
         return;
     }
 
     typedef itk::ScalarToARGBColormapImageFilter<RealImage, RGBAVolumeType> ScalarToRGBFilter;
     typename ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
-    rgbFilter->SetInput(_srcImg);
+    rgbFilter->SetInput(_resampledImg);
     rgbFilter->UseManualScalingOn();
     rgbFilter->UseIntensityWindowOn();
     rgbFilter->SetMinimumValue(_windowMin);
@@ -51,13 +56,84 @@ void QGraphicsImageItem::updatePixmap() {
     setPixmap(QPixmap::fromImage(qImg));
 }
 
-void QGraphicsImageItem::setImage(RealImage::Pointer img) {
+void QGraphicsVolumeItem::setImage(RealImage::Pointer img) {
     _srcImg = img;
-    // XXX: have to change if the slice is not an axial.
-    RealImage::SizeType sz = _srcImg->GetBufferedRegion().GetSize();
-    w = sz[0];
-    h = sz[1];
+
+    TransformType::ParametersType params, center;
+    params.SetSize(12);
+    center.SetSize(3);
+    params.Fill(0);
+
+    RealImage::RegionType gridRegion = _srcImg->GetBufferedRegion();
+    IntIndex idx1 = gridRegion.GetIndex();
+    IntIndex idx2 = gridRegion.GetUpperIndex();
+    IntIndex centerIdx;
+    for (int i = 0; i < 3; i++) {
+        centerIdx[i] = (idx1[i]+idx2[i])/2.0;
+    }
+    RealImage::PointType centerPoint;
+    _srcImg->TransformIndexToPhysicalPoint(centerIdx, centerPoint);
+    for (int i = 0; i < 3; i++) {
+        center[i] = centerPoint[i];
+        // to make identity transform
+        params[3*i+i] = 1;
+    }
+
+    _transform = TransformType::New();
+    _transform->SetParameters(params);
+    _transform->SetFixedParameters(center);
+}
+
+void QGraphicsVolumeItem::setResampleGrid(RealImage::Pointer grid) {
+    _resampleGrid = grid;
+
+    RealImage::RegionType region = _resampleGrid->GetBufferedRegion();
+    // x-y, y-z, z-x
+
+    w = region.GetSize(0);
+    h = region.GetSize(1);
+
+    if (_srcImg.IsNotNull()) {
+        resampleGrid();
+        updatePixmap();
+    }
+}
+
+void QGraphicsVolumeItem::setTransform(vtkMatrix4x4 *mat) {
+    if (_resampleGrid.IsNull() || _transform.IsNull()) {
+        return;
+    }
+
+    TransformType::ParametersType params = _transform->GetParameters();
+    params.Fill(0);
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            params[3 * i + j] = mat->GetElement(i, j);
+        }
+    }
+    _transform->SetParameters(params);
+
+    resampleGrid();
     updatePixmap();
+}
+
+void QGraphicsVolumeItem::resampleGrid() {
+    if (_resampleGrid.IsNull() || _srcImg.IsNull()) {
+        return;
+    }
+    typedef itk::ResampleImageFilter<RealImage, RealImage> ResampleFilter;
+    typename ResampleFilter::Pointer resampleFilter = ResampleFilter::New();
+    typename ResampleFilter::TransformType* transformInput =
+    dynamic_cast<typename ResampleFilter::TransformType*>(_transform.GetPointer());
+    resampleFilter->SetInput(_srcImg);
+    resampleFilter->SetReferenceImage(_resampleGrid);
+    resampleFilter->UseReferenceImageOn();
+    if (_transform.IsNotNull()) {
+        resampleFilter->SetTransform(transformInput);
+    }
+    resampleFilter->Update();
+    _resampledImg = resampleFilter->GetOutput();
+
 }
 
 class vtkMouseHandler: public vtkCommand {
@@ -104,8 +180,7 @@ public:
             }
             case vtkCommand::MouseMoveEvent: {
                 if (m_moving) {
-                    m_imageViewer->m_movingImg.SetVTKTransform(viewMat);
-                    m_imageViewer->ResampleSlice();
+                    m_imageViewer->m_movingItem->setTransform(viewMat);
                     viewMat->Print(cout);
                 }
                 style->OnMouseMove();
@@ -119,7 +194,7 @@ public:
 
 
 ImageViewer::ImageViewer(QWidget* parent) {
-    m_fixedPixmap = m_movingPixmap = NULL;
+    m_fixedItem = m_movingItem = NULL;
 
     ui.setupUi(this);
     vtkRenderer* renderer = vtkRenderer::New();
@@ -144,6 +219,9 @@ ImageViewer::ImageViewer(QWidget* parent) {
     m_propScene.AddPolyData("sphere", sphere);
     m_propScene.SetRepresentation(VTK_WIREFRAME);
 
+    m_fixedItem = new QGraphicsVolumeItem();
+    m_movingItem = new QGraphicsVolumeItem();
+
     renderer->ResetCamera();
     renderer->Render();
 }
@@ -156,13 +234,28 @@ void ImageViewer::LoadImage(QString fileName) {
     if (!fileName.isEmpty()) {
         ImageIO<RealImage> io;
         fixedImg = io.ReadImage(fileName.toStdString());
-        m_fixedImg.SetImage(fixedImg);
-        RealImage::SizeType sz = fixedImg->GetBufferedRegion().GetSize();
-        m_fixedImg.SetSliceAsGrid(2, sz[2]/2);
-        m_fixedPixmap = m_scene.addPixmap(m_fixedImg.GetPixmap());
-        ui.fixedSliceSlider->setMaximum(sz[2]);
-        ui.fixedSliceSlider->setValue(sz[2]/2);
 
+        typedef itk::StatisticsImageFilter<RealImage> StatFilter;
+        StatFilter::Pointer statFilter = StatFilter::New();
+        statFilter->SetInput(fixedImg);
+        statFilter->Update();
+
+        DataReal pixMin = statFilter->GetMinimum();
+        DataReal pixMax = statFilter->GetMaximum();
+
+        ui.intensitySlider->setRealMin(pixMin);
+        ui.intensitySlider->setRealMax(pixMax);
+
+        ui.intensitySlider->setLowValue(ui.intensitySlider->minimum());
+        ui.intensitySlider->setHighValue(ui.intensitySlider->maximum());
+        
+        m_fixedItem->setImage(fixedImg);
+        m_fixedItem->setWindowRange(pixMin, pixMax);
+        m_scene.addItem(m_fixedItem);
+
+        SetFixedSlice(2);
+
+        /*
         // generate some data:
         const int nHistoSize = m_fixedImg.imageHistogram.binData.size();
         QVector<double> x(nHistoSize), y(nHistoSize); // initialize with entries 0..100
@@ -188,59 +281,98 @@ void ImageViewer::LoadImage(QString fileName) {
 
         ui.intensitySlider->setLowValue(ui.intensitySlider->minimum());
         ui.intensitySlider->setHighValue(ui.intensitySlider->maximum());
+        */
     }
 }
 
 void ImageViewer::LoadMovingImage(QString fileName) {
     if (!fileName.isEmpty()) {
         ImageIO<RealImage> io;
-        RealImage::Pointer img = io.ReadImage(fileName.toStdString());
-        m_movingImg.SetImage(img);
-        m_movingImg.SetResampleGrid(m_fixedImg.GetResampleGrid());
-        m_movingPixmap = m_scene.addPixmap(m_movingImg.GetPixmap());
+        movingImg = io.ReadImage(fileName.toStdString());
+
+        if (movingImg.IsNull()) {
+            return;
+        }
+
+        typedef itk::StatisticsImageFilter<RealImage> StatFilter;
+        StatFilter::Pointer statFilter = StatFilter::New();
+        statFilter->SetInput(movingImg);
+        statFilter->Update();
+
+        DataReal pixMin = statFilter->GetMinimum();
+        DataReal pixMax = statFilter->GetMaximum();
+
+        ui.intensitySlider2->setRealMin(pixMin);
+        ui.intensitySlider2->setRealMax(pixMax);
+
+        ui.intensitySlider2->setLowValue(ui.intensitySlider2->minimum());
+        ui.intensitySlider2->setHighValue(ui.intensitySlider2->maximum());
+
+        m_movingItem->setImage(movingImg);
+        m_movingItem->setWindowRange(pixMin, pixMax);
+        m_scene.addItem(m_movingItem);
+
+        SetMovingSlice(2);
     }
 }
 
-void ImageViewer::ResampleSlice() {
-    if (m_movingImg.HasNoImage()) {
+void ImageViewer::SetFixedSlice(int dir, int idx) {
+    if (fixedImg.IsNull()) {
         return;
     }
-    if (m_movingPixmap != NULL) {
-        m_scene.removeItem(m_movingPixmap);
+    RealImage::SizeType sz = fixedImg->GetBufferedRegion().GetSize();
+    ui.fixedSliceSlider->setMaximum(sz[2]);
+    if (idx == -1) {
+        idx = sz[2] / 2.0;
     }
-    m_movingImg.Resample();
-    m_movingPixmap = m_scene.addPixmap(m_movingImg.GetPixmap());
-    m_movingPixmap->setOpacity(ui.movingOpacity->value()/255.0);
-    m_movingPixmap->update();
+    ui.fixedSliceSlider->setValue(idx);
+
+    RealImage::RegionType resampleRegion = fixedImg->GetBufferedRegion();
+    RealImage::IndexType idx1 = resampleRegion.GetIndex();
+    RealImage::IndexType idx2 = resampleRegion.GetUpperIndex();
+    idx1[dir] = idx;
+    idx2[dir] = idx;
+    resampleRegion.SetIndex(idx1);
+    resampleRegion.SetUpperIndex(idx2);
+
+    typedef itk::ExtractImageFilter<RealImage, RealImage> ExtractFilterType;
+    typename ExtractFilterType::Pointer filter = ExtractFilterType::New();
+    filter->SetInput(fixedImg);
+    filter->SetExtractionRegion(resampleRegion);
+    filter->Update();
+    fixedGrid = filter->GetOutput();
+
+    m_fixedItem->setResampleGrid(fixedGrid);
+}
+
+void ImageViewer::SetMovingSlice(int dir, int idx) {
+    if (movingImg.IsNull()) {
+        return;
+    }
+    m_movingItem->setResampleGrid(fixedGrid);
 }
 
 void ImageViewer::on_fixedOpacity_sliderMoved(int n) {
-    if (m_fixedPixmap == NULL) {
+    if (m_fixedItem == NULL) {
         return;
     }
-    m_fixedPixmap->setOpacity(ui.fixedOpacity->value()/255.0);
-    m_fixedPixmap->update();
+    m_fixedItem->setOpacity(ui.fixedOpacity->value()/255.0);
+    m_fixedItem->update();
 }
 
 void ImageViewer::on_movingOpacity_sliderMoved(int n) {
-    if (m_movingPixmap == NULL) {
+    if (m_movingItem == NULL) {
         return;
     }
-    m_movingPixmap->setOpacity(ui.movingOpacity->value()/255.0);
-    m_movingPixmap->update();
+    m_movingItem->setOpacity(ui.movingOpacity->value()/255.0);
+    m_movingItem->update();
 }
 
 
 void ImageViewer::on_fixedSliceSlider_sliderMoved(int n) {
-    m_fixedImg.SetSliceAsGrid(2, n);
-    if (m_fixedPixmap != NULL) {
-        m_scene.removeItem(m_fixedPixmap);
-    }
-    m_fixedPixmap = m_scene.addPixmap(m_fixedImg.GetPixmap());
-    m_fixedPixmap->setOpacity(ui.fixedOpacity->value()/255.0);
-    m_fixedPixmap->update();
+    SetFixedSlice(2, n);
+    SetMovingSlice(2);
 }
-
 
 void ImageViewer::on_zoomSlider_sliderMoved(int n) {
     QTransform transform;
@@ -249,9 +381,18 @@ void ImageViewer::on_zoomSlider_sliderMoved(int n) {
 }
 
 void ImageViewer::on_intensitySlider_lowValueChanged(int n) {
-    cout << "Low: " << ui.intensitySlider->realLowValue() << endl;
+    m_fixedItem->setWindowRange(ui.intensitySlider->realLowValue(), ui.intensitySlider->realHighValue());
 }
 
 void ImageViewer::on_intensitySlider_highValueChanged(int n) {
-    cout << "High: " << ui.intensitySlider->realHighValue() << endl;
+    m_fixedItem->setWindowRange(ui.intensitySlider->realLowValue(), ui.intensitySlider->realHighValue());
 }
+
+void ImageViewer::on_intensitySlider2_lowValueChanged(int n) {
+    m_movingItem->setWindowRange(ui.intensitySlider2->realLowValue(), ui.intensitySlider2->realHighValue());
+}
+
+void ImageViewer::on_intensitySlider2_highValueChanged(int n) {
+    m_movingItem->setWindowRange(ui.intensitySlider2->realLowValue(), ui.intensitySlider2->realHighValue());
+}
+
