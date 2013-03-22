@@ -363,9 +363,9 @@ void AniWindow::on_actionMark_At_Image_triggered() {
 void AniWindow::on_actionCreate_Pathline_triggered() {
     int n = ui.subjects->currentIndex();
     if (g_showType == SHOW_TRACE) {
-        pivtk::PolyDataPointer data = pivtk::ConstructPathLines(g_Trace.system[n]);
-        g_PropScene.AddPolyData("pathline", data);
-        ui.vtkwidget->GetRenderWindow()->Render();
+        //pivtk::PolyDataPointer data = pivtk::ConstructPathLines(g_Trace.system[n]);
+        //g_PropScene.AddPolyData("pathline", data);
+        //ui.vtkwidget->GetRenderWindow()->Render();
     }
 }
 

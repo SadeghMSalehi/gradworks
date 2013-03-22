@@ -57,14 +57,26 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>311</width>
-         <height>574</height>
+         <width>300</width>
+         <height>589</height>
         </rect>
        </property>
        <attribute name="label">
         <string>Transform</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_5">
+        <property name="leftMargin">
+         <number>3</number>
+        </property>
+        <property name="topMargin">
+         <number>3</number>
+        </property>
+        <property name="rightMargin">
+         <number>3</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
         <item>
          <layout class="QGridLayout" name="gridLayout">
           <item row="0" column="0">
@@ -211,7 +223,7 @@
             <item>
              <widget class="QSlider" name="movingOpacity">
               <property name="enabled">
-               <bool>false</bool>
+               <bool>true</bool>
               </property>
               <property name="minimumSize">
                <size>
@@ -284,12 +296,35 @@
          </layout>
         </item>
         <item>
-         <widget class="QVTKWidget2" name="vtkControl" native="true">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>200</height>
-           </size>
+         <widget class="QSplitter" name="splitter_2">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <widget class="QVTKWidget2" name="vtkControl" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>150</height>
+            </size>
+           </property>
+          </widget>
+          <widget class="QCustomPlot" name="histogramView" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>200</height>
+            </size>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDualSlider" name="intensitySlider">
+          <property name="maximum">
+           <number>10000</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
           </property>
          </widget>
         </item>
@@ -332,6 +367,17 @@
    <extends>QWidget</extends>
    <header>QVTKWidget2.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QCustomPlot</class>
+   <extends>QWidget</extends>
+   <header>qcustomplot.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QDualSlider</class>
+   <extends>QSlider</extends>
+   <header>qdualslider.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

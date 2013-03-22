@@ -80,6 +80,11 @@ namespace itk {
         itkSetMacro(UseManualScaling, bool);
         itkGetConstMacro(UseManualScaling, bool);
         itkBooleanMacro(UseManualScaling);
+
+        itkSetMacro(UseIntensityWindow, bool);
+        itkGetConstMacro(UseIntensityWindow, bool);
+        itkBooleanMacro(UseIntensityWindow);
+        
     protected:
         ScalarToARGBColormapImageFilter();
         virtual ~ScalarToARGBColormapImageFilter() {}
@@ -130,6 +135,7 @@ namespace itk {
 
         bool m_UseInputImageExtremaForScaling;
         bool m_UseManualScaling;
+        bool m_UseIntensityWindow;
         InputImagePixelType m_MinimumValue;
         InputImagePixelType m_MaximumValue;
     };
@@ -143,6 +149,7 @@ namespace itk {
     {
         this->SetNumberOfRequiredInputs(1);
         this->m_UseInputImageExtremaForScaling = true;
+        this->m_UseIntensityWindow = false;
         typedef Function::GreyColormapFunction<InputImagePixelType, OutputImagePixelType > DefaultColormapType;
         typename DefaultColormapType::Pointer greyColormap = DefaultColormapType::New();
         this->SetColormap(greyColormap);
@@ -212,12 +219,28 @@ namespace itk {
         inputIt.GoToBegin();
         outputIt.GoToBegin();
 
-        while ( !inputIt.IsAtEnd() )
-        {
-            outputIt.Set( this->m_Colormap->operator()( inputIt.Get() ) );
-            ++inputIt;
-            ++outputIt;
-            progress.CompletedPixel();  // potential exception thrown here
+        if (m_UseIntensityWindow) {
+            while ( !inputIt.IsAtEnd() )
+            {
+                InputImagePixelType pixel = inputIt.Get();
+                if (pixel < m_MinimumValue) {
+                    pixel = m_MinimumValue;
+                } else if (pixel > m_MaximumValue) {
+                    pixel = m_MaximumValue;
+                }
+                outputIt.Set(this->m_Colormap->operator()(pixel));
+                ++inputIt;
+                ++outputIt;
+                progress.CompletedPixel();  // potential exception thrown here
+            }
+        } else {
+            while ( !inputIt.IsAtEnd() )
+            {
+                outputIt.Set( this->m_Colormap->operator()( inputIt.Get() ) );
+                ++inputIt;
+                ++outputIt;
+                progress.CompletedPixel();  // potential exception thrown here
+            }
         }
     }
 

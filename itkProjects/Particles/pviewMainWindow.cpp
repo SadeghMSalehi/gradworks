@@ -9,8 +9,11 @@
 #include "pviewMainWindow.h"
 #include "QFileSystemModel"
 #include "pviewImageViewer.h"
+#include "QContextMenuEvent"
 
 MainWindow::MainWindow(QWidget* parent) {
+    m_imageViewer = NULL;
+
     ui.setupUi(this);
     m_dirModel = new QFileSystemModel();
     m_fileModel = new QFileSystemModel();
@@ -34,6 +37,7 @@ MainWindow::MainWindow(QWidget* parent) {
     ui.tableView->setSortingEnabled(true);
     ui.tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui.tableView->resizeColumnToContents(0);
+    ui.tableView->setContextMenuPolicy(Qt::CustomContextMenu);
 }
 
 MainWindow::~MainWindow() {
@@ -52,8 +56,31 @@ void MainWindow::on_tableView_doubleClicked(const QModelIndex &index) {
         ui.tableView->setRootIndex(m_fileModel->index(sPath));
         ui.treeView->setCurrentIndex(m_dirModel->index(sPath));
     } else {
-        ImageViewer* viewer = new ImageViewer();
-        viewer->LoadImage(sPath);
-        viewer->show();
+        if (m_imageViewer == NULL) {
+            m_imageViewer = new ImageViewer();
+        }
+        if (m_imageViewer->isHidden()) {
+            m_imageViewer->LoadImage(sPath);
+            m_imageViewer->show();
+        } else {
+            m_imageViewer->LoadImage(sPath);
+        }
     }
+}
+
+void MainWindow::on_tableView_customContextMenuRequested(const QPoint& pos) {
+    if (m_imageViewer != NULL && m_imageViewer->isVisible()) {
+        QMenu menu(this);
+        menu.addAction(ui.actionLoadMovingImage);
+        menu.exec(ui.tableView->mapToGlobal(pos));
+
+        QModelIndex cellIdx = ui.tableView->indexAt(pos);
+        ui.tableView->setCurrentIndex(cellIdx);
+    }
+}
+
+void MainWindow::on_actionLoadMovingImage_triggered() {
+    QModelIndex idx = ui.tableView->currentIndex();
+    QFileInfo fileInfo = m_fileModel->fileInfo(idx);
+    m_imageViewer->LoadMovingImage(fileInfo.absoluteFilePath());
 }

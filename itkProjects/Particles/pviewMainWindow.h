@@ -14,7 +14,9 @@
 #include "QMainWindow"
 #include "ui_pviewMainWindow.h"
 
+class QContextMenuEvent;
 class QFileSystemModel;
+class ImageViewer;
 
 class MainWindow: public QMainWindow {
     Q_OBJECT
@@ -26,11 +28,14 @@ public:
 public slots:
     void on_treeView_clicked(const QModelIndex& index);
     void on_tableView_doubleClicked(const QModelIndex& index);
+    void on_tableView_customContextMenuRequested(const QPoint& pos);
+    void on_actionLoadMovingImage_triggered();
 
 private:
     Ui::MainWindow ui;
     QFileSystemModel* m_dirModel;
     QFileSystemModel* m_fileModel;
+    ImageViewer* m_imageViewer;
 };
 
 #endif /* defined(__ParticleGuidedRegistration__pviewMainWindow__) */

@@ -83,6 +83,11 @@
     <string>Open</string>
    </property>
   </action>
+  <action name="actionLoadMovingImage">
+   <property name="text">
+    <string>LoadMovingImage</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
