@@ -34,6 +34,25 @@ using namespace pi;
 typedef itk::Image<RGBAPixel, 3> RGBAVolumeType;
 
 QGraphicsVolumeItem::QGraphicsVolumeItem(QGraphicsItem* parent): QGraphicsPixmapItem(parent) {
+    checkerBoardPattern = 0;
+}
+
+void QGraphicsVolumeItem::doPostProcess() {
+    if (checkerBoardPattern == 0) {
+        return;
+    }
+    
+    QPixmap pmap = pixmap();
+    QPainter p(&pmap);
+    
+    int w = pmap.width();
+    int h = pmap.height();
+    
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            
+        }
+    }
 }
 
 void QGraphicsVolumeItem::updatePixmap() {
@@ -54,6 +73,8 @@ void QGraphicsVolumeItem::updatePixmap() {
     RGBAVolumeType::Pointer rgbImg = rgbFilter->GetOutput();
     QImage qImg((unsigned char*) rgbImg->GetBufferPointer(), w, h, QImage::Format_ARGB32);
     setPixmap(QPixmap::fromImage(qImg));
+    
+    doPostProcess();
 }
 
 void QGraphicsVolumeItem::setImage(RealImage::Pointer img) {
@@ -302,6 +323,7 @@ void ImageViewer::LoadMovingImage(QString fileName) {
         DataReal pixMin = statFilter->GetMinimum();
         DataReal pixMax = statFilter->GetMaximum();
 
+        ui.intensitySlider2->setEnabled(true);
         ui.intensitySlider2->setRealMin(pixMin);
         ui.intensitySlider2->setRealMax(pixMax);
 
@@ -394,5 +416,14 @@ void ImageViewer::on_intensitySlider2_lowValueChanged(int n) {
 
 void ImageViewer::on_intensitySlider2_highValueChanged(int n) {
     m_movingItem->setWindowRange(ui.intensitySlider2->realLowValue(), ui.intensitySlider2->realHighValue());
+}
+
+void ImageViewer::on_fixedMask_checked(bool check) {
+    RealImage::Pointer img = m_fixedItem->getImage();
+
+}
+
+void ImageViewer::on_movingMask_checked(bool check) {
+    
 }
 

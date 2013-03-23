@@ -42,6 +42,8 @@ public:
     void setImage(pi::RealImage::Pointer srcImg);
     void setResampleGrid(pi::RealImage::Pointer grid);
     void setTransform(vtkMatrix4x4* mat);
+    void setCheckerBoardStatus(int n);
+    void doPostProcess();
 
 private:
     void resampleGrid();
@@ -51,6 +53,7 @@ private:
     pi::DataReal _windowMin, _windowMax;
     pi::RealImage::Pointer _srcImg, _resampleGrid, _resampledImg;
     TransformType::Pointer _transform;
+    int checkerBoardPattern;
 };
 
 
@@ -67,6 +70,7 @@ public:
     void LoadMovingImage(QString fileName);
     void ResampleSlice();
 
+
 public slots:
     void on_fixedOpacity_sliderMoved(int n);
     void on_movingOpacity_sliderMoved(int n);
@@ -78,6 +82,9 @@ public slots:
     void on_intensitySlider_highValueChanged(int n);
     void on_intensitySlider2_lowValueChanged(int n);
     void on_intensitySlider2_highValueChanged(int n);
+    
+    void on_fixedMask_checked(bool check);
+    void on_movingMask_checked(bool check);
 
 private:
     void SetFixedSlice(int dir, int idx = -1);
