@@ -34,11 +34,11 @@ using namespace pi;
 typedef itk::Image<RGBAPixel, 3> RGBAVolumeType;
 
 QGraphicsVolumeItem::QGraphicsVolumeItem(QGraphicsItem* parent): QGraphicsPixmapItem(parent) {
-    checkerBoardPattern = 0;
+    _checkerBoardPattern = 0;
 }
 
 void QGraphicsVolumeItem::doPostProcess() {
-    if (checkerBoardPattern == 0) {
+    if (_checkerBoardPattern == 0) {
         return;
     }
     
@@ -47,12 +47,27 @@ void QGraphicsVolumeItem::doPostProcess() {
     
     int w = pmap.width();
     int h = pmap.height();
-    
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            
+
+    QBrush brush(QColor::fromRgb(0, 0, 0), Qt::SolidPattern);
+    int r = 4, c = 4;
+    for (int i = 0; i < r; i++) {
+        for (int j = 0; j < c; j++) {
+            if (i%2 == j%2) {
+                int rw = w/c;
+                if (j*(w/c)+w/c >= w) {
+                    rw = w - j*(w/c);
+                }
+                int rh = h/r;
+                if (i*(h/r)+h/r >= h) {
+                    rh = h - i*(h/r);
+                }
+                p.eraseRect(j*(w/c), i*(h/r), rw, rh);
+                p.fillRect(j*(w/c), i*(h/r), rw, rh, brush);
+            }
         }
     }
+
+    setPixmap(pmap);
 }
 
 void QGraphicsVolumeItem::updatePixmap() {
@@ -272,6 +287,7 @@ void ImageViewer::LoadImage(QString fileName) {
         
         m_fixedItem->setImage(fixedImg);
         m_fixedItem->setWindowRange(pixMin, pixMax);
+        m_fixedItem->setZValue(1);
         m_scene.addItem(m_fixedItem);
 
         SetFixedSlice(2);
@@ -418,12 +434,17 @@ void ImageViewer::on_intensitySlider2_highValueChanged(int n) {
     m_movingItem->setWindowRange(ui.intensitySlider2->realLowValue(), ui.intensitySlider2->realHighValue());
 }
 
-void ImageViewer::on_fixedMask_checked(bool check) {
-    RealImage::Pointer img = m_fixedItem->getImage();
-
+void ImageViewer::on_fixedMask_toggled(bool check) {
+    if (check) {
+        m_fixedItem->setCheckerBoardPattern(1);
+    } else {
+        m_fixedItem->setCheckerBoardPattern(0);
+    }
+    m_fixedItem->doPostProcess();
+    m_fixedItem->update();
 }
 
-void ImageViewer::on_movingMask_checked(bool check) {
+void ImageViewer::on_movingMask_toggled(bool check) {
     
 }
 
