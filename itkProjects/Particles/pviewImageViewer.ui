@@ -293,7 +293,7 @@
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_7">
         <item>
-         <widget class="QGroupBox" name="groupBox">
+         <widget class="QGroupBox" name="alphaOptions">
           <property name="title">
            <string>Alpha Overlay</string>
           </property>
@@ -324,7 +324,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBox_2">
+         <widget class="QGroupBox" name="checkerBoardOptions">
           <property name="title">
            <string>Checker Board</string>
           </property>
@@ -380,7 +380,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBox_3">
+         <widget class="QGroupBox" name="compositionOptions">
           <property name="title">
            <string>Composition</string>
           </property>

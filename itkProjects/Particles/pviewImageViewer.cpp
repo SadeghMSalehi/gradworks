@@ -33,70 +33,125 @@ using namespace pi;
 
 typedef itk::Image<RGBAPixel, 3> RGBAVolumeType;
 
-void QGraphicsCompositeImageItem::CompositeAlpha() {
+bool QGraphicsCompositeImageItem::CheckCompositeBuffer(int id1) {
     if (_imageDisplays == NULL) {
-        return;
+        return false;
     }
-
+    
     pi::ImageIO<RealImage> io;
-    RealImage::Pointer fImg = _imageDisplays->at(_fixedId)->GetResampled(_resampleIdx);
+    ImageDisplayType* img1 = _imageDisplays->at(id1);
+    
+    // check foreground image
+    RealImage::Pointer fImg = img1->GetResampled(_resampleIdx);
     if (fImg.IsNull()) {
-        cout << "no resampled image" << endl;
-        return;
+        return false;
     }
+    
+    // check composite image
     if (_compositeImage.IsNull()
         || _compositeImage->GetBufferedRegion() != fImg->GetBufferedRegion()) {
         _compositeImage = io.CopyImage(fImg);
     }
-    int nElems = fImg->GetPixelContainer()->Size();
+    return _compositeImage.IsNotNull();
+}
 
-    DataReal* fBuf = fImg->GetBufferPointer();
-    DataReal* cBuf = _compositeImage->GetBufferPointer();
-
+void QGraphicsCompositeImageItem::CompositeAlpha(int id1, int id2) {
+    if (!CheckCompositeBuffer(id1)) {
+        return;
+    }
     
-    if (_imageDisplays->Count() <= _movingId || _imageDisplays->at(_movingId)->srcImg.IsNull()) {
-        for (int i = 0; i < nElems; i++) {
-            const DataReal f = Clamp(fBuf[i], _imageDisplays->at(_fixedId)->histogram.rangeMin, _imageDisplays->at(_fixedId)->histogram.rangeMax);
-            cBuf[i] = _alpha * f;
-        }
-    } else {
+    // prepare input and output buffer
+    ImageDisplayType* img1 = _imageDisplays->at(id1);
+    RealImage::Pointer fImg = img1->GetResampled(_resampleIdx);
+    const int nElems = fImg->GetPixelContainer()->Size();
+    DataReal* cBuf = _compositeImage->GetBufferPointer();
+    DataReal* fBuf = fImg->GetBufferPointer();
+    
+    if (id2 >= 0) {
+        // if there is more than one image,
+        ImageDisplayType* img2 = _imageDisplays->at(id2);
         RealImage::Pointer mImg = _imageDisplays->at(_movingId)->GetResampled(_resampleIdx);
         DataReal* mBuf = mImg->GetBufferPointer();
         for (int i = 0; i < nElems; i++) {
-            const DataReal f = Clamp(fBuf[i], _imageDisplays->at(_fixedId)->histogram.rangeMin, _imageDisplays->at(_fixedId)->histogram.rangeMax);
-            const DataReal m = Clamp(mBuf[i], _imageDisplays->at(_movingId)->histogram.rangeMin, _imageDisplays->at(_movingId)->histogram.rangeMax);
+            const DataReal f = Clamp(fBuf[i], img1->histogram.rangeMin, img1->histogram.rangeMax);
+            const DataReal m = Clamp(mBuf[i], img2->histogram.rangeMin, img2->histogram.rangeMax);
             cBuf[i] = _alpha*f+(1-_alpha)*m;
+        }
+    } else {
+        // for the case of single image
+        for (int i = 0; i < nElems; i++) {
+            const DataReal f = Clamp(fBuf[i], img1->histogram.rangeMin, img1->histogram.rangeMax);
+            cBuf[i] = _alpha * f;
         }
     }
 }
 
-void QGraphicsCompositeImageItem::Refresh() {
-    if (_imageDisplays == NULL || _imageDisplays->Count() <= _fixedId || _fixedId < 0) {
+void QGraphicsCompositeImageItem::CompositeCheckerBoard(int id1, int id2) {
+    if (!CheckCompositeBuffer(id1)) {
         return;
     }
+    
+    if (id2 < 0 || id2 >= _imageDisplays->Count()) {
+        return;
+    }
+    
+    // prepare input and output buffer
+    ImageDisplayType* img1 = _imageDisplays->at(id1);
+    RealImage::Pointer fImg = img1->GetResampled(_resampleIdx);
+    DataReal* fBuf = fImg->GetBufferPointer();
 
-    if ((_movingId < 0 || _movingId >= _imageDisplays->Count()) && (_compositionMode == CheckerBoard)) {
+    ImageDisplayType* img2 = _imageDisplays->at(id2);
+    RealImage::Pointer mImg = _imageDisplays->at(_movingId)->GetResampled(_resampleIdx);
+    DataReal* mBuf = mImg->GetBufferPointer();
+    
+    DataReal* cBuf = _compositeImage->GetBufferPointer();
+    
+    int w = fImg->GetBufferedRegion().GetSize(0);
+    int h = fImg->GetBufferedRegion().GetSize(1);
+    
+    const int cbszW = w / _cbCols;
+    const int cbszH = h / _cbRows;
+    int k = 0;
+    for (int i = 0; i < w; i++) {
+        for (int j = 0; j < h; j++, k++) {
+            const DataReal f = Clamp(fBuf[k], img1->histogram.rangeMin, img1->histogram.rangeMax);
+            const DataReal m = Clamp(mBuf[k], img2->histogram.rangeMin, img2->histogram.rangeMax);
+            if ((i/cbszW)%2 == (j/cbszH)%2) {
+                cBuf[k] = f;
+            } else {
+                cBuf[k] = m;
+            }
+        }
+    }
+}
+
+void QGraphicsCompositeImageItem::Refresh(int id1, int id2) {
+    if (_imageDisplays == NULL || _imageDisplays->Count() <= id1 || id1 < 0) {
         return;
     }
 
     if (_compositionMode == Alpha) {
-        CompositeAlpha();
+        CompositeAlpha(id1, id2);
     } else if (_compositionMode == CheckerBoard) {
-
+        CompositeCheckerBoard(id1, id2);
     }
 
+    // if the composition image is not generated,
     if (_compositeImage.IsNull()) {
         return;
     }
 
+    // convert to color image
+    // assume that the composite image ranges from 0 to 65535 (in short range)
     ColorFilterType::Pointer colorFilter = ColorFilterType::New();
     colorFilter->SetInput(_compositeImage);
     colorFilter->UseManualScalingOn();
     colorFilter->SetMinimumValue(0);
     colorFilter->SetMaximumValue(65535);
     colorFilter->Update();
-
     _rgbImage = colorFilter->GetOutput();
+    
+    // may have to correct to deal with various slice
     int w = _rgbImage->GetBufferedRegion().GetSize(0);
     int h = _rgbImage->GetBufferedRegion().GetSize(1);
 
@@ -104,144 +159,6 @@ void QGraphicsCompositeImageItem::Refresh() {
     update();
 }
 
-//QGraphicsVolumeItem::QGraphicsVolumeItem(QGraphicsItem* parent): QGraphicsPixmapItem(parent) {
-//}
-//
-//void QGraphicsVolumeItem::doPostProcess() {
-//    if (true) {
-//        return;
-//    }
-//    
-//    QPixmap pmap = pixmap();
-//    QPainter p(&pmap);
-//    
-//    int w = pmap.width();
-//    int h = pmap.height();
-//
-//    QBrush brush(QColor::fromRgb(0, 0, 0), Qt::SolidPattern);
-//    int r = 4, c = 4;
-//    for (int i = 0; i < r; i++) {
-//        for (int j = 0; j < c; j++) {
-//            if (i%2 == j%2) {
-//                int rw = w/c;
-//                if (j*(w/c)+w/c >= w) {
-//                    rw = w - j*(w/c);
-//                }
-//                int rh = h/r;
-//                if (i*(h/r)+h/r >= h) {
-//                    rh = h - i*(h/r);
-//                }
-//                p.eraseRect(j*(w/c), i*(h/r), rw, rh);
-//                p.fillRect(j*(w/c), i*(h/r), rw, rh, brush);
-//            }
-//        }
-//    }
-//
-//    setPixmap(pmap);
-//}
-
-//void QGraphicsVolumeItem::updatePixmap() {
-//    if (_resampledImg.IsNull()) {
-//        return;
-//    }
-//
-//    typedef itk::ScalarToARGBColormapImageFilter<RealImage, RGBAVolumeType> ScalarToRGBFilter;
-//    typename ScalarToRGBFilter::Pointer rgbFilter = ScalarToRGBFilter::New();
-//    rgbFilter->SetInput(_resampledImg);
-//    rgbFilter->UseManualScalingOn();
-//    rgbFilter->UseIntensityWindowOn();
-//    rgbFilter->SetMinimumValue(_windowMin);
-//    rgbFilter->SetMaximumValue(_windowMax);
-//    rgbFilter->SetAlphaValue(255);
-//    rgbFilter->Update();
-//
-//    RGBAVolumeType::Pointer rgbImg = rgbFilter->GetOutput();
-//    QImage qImg((unsigned char*) rgbImg->GetBufferPointer(), w, h, QImage::Format_ARGB32);
-//    setPixmap(QPixmap::fromImage(qImg));
-//    
-//    doPostProcess();
-//}
-//
-//void QGraphicsVolumeItem::setImage(RealImage::Pointer img) {
-//    _srcImg = img;
-//
-//    TransformType::ParametersType params, center;
-//    params.SetSize(12);
-//    center.SetSize(3);
-//    params.Fill(0);
-//
-//    RealImage::RegionType gridRegion = _srcImg->GetBufferedRegion();
-//    IntIndex idx1 = gridRegion.GetIndex();
-//    IntIndex idx2 = gridRegion.GetUpperIndex();
-//    IntIndex centerIdx;
-//    for (int i = 0; i < 3; i++) {
-//        centerIdx[i] = (idx1[i]+idx2[i])/2.0;
-//    }
-//    RealImage::PointType centerPoint;
-//    _srcImg->TransformIndexToPhysicalPoint(centerIdx, centerPoint);
-//    for (int i = 0; i < 3; i++) {
-//        center[i] = centerPoint[i];
-//        // to make identity transform
-//        params[3*i+i] = 1;
-//    }
-//
-//    _transform = TransformType::New();
-//    _transform->SetParameters(params);
-//    _transform->SetFixedParameters(center);
-//}
-//
-//void QGraphicsVolumeItem::setResampleGrid(RealImage::Pointer grid) {
-//    _resampleGrid = grid;
-//
-//    RealImage::RegionType region = _resampleGrid->GetBufferedRegion();
-//    // x-y, y-z, z-x
-//
-//    w = region.GetSize(0);
-//    h = region.GetSize(1);
-//
-//    if (_srcImg.IsNotNull()) {
-//        resampleGrid();
-//        updatePixmap();
-//    }
-//}
-//
-//void QGraphicsVolumeItem::setTransform(vtkMatrix4x4 *mat) {
-//    if (_resampleGrid.IsNull() || _transform.IsNull()) {
-//        return;
-//    }
-//
-//    TransformType::ParametersType params = _transform->GetParameters();
-//    params.Fill(0);
-//    for (int i = 0; i < 3; i++) {
-//        for (int j = 0; j < 3; j++) {
-//            params[3 * i + j] = mat->GetElement(i, j);
-//        }
-//    }
-//    _transform->SetParameters(params);
-//
-//    resampleGrid();
-//    updatePixmap();
-//}
-//
-//void QGraphicsVolumeItem::resampleGrid() {
-//    if (_resampleGrid.IsNull() || _srcImg.IsNull()) {
-//        return;
-//    }
-//    typedef itk::ResampleImageFilter<RealImage, RealImage> ResampleFilter;
-//    typename ResampleFilter::Pointer resampleFilter = ResampleFilter::New();
-//    typename ResampleFilter::TransformType* transformInput =
-//    dynamic_cast<typename ResampleFilter::TransformType*>(_transform.GetPointer());
-//    resampleFilter->SetInput(_srcImg);
-//    resampleFilter->SetReferenceImage(_resampleGrid);
-//    resampleFilter->UseReferenceImageOn();
-//    if (_transform.IsNotNull()) {
-//        resampleFilter->SetTransform(transformInput);
-//    }
-//    resampleFilter->Update();
-//    _resampledImg = resampleFilter->GetOutput();
-//
-//}
-//
 class vtkMouseHandler: public vtkCommand {
 private:
     ImageViewer* m_imageViewer;
@@ -286,8 +203,10 @@ public:
             }
             case vtkCommand::MouseMoveEvent: {
                 if (m_moving) {
-//                    m_imageViewer->m_movingItem->setTransform(viewMat);
-                    viewMat->Print(cout);
+                    if (m_imageViewer->imageDisplays.Count() > 1) {
+                        m_imageViewer->UpdateMovingDisplayTransform(viewMat);
+                        m_imageViewer->UpdateCompositeDisplay();
+                    }
                 }
                 style->OnMouseMove();
                 break;
@@ -326,6 +245,9 @@ ImageViewer::ImageViewer(QWidget* parent) {
     renderer->ResetCamera();
     renderer->Render();
 
+    m_fixedId = -1;
+    m_movingId = -1;
+    
     m_compositeDisplay = new QGraphicsCompositeImageItem();
     m_compositeDisplay->SetImageDisplays(&imageDisplays);
     m_scene.addItem(m_compositeDisplay);
@@ -340,24 +262,15 @@ void ImageViewer::LoadImage(QString fileName) {
         ImageIO<RealImage> io;
         RealImage::Pointer img = io.ReadImage(fileName.toStdString());
 
-        ImageDisplayType& dispImg = imageDisplays.AddImage(img);
-        
+        imageDisplays.AddImage(img);
         if (imageDisplays.Count() == 1) {
-            imageDisplays.SetReferenceId(0);
-
-            // slice axis selection
-            ui.fixedSliceSlider->setMaximum(dispImg.srcImg->GetBufferedRegion().GetSize()[2]);
-            ui.fixedSliceSlider->setValue(dispImg.srcImg->GetBufferedRegion().GetSize()[2]/2.0);
-
-            ui.intensitySlider->setRealMin(dispImg.histogram.dataMin);
-            ui.intensitySlider->setRealMax(dispImg.histogram.dataMax);
-
-            ui.intensitySlider->setLowValue(ui.intensitySlider->minimum());
-            ui.intensitySlider->setHighValue(ui.intensitySlider->maximum());
-
-            imageDisplays.SetSliceGrid(2, ui.fixedSliceSlider->value());
+            m_fixedId = 0;
+            OnFixedImageLoaded();
+        } else {
+            m_movingId = 1;
+            OnMovingImageLoaded();
         }
-        m_compositeDisplay->Refresh();
+        UpdateCompositeDisplay();
 
         /*
         // generate some data:
@@ -389,16 +302,55 @@ void ImageViewer::LoadImage(QString fileName) {
     }
 }
 
+void ImageViewer::OnFixedImageLoaded() {
+    ImageDisplayType& dispImg = imageDisplays[m_fixedId];
+    imageDisplays.SetReferenceId(m_fixedId);
+    
+    // slice axis selection
+    ui.fixedSliceSlider->setMaximum(dispImg.srcImg->GetBufferedRegion().GetSize()[2]);
+    ui.fixedSliceSlider->setValue(dispImg.srcImg->GetBufferedRegion().GetSize()[2]/2.0);
+    
+    ui.intensitySlider->setRealMin(dispImg.histogram.dataMin);
+    ui.intensitySlider->setRealMax(dispImg.histogram.dataMax);
+    
+    ui.intensitySlider->setLowValue(ui.intensitySlider->minimum());
+    ui.intensitySlider->setHighValue(ui.intensitySlider->maximum());
+    
+    imageDisplays.SetSliceGrid(2, ui.fixedSliceSlider->value());
+}
+
+void ImageViewer::OnMovingImageLoaded() {
+    ImageDisplayType& dispImg = imageDisplays[m_movingId];
+    
+    ui.intensitySlider2->setRealMin(dispImg.histogram.dataMin);
+    ui.intensitySlider2->setRealMax(dispImg.histogram.dataMax);
+    
+    ui.intensitySlider2->setLowValue(ui.intensitySlider2->minimum());
+    ui.intensitySlider2->setHighValue(ui.intensitySlider2->maximum());
+    
+    ui.intensitySlider2->setEnabled(true);
+}
+
+void ImageViewer::UpdateMovingDisplayTransform(vtkMatrix4x4* mat) {
+    if (m_movingId >= 0 && imageDisplays.Count() > m_movingId) {
+        imageDisplays[m_movingId].SetAffineTransform(mat);
+    }
+}
+
+void ImageViewer::UpdateCompositeDisplay() {
+    m_compositeDisplay->Refresh(m_fixedId, m_movingId);
+}
+
 void ImageViewer::on_compositeOpacity_sliderMoved(int n) {
     double alpha = 1-double(n)/ui.compositeOpacity->maximum();
     m_compositeDisplay->CompositionModeToAlpha(alpha);
-    m_compositeDisplay->Refresh();
+    UpdateCompositeDisplay();
 }
 
 
 void ImageViewer::on_fixedSliceSlider_sliderMoved(int n) {
     imageDisplays.SetSliceGrid(2, n);
-    m_compositeDisplay->Refresh();    
+    UpdateCompositeDisplay();
 }
 
 void ImageViewer::on_zoomSlider_sliderMoved(int n) {
@@ -412,8 +364,30 @@ void ImageViewer::on_intensitySlider_lowValueChanged(int n) {
 }
 
 void ImageViewer::on_intensitySlider_highValueChanged(int n) {
-    imageDisplays[0].histogram.rangeMin = ui.intensitySlider->realLowValue();
-    imageDisplays[0].histogram.rangeMax = ui.intensitySlider->realHighValue();
-    m_compositeDisplay->Refresh();
+    // correct to handle multiple image histogram intensity
+    imageDisplays[m_fixedId].histogram.rangeMin = ui.intensitySlider->realLowValue();
+    imageDisplays[m_fixedId].histogram.rangeMax = ui.intensitySlider->realHighValue();
+    UpdateCompositeDisplay();
 }
 
+void ImageViewer::on_intensitySlider2_lowValueChanged(int n) {
+    on_intensitySlider2_highValueChanged(0);
+}
+
+void ImageViewer::on_intensitySlider2_highValueChanged(int n) {
+    // correct to handle multiple image histogram intensity
+    imageDisplays[m_movingId].histogram.rangeMin = ui.intensitySlider2->realLowValue();
+    imageDisplays[m_movingId].histogram.rangeMax = ui.intensitySlider2->realHighValue();
+    UpdateCompositeDisplay();
+}
+
+void ImageViewer::on_alphaOptions_toggled(bool b) {
+    ui.checkerBoardOptions->setChecked(false);
+    on_compositeOpacity_sliderMoved(ui.compositeOpacity->value());
+}
+
+void ImageViewer::on_checkerBoardOptions_toggled(bool b) {
+    ui.alphaOptions->setChecked(false);
+    m_compositeDisplay->CompositionModeToCheckerBoard(ui.checkerBoardRows->value(), ui.checkerBoardCols->value());
+    UpdateCompositeDisplay();
+}

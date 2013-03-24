@@ -49,8 +49,9 @@ private:
     int _movingId;
 
     // image displays
-
-    void CompositeAlpha();
+    bool CheckCompositeBuffer(int id1);
+    void CompositeAlpha(int id1, int id2);
+    void CompositeCheckerBoard(int id1, int id2);
     
     inline pi::DataReal Clamp(pi::DataReal f, const pi::DataReal fMin, const pi::DataReal fMax) {
         if (f < fMin) {
@@ -88,44 +89,9 @@ public:
         _cbCols = c;
     }
 
-    void Refresh();
+    void Refresh(int id1, int id2);
 
 };
-
-//
-//class QGraphicsVolumeItem: public QGraphicsPixmapItem {
-//public:
-//    enum CompositionMode { DIFF, XOR };
-//    pi::ImageDisplayCollection<pi::RealImage> _imageDisplays;
-//
-//    QGraphicsVolumeItem(QGraphicsItem* parent = NULL);
-//
-//    void setResampleGrid(pi::RealImage::Pointer grid) {
-//        _resampleGrid = grid;
-//    }
-//
-//    void setTransform(int n, vtkMatrix4x4* mat) {
-//        _imageDisplays[n].SetAffineTransform(mat);
-//    }
-//
-//    void setAlphaBlending(int o1, int o2, double alpha);
-//    void setComposition(int o1, int o2, CompositionMode mode);
-//    void setCheckerBoard(int o1, int o2, int r, int c);
-//    void setDisplay(int o);
-//
-//private:
-//    void updatePixmap();
-//
-//private:
-//    pi::RealImage::Pointer _resampleGrid;
-//    pi::RealImage::Pointer _displayImage;
-//    pi::RGBAVolumeType::Pointer _rgbDisplay;
-//    std::vector<ImageDisplayType> _imageDisplays;
-//
-//    int _pixmapWidth;
-//    int _pixmapHeight;
-//};
-
 
 class ImageViewer : public QDialog {
     Q_OBJECT
@@ -138,6 +104,9 @@ public:
     
     void LoadImage(QString fileName);
     void ClearImages();
+    
+    void UpdateCompositeDisplay();
+    void UpdateMovingDisplayTransform(vtkMatrix4x4* mat);
 
 public slots:
     void on_compositeOpacity_sliderMoved(int n);
@@ -147,8 +116,16 @@ public slots:
 
     void on_intensitySlider_lowValueChanged(int n);
     void on_intensitySlider_highValueChanged(int n);
+    void on_intensitySlider2_lowValueChanged(int n);
+    void on_intensitySlider2_highValueChanged(int n);
+    
+    void on_checkerBoardOptions_toggled(bool checked);
+    void on_alphaOptions_toggled(bool checked);
 
-
+private:
+    void OnFixedImageLoaded();
+    void OnMovingImageLoaded();
+    
 private:
     friend class vtkMouseHandler;
     
@@ -158,6 +135,8 @@ private:
     pivtk::PropScene m_propScene;
     vtkMouseHandler* m_mouseHandler;
 
+    int m_fixedId;
+    int m_movingId;
 
     QGraphicsCompositeImageItem* m_compositeDisplay;
 };
