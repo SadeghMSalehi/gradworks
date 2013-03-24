@@ -85,7 +85,7 @@
   </action>
   <action name="actionLoadMovingImage">
    <property name="text">
-    <string>LoadMovingImage</string>
+    <string>Load Overlay Image</string>
    </property>
   </action>
  </widget>

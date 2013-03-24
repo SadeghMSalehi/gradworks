@@ -82,5 +82,5 @@ void MainWindow::on_tableView_customContextMenuRequested(const QPoint& pos) {
 void MainWindow::on_actionLoadMovingImage_triggered() {
     QModelIndex idx = ui.tableView->currentIndex();
     QFileInfo fileInfo = m_fileModel->fileInfo(idx);
-    m_imageViewer->LoadMovingImage(fileInfo.absoluteFilePath());
+    m_imageViewer->LoadImage(fileInfo.absoluteFilePath());
 }

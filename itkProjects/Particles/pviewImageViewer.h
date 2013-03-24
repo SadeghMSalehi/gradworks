@@ -23,72 +23,131 @@ class QGLWidget;
 class QVTKWidget2;
 class vtkMouseHandler;
 
+typedef typename pi::ImageDisplayCollection<pi::RealImage>::ImageDisplayType ImageDisplayType;
 
-class QGraphicsVolumeItem: public QGraphicsPixmapItem {
-public:
-    typedef itk::AffineTransform<double> TransformType;
+class QGraphicsCompositeImageItem: public QGraphicsPixmapItem {
+private:
+    enum CompositionMode { Alpha, CheckerBoard };
 
-    int w;
-    int h;
+private:
+    int _resampleIdx;
+    double _alpha;
+    int _cbRows, _cbCols;
+    CompositionMode _compositionMode;
 
-    QGraphicsVolumeItem(QGraphicsItem* parent = NULL);
+
+    // memory holder for qpixmap
+    pi::RGBAVolumeType::Pointer _rgbImage;
+
+    // memory holder for composite image
+    pi::RealImage::Pointer _compositeImage;
+
+private:
+    typename pi::ImageDisplayCollection<pi::RealImage>* _imageDisplays;
+
+    int _fixedId;
+    int _movingId;
+
+    // image displays
+
+    void CompositeAlpha();
     
-    pi::RealImage::Pointer getImage() { return _srcImg; }
-    void setWindowRange(pi::DataReal min, pi::DataReal max) {
-        _windowMin = min;
-        _windowMax = max;
-        updatePixmap();
+    inline pi::DataReal Clamp(pi::DataReal f, const pi::DataReal fMin, const pi::DataReal fMax) {
+        if (f < fMin) {
+            f = fMin;
+        } else if (f > fMax) {
+            f = fMax;
+        }
+        f = (f-fMin)/(fMax-fMin)*65535;
+        return f;
     }
-    void setImage(pi::RealImage::Pointer srcImg);
-    void setResampleGrid(pi::RealImage::Pointer grid);
-    void setTransform(vtkMatrix4x4* mat);
-    void setCheckerBoardStatus(int n);
-    void doPostProcess();
 
-private:
-    void resampleGrid();
-    void updatePixmap();
+public:
+    QGraphicsCompositeImageItem(QGraphicsItem* parent = NULL): QGraphicsPixmapItem(parent), _resampleIdx(0) {
+        _fixedId = 0;
+        _movingId = 1;
+        _imageDisplays = NULL;
+        _compositionMode = Alpha;
+        _alpha = 1;
+        _cbRows = 4;
+        _cbCols = 4;
+    }
 
-private:
-    pi::DataReal _windowMin, _windowMax;
-    pi::RealImage::Pointer _srcImg, _resampleGrid, _resampledImg;
-    TransformType::Pointer _transform;
-    int checkerBoardPattern;
+    void SetImageDisplays(typename pi::ImageDisplayCollection<pi::RealImage>* displays) {
+        _imageDisplays = displays;
+    }
+
+    void CompositionModeToAlpha(double alpha) {
+        _compositionMode = Alpha;
+        _alpha = alpha;
+    }
+
+    void CompositionModeToCheckerBoard(int r, int c) {
+        _compositionMode = CheckerBoard;
+        _cbRows = r;
+        _cbCols = c;
+    }
+
+    void Refresh();
+
 };
+
+//
+//class QGraphicsVolumeItem: public QGraphicsPixmapItem {
+//public:
+//    enum CompositionMode { DIFF, XOR };
+//    pi::ImageDisplayCollection<pi::RealImage> _imageDisplays;
+//
+//    QGraphicsVolumeItem(QGraphicsItem* parent = NULL);
+//
+//    void setResampleGrid(pi::RealImage::Pointer grid) {
+//        _resampleGrid = grid;
+//    }
+//
+//    void setTransform(int n, vtkMatrix4x4* mat) {
+//        _imageDisplays[n].SetAffineTransform(mat);
+//    }
+//
+//    void setAlphaBlending(int o1, int o2, double alpha);
+//    void setComposition(int o1, int o2, CompositionMode mode);
+//    void setCheckerBoard(int o1, int o2, int r, int c);
+//    void setDisplay(int o);
+//
+//private:
+//    void updatePixmap();
+//
+//private:
+//    pi::RealImage::Pointer _resampleGrid;
+//    pi::RealImage::Pointer _displayImage;
+//    pi::RGBAVolumeType::Pointer _rgbDisplay;
+//    std::vector<ImageDisplayType> _imageDisplays;
+//
+//    int _pixmapWidth;
+//    int _pixmapHeight;
+//};
 
 
 class ImageViewer : public QDialog {
     Q_OBJECT
 public:
-    typedef itk::Image<pi::DataReal,2> RealImage2D;
-    pi::RealImage::Pointer fixedImg, fixedGrid, movingImg, movingGrid;
-
+    pi::ImageDisplayCollection<pi::RealImage> imageDisplays;
+    
 public:
     ImageViewer(QWidget* parent = NULL);
     virtual ~ImageViewer();
+    
     void LoadImage(QString fileName);
-    void LoadMovingImage(QString fileName);
-    void ResampleSlice();
-
+    void ClearImages();
 
 public slots:
-    void on_fixedOpacity_sliderMoved(int n);
-    void on_movingOpacity_sliderMoved(int n);
+    void on_compositeOpacity_sliderMoved(int n);
 
     void on_fixedSliceSlider_sliderMoved(int n);
     void on_zoomSlider_sliderMoved(int n);
 
     void on_intensitySlider_lowValueChanged(int n);
     void on_intensitySlider_highValueChanged(int n);
-    void on_intensitySlider2_lowValueChanged(int n);
-    void on_intensitySlider2_highValueChanged(int n);
-    
-    void on_fixedMask_checked(bool check);
-    void on_movingMask_checked(bool check);
 
-private:
-    void SetFixedSlice(int dir, int idx = -1);
-    void SetMovingSlice(int dir, int idx = -1);
 
 private:
     friend class vtkMouseHandler;
@@ -97,9 +156,10 @@ private:
     QGraphicsScene m_scene;
     QVTKWidget2* qvtkWidget;
     pivtk::PropScene m_propScene;
-    QGraphicsVolumeItem* m_fixedItem;
-    QGraphicsVolumeItem* m_movingItem;
     vtkMouseHandler* m_mouseHandler;
+
+
+    QGraphicsCompositeImageItem* m_compositeDisplay;
 };
 
 #endif /* defined(__ParticleGuidedRegistration__pviewImageTransform__) */

@@ -44,11 +44,11 @@ const static int __Dim = DIMENSIONS;
 #define arrayset3(a,x,y,z) a[0]=x;a[1]=y;a[2]=z
 #define x2string(x) x[0]<<","<<x[1]<<","<<x[2]
 
-#ifdef DIMENSION3
+#ifdef DIMENSIONS == 3
 #define dimdot(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
 #define dimequal(x,x0,x1,x2) (x[0]==(x0)&&x[1]==(x1)&&x[2]==(x2))
 #define dimnorm2(x) (x[0]*x[0]+x[1]*x[1]+x[2]*x[2])
-#else
+#elif DIMENSIONS == 2
 #define dimdot(x,y) (x[0]*y[0]+x[1]*y[1])
 #define dimequal(x,x0,x1) (x[0]==(x0)&&x[1]==(x1))
 #define dimnorm2(x) (x[0]*x[0]+x[1]*x[1])
