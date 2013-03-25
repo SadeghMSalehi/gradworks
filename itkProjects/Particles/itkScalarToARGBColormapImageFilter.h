@@ -173,15 +173,11 @@ namespace itk {
             InputImagePixelType minimumValue = NumericTraits< InputImagePixelType >::max();
             InputImagePixelType maximumValue = NumericTraits< InputImagePixelType >::min();
 
-            for ( It.GoToBegin(); !It.IsAtEnd(); ++It )
-            {
+            for (It.GoToBegin(); !It.IsAtEnd(); ++It) {
                 InputImagePixelType value = It.Get();
-                if ( value < minimumValue )
-                {
+                if (value < minimumValue) {
                     minimumValue = value;
-                }
-                if ( value > maximumValue )
-                {
+                } else if (value > maximumValue) {
                     maximumValue = value;
                 }
             }

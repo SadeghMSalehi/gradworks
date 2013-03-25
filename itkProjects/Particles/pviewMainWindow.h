@@ -16,7 +16,7 @@
 
 class QContextMenuEvent;
 class QFileSystemModel;
-class ImageViewer;
+class AIRWindow;
 
 class MainWindow: public QMainWindow {
     Q_OBJECT
@@ -35,7 +35,7 @@ private:
     Ui::MainWindow ui;
     QFileSystemModel* m_dirModel;
     QFileSystemModel* m_fileModel;
-    ImageViewer* m_imageViewer;
+    AIRWindow* m_AIRWindow;
 };
 
 #endif /* defined(__ParticleGuidedRegistration__pviewMainWindow__) */

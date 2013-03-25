@@ -94,10 +94,77 @@ namespace pi {
         }
     };
 
+    enum SliceDirectionEnum { IJ = 2, JK = 0, KI = 1 };
+
+    template<class T>
+    class ImageResampleGrid {
+    private:
+        typename T::Pointer GridImg;
+        int _width;
+        int _height;
+        SliceDirectionEnum SliceDirection;
+
+    public:
+        ImageResampleGrid(typename T::Pointer gridImg) {
+            GridImg = gridImg;
+            
+            typename T::RegionType region = gridImg->GetBufferedRegion();
+            if (region.GetSize(0) == 1) {
+                SliceDirection = JK;
+                _width = region.GetSize(1);
+                _height = region.GetSize(2);
+            } else if (region.GetSize(1) == 1) {
+                SliceDirection = KI;
+                _width = region.GetSize(0);
+                _height = region.GetSize(2);
+            } else if (region.GetSize(2) == 1) {
+                _width = region.GetSize(0);
+                _height = region.GetSize(1);
+                SliceDirection = IJ;
+            }
+        }
+
+        SliceDirectionEnum Direction() {
+            return SliceDirection;
+        }
+        
+        typename T::ConstPointer GetConstImage() {
+            return typename T::ConstPointer(GridImg);
+        }
+        
+        operator typename T::Pointer() {
+            return GridImg;
+        }
+
+        operator const T*() {
+            return GridImg.GetPointer();
+        }
+
+        bool IsNull() {
+            return GridImg.IsNull();
+        }
+
+        bool IsNotNull() {
+            return GridImg.IsNotNull();
+        }
+
+        inline int Width() {
+            return _width;
+        }
+
+        inline int Height() {
+            return _height;
+        }
+    };
+
     template<class T>
     class ImageDisplay {
     public:
+        typedef ImageResampleGrid<T> GridType;
+        
         typename T::Pointer srcImg;
+        typename T::PointType srcOrigin;
+        typename T::SpacingType srcSpacing;
 
         // how to determine bin-size automatically?
         ImageHistogram<T> histogram;
@@ -107,9 +174,9 @@ namespace pi {
         TransformType::Pointer affineTransform;
 
         // added by user
-        std::vector<typename T::Pointer>* _resampleGridVector;
+        std::vector<GridType>* _resampleGridVector;
     private:
-
+        typename T::PointType _currentOrigin;
 
         // (grid x transform)
         typedef itk::PointerCache<T> ImageCache;
@@ -126,7 +193,7 @@ namespace pi {
             _resampleGridVector = NULL;
         }
 
-        void SetGridVector(std::vector<typename T::Pointer>* grids) {
+        void SetGridVector(std::vector<GridType>* grids) {
             _resampleGridVector = grids;
             _resampledImageCache.clear();
             _resampledImageCache.resize(grids->size());
@@ -163,6 +230,9 @@ namespace pi {
             }
 
             srcImg = img;
+            srcOrigin = img->GetOrigin();
+            srcSpacing = img->GetSpacing();
+            
             histogram.SetImage(srcImg);
 //            histogram.Compute();
 
@@ -175,6 +245,55 @@ namespace pi {
             
             affineTransform = TransformType::New();
             affineTransform->SetParameters(params);
+            InvalidateCaches();
+        }
+
+
+        /*
+        void MoveOrigin(double x, double y, double z) {
+            typename T::PointType origin = srcImg->GetOrigin();
+            origin[0] += x * srcSpacing[0];
+            origin[1] += y * srcSpacing[1];
+            origin[2] += z * srcSpacing[2];
+            srcImg->SetOrigin(origin);
+            InvalidateCaches();
+        }
+         */
+
+        void SetOrigin() {
+            _currentOrigin = srcImg->GetOrigin();
+        }
+
+        void SetOrigin(double x, double y, double z) {
+            typename T::PointType origin = _currentOrigin;
+            origin[0] += x * srcSpacing[0];
+            origin[1] += y * srcSpacing[1];
+            origin[2] += z * srcSpacing[2];
+            srcImg->SetOrigin(origin);
+            InvalidateCaches();
+        }
+
+        void SetOriginFromResampling(int idx, float x, float y) {
+            GridType& refGrid = _resampleGridVector->at(idx);
+            typename T::PointType origin = _currentOrigin;
+            if (refGrid.Direction() == IJ) {
+                origin[0] += x * srcSpacing[0];
+                origin[1] += y * srcSpacing[1];
+            } else if (refGrid.Direction() == JK) {
+                origin[1] += x * srcSpacing[1];
+                origin[2] += y * srcSpacing[2];
+            } else if (refGrid.Direction() == KI) {
+                origin[0] += x * srcSpacing[0];
+                origin[2] += y * srcSpacing[2];
+            }
+            srcImg->SetOrigin(origin);
+            InvalidateCaches();
+        }
+
+        void SetOrigin(int axis, double t) {
+            typename T::PointType origin = _currentOrigin;
+            origin[axis] = t * srcSpacing[axis];
+            srcImg->SetOrigin(origin);
             InvalidateCaches();
         }
 
@@ -247,16 +366,18 @@ namespace pi {
     template<class T>
     class ImageDisplayCollection {
     public:
+        typedef ImageResampleGrid<T> GridType;
         typedef ImageDisplay<T> ImageDisplayType;
         typedef std::vector<ImageDisplayType> ImageDisplayVector;
 
     private:
         int _referenceId;
+        typename T::PointType _referenceCenter;
         ImageDisplayVector _imageDisplays;
-        std::vector<typename T::Pointer> _resampleGrids;
+        std::vector<GridType> _resampleGrids;
 
         void SetCenterOfRotation() {
-            if (_referenceId >= 0 && _referenceId < _imageDisplays.size()) {
+            if (IsValidId(_referenceId)) {
                 typename T::Pointer refImg = _imageDisplays[_referenceId].srcImg;
                 typename T::RegionType refRegion = refImg->GetBufferedRegion();
                 typename T::IndexType idx1 = refRegion.GetIndex();
@@ -265,11 +386,10 @@ namespace pi {
                 for (int i = 0; i < 3; i++) {
                     centerIdx[i] = (idx1[i] + idx2[i]) / 2.0;
                 }
-                typename T::PointType centerPoint;
-                refImg->TransformContinuousIndexToPhysicalPoint(centerIdx, centerPoint);
+                refImg->TransformContinuousIndexToPhysicalPoint(centerIdx, _referenceCenter);
 
                 for (int i = 0; i < _imageDisplays.size(); i++) {
-                    _imageDisplays[i].SetCenterOfRotation(centerPoint);
+                    _imageDisplays[i].SetCenterOfRotation(_referenceCenter);
                     _imageDisplays[i].InvalidateCaches();
                 }
             }
@@ -278,6 +398,13 @@ namespace pi {
     public:
         ImageDisplayCollection(): _referenceId(-1) {
             _imageDisplays.reserve(10);
+        }
+
+        bool IsValidId(int n) {
+            if (n >= 0 && n < _imageDisplays.size()) {
+                return true;
+            }
+            return false;
         }
 
         int Count() {
@@ -296,6 +423,10 @@ namespace pi {
 
             ImageDisplayType& lastImage = _imageDisplays.back();
             lastImage.SetGridVector(&_resampleGrids);
+
+            if (IsValidId(_referenceId)) {
+                lastImage.SetCenterOfRotation(_referenceCenter);
+            }
             return lastImage;
         }
 //
@@ -321,11 +452,20 @@ namespace pi {
         ImageDisplayType* at(int i) {
             return &(_imageDisplays[i]);
         }
+        GridType& GetGrid(int i) {
+            return _resampleGrids[i];
+        }
         ImageDisplayType& operator[](int i) {
             return _imageDisplays[i];
         }
         ImageDisplayType& GetReference() {
             return _imageDisplays[_referenceId];
+        }
+        typename T::Pointer GetReferenceGrid() {
+            return _imageDisplays[_referenceId].srcImg;
+        }
+        int GetReferenceSize(SliceDirectionEnum dir) {
+            return GetReferenceGrid()->GetBufferedRegion().GetSize(dir);
         }
         ImageDisplayType& GetLast() {
             return _imageDisplays.back();
@@ -342,7 +482,7 @@ namespace pi {
         }
 
         // recreate a slice grid
-        void SetSliceGrid(int axis, int index) {
+        void SetSliceGrid(SliceDirectionEnum axis, int index) {
             if (_referenceId < 0 || _imageDisplays[_referenceId].srcImg.IsNull()) {
                 return;
             }
@@ -368,7 +508,7 @@ namespace pi {
 
         void SetResampleGrid(typename T::Pointer grid) {
             _resampleGrids.clear();
-            _resampleGrids.push_back(grid);
+            _resampleGrids.push_back(GridType(grid));
             for (int i = 0; i < _imageDisplays.size(); i++) {
                 _imageDisplays[i].InvalidateCaches();
             }

@@ -28,7 +28,6 @@
 using namespace std;
 
 namespace pi {
-    static int __noverbose = 0;
     class ImageInfo {
     public:
         int numdims;
@@ -60,6 +59,7 @@ namespace pi {
         typedef TransformFileReader::TransformType TransformType;
         typedef TransformFileReader::TransformListType   TransformListType;
         
+        bool __noverbose;
         
 		ImageIO() {
 			_pixelType = itk::ImageIOBase::SCALAR;
@@ -67,6 +67,8 @@ namespace pi {
             
 			itk::ObjectFactoryBase::RegisterFactory(itk::NrrdImageIOFactory::New());
 			itk::ObjectFactoryBase::RegisterFactory(itk::NiftiImageIOFactory::New());
+
+            __noverbose = false;
 		}
         
 		~ImageIO() {
@@ -280,7 +282,6 @@ namespace pi {
             itk::ImageIOBase::IOComponentType pixelType = itk::ImageIOBase::GetComponentTypeFromString(type);
 //            cout << "converting " << itk::ImageIOBase::GetComponentTypeAsString(GetComponentType()) << " to  " << type << endl;
 
-            static const int numDimensions = 3;
             // process depending on pixel type
             switch (pixelType) {
                 case itk::ImageIOBase::DOUBLE:

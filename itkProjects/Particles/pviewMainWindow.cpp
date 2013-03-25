@@ -8,11 +8,11 @@
 
 #include "pviewMainWindow.h"
 #include "QFileSystemModel"
-#include "pviewImageViewer.h"
+#include "pviewAIRWindow.h"
 #include "QContextMenuEvent"
 
 MainWindow::MainWindow(QWidget* parent) {
-    m_imageViewer = NULL;
+    m_AIRWindow = NULL;
 
     ui.setupUi(this);
     m_dirModel = new QFileSystemModel();
@@ -56,20 +56,20 @@ void MainWindow::on_tableView_doubleClicked(const QModelIndex &index) {
         ui.tableView->setRootIndex(m_fileModel->index(sPath));
         ui.treeView->setCurrentIndex(m_dirModel->index(sPath));
     } else {
-        if (m_imageViewer == NULL) {
-            m_imageViewer = new ImageViewer();
+        if (m_AIRWindow == NULL) {
+            m_AIRWindow = new AIRWindow();
         }
-        if (m_imageViewer->isHidden()) {
-            m_imageViewer->LoadImage(sPath);
-            m_imageViewer->show();
+        if (m_AIRWindow->isHidden()) {
+            m_AIRWindow->LoadImage(sPath);
+            m_AIRWindow->show();
         } else {
-            m_imageViewer->LoadImage(sPath);
+            m_AIRWindow->LoadImage(sPath);
         }
     }
 }
 
 void MainWindow::on_tableView_customContextMenuRequested(const QPoint& pos) {
-    if (m_imageViewer != NULL && m_imageViewer->isVisible()) {
+    if (m_AIRWindow != NULL && m_AIRWindow->isVisible()) {
         QMenu menu(this);
         menu.addAction(ui.actionLoadMovingImage);
         menu.exec(ui.tableView->mapToGlobal(pos));
@@ -82,5 +82,5 @@ void MainWindow::on_tableView_customContextMenuRequested(const QPoint& pos) {
 void MainWindow::on_actionLoadMovingImage_triggered() {
     QModelIndex idx = ui.tableView->currentIndex();
     QFileInfo fileInfo = m_fileModel->fileInfo(idx);
-    m_imageViewer->LoadImage(fileInfo.absoluteFilePath());
+    m_AIRWindow->LoadImage(fileInfo.absoluteFilePath());
 }

@@ -44,10 +44,10 @@ SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp qcustomplot.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
 
-SET (QT_PVIEW_HEADERS pviewMainWindow.h pviewImageViewer.h qcustomplot.h qdualslider.h)
-SET (QT_PVIEW_SOURCES pviewMainWindow.cpp pviewImageViewer.cpp qcustomplot.cpp qdualslider.cpp)
+SET (QT_PVIEW_HEADERS pviewMainWindow.h pviewAIRWindow.h qcustomplot.h qdualslider.h qgraphicsguideview.h  qgraphicscompositeimageitem.h)
+SET (QT_PVIEW_SOURCES pviewMainWindow.cpp pviewAIRWindow.cpp qcustomplot.cpp qdualslider.cpp qgraphicsguideview.cpp qgraphicscompositeimageitem.cpp)
 qt4_wrap_cpp(QT_PVIEW_MOC_HEADERS ${QT_PVIEW_HEADERS})
-qt4_wrap_ui(QT_PVIEW_UI_FILES pviewMainWindow.ui pviewImageViewer.ui)
+qt4_wrap_ui(QT_PVIEW_UI_FILES pviewMainWindow.ui pviewAIRWindow.ui)
 
 add_definitions(${QT_DEFINITIONS})
 
@@ -95,20 +95,23 @@ ADD_EXECUTABLE(ptest ptest.cpp ${MY_PARTICLE_WORKS_SOURCES})
 TARGET_LINK_LIBRARIES(ptest ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
 
 IF (${BUILD_PEVAL})
-ADD_EXECUTABLE(peval peval.cpp piImageDef.h piImageProcessing.cpp piImageProcessing.h piOptions.h piOptions.cpp itkImageIO.h)
-TARGET_LINK_LIBRARIES(peval ${ITK_LIBRARIES})
+	ADD_EXECUTABLE(peval peval.cpp piImageDef.h piImageProcessing.cpp piImageProcessing.h piOptions.h piOptions.cpp itkImageIO.h)
+	TARGET_LINK_LIBRARIES(peval ${ITK_LIBRARIES})
 ENDIF(${BUILD_PEVAL})
 
 IF (${BUILD_GUI})
-ADD_EXECUTABLE(psim simul2main.cpp piSimul2.cpp piSimul2.h piImageSlice.h piImageSlice.cpp itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
-SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")
-TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+	ADD_EXECUTABLE(psim simul2main.cpp piSimul2.cpp piSimul2.h piImageSlice.h piImageSlice.cpp itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
+	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")
+	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
-ADD_EXECUTABLE(pview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageDef.h piImageIO.h piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h piImageHistogram.cpp piImageHistogram.h ${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES})
-TARGET_LINK_LIBRARIES(pview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+	ADD_EXECUTABLE(pview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageDef.h 
+		piImageIO.h piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h 
+		piImageHistogram.cpp piImageHistogram.h
+		${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES})
+	TARGET_LINK_LIBRARIES(pview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
-ADD_EXECUTABLE(pani3 piParticleAniMain.cpp piParticleAniMain.h ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS} piVTK.cpp piVTK.h)
-TARGET_LINK_LIBRARIES(pani3 ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+	ADD_EXECUTABLE(pani3 piParticleAniMain.cpp piParticleAniMain.h ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS} piVTK.cpp piVTK.h)
+	TARGET_LINK_LIBRARIES(pani3 ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 ENDIF (${BUILD_GUI})
 
 
