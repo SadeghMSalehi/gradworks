@@ -23,7 +23,7 @@
 #include "itkTransform.h"
 #include "itkAffineTransform.h"
 #include "vtkMatrix4x4.h"
-
+#include "itkBSplineInterpolateImageFunction.h"
 
 #include "QPixmap"
 
@@ -80,17 +80,18 @@ namespace pi {
     typedef itk::RGBAPixel<unsigned char> RGBAPixel;
     typedef itk::Image<RGBAPixel, 2> RGBAImageType;
     typedef itk::Image<RGBAPixel, 3> RGBAVolumeType;
-
-    typedef itk::ScalarToARGBColormapImageFilter<RealImage, RGBAVolumeType> ColorFilterType;
+    
+    typedef pi::LabelImage AIRImage;
+    typedef AIRImage::PixelType AIRPixel;
 
     class ImageDisplayProperty {
     public:
-        DataReal windowMin;
-        DataReal windowMax;
-        ColorFilterType::ColormapEnumType colorMap;
+        AIRPixel windowMin;
+        AIRPixel windowMax;
+        itk::ColormapEnumType colorMap;
 
         ImageDisplayProperty() {
-            colorMap = ColorFilterType::Grey;
+            colorMap = itk::Grey;
         }
     };
 
@@ -160,8 +161,20 @@ namespace pi {
     template<class T>
     class ImageDisplay {
     public:
+        typedef itk::AffineTransform<double> TransformType;
+        typedef TransformType::OutputVectorType VectorType;
         typedef ImageResampleGrid<T> GridType;
-        
+
+    private:
+        TransformType::Pointer _affineTransform;
+        typename T::PointType _currentOrigin;
+        VectorType _currentTranslation;
+
+        // (grid x transform)
+        typedef itk::PointerCache<T> ImageCache;
+        std::vector<ImageCache> _resampledImageCache;
+
+    public:
         typename T::Pointer srcImg;
         typename T::PointType srcOrigin;
         typename T::SpacingType srcSpacing;
@@ -169,19 +182,9 @@ namespace pi {
         // how to determine bin-size automatically?
         ImageHistogram<T> histogram;
         ImageDisplayProperty displayProperty;
-        
-        typedef itk::AffineTransform<double> TransformType;
-        TransformType::Pointer affineTransform;
 
-        // added by user
+        // set from outside
         std::vector<GridType>* _resampleGridVector;
-    private:
-        typename T::PointType _currentOrigin;
-
-        // (grid x transform)
-        typedef itk::PointerCache<T> ImageCache;
-        std::vector<ImageCache> _resampledImageCache;
-
 
     public:
         ImageDisplay(typename T::Pointer img) {
@@ -191,6 +194,7 @@ namespace pi {
 
         ~ImageDisplay() {
             _resampleGridVector = NULL;
+            _resampledImageCache.clear();
         }
 
         void SetGridVector(std::vector<GridType>* grids) {
@@ -203,22 +207,68 @@ namespace pi {
             if (srcImg.IsNull()) {
                 return;
             }
-            TransformType::ParametersType params = affineTransform->GetParameters();
+            TransformType::ParametersType params = _affineTransform->GetParameters();
             for (int i = 0; i < DIMENSIONS; i++) {
                 for (int j = 0; j < DIMENSIONS; j++) {
                     params[3 * i + j] = mat->GetElement(i, j);
                 }
             }
-            affineTransform->SetParameters(params);
+            _affineTransform->SetParameters(params);
             InvalidateCaches();
         }
 
-        void SetCenterOfRotation(typename T::PointType center) {
-            TransformType::ParametersType centerParams = affineTransform->GetFixedParameters();
-            for (int i = 0; i < 3; i++) {
-                centerParams[i] = center[i];
+        void SetAffineTransform(TransformType::TransformBase::Pointer baseTransform) {
+            if (srcImg.IsNull()) {
+                return;
             }
-            affineTransform->SetFixedParameters(centerParams);
+            _affineTransform->SetParameters(baseTransform->GetParameters());
+            _affineTransform->SetFixedParameters(baseTransform->GetFixedParameters());
+            InvalidateCaches();
+        }
+
+        TransformType::Pointer GetAffineTransform() {
+            return _affineTransform;
+        }
+
+        void SetAffineParameters(TransformType::ParametersType params) {
+            if (params.GetSize() == 12) {
+                _affineTransform->SetParameters(params);
+            }
+            InvalidateCaches();
+        }
+
+        VectorType GetAffineTranslation() {
+            return _affineTransform->GetTranslation();
+        }
+        
+        void SetAffineTranslation() {
+            _currentTranslation = _affineTransform->GetTranslation();
+        }
+
+        void SetAffineTranslation(int idx, float x, float y) {
+            GridType& refGrid = _resampleGridVector->at(idx);
+            TransformType::OutputVectorType translation = _currentTranslation;
+            if (refGrid.Direction() == IJ) {
+                translation[0] += x * srcSpacing[0];
+                translation[1] += y * srcSpacing[1];
+            } else if (refGrid.Direction() == JK) {
+                translation[1] += x * srcSpacing[1];
+                translation[2] += y * srcSpacing[2];
+            } else if (refGrid.Direction() == KI) {
+                translation[0] += x * srcSpacing[0];
+                translation[2] += y * srcSpacing[2];
+            }
+            _affineTransform->SetTranslation(translation);
+            InvalidateCaches();
+        }
+
+        void SetAffineTranslation(VectorType tx) {
+            _affineTransform->SetTranslation(tx);
+            InvalidateCaches();
+        }
+
+        void SetAffineCenter(typename T::PointType center) {
+            _affineTransform->SetCenter(center);
             InvalidateCaches();
         }
 
@@ -243,57 +293,18 @@ namespace pi {
                 params[3 * i + i] = 1;
             }
             
-            affineTransform = TransformType::New();
-            affineTransform->SetParameters(params);
-            InvalidateCaches();
-        }
+            _affineTransform = TransformType::New();
+            _affineTransform->SetParameters(params);
 
-
-        /*
-        void MoveOrigin(double x, double y, double z) {
-            typename T::PointType origin = srcImg->GetOrigin();
-            origin[0] += x * srcSpacing[0];
-            origin[1] += y * srcSpacing[1];
-            origin[2] += z * srcSpacing[2];
-            srcImg->SetOrigin(origin);
-            InvalidateCaches();
-        }
-         */
-
-        void SetOrigin() {
-            _currentOrigin = srcImg->GetOrigin();
-        }
-
-        void SetOrigin(double x, double y, double z) {
-            typename T::PointType origin = _currentOrigin;
-            origin[0] += x * srcSpacing[0];
-            origin[1] += y * srcSpacing[1];
-            origin[2] += z * srcSpacing[2];
-            srcImg->SetOrigin(origin);
-            InvalidateCaches();
-        }
-
-        void SetOriginFromResampling(int idx, float x, float y) {
-            GridType& refGrid = _resampleGridVector->at(idx);
-            typename T::PointType origin = _currentOrigin;
-            if (refGrid.Direction() == IJ) {
-                origin[0] += x * srcSpacing[0];
-                origin[1] += y * srcSpacing[1];
-            } else if (refGrid.Direction() == JK) {
-                origin[1] += x * srcSpacing[1];
-                origin[2] += y * srcSpacing[2];
-            } else if (refGrid.Direction() == KI) {
-                origin[0] += x * srcSpacing[0];
-                origin[2] += y * srcSpacing[2];
+            typename T::PointType center;
+            typename T::SizeType imgSz = srcImg->GetBufferedRegion().GetSize();
+            RealIndex centerIdx;
+            fordim (k) {
+                centerIdx[k] = imgSz[k]/2.0;
             }
-            srcImg->SetOrigin(origin);
-            InvalidateCaches();
-        }
+            srcImg->TransformContinuousIndexToPhysicalPoint(centerIdx, center);
+            _affineTransform->SetCenter(center);
 
-        void SetOrigin(int axis, double t) {
-            typename T::PointType origin = _currentOrigin;
-            origin[axis] = t * srcSpacing[axis];
-            srcImg->SetOrigin(origin);
             InvalidateCaches();
         }
 
@@ -302,7 +313,7 @@ namespace pi {
             displayProperty.windowMax = m2;
         }
 
-        void SetColorMap(ColorFilterType::ColormapEnumType map) {
+        void SetColorMap(itk::ColormapEnumType map) {
             displayProperty.colorMap = map;
         }
 
@@ -334,6 +345,24 @@ namespace pi {
             }
         }
 
+        typename T::Pointer Resample3D(typename T::Pointer resampleGrid, int interpolator = 0) {
+            typedef itk::ResampleImageFilter<AIRImage, AIRImage> ResampleFilter;
+            typename ResampleFilter::Pointer resampleFilter = ResampleFilter::New();
+            resampleFilter->SetInput(srcImg);
+            resampleFilter->SetReferenceImage(resampleGrid);
+            resampleFilter->UseReferenceImageOn();
+            if (interpolator == 1) {
+                typedef itk::BSplineInterpolateImageFunction<T> BspFuncType;
+                resampleFilter->SetInterpolator(BspFuncType::New());
+            }
+            if (_affineTransform.IsNotNull()) {
+                typename ResampleFilter::TransformType* transformInput = dynamic_cast<typename ResampleFilter::TransformType*>(_affineTransform.GetPointer());
+                resampleFilter->SetTransform(transformInput);
+            }
+            resampleFilter->Update();
+            return resampleFilter->GetOutput();
+        }
+
     private:
         void Resample(int j) {
             if (_resampleGridVector->at(j).IsNull()) {
@@ -347,18 +376,7 @@ namespace pi {
             if (_resampledImageCache[j].IsValid()) {
                 return;
             }
-            typedef itk::ResampleImageFilter<RealImage, RealImage> ResampleFilter;
-            typename ResampleFilter::Pointer resampleFilter = ResampleFilter::New();
-            resampleFilter->SetInput(srcImg);
-            resampleFilter->SetReferenceImage(_resampleGridVector->at(j));
-            resampleFilter->UseReferenceImageOn();
-            if (affineTransform.IsNotNull()) {
-                typename ResampleFilter::TransformType* transformInput = dynamic_cast<typename ResampleFilter::TransformType*>(affineTransform.GetPointer());
-                resampleFilter->SetTransform(transformInput);
-            }
-            resampleFilter->Update();
-            _resampledImageCache[j] = resampleFilter->GetOutput();
-//            cout << __FILE__ << ":" << __LINE__ << " Resampling done" << endl;
+            _resampledImageCache[j] = Resample3D(_resampleGridVector->at(j));
         }
     };
 
@@ -389,7 +407,7 @@ namespace pi {
                 refImg->TransformContinuousIndexToPhysicalPoint(centerIdx, _referenceCenter);
 
                 for (int i = 0; i < _imageDisplays.size(); i++) {
-                    _imageDisplays[i].SetCenterOfRotation(_referenceCenter);
+                    _imageDisplays[i].SetAffineCenter(_referenceCenter);
                     _imageDisplays[i].InvalidateCaches();
                 }
             }
@@ -397,7 +415,14 @@ namespace pi {
 
     public:
         ImageDisplayCollection(): _referenceId(-1) {
-            _imageDisplays.reserve(10);
+            _imageDisplays.reserve(2);
+        }
+
+        void Reset() {
+            _imageDisplays.clear();
+            _resampleGrids.clear();
+            _referenceId = -1;
+            _referenceCenter.Fill(0);
         }
 
         bool IsValidId(int n) {
@@ -412,12 +437,12 @@ namespace pi {
         }
         
         // may be changed to a piece-wise function
-        void SetWindowRange(int n, pi::DataReal min, pi::DataReal max) {
+        void SetWindowRange(int n, AIRPixel min, AIRPixel max) {
             _imageDisplays[n].SetWindowRange(min, max);
         }
 
         // image management
-        ImageDisplayType& AddImage(pi::RealImage::Pointer srcImg) {
+        ImageDisplayType& AddImage(typename T::Pointer srcImg) {
             ImageDisplayType newImage(srcImg);
             _imageDisplays.push_back(ImageDisplayType(srcImg));
 
@@ -425,7 +450,7 @@ namespace pi {
             lastImage.SetGridVector(&_resampleGrids);
 
             if (IsValidId(_referenceId)) {
-                lastImage.SetCenterOfRotation(_referenceCenter);
+                lastImage.SetAffineCenter(_referenceCenter);
             }
             return lastImage;
         }
@@ -441,14 +466,22 @@ namespace pi {
 //                _referenceId = -1;
 //            }
 //        }
-//        void SetImage(int n, pi::RealImage::Pointer img) {
-//            if (n >= 0 && n < _imageDisplays.size()) {
-//                _imageDisplays[n].SetImage(img);
-//                if (n == _referenceId) {
-//                    SetCenterOfRotation();
-//                }
-//            }
-//        }
+
+        bool SetImage(int n, typename T::Pointer img) {
+            if (IsValidId(n)) {
+                _imageDisplays[n].SetImage(img);
+            } else if (n == Count()) {
+                _imageDisplays.push_back(ImageDisplayType(img));
+            } else {
+                return false;
+            }
+            _imageDisplays[n].SetGridVector(&_resampleGrids);
+            if (n == _referenceId) {
+                SetReferenceId(n);
+            }
+            return true;
+        }
+
         ImageDisplayType* at(int i) {
             return &(_imageDisplays[i]);
         }
@@ -462,7 +495,11 @@ namespace pi {
             return _imageDisplays[_referenceId];
         }
         typename T::Pointer GetReferenceGrid() {
-            return _imageDisplays[_referenceId].srcImg;
+            if (IsValidId(_referenceId)) {
+                return _imageDisplays[_referenceId].srcImg;
+            } else {
+                return typename T::Pointer();
+            }
         }
         int GetReferenceSize(SliceDirectionEnum dir) {
             return GetReferenceGrid()->GetBufferedRegion().GetSize(dir);
@@ -483,11 +520,12 @@ namespace pi {
 
         // recreate a slice grid
         void SetSliceGrid(SliceDirectionEnum axis, int index) {
-            if (_referenceId < 0 || _imageDisplays[_referenceId].srcImg.IsNull()) {
+            typename T::Pointer srcImg = GetReferenceGrid();
+            if (srcImg.IsNull()) {
+                cout << "Emtpy reference grid" << endl;
                 return;
             }
 
-            typename T::Pointer srcImg = _imageDisplays[_referenceId].srcImg;
             typename T::RegionType resampleRegion = srcImg->GetBufferedRegion();
             typename T::IndexType idx1 = resampleRegion.GetIndex();
             typename T::IndexType idx2 = resampleRegion.GetUpperIndex();

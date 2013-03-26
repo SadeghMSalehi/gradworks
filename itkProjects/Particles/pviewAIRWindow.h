@@ -18,6 +18,7 @@
 #include "piVTK.h"
 #include "piImageDef.h"
 #include "piImageSlice.h"
+#include "piImageIO.h"
 #include "vtkMatrix4x4.h"
 
 
@@ -26,12 +27,12 @@ class QVTKWidget2;
 class vtkMouseHandler;
 class QGraphicsCompositeImageItem;
 
-typedef typename pi::ImageDisplayCollection<pi::RealImage>::ImageDisplayType ImageDisplayType;
+typedef typename pi::ImageDisplayCollection<pi::AIRImage>::ImageDisplayType ImageDisplayType;
 
 class AIRWindow : public QMainWindow {
     Q_OBJECT
 public:
-    pi::ImageDisplayCollection<pi::RealImage> imageDisplays;
+    pi::ImageDisplayCollection<pi::AIRImage> imageDisplays;
 
 public:
     AIRWindow(QWidget* parent = NULL);
@@ -44,6 +45,12 @@ public:
     bool UpdateMovingDisplayTransform(vtkMatrix4x4* mat);
 
 public slots:
+    void on_actionDrawing_triggered(bool drawing);
+    void on_actionResample_triggered();
+    void on_actionLoadTransform_triggered();
+    void on_actionSaveTransform_triggered();
+    void on_actionUnload_triggered();
+
     void on_compositeOpacity_valueChanged(int n);
 
     void on_sliceSlider_valueChanged(int n);
@@ -58,17 +65,17 @@ public slots:
     void on_alphaOptions_toggled(bool checked);
     void on_compositionOptions_toggled(bool checked);
 
-    void on_ox_valueChanged(double n);
-    void on_oy_valueChanged(double n);
-    void on_oz_valueChanged(double n);
-
-    void UpdateOriginDisplay();
+    void OnTranslationWidgetChanged();
+    void UpdateTranslationWidget();
     void UpdateSliceDirection();
 
+    void on_image1Name_clicked(bool checked);
+    void on_image2Name_clicked(bool checked);
+    void on_image1Name_fileDropped(QString& fileName);
+    void on_image2Name_fileDropped(QString& fileName);
 private:
-    void LoadFixedImage(pi::RealImage::Pointer image);
-    void LoadMovingImage(pi::RealImage::Pointer image);
-    void ToggleBlockSignals(bool signalStatus);
+
+    
 private:
     friend class vtkMouseHandler;
 
@@ -85,6 +92,8 @@ private:
 
     QActionGroup m_sliceDirectionActions;
     QGraphicsCompositeImageItem* m_compositeDisplay;
+
+    pi::ImageIO<pi::AIRImage> io;
 };
 
 #endif /* defined(__ParticleGuidedRegistration__pviewAIRWindow__) */

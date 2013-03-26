@@ -21,11 +21,11 @@
 #include "vtkCamera.h"
 #include "vnl/vnl_vector.h"
 #include "vtkMatrix4x4.h"
-#include "piImageIO.h"
 #include "itkARGBColorFunction.h"
 #include "itkScalarToARGBColormapImageFilter.h"
 #include "itkExtractImageFilter.h"
 #include "qgraphicscompositeimageitem.h"
+#include "QFileDialog"
 
 using namespace std;
 using namespace pi;
@@ -37,6 +37,8 @@ private:
     AIRWindow* m_AIRWindow;
     bool m_moving;
 public:
+    vtkTypeMacro(vtkMouseHandler, vtkCommand);
+    
     vtkMouseHandler() {
         m_moving = false;
     }
@@ -120,7 +122,6 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
 
     m_compositeDisplay = new QGraphicsCompositeImageItem();
     m_compositeDisplay->SetImageDisplays(&imageDisplays);
-    m_scene.addItem(m_compositeDisplay);
 
     // Slice Direction
     m_sliceDirectionActions.addAction(ui.actionSliceIJ);
@@ -129,32 +130,25 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     m_sliceDirectionActions.setExclusive(true);
     ui.actionSliceIJ->setChecked(true);
     m_currentSliceDir = IJ;
-    
-    m_compositeDisplay->grabMouse();
-    m_compositeDisplay->grabKeyboard();
-    m_compositeDisplay->setSelected(true);
 
-    QObject::connect(m_compositeDisplay, SIGNAL(originChanged()), this, SLOT(UpdateOriginDisplay()));
+
+    QObject::connect(m_compositeDisplay, SIGNAL(translationChanged()), this, SLOT(UpdateTranslationWidget()));
     QObject::connect(ui.actionSliceIJ, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
     QObject::connect(ui.actionSliceJK, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
     QObject::connect(ui.actionSliceKI, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
 }
 
 AIRWindow::~AIRWindow() {
-    delete m_mouseHandler;
+    m_mouseHandler->UnRegister();
 }
 
 void AIRWindow::LoadImage(QString fileName) {
     if (!fileName.isEmpty() && !imageDisplays.IsValidId(m_movingId)) {
-        ImageIO<RealImage> io;
-        RealImage::Pointer img = io.ReadImage(fileName.toStdString());
 
         if (imageDisplays.Count() == 0) {
-            m_fixedId = 0;
-            LoadFixedImage(img);
+            on_image1Name_fileDropped(fileName);
         } else if (imageDisplays.Count() == 1){
-            m_movingId = 1;
-            LoadMovingImage(img);
+            on_image2Name_fileDropped(fileName);
         }
         UpdateCompositeDisplay();
 
@@ -188,11 +182,82 @@ void AIRWindow::LoadImage(QString fileName) {
     }
 }
 
-void AIRWindow::LoadFixedImage(RealImage::Pointer image) {
-    ImageDisplayType& dispImg = imageDisplays.AddImage(image);
 
+void AIRWindow::UpdateCompositeDisplay() {
+    m_compositeDisplay->Refresh(m_fixedId, m_movingId);
+}
+
+
+bool AIRWindow::UpdateMovingDisplayTransform(vtkMatrix4x4* mat) {
+    if (m_movingId >= 0 && imageDisplays.Count() > m_movingId) {
+        imageDisplays[m_movingId].SetAffineTransform(mat);
+        UpdateCompositeDisplay();
+        return true;
+    }
+    return false;
+}
+
+
+#pragma mark -
+#pragma mark SINGAL HANDLERS
+
+void AIRWindow::on_image1Name_clicked(bool checked) {
+    if (checked) {
+        QString fileName = QFileDialog::getOpenFileName(this, "Load a fixed image", ".");
+        if (fileName.isNull()) {
+            return;
+        }
+        on_image1Name_fileDropped(fileName);
+        if (!imageDisplays.IsValidId(m_fixedId)) {
+            ui.image1Name->setChecked(false);
+        }
+    }
+}
+
+void AIRWindow::on_image2Name_clicked(bool checked) {
+    if (checked) {
+        QString fileName = QFileDialog::getOpenFileName(this, "Load a fixed image", ".");
+        if (fileName.isNull()) {
+            return;
+        }
+        on_image2Name_fileDropped(fileName);
+        if (!imageDisplays.IsValidId(m_movingId)) {
+            ui.image2Name->setChecked(false);
+        }
+    }
+}
+
+
+void AIRWindow::on_image1Name_fileDropped(QString& fileName) {
+    AIRImage::Pointer image = io.ReadCastedImage(fileName.toStdString());
+    if (image.IsNull()) {
+        return;
+    }
+
+    if (!imageDisplays.SetImage(0, image)) {
+        return;
+    }
+
+    m_fixedId = 0;
+    ui.alphaOptions->setEnabled(true);
+    ui.compositionOptions->setEnabled(false);
+    ui.checkerBoardOptions->setEnabled(false);
+    ui.sliceSlider->setEnabled(true);
+    ui.intensitySlider->setEnabled(true);
+    m_sliceDirectionActions.setEnabled(true);
+    ui.actionSliceIJ->setChecked(true);
+    ui.actionDrawing->setEnabled(true);
+    ui.actionDrawing->setChecked(false);
+
+
+    ImageDisplayType& dispImg = imageDisplays.GetLast();
     imageDisplays.SetReferenceId(m_fixedId);
-    
+
+    m_scene.addItem(m_compositeDisplay);
+    m_compositeDisplay->grabMouse();
+    m_compositeDisplay->grabKeyboard();
+    m_compositeDisplay->setSelected(true);
+
     ui.intensitySlider->setRealMin(dispImg.histogram.dataMin);
     ui.intensitySlider->setRealMax(dispImg.histogram.dataMax);
 
@@ -205,14 +270,28 @@ void AIRWindow::LoadFixedImage(RealImage::Pointer image) {
 
     // slice axis selection
     UpdateSliceDirection();
+
+    ui.image1Name->setText(fileName.right(20));
+    ui.image1Name->setToolTip(fileName);
+    ui.image1Name->setChecked(true);
 }
 
-void AIRWindow::LoadMovingImage(RealImage::Pointer image) {
-    ImageDisplayType& dispImg = imageDisplays.AddImage(image);
+void AIRWindow::on_image2Name_fileDropped(QString& fileName) {
+    AIRImage::Pointer image = io.ReadCastedImage(fileName.toStdString());
+    if (image.IsNull()) {
+        return;
+    }
 
-    ui.ox->setSingleStep(dispImg.srcSpacing[0]);
-    ui.oy->setSingleStep(dispImg.srcSpacing[1]);
-    ui.oz->setSingleStep(dispImg.srcSpacing[2]);
+    if (!imageDisplays.SetImage(1, image)) {
+        return;
+    }
+
+    m_movingId = 1;
+    ImageDisplayType& dispImg = imageDisplays.GetLast();
+    ImageDisplayType::VectorType tx = dispImg.GetAffineTranslation();
+    ui.ox->setSingleStep(tx[0]);
+    ui.oy->setSingleStep(tx[1]);
+    ui.oz->setSingleStep(tx[2]);
 
     ui.intensitySlider2->setRealMin(dispImg.histogram.dataMin);
     ui.intensitySlider2->setRealMax(dispImg.histogram.dataMax);
@@ -225,20 +304,77 @@ void AIRWindow::LoadMovingImage(RealImage::Pointer image) {
     ui.originBox->setEnabled(true);
     ui.scaleBox->setEnabled(true);
 
-    UpdateOriginDisplay();
+    OnTranslationWidgetChanged();
+
+    ui.image2Name->setText(fileName.right(20));
+    ui.image2Name->setToolTip(fileName);
+    ui.image2Name->setChecked(true);
 }
 
-bool AIRWindow::UpdateMovingDisplayTransform(vtkMatrix4x4* mat) {
-    if (m_movingId >= 0 && imageDisplays.Count() > m_movingId) {
-        imageDisplays[m_movingId].SetAffineTransform(mat);
-        UpdateCompositeDisplay();
-        return true;
+void AIRWindow::on_actionDrawing_triggered(bool drawing) {
+    
+}
+
+void AIRWindow::on_actionResample_triggered() {
+    if (imageDisplays.IsValidId(m_movingId)) {
+        QString saveFilename = QFileDialog::getSaveFileName(this, "Save Image File", ".");
+        if (saveFilename.isNull()) {
+            return;
+        }
+        pi::ImageIO<AIRImage> io;
+        AIRImage::Pointer resampledImg = imageDisplays[m_movingId].Resample3D(imageDisplays.GetReferenceGrid(), 0);
+        io.WriteImage(saveFilename.toUtf8().data(), resampledImg);
     }
-    return false;
 }
 
-void AIRWindow::UpdateCompositeDisplay() {
-    m_compositeDisplay->Refresh(m_fixedId, m_movingId);
+void AIRWindow::on_actionLoadTransform_triggered() {
+    if (imageDisplays.IsValidId(m_movingId)) {
+        QString loadFilename = QFileDialog::getOpenFileName(this, "Load Transform File", ".");
+        if (loadFilename.isNull()) {
+            return;
+        }
+        pi::ImageIO<AIRImage> io;
+        pi::ImageIO<AIRImage>::TransformType::Pointer transform = io.ReadTransform(loadFilename.toUtf8().data());
+        imageDisplays[m_movingId].SetAffineTransform(transform);
+        UpdateTranslationWidget();
+        UpdateCompositeDisplay();
+    }
+}
+
+void AIRWindow::on_actionSaveTransform_triggered() {
+    if (imageDisplays.IsValidId(m_movingId)) {
+        QString saveFilename = QFileDialog::getSaveFileName(this, "Save Transform File", ".");
+        if (saveFilename.isNull()) {
+            return;
+        }
+
+        itk::TransformFileWriter::Pointer writer = itk::TransformFileWriter::New();
+        writer->SetInput(imageDisplays[m_movingId].GetAffineTransform());
+        writer->SetFileName(saveFilename.toUtf8().data());
+        writer->Update();
+    }
+}
+
+void AIRWindow::on_actionUnload_triggered() {
+    imageDisplays.Reset();
+    m_fixedId = -1;
+    m_movingId = -1;
+    ui.alphaOptions->setEnabled(false);
+    ui.compositionOptions->setEnabled(false);
+    ui.checkerBoardOptions->setEnabled(false);
+    ui.sliceSlider->setEnabled(false);
+    ui.sliceSlider->setValue(0);
+    ui.intensitySlider->setEnabled(false);
+    ui.intensitySlider2->setEnabled(false);
+    m_sliceDirectionActions.setEnabled(false);
+    ui.actionDrawing->setEnabled(false);
+    ui.image1Name->setChecked(false);
+    ui.image1Name->setText("Not Loaded");
+    ui.image2Name->setText("Not Loaded");
+    ui.image1Name->setToolTip("");
+    ui.image2Name->setToolTip("");
+    ui.image2Name->setChecked(false);
+    m_scene.removeItem(m_compositeDisplay);
 }
 
 void AIRWindow::on_compositeOpacity_valueChanged(int n) {
@@ -314,40 +450,29 @@ void AIRWindow::on_compositionOptions_toggled(bool b) {
 }
 
 
-void AIRWindow::on_ox_valueChanged(double n) {
+void AIRWindow::OnTranslationWidgetChanged() {
     if (imageDisplays.IsValidId(m_movingId)) {
-        imageDisplays[m_movingId].SetOrigin(0, n);
+        ImageDisplayType::VectorType translation;
+        translation[0] = ui.ox->value();
+        translation[1] = ui.oy->value();
+        translation[2] = ui.oz->value();
+        imageDisplays[m_movingId].SetAffineTranslation(translation);
         UpdateCompositeDisplay();
     }
 }
 
-void AIRWindow::on_oy_valueChanged(double n) {
+void AIRWindow::UpdateTranslationWidget() {
     if (imageDisplays.IsValidId(m_movingId)) {
-        imageDisplays[m_movingId].SetOrigin(1, n);
-        UpdateCompositeDisplay();
-    }
-}
-
-void AIRWindow::on_oz_valueChanged(double n) {
-    if (imageDisplays.IsValidId(m_movingId)) {
-        imageDisplays[m_movingId].SetOrigin(2, n);
-        UpdateCompositeDisplay();
-    }
-}
-
-void AIRWindow::ToggleBlockSignals(bool signalStatus) {
-    ui.ox->blockSignals(signalStatus);
-    ui.oy->blockSignals(signalStatus);
-    ui.oz->blockSignals(signalStatus);
-}
-
-void AIRWindow::UpdateOriginDisplay() {
-    if (imageDisplays.IsValidId(m_movingId)) {
-        ToggleBlockSignals(true);
-        ui.ox->setValue(imageDisplays[m_movingId].srcImg->GetOrigin()[0]);
-        ui.oy->setValue(imageDisplays[m_movingId].srcImg->GetOrigin()[1]);
-        ui.oz->setValue(imageDisplays[m_movingId].srcImg->GetOrigin()[2]);
-        ToggleBlockSignals(false);
+        ui.ox->blockSignals(true);
+        ui.oy->blockSignals(true);
+        ui.oz->blockSignals(true);
+        ImageDisplayType::VectorType translation = imageDisplays[m_movingId].GetAffineTranslation();
+        ui.ox->setValue(translation[0]);
+        ui.oy->setValue(translation[1]);
+        ui.oz->setValue(translation[2]);
+        ui.ox->blockSignals(false);
+        ui.oy->blockSignals(false);
+        ui.oz->blockSignals(false);
     }
 }
 
@@ -360,6 +485,7 @@ void AIRWindow::UpdateSliceDirection() {
         } else if (ui.actionSliceKI->isChecked()) {
             m_currentSliceDir = KI;
         }
+        imageDisplays.SetSliceGrid(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
         ui.sliceSlider->setValue(m_currentSliceIndex[m_currentSliceDir]);
         ui.sliceSlider->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir));
     }

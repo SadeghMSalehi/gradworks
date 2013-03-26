@@ -15,5 +15,8 @@ QGraphicsGuideView::QGraphicsGuideView(QWidget* parent): QGraphicsView(parent) {
 }
 
 QGraphicsGuideView::~QGraphicsGuideView() {
-    QGraphicsView::~QGraphicsView();
+}
+
+void QGraphicsGuideView::mousePressEvent(QMouseEvent* event) {
+    QGraphicsView::mousePressEvent(event);
 }

@@ -1,0 +1,11 @@
+<RCC>
+  <qresource prefix="Icons">
+    <file>Images/load_txf.png</file>
+    <file>Images/trash-icon.png</file>
+    <file>Images/Photos-icon.png</file>
+    <file>Images/color-palette-icon.png</file>
+    <file>Images/paint-fill-icon.png</file>
+    <file>Images/save_img.png</file>
+    <file>Images/save_txf.png</file>
+  </qresource>
+</RCC>

@@ -21,7 +21,7 @@ public:
     QGraphicsGuideView(QWidget* parent = NULL);
     ~QGraphicsGuideView();
 
-    
+    void mousePressEvent(QMouseEvent* event);
 };
 
 #endif /* defined(__ParticleGuidedRegistration__QGraphicsGuideView__) */

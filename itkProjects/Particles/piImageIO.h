@@ -183,6 +183,12 @@ namespace pi {
             // construct a generic imageIO factory
             itk::ImageIOBase::Pointer imageIO =
             itk::ImageIOFactory::CreateImageIO(inputFilename.c_str(), itk::ImageIOFactory::ReadMode);
+
+            if (imageIO.IsNull()) {
+                // probably not an image file
+                return ImagePointer();
+            }
+
             imageIO->SetFileName(inputFilename);
             imageIO->ReadImageInformation();
 

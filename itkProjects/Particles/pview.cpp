@@ -11,7 +11,7 @@
 #include "QMainWindow"
 #include "QApplication"
 #include "piOptions.h"
-#include "pviewMainWindow.h"
+#include "pviewAIRWindow.h"
 
 using namespace std;
 
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 
     if (args.size() == 0 || parser.GetBool("--gui")) {
         MainApps apps(argc, argv);
-        MainWindow w;
+        AIRWindow w;
         w.show();
         return apps.exec();
     } else {

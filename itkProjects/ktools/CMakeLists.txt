@@ -24,6 +24,9 @@ TARGET_LINK_LIBRARIES(ksegeval ${ITK_LIBRARIES})
 
 ADD_EXECUTABLE(krgb krgb.cpp piImageIO.h piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h)
 TARGET_LINK_LIBRARIES(krgb ${ITK_LIBRARIES})
+
+ADD_EXECUTABLE(kresample kresample.cpp piImageIO.h)
+TARGET_LINK_LIBRARIES(kresample ${ITK_LIBRARIES})
 ENDIF(${BUILD_KTOOLS})
 
 IF(${BUILD_KCALC})

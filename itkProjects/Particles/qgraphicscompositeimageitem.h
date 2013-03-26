@@ -14,24 +14,41 @@
 #include "piImageSlice.h"
 #include "QGraphicsPixmapItem"
 
+class UShortClamper {
+public:
+    const double Min;
+    const double Max;
+
+    UShortClamper(double min, double max): Min(min), Max(max) {
+    }
+    
+    inline unsigned short operator()(double f) {
+        return ushort((f-Min)/(Max-Min)*(USHRT_MAX));
+    }
+};
+
 class QGraphicsCompositeImageItem: public QObject, public QGraphicsPixmapItem {
     Q_OBJECT
 
 private:
     enum CompositionMode { Alpha, CheckerBoard, IntensityDifference };
+    enum InteractionMode { None, Drawing };
 
 signals:
-    void originChanged();
+    void translationChanged();
 
 private:
+    // fixed and moving image
+    int m_id1, m_id2;
+
     int _resampleIdx;
     double _alpha;
     int _cbRows, _cbCols;
-    CompositionMode _compositionMode;
-    pi::DataReal _viewMin, _viewMax;
+    pi::AIRPixel _viewMin, _viewMax;
 
-    // fixed and moving image
-    int m_id1, m_id2;
+    InteractionMode _mode;
+    CompositionMode _compositionMode;
+
     QPointF _mousePressedPoint;
     Qt::MouseButton _mousePressedButton;
 
@@ -39,16 +56,15 @@ private:
     pi::RGBAVolumeType::Pointer _rgbImage;
 
     // memory holder for composite image
-    pi::RealImage::Pointer _compositeImage;
+    pi::AIRImage::Pointer _compositeImage;
 
+    // drawing buffer for current image
+    QImage m_drawingImage;
+    QGraphicsPixmapItem* m_drawingImageItem;
 
-    
 private:
-    typedef pi::ImageDisplayCollection<pi::RealImage> ImageCollectionType;
+    typedef pi::ImageDisplayCollection<pi::AIRImage> ImageCollectionType;
     ImageCollectionType* _imageDisplays;
-
-    int _fixedId;
-    int _movingId;
 
     // image displays
     bool CheckCompositeBuffer(int id1);
@@ -56,28 +72,24 @@ private:
     void CompositeCheckerBoard(int id1, int id2);
     void CompositeDifference(int id1, int id2);
 
-    inline pi::DataReal Clamp(pi::DataReal f, const pi::DataReal fMin, const pi::DataReal fMax) {
-        if (f < fMin) {
-            f = fMin;
-        } else if (f > fMax) {
-            f = fMax;
-        }
-        f = (f-fMin)/(fMax-fMin)*(SHRT_MAX)+SHRT_MIN;
-        return f;
-    }
 
 public:
     QGraphicsCompositeImageItem(QGraphicsItem* parent = NULL): QGraphicsPixmapItem(parent), _resampleIdx(0) {
-        _fixedId = 0;
-        _movingId = 1;
+        m_id1 = 0;
+        m_id2 = 1;
         _imageDisplays = NULL;
         _compositionMode = Alpha;
         _alpha = 1;
         _cbRows = 4;
         _cbCols = 4;
+        _mode = None;
+        m_drawingImageItem = NULL;
     }
 
-    void SetImageDisplays(typename pi::ImageDisplayCollection<pi::RealImage>* displays) {
+    void SetInteractionModeToNone();
+    void SetInteractionModeToDrawing();
+
+    void SetImageDisplays(ImageCollectionType* displays) {
         _imageDisplays = displays;
     }
 
@@ -104,6 +116,10 @@ public:
     void mousePressEvent(QGraphicsSceneMouseEvent* event);
     void mouseMoveEvent(QGraphicsSceneMouseEvent* event);
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event);
+
+    void drawingBeginEvent(QGraphicsSceneMouseEvent* event);
+    void drawingMoveEvent(QGraphicsSceneMouseEvent* event);
+    void drawingFinishEvent(QGraphicsSceneMouseEvent *event);
 };
 
 #endif /* defined(__ParticleGuidedRegistration__qgraphicscompositeimageitem__) */
