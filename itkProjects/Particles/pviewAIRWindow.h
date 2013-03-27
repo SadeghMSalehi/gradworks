@@ -49,6 +49,7 @@ public slots:
     void on_actionResample_triggered();
     void on_actionLoadTransform_triggered();
     void on_actionSaveTransform_triggered();
+    void on_actionMultipleSlice_triggered();
     void on_actionUnload_triggered();
 
     void on_compositeOpacity_valueChanged(int n);

@@ -25,6 +25,7 @@
 #include "itkScalarToARGBColormapImageFilter.h"
 #include "itkExtractImageFilter.h"
 #include "qgraphicscompositeimageitem.h"
+#include "qgraphicsvolumeview.h"
 #include "QFileDialog"
 
 using namespace std;
@@ -136,6 +137,8 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     QObject::connect(ui.actionSliceIJ, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
     QObject::connect(ui.actionSliceJK, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
     QObject::connect(ui.actionSliceKI, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
+
+    ui.dockWidget->hide();
 }
 
 AIRWindow::~AIRWindow() {
@@ -355,6 +358,18 @@ void AIRWindow::on_actionSaveTransform_triggered() {
     }
 }
 
+void AIRWindow::on_actionMultipleSlice_triggered() {
+    if (imageDisplays.IsValidId(m_fixedId)) {
+        if (ui.dockWidget->isHidden()) {
+            ui.multipleSliceView->setDisplayCollection(&imageDisplays);
+            ui.multipleSliceView->updateDisplay();
+            ui.dockWidget->show();
+        } else {
+            ui.dockWidget->hide();
+        }
+    }
+}
+
 void AIRWindow::on_actionUnload_triggered() {
     imageDisplays.Reset();
     m_fixedId = -1;
@@ -404,6 +419,8 @@ void AIRWindow::on_intensitySlider_highValueChanged(int n) {
     // correct to handle multiple image histogram intensity
     imageDisplays[m_fixedId].histogram.rangeMin = ui.intensitySlider->realLowValue();
     imageDisplays[m_fixedId].histogram.rangeMax = ui.intensitySlider->realHighValue();
+
+    ui.multipleSliceView->updateDisplay();
     UpdateCompositeDisplay();
 }
 

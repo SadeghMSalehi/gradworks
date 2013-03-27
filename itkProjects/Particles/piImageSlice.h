@@ -51,6 +51,10 @@ namespace itk {
             Cache = NULL;
         }
 
+        bool HasSamePointer(typename T::Pointer another) {
+            return Cache.GetPointer() == another.GetPointer();
+        }
+
         bool IsValid() {
             return Cache.IsNotNull() && _cached;
         }
@@ -95,7 +99,7 @@ namespace pi {
         }
     };
 
-    enum SliceDirectionEnum { IJ = 2, JK = 0, KI = 1 };
+    enum SliceDirectionEnum { IJ = 2, JK = 0, KI = 1, Unknown = -1 };
 
     template<class T>
     class ImageResampleGrid {
@@ -315,6 +319,13 @@ namespace pi {
 
         void SetColorMap(itk::ColormapEnumType map) {
             displayProperty.colorMap = map;
+        }
+
+        SliceDirectionEnum GetResampleDirection(int j) {
+            if (_resampleGridVector == NULL || j < 0 || _resampleGridVector->size() <= j || _resampleGridVector->at(j).IsNull()) {
+                return Unknown;
+            }
+            return _resampleGridVector->at(j).Direction();
         }
 
         typename T::Pointer GetResampled(int j = 0) {
@@ -552,6 +563,13 @@ namespace pi {
             }
         }
     };
+
+    typedef std::vector<RGBAVolumeType::Pointer> RGBAImageVector;
+    typedef std::vector<AIRImage::Pointer> AIRImageVector;
+    typedef ImageDisplay<AIRImage> AIRDisplayImage;
+    typedef std::vector<AIRDisplayImage> AIRDISplayVector;
+    typedef ImageDisplayCollection<AIRImage> AIRDisplayCollection;
+
     
     template<class T>
     class ImagePixmap {
