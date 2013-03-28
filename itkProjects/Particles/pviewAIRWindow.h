@@ -34,6 +34,9 @@ class AIRWindow : public QMainWindow {
 public:
     pi::ImageDisplayCollection<pi::AIRImage> imageDisplays;
 
+signals:
+    void fileDropped(QString& fileName);
+
 public:
     AIRWindow(QWidget* parent = NULL);
     virtual ~AIRWindow();
@@ -44,6 +47,10 @@ public:
     void UpdateCompositeDisplay();
     bool UpdateMovingDisplayTransform(vtkMatrix4x4* mat);
 
+protected:
+    void dragEnterEvent(QDragEnterEvent* event);
+    void dropEvent(QDropEvent* event);
+    
 public slots:
     void on_actionDrawing_triggered(bool drawing);
     void on_actionResample_triggered();
@@ -59,6 +66,7 @@ public slots:
 
     void on_intensitySlider_lowValueChanged(int n);
     void on_intensitySlider_highValueChanged(int n);
+    void on_intensitySlider_sliderMoved(int n);
     void on_intensitySlider2_lowValueChanged(int n);
     void on_intensitySlider2_highValueChanged(int n);
 
@@ -69,13 +77,12 @@ public slots:
     void OnTranslationWidgetChanged();
     void UpdateTranslationWidget();
     void UpdateSliceDirection();
-
+    void ChangeInteractionMode();
+    
     void on_image1Name_clicked(bool checked);
     void on_image2Name_clicked(bool checked);
     void on_image1Name_fileDropped(QString& fileName);
     void on_image2Name_fileDropped(QString& fileName);
-private:
-
     
 private:
     friend class vtkMouseHandler;

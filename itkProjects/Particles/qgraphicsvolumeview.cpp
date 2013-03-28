@@ -13,6 +13,10 @@
 #include <QPixmap>
 #include <QImage>
 #include <QGraphicsPixmapItem>
+#include <QMouseEvent>
+#include <QList>
+#include <QKeyEvent>
+#include <QGraphicsRectItem>
 
 using namespace pi;
 
@@ -20,7 +24,7 @@ QGraphicsVolumeView::QGraphicsVolumeView(QWidget* parent): QGraphicsView(parent)
     setScene(&_scene);
 
     _thumbsWidth = 128;
-    _columnCount = 4;
+    _columnCount = 10000;
 
     _displayId = 0;
     _displayReference = true;
@@ -28,6 +32,9 @@ QGraphicsVolumeView::QGraphicsVolumeView(QWidget* parent): QGraphicsView(parent)
     _directionCache = Unknown;
 
     _airImages = NULL;
+
+    setDragMode(QGraphicsView::RubberBandDrag);
+//    setBackgroundBrush(QBrush(QPixmap::fromImage(QImage(QString::fromUtf8(":/Icons/Images/backgroundPattern.jpg")))));
 }
 
 void QGraphicsVolumeView::setDisplayCollection(pi::AIRDisplayCollection *images) {
@@ -38,15 +45,63 @@ void QGraphicsVolumeView::setDisplayCollection(pi::AIRDisplayCollection *images)
     if (_airImages == images) {
         return;
     }
+    clear();
 
     _airImages = images;
+
+    updateDisplay();
+}
+
+void QGraphicsVolumeView::clear() {
     _scene.clear();
     _sliceCache.clear();
+    _slicePixmaps.clear();
     _displayImages.clear();
+    _workingSet.clear();
     _directionCache = Unknown;
     _volumeCache = NULL;
-    
-    updateDisplay();
+}
+
+bool QGraphicsVolumeView::checkVolumeCache() {
+    AIRDisplayImage& refImg = _airImages->GetReference();
+    if (refImg.srcImg.IsNull()) {
+        _volumeCache = NULL;
+        return false;
+    }
+    if (_volumeCache != refImg.srcImg) {
+        clear();
+    }
+
+    AIRImage::SpacingType spacing = refImg.srcSpacing;
+    AIRImage::SizeType size = refImg.srcImg->GetBufferedRegion().GetSize();
+
+    double resampleFactor = 1;
+    if (_thumbsWidth != 0) {
+        resampleFactor = size[0] / _thumbsWidth;
+    }
+
+    if (std::abs(resampleFactor - 1) < 0.1) {
+        _volumeCache = refImg.srcImg;
+        return _volumeCache.IsNotNull();
+    }
+
+    SliceDirectionEnum dir = refImg.GetResampleDirection(0);
+    fordim(k) {
+        spacing[k] = spacing[k] * resampleFactor;
+        size[k] = size[k] / resampleFactor;
+    }
+
+    typedef itk::ResampleImageFilter<AIRImage, AIRImage> ResampleFilter;
+    ResampleFilter::Pointer resampler = ResampleFilter::New();
+    resampler->SetInput(refImg.srcImg);
+    resampler->SetOutputParametersFromImage(refImg.srcImg.GetPointer());
+    resampler->SetOutputSpacing(spacing);
+    resampler->SetSize(size);
+    resampler->Update();
+    _volumeCache = resampler->GetOutput();
+    _volumeCache->DisconnectPipeline();
+
+    return _volumeCache.IsNotNull();
 }
 
 bool QGraphicsVolumeView::checkSliceCache() {
@@ -79,8 +134,6 @@ bool QGraphicsVolumeView::updateSource() {
         extract->SetInput(_volumeCache);
         region.SetIndex(_directionCache, i);
         region.SetSize(_directionCache, 1);
-        _volumeCache->GetBufferedRegion().Print(cout);
-        region.Print(cout);
         extract->SetExtractionRegion(region);
         extract->Update();
         _sliceCache.push_back(extract->GetOutput());
@@ -90,7 +143,7 @@ bool QGraphicsVolumeView::updateSource() {
 }
 
 void QGraphicsVolumeView::updateDisplay() {
-    if (this->parentWidget()->isHidden()) {
+    if (this->isHidden()) {
         return;
     }
     
@@ -111,12 +164,12 @@ void QGraphicsVolumeView::updateDisplay() {
     // delete all graphics items
     _displayImages.clear();
     _scene.clear();
+    _slicePixmaps.clear();
 
     // fire when intensity changed
     AIRImageVector::iterator sliceIter;
 
     int colPos = 0;
-    int rowPos = 0;
 
     AIRImage::SizeType volumeSize = _volumeCache->GetBufferedRegion().GetSize();
     int w = volumeSize[0];
@@ -129,8 +182,11 @@ void QGraphicsVolumeView::updateDisplay() {
         h = volumeSize[2];
     }
 
+    _slicePixmaps.clear();
+
     AIRDisplayImage& refImg = _airImages->GetReference();
-    for (sliceIter = _sliceCache.begin(); sliceIter != _sliceCache.end(); sliceIter++) {
+    int sliceIdx = 0;
+    for (sliceIter = _sliceCache.begin(); sliceIter != _sliceCache.end(); sliceIter++, sliceIdx++) {
         typedef itk::ScalarToARGBColormapImageFilter<AIRImage, RGBAVolumeType> ColorFilterType;
         ColorFilterType::Pointer colorFilter = ColorFilterType::New();
         colorFilter->SetInput((*sliceIter));
@@ -141,43 +197,85 @@ void QGraphicsVolumeView::updateDisplay() {
         RGBAVolumeType::Pointer rgbImg = colorFilter->GetOutput();
         rgbImg->DisconnectPipeline();
         _displayImages.push_back(rgbImg);
+        
         QGraphicsPixmapItem* item = _scene.addPixmap(QPixmap::fromImage(QImage((unsigned char*)rgbImg->GetBufferPointer(), w, h, QImage::Format_ARGB32)));
-        item->translate(w*colPos, h*rowPos);
-        if (++colPos % _columnCount == 0) {
-            colPos = 0;
-            rowPos ++;
+        item->setFlags(QGraphicsItem::ItemIsSelectable);
+        item->translate(colPos, 0);
+        item->setData(SliceIndex, QVariant(sliceIdx));
+        _slicePixmaps.push_back(item);
+
+        if (_workingSet.contains(sliceIdx)) {
+            highlightSlice(item);
         }
+
+        QGraphicsTextItem* text = _scene.addText(QString("%1").arg(sliceIdx), QFont("Courier", 24));
+        text->setPos(colPos+3, 3);
+        text->setZValue(1);
+        text->setDefaultTextColor(Qt::yellow);
+
+
+        colPos += (w + 1);
     }
 }
 
-bool QGraphicsVolumeView::checkVolumeCache() {
-    AIRDisplayImage& refImg = _airImages->GetReference();
-    if (refImg.srcImg.IsNull()) {
-        _volumeCache = NULL;
-        return false;
+void QGraphicsVolumeView::highlightSlice(QGraphicsPixmapItem *sliceItem) {
+    QGraphicsRectItem* rectItem = new QGraphicsRectItem(sliceItem->boundingRect(), sliceItem);
+    rectItem->setZValue(1);
+    rectItem->setPen(QPen(Qt::yellow, 3));
+}
+
+
+void QGraphicsVolumeView::keyReleaseEvent(QKeyEvent* key) {
+    if (key->text() == "=") {
+        scale(1.1, 1.1);
+        this->setMaximumHeight(this->maximumHeight()*1.2);
+    } else if (key->text() == "-") {
+        scale(1/1.1,1/1.1);
+        this->setMaximumHeight(this->maximumHeight()/1.1);
+    } else if (key->text() == "0") {
+        this->resetTransform();
     }
-    if (_volumeCache != refImg.srcImg) {
-        _volumeCache = NULL;
+}
+
+void QGraphicsVolumeView::createWorkingSet() {
+    QList<QGraphicsItem*> selections = _scene.selectedItems();
+    QList<QGraphicsItem*>::ConstIterator itemIter = selections.constBegin();
+    for (;itemIter != selections.constEnd(); itemIter++) {
+        QGraphicsPixmapItem* sliceItem = dynamic_cast<QGraphicsPixmapItem*>(*itemIter);
+        if (sliceItem == NULL) {
+            continue;
+        }
+        int sliceIdx = sliceItem->data(SliceIndex).value<int>();
+        if (_workingSet.contains(sliceIdx)) {
+            _scene.removeItem(sliceItem->childItems()[0]);
+            _workingSet.remove(sliceIdx);
+        } else {
+            _workingSet.insert(sliceIdx);
+            highlightSlice(sliceItem);
+        }
     }
+    this->setInteractive(true);
+}
 
-    AIRImage::SpacingType spacing = refImg.srcSpacing;
-    AIRImage::SizeType size = refImg.srcImg->GetBufferedRegion().GetSize();
-
-    double resampleFactor = size[0] / _thumbsWidth;
-    fordim(k) {
-        spacing[k] = spacing[k] * resampleFactor;
-        size[k] = size[k] / resampleFactor;
+void QGraphicsVolumeView::clearWorkingSet() {
+    QIntSet::ConstIterator iter = _workingSet.constBegin();
+    for (; iter != _workingSet.constEnd(); iter++) {
+        _scene.removeItem(_slicePixmaps[*iter]->childItems()[0]);
     }
+    _workingSet.clear();
+    this->setInteractive(true);
+}
 
-    typedef itk::ResampleImageFilter<AIRImage, AIRImage> ResampleFilter;
-    ResampleFilter::Pointer resampler = ResampleFilter::New();
-    resampler->SetInput(refImg.srcImg);
-    resampler->SetOutputParametersFromImage(refImg.srcImg.GetPointer());
-    resampler->SetOutputSpacing(spacing);
-    resampler->SetSize(size);
-    resampler->Update();
-    _volumeCache = resampler->GetOutput();
-    _volumeCache->DisconnectPipeline();
+void QGraphicsVolumeView::mousePressEvent(QMouseEvent* event) {
+    if (event->buttons() & Qt::RightButton) {
+        this->setInteractive(false);
+    }
+    QGraphicsView::mousePressEvent(event);
+}
 
-    return _volumeCache.IsNotNull();
+void QGraphicsVolumeView::mouseReleaseEvent(QMouseEvent* event) {
+    if (event->buttons() & Qt::RightButton) {
+        this->setInteractive(true);
+    }
+    QGraphicsView::mouseReleaseEvent(event);
 }

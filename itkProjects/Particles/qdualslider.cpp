@@ -170,6 +170,8 @@ void QDualSlider::mouseReleaseEvent(QMouseEvent* event) {
     _pressedControl = _hoverControl;
     _activeSlider = -1;
 
+    emit sliderMoved(lowValue());
+
     update();
 }
 

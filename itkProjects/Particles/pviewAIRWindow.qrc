@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="Icons">
+    <file>Images/backgroundPattern.jpg</file>
     <file>Images/multiple-file-icon.png</file>
     <file>Images/load_txf.png</file>
     <file>Images/trash-icon.png</file>

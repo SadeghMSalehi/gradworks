@@ -27,6 +27,13 @@
 #include "qgraphicscompositeimageitem.h"
 #include "qgraphicsvolumeview.h"
 #include "QFileDialog"
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QList>
+#include <QUrl>
+
+typedef QList<QUrl> UrlList;
 
 using namespace std;
 using namespace pi;
@@ -133,12 +140,22 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     m_currentSliceDir = IJ;
 
 
-    QObject::connect(m_compositeDisplay, SIGNAL(translationChanged()), this, SLOT(UpdateTranslationWidget()));
-    QObject::connect(ui.actionSliceIJ, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
-    QObject::connect(ui.actionSliceJK, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
-    QObject::connect(ui.actionSliceKI, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
+    connect(this, SIGNAL(fileDropped(QString&)), this, SLOT(on_image1Name_fileDropped(QString&)));
 
-    ui.dockWidget->hide();
+    connect(m_compositeDisplay, SIGNAL(translationChanged()), this, SLOT(UpdateTranslationWidget()));
+    connect(ui.actionSliceIJ, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
+    connect(ui.actionSliceJK, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
+    connect(ui.actionSliceKI, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
+    connect(ui.actionDrawing, SIGNAL(triggered()), this, SLOT(ChangeInteractionMode()));
+
+    connect(ui.actionNewWorkingSet, SIGNAL(triggered()), ui.multipleSliceView, SLOT(createWorkingSet()));
+    connect(ui.actionClearWorkingSet, SIGNAL(triggered()), ui.multipleSliceView, SLOT(clearWorkingSet()));
+
+    ui.multipleSliceView->addAction(ui.actionNewWorkingSet);
+    ui.multipleSliceView->addAction(ui.actionPropagateLabel);
+    ui.multipleSliceView->addAction(ui.actionClearWorkingSet);
+
+    ui.multipleSliceView->hide();
 }
 
 AIRWindow::~AIRWindow() {
@@ -200,6 +217,37 @@ bool AIRWindow::UpdateMovingDisplayTransform(vtkMatrix4x4* mat) {
     return false;
 }
 
+
+
+void AIRWindow::dragEnterEvent(QDragEnterEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        UrlList urls = event->mimeData()->urls();
+        UrlList::ConstIterator iter;
+        for (iter = urls.constBegin(); iter != urls.constEnd(); iter++) {
+            const QUrl& url = (*iter);
+            if (url.scheme() != "file") {
+                event->setAccepted(false);
+                return;
+            }
+        }
+        event->setAccepted(true);
+        event->acceptProposedAction();
+    }
+}
+
+void AIRWindow::dropEvent(QDropEvent *event) {
+    QList<QString> fileNames;
+    if (event->mimeData()->hasUrls()) {
+        UrlList urls = event->mimeData()->urls();
+        const QUrl& url = urls[0];
+        if (url.scheme() != "file") {
+            return;
+        }
+        event->acceptProposedAction();
+        QString filePath = url.path();
+        emit fileDropped(filePath);
+    }
+}
 
 #pragma mark -
 #pragma mark SINGAL HANDLERS
@@ -277,6 +325,8 @@ void AIRWindow::on_image1Name_fileDropped(QString& fileName) {
     ui.image1Name->setText(fileName.right(20));
     ui.image1Name->setToolTip(fileName);
     ui.image1Name->setChecked(true);
+
+    ui.graphicsView->fitInView(m_compositeDisplay->boundingRect(), Qt::KeepAspectRatio);
 }
 
 void AIRWindow::on_image2Name_fileDropped(QString& fileName) {
@@ -307,11 +357,15 @@ void AIRWindow::on_image2Name_fileDropped(QString& fileName) {
     ui.originBox->setEnabled(true);
     ui.scaleBox->setEnabled(true);
 
+    ui.compositionOptions->setEnabled(true);
+    ui.checkerBoardOptions->setEnabled(true);
+
     OnTranslationWidgetChanged();
 
     ui.image2Name->setText(fileName.right(20));
     ui.image2Name->setToolTip(fileName);
     ui.image2Name->setChecked(true);
+
 }
 
 void AIRWindow::on_actionDrawing_triggered(bool drawing) {
@@ -359,13 +413,15 @@ void AIRWindow::on_actionSaveTransform_triggered() {
 }
 
 void AIRWindow::on_actionMultipleSlice_triggered() {
+    if (ui.multipleSliceView->isHidden()) {
+        ui.multipleSliceView->show();
+    } else {
+        ui.multipleSliceView->hide();
+    }
     if (imageDisplays.IsValidId(m_fixedId)) {
-        if (ui.dockWidget->isHidden()) {
+        if (!ui.multipleSliceView->isHidden()) {
             ui.multipleSliceView->setDisplayCollection(&imageDisplays);
             ui.multipleSliceView->updateDisplay();
-            ui.dockWidget->show();
-        } else {
-            ui.dockWidget->hide();
         }
     }
 }
@@ -420,8 +476,11 @@ void AIRWindow::on_intensitySlider_highValueChanged(int n) {
     imageDisplays[m_fixedId].histogram.rangeMin = ui.intensitySlider->realLowValue();
     imageDisplays[m_fixedId].histogram.rangeMax = ui.intensitySlider->realHighValue();
 
-    ui.multipleSliceView->updateDisplay();
     UpdateCompositeDisplay();
+}
+
+void AIRWindow::on_intensitySlider_sliderMoved(int n) {
+    ui.multipleSliceView->updateDisplay();
 }
 
 void AIRWindow::on_intensitySlider2_lowValueChanged(int n) {
@@ -505,5 +564,13 @@ void AIRWindow::UpdateSliceDirection() {
         imageDisplays.SetSliceGrid(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
         ui.sliceSlider->setValue(m_currentSliceIndex[m_currentSliceDir]);
         ui.sliceSlider->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir));
+    }
+}
+
+void AIRWindow::ChangeInteractionMode() {
+    if (ui.actionDrawing->isChecked()) {
+        ui.graphicsView->drawingMode();
+    } else {
+        ui.graphicsView->transformMode();
     }
 }
