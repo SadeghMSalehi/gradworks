@@ -44,7 +44,7 @@ SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp qcustomplot.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
 
-SET (QT_PVIEW_HEADERS pviewMainWindow.h pviewAIRWindow.h qcustomplot.h qdualslider.h qgraphicsguideview.h  qgraphicscompositeimageitem.h qgraphicsdrawingimageitem.h qfileacceptbutton.h qgraphicsvolumeview.h)
+SET (QT_PVIEW_HEADERS pviewMainWindow.h pviewAIRWindow.h qcustomplot.h qdualslider.h qgraphicsguideview.h  qgraphicscompositeimageitem.h qgraphicsdrawingimageitem.h qfileacceptbutton.h qgraphicsvolumeview.h qtypedef.h piDelegateImageFilter.h)
 SET (QT_PVIEW_SOURCES pviewMainWindow.cpp pviewAIRWindow.cpp qcustomplot.cpp qdualslider.cpp qgraphicsguideview.cpp qgraphicscompositeimageitem.cpp qgraphicsdrawingimageitem.cpp qfileacceptbutton.cpp qgraphicsvolumeview.cpp)
 QT4_WRAP_CPP(QT_PVIEW_MOC_HEADERS ${QT_PVIEW_HEADERS})
 QT4_WRAP_UI(QT_PVIEW_UI_FILES pviewMainWindow.ui pviewAIRWindow.ui)
