@@ -89,7 +89,7 @@
          <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::SmoothPixmapTransform|QPainter::TextAntialiasing</set>
         </property>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <layout class="QVBoxLayout" name="verticalLayout_10">
          <property name="sizeConstraint">
           <enum>QLayout::SetMaximumSize</enum>
@@ -218,8 +218,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>299</width>
-              <height>647</height>
+              <width>150</width>
+              <height>344</height>
              </rect>
             </property>
             <attribute name="label">
@@ -384,8 +384,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>299</width>
-              <height>647</height>
+              <width>242</width>
+              <height>430</height>
              </rect>
             </property>
             <attribute name="label">
@@ -694,6 +694,14 @@
             <property name="enabled">
              <bool>true</bool>
             </property>
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>0</y>
+              <width>300</width>
+              <height>356</height>
+             </rect>
+            </property>
             <attribute name="label">
              <string>Segmentation Tools</string>
             </attribute>
@@ -903,7 +911,7 @@
               </item>
              </layout>
             </widget>
-            <widget class="QWidget" name="">
+            <widget class="QWidget" name="layoutWidget">
              <property name="geometry">
               <rect>
                <x>20</x>
@@ -943,17 +951,10 @@
               </item>
              </layout>
             </widget>
-            <zorder>freePath</zorder>
-            <zorder>freeBrush</zorder>
-            <zorder>eraseBrush</zorder>
-            <zorder></zorder>
-            <zorder>freeBrush</zorder>
-            <zorder>pushButton_2</zorder>
+            <zorder>layoutWidget</zorder>
             <zorder>foregroundLabel</zorder>
             <zorder>backgroundLabel</zorder>
             <zorder>segmentationMenu</zorder>
-            <zorder>labelOpacity</zorder>
-            <zorder>label_9</zorder>
             <zorder>labelTools</zorder>
            </widget>
           </widget>
@@ -1172,7 +1173,7 @@
   <customwidget>
    <class>QVTKWidget2</class>
    <extends>QWidget</extends>
-   <header>qvtkwidget2.h</header>
+   <header>QVTKWidget2.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
