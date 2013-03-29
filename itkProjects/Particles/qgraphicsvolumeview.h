@@ -32,6 +32,8 @@ public:
 
     void mousePressEvent(QMouseEvent* event);
     void mouseReleaseEvent(QMouseEvent* event);
+    
+    std::vector<int> getWorkingSet();
 
 public slots:
     void updateDisplay();
@@ -47,6 +49,7 @@ private:
     
 private:
     int _thumbsWidth;
+    double _rescaleFactor;
     int _columnCount;
 
     int _displayId;

@@ -62,6 +62,19 @@ void QGraphicsVolumeView::clear() {
     _volumeCache = NULL;
 }
 
+std::vector<int> QGraphicsVolumeView::getWorkingSet() {
+    std::vector<int> workingSet;
+    QIntSet::ConstIterator iter = _workingSet.constBegin();
+    for (; iter != _workingSet.constEnd(); iter++) {
+        int sliceIdx = *iter * _rescaleFactor;
+        int nextSliceIdx = sliceIdx + 1 * _rescaleFactor;
+        for (int i = sliceIdx; i < nextSliceIdx; i++) {
+            workingSet.push_back(i);
+        }
+    }
+    return workingSet;
+}
+
 bool QGraphicsVolumeView::checkVolumeCache() {
     AIRDisplayImage& refImg = _airImages->GetReference();
     if (refImg.srcImg.IsNull()) {
@@ -75,20 +88,19 @@ bool QGraphicsVolumeView::checkVolumeCache() {
     AIRImage::SpacingType spacing = refImg.srcSpacing;
     AIRImage::SizeType size = refImg.srcImg->GetBufferedRegion().GetSize();
 
-    double resampleFactor = 1;
+    _rescaleFactor = 1;
     if (_thumbsWidth != 0) {
-        resampleFactor = size[0] / _thumbsWidth;
+        _rescaleFactor = size[0] / _thumbsWidth;
     }
 
-    if (std::abs(resampleFactor - 1) < 0.1) {
+    if (std::abs(_rescaleFactor - 1) < 0.1) {
         _volumeCache = refImg.srcImg;
         return _volumeCache.IsNotNull();
     }
 
-    SliceDirectionEnum dir = refImg.GetResampleDirection(0);
     fordim(k) {
-        spacing[k] = spacing[k] * resampleFactor;
-        size[k] = size[k] / resampleFactor;
+        spacing[k] = spacing[k] * _rescaleFactor;
+        size[k] = size[k] / _rescaleFactor;
     }
 
     typedef itk::ResampleImageFilter<AIRImage, AIRImage> ResampleFilter;

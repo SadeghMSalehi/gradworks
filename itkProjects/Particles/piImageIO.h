@@ -28,6 +28,8 @@
 using namespace std;
 
 namespace pi {
+    typedef std::vector<int> IntVector;
+    
     class ImageInfo {
     public:
         int numdims;

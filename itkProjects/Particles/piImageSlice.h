@@ -568,6 +568,9 @@ namespace pi {
             }
 
             typename T::Pointer sliceImg = ExtractSlice<T>(srcImg, index, axis);
+            if (sliceImg.IsNull()) {
+                return;
+            }
             SetResampleGrid(sliceImg);
         }
 

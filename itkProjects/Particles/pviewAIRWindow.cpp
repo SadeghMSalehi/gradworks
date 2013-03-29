@@ -156,22 +156,28 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
 
 
 #pragma mark QObject Signal-Slot Connections
+    // image IO
     connect(this, SIGNAL(fileDropped(QString&)), this, SLOT(on_image1Name_fileDropped(QString&)));
 
+    // slice view selection related signals
     connect(m_compositeDisplay, SIGNAL(translationChanged()), this, SLOT(UpdateTranslationWidget()));
     connect(ui.actionSliceIJ, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
     connect(ui.actionSliceJK, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
     connect(ui.actionSliceKI, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
     connect(ui.actionDrawing, SIGNAL(triggered()), this, SLOT(ChangeInteractionMode()));
 
+    // working-set related signals
     connect(ui.actionNewWorkingSet, SIGNAL(triggered()), ui.multipleSliceView, SLOT(createWorkingSet()));
     connect(ui.actionClearWorkingSet, SIGNAL(triggered()), ui.multipleSliceView, SLOT(clearWorkingSet()));
 
+    // drawing related signals
     connect(_drawingToolButtons, SIGNAL(buttonClicked(int)), this, SLOT(ChangeInteractionMode()));
     connect(ui.actionNewSegmentation, SIGNAL(triggered()), ui.graphicsView, SLOT(segmentationCleared()));
     connect(ui.actionSaveSegmentation, SIGNAL(triggered()), this, SLOT(SaveSegmentation()));
+    connect(ui.actionPropagateLabel, SIGNAL(triggered()), this, SLOT(PropagateSegmentation()));
     connect(ui.labelOpacity, SIGNAL(sliderMoved(int)), ui.graphicsView, SLOT(labelOpacityChanged(int)));
 
+    // slice navigation
     connect(ui.sliceNumber, SIGNAL(valueChanged(int)), ui.sliceSlider, SLOT(setValue(int)));
     connect(ui.sliceSlider, SIGNAL(valueChanged(int)), ui.sliceNumber, SLOT(setValue(int)));
 
@@ -617,4 +623,9 @@ void AIRWindow::SaveSegmentation() {
         return;
     }
     ui.graphicsView->saveLabelVolume(fileName);
+}
+
+void AIRWindow::PropagateSegmentation() {
+    std::vector<int> workingSet = ui.multipleSliceView->getWorkingSet();
+    ui.graphicsView->propagateLabel(workingSet);
 }

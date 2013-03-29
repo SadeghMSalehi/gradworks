@@ -15,9 +15,53 @@
 #include "qgraphicscompositeimageitem.h"
 #include "piImageIO.h"
 #include "itkImageRegionIteratorWithIndex.h"
+#include "piDelegateImageFilter.h"
 
 using namespace std;
 using namespace pi;
+
+#pragma mark -
+#pragma mark Auxilirary Class
+
+template <class T>
+class LabelPropagation {
+public:
+    typedef typename T::Pointer TPointer;
+    
+    TPointer& _input;
+    TPointer& _output;
+    IntVector& _target;
+    
+    LabelPropagation(AIRLabel::Pointer& input, AIRLabel::Pointer& output, IntVector& target): _input(input), _output(output), _target(target) {
+        
+    }
+
+    void Process() {
+        IntVector::const_iterator iter(_target.begin());
+        for (; iter != _target.end(); iter++) {
+            Process(*iter);
+        }
+    }
+    
+    void Process(int sliceIdx) {
+        AIRLabel::RegionType region = _input->GetBufferedRegion();
+        for (int i = 0; i < DIMENSIONS; i++) {
+            if (region.GetSize(i) == 1) {
+                region.SetIndex(i, sliceIdx);
+            }
+        }
+        typedef typename itk::ImageRegionIterator<T> IterType;
+        IterType srcIter(_input, _input->GetBufferedRegion());
+        IterType dstIter(_output, region);
+        for (srcIter.GoToBegin(), dstIter.GoToBegin(); !srcIter.IsAtEnd() && !dstIter.IsAtEnd(); ++srcIter, ++dstIter) {
+            dstIter.Set(srcIter.Get());
+        }
+    }
+};
+
+
+#pragma mark -
+#pragma mark Main Implementation
 
 QGraphicsGuideView::QGraphicsGuideView(QWidget* parent): QGraphicsView(parent) {
     _currentMode = TransformMode;
@@ -359,3 +403,8 @@ void QGraphicsGuideView::createLabelVolume(AIRImage::Pointer srcImg) {
 void QGraphicsGuideView::saveLabelVolume(QString& fileName) {
     __airLabelIO.WriteImage(fileName.toUtf8().data(), _labelVolume);
 }
+
+void QGraphicsGuideView::propagateLabel(IntVector &targetSlices) {    
+    LabelPropagation<AIRLabel> algo(_volumeSlice, _labelVolume, targetSlices);
+    algo.Process();
+ }

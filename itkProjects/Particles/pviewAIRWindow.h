@@ -78,6 +78,7 @@ public slots:
     void UpdateSliceDirection();
     void ChangeInteractionMode();
     void SaveSegmentation();
+    void PropagateSegmentation();
     
     void on_image1Name_clicked(bool checked);
     void on_image2Name_clicked(bool checked);

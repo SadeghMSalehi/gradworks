@@ -10,7 +10,7 @@
 #define __ParticleGuidedRegistration__QGraphicsGuideView__
 
 #include <iostream>
-#include <QList>
+#include "qtypedef.h"
 #include <QGraphicsView>
 #include <QBitmap>
 #include "piImageSlice.h"
@@ -94,6 +94,7 @@ public slots:
     void labelVolumeChanged(pi::AIRLabel::Pointer);
     void createLabelVolume(pi::AIRImage::Pointer);
     void saveLabelVolume(QString& fileName);
+    void propagateLabel(pi::IntVector& targetSlices);
 };
 
 #endif /* defined(__ParticleGuidedRegistration__QGraphicsGuideView__) */
