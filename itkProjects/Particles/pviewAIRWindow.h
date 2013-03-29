@@ -52,7 +52,6 @@ protected:
     void dropEvent(QDropEvent* event);
     
 public slots:
-    void on_actionDrawing_triggered(bool drawing);
     void on_actionResample_triggered();
     void on_actionLoadTransform_triggered();
     void on_actionSaveTransform_triggered();
@@ -78,6 +77,7 @@ public slots:
     void UpdateTranslationWidget();
     void UpdateSliceDirection();
     void ChangeInteractionMode();
+    void SaveSegmentation();
     
     void on_image1Name_clicked(bool checked);
     void on_image2Name_clicked(bool checked);
@@ -102,6 +102,7 @@ private:
     QGraphicsCompositeImageItem* m_compositeDisplay;
 
     pi::ImageIO<pi::AIRImage> io;
+    QButtonGroup* _drawingToolButtons;
 };
 
 #endif /* defined(__ParticleGuidedRegistration__pviewAIRWindow__) */

@@ -14,6 +14,7 @@
 
 #include "piImageDef.h"
 #include "piImageHistogram.h"
+#include "piImageIO.h"
 
 #include "itkRGBAPixel.h"
 #include "itkScalarToARGBColormapImageFilter.h"
@@ -86,7 +87,9 @@ namespace pi {
     typedef itk::Image<RGBAPixel, 3> RGBAVolumeType;
     
     typedef pi::LabelImage AIRImage;
+    typedef itk::Image<uchar,3> AIRLabel;
     typedef AIRImage::PixelType AIRPixel;
+    typedef AIRLabel::PixelType AIRClass;
 
     class ImageDisplayProperty {
     public:
@@ -393,6 +396,33 @@ namespace pi {
 
 
     template<class T>
+    typename T::Pointer ExtractSlice(typename T::Pointer srcImg, int idx, SliceDirectionEnum dir) {
+        typename T::Pointer emptyImg;
+        if (srcImg.IsNull() || dir == Unknown) {
+            return emptyImg;
+        }
+
+        typename T::RegionType sliceRegion = srcImg->GetBufferedRegion();
+        typename T::SizeType srcSize = sliceRegion.GetSize();
+        if (srcSize[dir] <= idx || idx < 0) {
+            return emptyImg;
+        }
+        sliceRegion.SetIndex(dir, idx);
+        sliceRegion.SetSize(dir,1);
+
+        typedef itk::ExtractImageFilter<T, T> ExtractFilterType;
+        typename ExtractFilterType::Pointer filter = ExtractFilterType::New();
+        filter->SetInput(srcImg);
+        filter->SetExtractionRegion(sliceRegion);
+        filter->Update();
+        typename T::Pointer sliceImg = filter->GetOutput();
+        sliceImg->DisconnectPipeline();
+        return sliceImg;
+    }
+
+
+
+    template<class T>
     class ImageDisplayCollection {
     public:
         typedef ImageResampleGrid<T> GridType;
@@ -537,22 +567,8 @@ namespace pi {
                 return;
             }
 
-            typename T::RegionType resampleRegion = srcImg->GetBufferedRegion();
-            typename T::IndexType idx1 = resampleRegion.GetIndex();
-            typename T::IndexType idx2 = resampleRegion.GetUpperIndex();
-
-            idx1[axis] = index;
-            idx2[axis] = index;
-            resampleRegion.SetIndex(idx1);
-            resampleRegion.SetUpperIndex(idx2);
-
-            typedef itk::ExtractImageFilter<T, T> ExtractFilterType;
-            typename ExtractFilterType::Pointer filter = ExtractFilterType::New();
-            filter->SetInput(srcImg);
-            filter->SetExtractionRegion(resampleRegion);
-            filter->Update();
-            
-            SetResampleGrid(filter->GetOutput());
+            typename T::Pointer sliceImg = ExtractSlice<T>(srcImg, index, axis);
+            SetResampleGrid(sliceImg);
         }
 
         void SetResampleGrid(typename T::Pointer grid) {
@@ -608,5 +624,8 @@ namespace pi {
         typename T::Pointer labelImage;
         RGBAImageType::Pointer rgbaImage;
     };
+
+    extern ImageIO<AIRImage> __airImageIO;
+    extern ImageIO<AIRLabel> __airLabelIO;
 }
 #endif /* defined(__ParticleGuidedRegistration__piImageSlice__) */

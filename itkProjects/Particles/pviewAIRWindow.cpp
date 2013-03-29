@@ -100,6 +100,21 @@ public:
 
 AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     ui.setupUi(this);
+
+    // set up for segmentation tools
+    _drawingToolButtons = new QButtonGroup(this);
+    _drawingToolButtons->addButton(ui.freePath);
+    _drawingToolButtons->addButton(ui.freeBrush);
+    _drawingToolButtons->addButton(ui.eraseBrush);
+    ui.freePath->setChecked(true);
+
+
+    QList<QAction*> segmentationMenuActions;
+    segmentationMenuActions.append(ui.actionNewSegmentation);
+    segmentationMenuActions.append(ui.actionSaveSegmentation);
+    segmentationMenuActions.append(ui.actionPropagateLabel);
+    ui.segmentationMenu->addActions(segmentationMenuActions);
+
     vtkRenderer* renderer = vtkRenderer::New();
     m_mouseHandler = new vtkMouseHandler();
     m_mouseHandler->SetAIRWindow(this);
@@ -140,6 +155,7 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     m_currentSliceDir = IJ;
 
 
+#pragma mark QObject Signal-Slot Connections
     connect(this, SIGNAL(fileDropped(QString&)), this, SLOT(on_image1Name_fileDropped(QString&)));
 
     connect(m_compositeDisplay, SIGNAL(translationChanged()), this, SLOT(UpdateTranslationWidget()));
@@ -151,6 +167,15 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     connect(ui.actionNewWorkingSet, SIGNAL(triggered()), ui.multipleSliceView, SLOT(createWorkingSet()));
     connect(ui.actionClearWorkingSet, SIGNAL(triggered()), ui.multipleSliceView, SLOT(clearWorkingSet()));
 
+    connect(_drawingToolButtons, SIGNAL(buttonClicked(int)), this, SLOT(ChangeInteractionMode()));
+    connect(ui.actionNewSegmentation, SIGNAL(triggered()), ui.graphicsView, SLOT(segmentationCleared()));
+    connect(ui.actionSaveSegmentation, SIGNAL(triggered()), this, SLOT(SaveSegmentation()));
+    connect(ui.labelOpacity, SIGNAL(sliderMoved(int)), ui.graphicsView, SLOT(labelOpacityChanged(int)));
+
+    connect(ui.sliceNumber, SIGNAL(valueChanged(int)), ui.sliceSlider, SLOT(setValue(int)));
+    connect(ui.sliceSlider, SIGNAL(valueChanged(int)), ui.sliceNumber, SLOT(setValue(int)));
+
+    
     ui.multipleSliceView->addAction(ui.actionNewWorkingSet);
     ui.multipleSliceView->addAction(ui.actionPropagateLabel);
     ui.multipleSliceView->addAction(ui.actionClearWorkingSet);
@@ -288,7 +313,8 @@ void AIRWindow::on_image1Name_fileDropped(QString& fileName) {
     if (!imageDisplays.SetImage(0, image)) {
         return;
     }
-
+    ui.graphicsView->createLabelVolume(imageDisplays[0].srcImg);
+    
     m_fixedId = 0;
     ui.alphaOptions->setEnabled(true);
     ui.compositionOptions->setEnabled(false);
@@ -366,10 +392,6 @@ void AIRWindow::on_image2Name_fileDropped(QString& fileName) {
     ui.image2Name->setToolTip(fileName);
     ui.image2Name->setChecked(true);
 
-}
-
-void AIRWindow::on_actionDrawing_triggered(bool drawing) {
-    
 }
 
 void AIRWindow::on_actionResample_triggered() {
@@ -458,6 +480,7 @@ void AIRWindow::on_compositeOpacity_valueChanged(int n) {
 void AIRWindow::on_sliceSlider_valueChanged(int n) {
     m_currentSliceIndex[m_currentSliceDir] = n;
     imageDisplays.SetSliceGrid(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
+    ui.graphicsView->sliceChanged(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
     UpdateCompositeDisplay();
 }
 
@@ -562,15 +585,36 @@ void AIRWindow::UpdateSliceDirection() {
             m_currentSliceDir = KI;
         }
         imageDisplays.SetSliceGrid(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
+        ui.sliceNumber->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir));
         ui.sliceSlider->setValue(m_currentSliceIndex[m_currentSliceDir]);
         ui.sliceSlider->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir));
+
+
+        ui.graphicsView->sliceChanged(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
     }
 }
 
 void AIRWindow::ChangeInteractionMode() {
     if (ui.actionDrawing->isChecked()) {
-        ui.graphicsView->drawingMode();
+        ui.labelTools->setEnabled(true);
+        if (ui.freePath->isChecked()) {
+            ui.graphicsView->drawingMode(QGraphicsGuideView::FreePath);
+        } else if (ui.freeBrush->isChecked()) {
+            ui.graphicsView->drawingMode(QGraphicsGuideView::FreeBrush);
+        } else if (ui.eraseBrush->isChecked()) {
+            ui.graphicsView->drawingMode(QGraphicsGuideView::EraseBrush);
+        }
+        ui.toolBox->setCurrentWidget(ui.segmentationTools);
     } else {
+        ui.labelTools->setEnabled(false);
         ui.graphicsView->transformMode();
     }
+}
+
+void AIRWindow::SaveSegmentation() {
+    QString fileName = QFileDialog::getSaveFileName(this, "Save Segmentation", ".");
+    if (fileName.isEmpty()) {
+        return;
+    }
+    ui.graphicsView->saveLabelVolume(fileName);
 }

@@ -36,10 +36,12 @@ private:
 
 signals:
     void translationChanged();
+    void imageSizeChanged(QSize size);
 
 private:
     // fixed and moving image
     int m_id1, m_id2;
+    QSize m_imageSize;
 
     int _resampleIdx;
     double _alpha;
@@ -84,6 +86,10 @@ public:
         _cbCols = 4;
         _mode = None;
         m_drawingImageItem = NULL;
+    }
+
+    QSize GetImageSize() {
+        return m_imageSize;
     }
 
     void SetInteractionModeToNone();

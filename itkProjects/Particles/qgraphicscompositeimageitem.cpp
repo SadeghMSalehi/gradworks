@@ -200,6 +200,12 @@ void QGraphicsCompositeImageItem::Refresh(int id1, int id2) {
     int h = _imageDisplays->GetGrid(_resampleIdx).Height();
 
     setPixmap(QPixmap::fromImage(QImage((unsigned char*) _rgbImage->GetBufferPointer(), w, h, QImage::Format_ARGB32)));
+
+    QSize size(w,h);
+    if (m_imageSize != size) {
+        m_imageSize = size;
+        emit imageSizeChanged(m_imageSize);
+    }
     update();
 }
 

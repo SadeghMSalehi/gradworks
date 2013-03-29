@@ -9,6 +9,6 @@
 #include "piImageSlice.h"
 
 namespace pi {
-
-
+    ImageIO<AIRImage> __airImageIO;
+    ImageIO<AIRLabel> __airLabelIO;
 }

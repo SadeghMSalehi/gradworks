@@ -1,5 +1,10 @@
 <RCC>
   <qresource prefix="Icons">
+    <file>Images/background-label.png</file>
+    <file>Images/foreground-label.png</file>
+    <file>Images/outline32/Brush 3.png</file>
+    <file>Images/outline32/Brush.png</file>
+    <file>Images/outline32/Eraser.png</file>
     <file>Images/backgroundPattern.jpg</file>
     <file>Images/multiple-file-icon.png</file>
     <file>Images/load_txf.png</file>
