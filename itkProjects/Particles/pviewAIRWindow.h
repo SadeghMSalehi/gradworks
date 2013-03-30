@@ -102,6 +102,7 @@ public slots:
     void sliceZoomOut();
     void labelOpacityUp();
     void labelOpacityDown();
+    void copyLabel();
     
 private:
     friend class vtkMouseHandler;

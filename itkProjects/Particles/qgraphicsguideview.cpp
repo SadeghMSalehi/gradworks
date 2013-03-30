@@ -189,7 +189,7 @@ void QGraphicsGuideView::pathMoveEvent(QMouseEvent *event) {
 }
 
 void QGraphicsGuideView::pathEndEvent(QMouseEvent *event) {
-    QPainter painter(&_drawingCanvas);
+    QPainter painter(&_userDrawingCanvas);
     painter.setBrush(QBrush(Qt::yellow,Qt::SolidPattern));
     painter.setPen(Qt::NoPen);
     painter.drawPath(_drawingPath);
@@ -197,10 +197,12 @@ void QGraphicsGuideView::pathEndEvent(QMouseEvent *event) {
 
     this->scene()->removeItem(_drawingPathItem);
 
-    canvasToSlice();
-    sliceToLabelImage();
+    _updateRect = _drawingPath.boundingRect();
+    
+    userDrawingToSlice();
+    sliceToLabelImage(true);
     updateLabelItem();
-    sliceToVolume();
+    sliceToVolume(true);
 }
 
 void QGraphicsGuideView::brushStartEvent(QMouseEvent *event) {
@@ -220,11 +222,12 @@ void QGraphicsGuideView::brushStartEvent(QMouseEvent *event) {
     _brushCursor->setPos(sceneTopLeft);
     _brushCursor->setPen(QPen(Qt::white, 1));
     _brushCursor->setZValue(10);
-    _brushCursor->setOpacity(0.5);
+    _brushCursor->setOpacity(0.2);
 
     paintBrushEllipse(sceneBrushRect);
-    canvasToSlice();
-    sliceToLabelImage();
+    
+    userDrawingToSlice();
+    sliceToLabelImage(true);
     updateLabelItem();
 }
 
@@ -241,8 +244,8 @@ void QGraphicsGuideView::brushMoveEvent(QMouseEvent *event) {
     _brushCursor->setPos(sceneTopLeft);
 
     paintBrushEllipse(sceneBrushRect);
-    canvasToSlice();
-    sliceToLabelImage();
+    userDrawingToSlice();
+    sliceToLabelImage(true);
     updateLabelItem();
 }
 
@@ -250,7 +253,7 @@ void QGraphicsGuideView::brushEndEvent(QMouseEvent *event) {
     if (_brushCursor == NULL) {
         return;
     }
-    sliceToVolume();
+    sliceToVolume(true);
     this->scene()->removeItem(_brushCursor);
     _brushCursor = NULL;
 }
@@ -260,51 +263,68 @@ void QGraphicsGuideView::brushEndEvent(QMouseEvent *event) {
 #pragma mark Private Methods
 
 void QGraphicsGuideView::paintBrushEllipse(QRectF& sceneBrushRect) {
-    QPainter painter(&_drawingCanvas);
-    painter.setBrush(QBrush(Qt::yellow,Qt::SolidPattern));
+    QPainter painter(&_userDrawingCanvas);
+    painter.setBrush(QBrush(0x1,Qt::SolidPattern));
     painter.setPen(Qt::NoPen);
     painter.drawEllipse(sceneBrushRect);
     painter.end();
+    
+    _updateRect = sceneBrushRect;
 }
 
-void QGraphicsGuideView::canvasToSlice() {
+
+void QGraphicsGuideView::userDrawingToSlice() {
     if (_volumeSlice.IsNull()) {
         return;
     }
 
-    const int h = _drawingCanvas.height();
-    const int w = _drawingCanvas.width();
-
-    uint color = 0;
-    if (_currentTool != EraseBrush) {
-        color = qRgba(255, 255, 0, 255);
-    }
+    const int h = _userDrawingCanvas.height();
+    const int w = _userDrawingCanvas.width();
 
     QImage sliceImage(_volumeSlice.GetBufferPointer(), w, h, QImage::Format_Indexed8);
 
     if (_currentTool == EraseBrush) {
-        ushort* src = (ushort*) _drawingCanvas.scanLine(0);
-        uchar* dst = (uchar*) sliceImage.scanLine(0);
-
-        for (int i = 0; i < w*h; i++) {
-            if (*src > 0) {
-                *src = *dst = 0;
+        const int y = _updateRect.top();
+        const int ny = _updateRect.bottom();
+        const int x = _updateRect.left();
+        const int nx = _updateRect.right();
+        
+        for (int j = y; j < ny; j++) {
+            uint* src = (uint*) _userDrawingCanvas.scanLine(j);
+            AIRClass* dst = (AIRClass*) sliceImage.scanLine(j);
+            src += x;
+            dst += x;
+            for (int i = x; i < nx; i++) {
+                if (*src > 0xff000000) {
+                    *src = *dst = 0;
+                }
+                src++;
+                dst++;
             }
-            src++;
-            dst++;
         }
-    } else {
-        ushort* src = (ushort*) _drawingCanvas.scanLine(0);
-        uchar* dst = (uchar*) sliceImage.scanLine(0);
-        for (int i = 0; i < w*h; i++) {
-            if (*src > 0 && (_backgroundLabel == 255 || *dst == _backgroundLabel)) {
-                *dst = _foregroundLabel;
-                *src = 0;
+    } else {        
+        const int y = _updateRect.top();
+        const int ny = _updateRect.bottom();
+        const int x = _updateRect.left();
+        const int nx = _updateRect.right();
+        
+        for (int j = y; j < ny; j++) {
+            uint* src = (uint*) _userDrawingCanvas.scanLine(j);
+            AIRClass* dst = (AIRClass*) sliceImage.scanLine(j);
+            src += x;
+            dst += x;
+            for (int i = x; i < nx; i++) {
+                if (*src > 0xff000000 && (_backgroundLabel == 255 || *dst == _backgroundLabel)) {
+                    *dst = _foregroundLabel;
+                    *src = 0;
+                }
+                src++;
+                dst++;
             }
-            src++;
-            dst++;
         }
     }
+    
+    sliceToLabelImage(true);
 }
 
 
@@ -327,8 +347,12 @@ bool QGraphicsGuideView::isLabelLoaded() {
     return _labelVolume.IsNotNull();
 }
 
-void QGraphicsGuideView::sliceToVolume() {
+void QGraphicsGuideView::sliceToVolume(bool useRect) {
     typedef itk::ImageRegionConstIteratorWithIndex<AIRLabel> IterType;
+    AIRLabel::RegionType region = _volumeSlice.GetRegion();
+    if (useRect) {
+        _volumeSlice.GetRegion(_updateRect.left(), _updateRect.top(), _updateRect.width(), _updateRect.height());
+    }
     IterType iter(_volumeSlice, _volumeSlice.GetRegion());
     for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
         _labelVolume->SetPixel(iter.GetIndex(), iter.Get());
@@ -342,22 +366,41 @@ void QGraphicsGuideView::volumeToSlice() {
     _volumeSlice = ExtractSlice<AIRLabel>(_labelVolume, _volumeSliceIdx, _volumeSliceDirection);
 }
 
-void QGraphicsGuideView::sliceToLabelImage() {
+void QGraphicsGuideView::sliceToLabelImage(bool useRect) {
     if (_volumeSlice.IsNull()) {
         return;
     }
 
     AIRClass* slicePixels = _volumeSlice.GetBufferPointer();
-
     const int w = _labelImage.width();
     const int h = _labelImage.height();
-
-    for (int i = 0; i < h; i++) {
-        uint* labelPixels = (uint*) _labelImage.scanLine(i);
-        for (int j = 0; j < w; j++) {
-            (*labelPixels) = __labelColorsPtr[*slicePixels];
-            labelPixels++;
-            slicePixels++;
+    
+    if (useRect) {
+        const int y = _updateRect.top();
+        const int ny = _updateRect.bottom();
+        const int x = _updateRect.left();
+        const int nx = _updateRect.right();
+        
+        QImage sliceImage(slicePixels, w, h, QImage::Format_Indexed8);
+        for (int j = y; j < ny; j++) {
+            uchar* slicePixels = (uchar*) sliceImage.scanLine(j);
+            uint* labelPixels = (uint*) _labelImage.scanLine(j);
+            slicePixels += x;
+            labelPixels += x;
+            for (int i = x; i < nx; i++) {
+                (*labelPixels) = __labelColorsPtr[*slicePixels];
+                labelPixels++;
+                slicePixels++;
+            }
+        }
+    } else {
+        for (int i = 0; i < h; i++) {
+            uint* labelPixels = (uint*) _labelImage.scanLine(i);
+            for (int j = 0; j < w; j++) {
+                (*labelPixels) = __labelColorsPtr[*slicePixels];
+                labelPixels++;
+                slicePixels++;
+            }
         }
     }
 }
@@ -370,8 +413,8 @@ void QGraphicsGuideView::segmentationCleared() {
         return;
     }
     _volumeSlice.FillBuffer(0);
-    sliceToLabelImage();
-    sliceToVolume();
+    sliceToLabelImage(false);
+    sliceToVolume(false);
     updateLabelItem();
 }
 
@@ -403,12 +446,12 @@ void QGraphicsGuideView::sliceChanged(SliceDirectionEnum dir, int n) {
         SliceDisplay<AIRLabel> grid(_volumeSlice);
         _canvasSize = QSize(grid.Width(), grid.Height());
         _labelImage = QImage(_canvasSize, QImage::Format_ARGB32_Premultiplied);
-        _labelImage.fill(0);
-        _drawingCanvas = QImage(_canvasSize, QImage::Format_RGB16);
-        _drawingCanvas.fill(0);
+        _labelImage.fill(0x0);
+        _userDrawingCanvas = QImage(_canvasSize, QImage::Format_RGB32);
+        _userDrawingCanvas.fill(0x0);
 
     }
-    sliceToLabelImage();
+    sliceToLabelImage(false);
     updateLabelItem();
 }
 
@@ -441,7 +484,7 @@ void QGraphicsGuideView::loadLabelVolume(QString& fileName, AIRImage::Pointer sr
         }
         labelVolumeChanged(labelVolume);
         volumeToSlice();
-        sliceToLabelImage();
+        sliceToLabelImage(false);
         updateLabelItem();
     }
 }
@@ -464,7 +507,6 @@ void QGraphicsGuideView::setInteractionLabels(int f, int b) {
 void QGraphicsGuideView::copyLabel() {
     if (_volumeSlice.IsNotNull()) {
         _copiedSlice = __airLabelIO.CopyImage(_volumeSlice.GetImage());
-        cout << "copyLabel()" << endl;
     }
 }
 
@@ -479,8 +521,8 @@ void QGraphicsGuideView::pasteLabel() {
             AIRClass* src = _copiedSlice->GetBufferPointer();
             AIRClass* dst = _volumeSlice.GetImage()->GetBufferPointer();
             memcpy(dst, src, _copiedSlice->GetPixelContainer()->Size());
-            sliceToVolume();
-            sliceToLabelImage();
+            sliceToVolume(false);
+            sliceToLabelImage(false);
             updateLabelItem();
         } else {
             _copiedSlice = NULL;

@@ -36,20 +36,22 @@ private:
 
     QList<QGraphicsPathItem*> _pathItemList;
 
-    // temporary canvas for image drawing
-    uchar _foregroundLabel;
-    uchar _backgroundLabel;
-    QImage _drawingCanvas;
-
     // visualization of current label
+    QRectF _updateRect;
     QSize _canvasSize;
+    QImage _userDrawingCanvas;
+    QImage _sliceImage;
     QImage _labelImage;
     QGraphicsPixmapItem* _labelItem;
 
+    // drawing labels
+    uchar _foregroundLabel;
+    uchar _backgroundLabel;
+    
     // brush cursor
     qreal _brushRadius;
     QAbstractGraphicsShapeItem* _brushCursor;
-
+    
     int _volumeSliceIdx;
     pi::SliceDirectionEnum _volumeSliceDirection;
     pi::AIRLabelSlice _volumeSlice;
@@ -59,13 +61,13 @@ private:
 
 private: // private methods
     void paintBrushEllipse(QRectF&);
-    void canvasToSlice();
+    void userDrawingToSlice();
     void updateLabelItem();
 
     bool isLabelLoaded();
-    void sliceToVolume();
+    void sliceToVolume(bool);
     void volumeToSlice();
-    void sliceToLabelImage();
+    void sliceToLabelImage(bool);
 
 
 public:

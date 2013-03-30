@@ -194,7 +194,7 @@ namespace pi {
             return _depth;
         }
 
-        uchar* GetBufferPointer() {
+        typename T::PixelType* GetBufferPointer() {
             if (_sliceImg.IsNull()) {
                 return NULL;
             }
@@ -206,6 +206,36 @@ namespace pi {
                 return typename T::RegionType();
             }
             return _sliceImg->GetBufferedRegion();
+        }
+        
+        typename T::RegionType GetRegion(int left, int top, int width, int height) {
+            if (_sliceImg.IsNull()) {
+                return typename T::RegionType();
+            }
+            typename T::RegionType region =  _sliceImg->GetBufferedRegion();
+            switch (_sliceDirection) {
+                case IJ:
+                    region.SetIndex(0, left);
+                    region.SetIndex(1, top);
+                    region.SetSize(0, width);
+                    region.SetSize(1, height);
+                    break;
+                case JK:
+                    region.SetIndex(1, left);
+                    region.SetIndex(2, top);
+                    region.SetSize(1, width);
+                    region.SetSize(2, height);
+                    break;
+                case KI:
+                    region.SetIndex(0, left);
+                    region.SetIndex(2, top);
+                    region.SetSize(0, width);
+                    region.SetSize(2, height);
+                    break;
+                default:
+                    break;
+            }
+            return region;
         }
 
         void FillBuffer(typename T::PixelType p) {

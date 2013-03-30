@@ -209,7 +209,7 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     connect(ui.labelOpacity, SIGNAL(valueChanged(int)), ui.graphicsView, SLOT(labelOpacityChanged(int)));
     connect(ui.foregroundBrush, SIGNAL(currentIndexChanged(int)), this, SLOT(brushLabelChanged(int)));
     connect(ui.backgroundBrush, SIGNAL(currentIndexChanged(int)), this, SLOT(brushLabelChanged(int)));
-    connect(ui.actionCopyLabel, SIGNAL(triggered()), ui.graphicsView, SLOT(copyLabel()));
+    connect(ui.actionCopyLabel, SIGNAL(triggered()), this, SLOT(copyLabel()));
     connect(ui.actionPasteLabel, SIGNAL(triggered()), ui.graphicsView, SLOT(pasteLabel()));
 
     // slice navigation
@@ -750,6 +750,10 @@ void AIRWindow::labelOpacityDown() {
     ui.labelOpacity->setValue(ui.labelOpacity->value() - ui.labelOpacity->pageStep());
 }
 
+void AIRWindow::copyLabel() {
+    ui.statusbar->showMessage(QString("Label #%1 Copied to Clipboard").arg(ui.sliceSlider->value()), 5000);
+    ui.graphicsView->copyLabel();
+}
 
 void AIRWindow::setupShortcutKeys() {
     // navigation
@@ -793,6 +797,6 @@ void AIRWindow::setupShortcutKeys() {
     connect(selectPathTool, SIGNAL(activated()), ui.freePath, SLOT(toggle()));
     connect(selectBrushTool, SIGNAL(activated()), ui.freeBrush, SLOT(toggle()));
     connect(selectEraseTool, SIGNAL(activated()), ui.eraseBrush, SLOT(toggle()));
-    connect(selectCopyTool, SIGNAL(activated()), ui.graphicsView, SLOT(copyLabel()));
+    connect(selectCopyTool, SIGNAL(activated()), this, SLOT(copyLabel()));
     connect(selectPasteTool, SIGNAL(activated()), ui.graphicsView, SLOT(pasteLabel()));
 }
