@@ -33,7 +33,9 @@
 #include <QList>
 #include <QUrl>
 #include <QShortcut>
+#include <QMessageBox>
 #include "airAlgorithmManager.h"
+#include "airSuperZoom.h"
 
 typedef QList<QUrl> UrlList;
 
@@ -102,6 +104,12 @@ public:
 
 AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     ui.setupUi(this);
+    QGLWidget* glWidget1 = new QGLWidget(QGLFormat(QGL::DoubleBuffer), this);
+    QGLWidget* glWidget2 = new QGLWidget(QGLFormat(QGL::DoubleBuffer), this);
+    
+    ui.graphicsView->setViewport(glWidget1);
+    ui.multipleSliceView->setViewport(glWidget2);
+
     ui.progressBar->hide();
 
     // set up for segmentation tools
@@ -126,6 +134,8 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     QList<QAction*> segmentationMenuActions;
     segmentationMenuActions.append(ui.actionLoadSegmentation);
     segmentationMenuActions.append(ui.actionSaveSegmentation);
+    segmentationMenuActions.append(ui.actionSaveSegmentationAs);
+
     segmentationMenuActions.append(ui.actionNewSegmentation);
     segmentationMenuActions.append(ui.actionPropagateLabel);
     ui.segmentationMenu->addActions(segmentationMenuActions);
@@ -203,6 +213,7 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
 
     connect(ui.actionLoadSegmentation, SIGNAL(triggered()), this, SLOT(LoadSegmentation()));
     connect(ui.actionSaveSegmentation, SIGNAL(triggered()), this, SLOT(SaveSegmentation()));
+    connect(ui.actionSaveSegmentationAs, SIGNAL(triggered()), this, SLOT(SaveSegmentationAs()));
     connect(ui.actionNewSegmentation, SIGNAL(triggered()), ui.graphicsView, SLOT(segmentationCleared()));
     connect(ui.actionPropagateLabel, SIGNAL(triggered()), this, SLOT(PropagateSegmentation()));
     connect(ui.labelOpacity, SIGNAL(sliderMoved(int)), ui.graphicsView, SLOT(labelOpacityChanged(int)));
@@ -671,6 +682,9 @@ void AIRWindow::ChangeSliceDirection() {
         if (requestedSliceIdx == sliderValue) {
             on_sliceSlider_valueChanged(requestedSliceIdx);
         }
+
+        ui.graphicsView->setSceneRect(m_compositeDisplay->boundingRect());
+        ui.graphicsView->centerOn(m_compositeDisplay);
     }
 }
 
@@ -700,16 +714,39 @@ void AIRWindow::LoadSegmentation() {
     if (imageDisplays.IsValidId(m_fixedId)) {
         ui.graphicsView->loadLabelVolume(fileName, imageDisplays[m_fixedId].srcImg);
     }
+    __stringHash["Segmentation"] = fileName;
 }
 
 
 void AIRWindow::SaveSegmentation() {
-    QString fileName = __fileManager.saveFile(QFileManager::Single, this, "Save Segmentation");
+    QString fileName = __stringHash["Segmentation"];
     if (fileName.isEmpty()) {
-        return;
+        fileName = __fileManager.saveFile(QFileManager::Single, this, "Save Segmentation");
+        if (fileName.isEmpty()) {
+            return;
+        }
+    } else {
+        if (QMessageBox::Yes != QMessageBox::question(this, QString("Save Segmentation"), QString("Save this segmentation as %1 ?").arg(fileName), QMessageBox::Yes|QMessageBox::No, QMessageBox::Yes)) {
+            SaveSegmentationAs();
+            return;
+        }
     }
+
     ui.graphicsView->saveLabelVolume(fileName);
 }
+
+void AIRWindow::SaveSegmentationAs() {
+    QString fileName;
+    if (fileName.isEmpty()) {
+        fileName = __fileManager.saveFile(QFileManager::Single, this, "Save Segmentation As");
+        if (fileName.isEmpty()) {
+            return;
+        }
+    }
+    __stringHash["Segmentation"] = fileName;
+    ui.graphicsView->saveLabelVolume(fileName);
+}
+
 
 void AIRWindow::PropagateSegmentation() {
     std::vector<int> workingSet = ui.multipleSliceView->getWorkingSet();
@@ -756,6 +793,10 @@ void AIRWindow::copyLabel() {
 }
 
 void AIRWindow::setupShortcutKeys() {
+    QShortcut* testDialogKey = new QShortcut(QKeySequence(tr(":")), this);
+    testDialogKey->setContext(Qt::ApplicationShortcut);
+    connect(testDialogKey, SIGNAL(activated()), this, SLOT(showTestDialog()));
+    
     // navigation
     QShortcut* prevSliceKey = new QShortcut(QKeySequence(tr("a")), this);
     QShortcut* nextSliceKey = new QShortcut(QKeySequence(tr("d")), this);
@@ -776,8 +817,8 @@ void AIRWindow::setupShortcutKeys() {
     labelOpacityDown->setContext(Qt::ApplicationShortcut);
 
     QShortcut* selectPathTool = new QShortcut(QKeySequence(tr("1")), this);
-    QShortcut* selectBrushTool = new QShortcut(QKeySequence(tr("2")), this);
-    QShortcut* selectEraseTool = new QShortcut(QKeySequence(tr("3")), this);
+    QShortcut* selectEraseTool = new QShortcut(QKeySequence(tr("2")), this);
+    QShortcut* selectBrushTool = new QShortcut(QKeySequence(tr("3")), this);
     QShortcut* selectCopyTool = new QShortcut(QKeySequence(tr("c")), this);
     QShortcut* selectPasteTool = new QShortcut(QKeySequence(tr("v")), this);
 
@@ -799,4 +840,10 @@ void AIRWindow::setupShortcutKeys() {
     connect(selectEraseTool, SIGNAL(activated()), ui.eraseBrush, SLOT(toggle()));
     connect(selectCopyTool, SIGNAL(activated()), this, SLOT(copyLabel()));
     connect(selectPasteTool, SIGNAL(activated()), ui.graphicsView, SLOT(pasteLabel()));
+}
+
+void AIRWindow::showTestDialog() {
+    air::SuperZoom* zoom = new air::SuperZoom(this);
+    zoom->exec();
+    delete zoom;
 }

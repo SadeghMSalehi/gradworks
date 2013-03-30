@@ -183,6 +183,7 @@ void QGraphicsVolumeView::updateDisplay() {
     _displayImages.clear();
     _scene.clear();
     _slicePixmaps.clear();
+    _currentSliceMarker = NULL;
 
     // fire when intensity changed
     AIRImageVector::iterator sliceIter;

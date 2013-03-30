@@ -88,6 +88,7 @@ public slots:
     void ChangeInteractionMode();
     void LoadSegmentation();
     void SaveSegmentation();
+    void SaveSegmentationAs();
     void PropagateSegmentation();
     void brushLabelChanged(int n);
     
@@ -103,6 +104,10 @@ public slots:
     void labelOpacityUp();
     void labelOpacityDown();
     void copyLabel();
+
+
+    // test
+    void showTestDialog();
     
 private:
     friend class vtkMouseHandler;

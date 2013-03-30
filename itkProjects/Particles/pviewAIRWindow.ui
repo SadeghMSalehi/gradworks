@@ -86,7 +86,7 @@
          </brush>
         </property>
         <property name="renderHints">
-         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
+         <set>QPainter::TextAntialiasing</set>
         </property>
        </widget>
        <widget class="QWidget" name="layoutWidget">
@@ -264,8 +264,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>300</width>
-              <height>462</height>
+              <width>150</width>
+              <height>253</height>
              </rect>
             </property>
             <attribute name="label">
@@ -384,8 +384,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>300</width>
-              <height>462</height>
+              <width>242</width>
+              <height>430</height>
              </rect>
             </property>
             <attribute name="label">
@@ -748,32 +748,6 @@
                  </widget>
                 </item>
                 <item>
-                 <widget class="QToolButton" name="freeBrush">
-                  <property name="text">
-                   <string>Brush</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="pviewAIRWindow.qrc">
-                    <normaloff>:/Icons/Images/outline32/Brush 3.png</normaloff>:/Icons/Images/outline32/Brush 3.png</iconset>
-                  </property>
-                  <property name="iconSize">
-                   <size>
-                    <width>32</width>
-                    <height>32</height>
-                   </size>
-                  </property>
-                  <property name="checkable">
-                   <bool>true</bool>
-                  </property>
-                  <property name="toolButtonStyle">
-                   <enum>Qt::ToolButtonTextUnderIcon</enum>
-                  </property>
-                  <property name="autoRaise">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
                  <widget class="QToolButton" name="eraseBrush">
                   <property name="text">
                    <string>Erase</string>
@@ -799,6 +773,32 @@
                   </property>
                   <property name="arrowType">
                    <enum>Qt::NoArrow</enum>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="freeBrush">
+                  <property name="text">
+                   <string>Brush</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="pviewAIRWindow.qrc">
+                    <normaloff>:/Icons/Images/outline32/Brush 3.png</normaloff>:/Icons/Images/outline32/Brush 3.png</iconset>
+                  </property>
+                  <property name="iconSize">
+                   <size>
+                    <width>32</width>
+                    <height>32</height>
+                   </size>
+                  </property>
+                  <property name="checkable">
+                   <bool>true</bool>
+                  </property>
+                  <property name="toolButtonStyle">
+                   <enum>Qt::ToolButtonTextUnderIcon</enum>
+                  </property>
+                  <property name="autoRaise">
+                   <bool>true</bool>
                   </property>
                  </widget>
                 </item>
@@ -1006,7 +1006,7 @@
                   <string>Paste Previous</string>
                  </property>
                 </widget>
-                <widget class="QWidget" name="">
+                <widget class="QWidget" name="layoutWidget">
                  <property name="geometry">
                   <rect>
                    <x>20</x>
@@ -1064,11 +1064,7 @@
                   </item>
                  </layout>
                 </widget>
-                <zorder>labelOpacity</zorder>
-                <zorder>kMeanUseForeground</zorder>
-                <zorder>kMeanUseAllLabels</zorder>
-                <zorder>kMeanUseForeground_2</zorder>
-                <zorder>label_9</zorder>
+                <zorder>layoutWidget</zorder>
                 <zorder>label_14</zorder>
                 <zorder>kMeansRun</zorder>
                 <zorder>pushButton_2</zorder>
@@ -1090,13 +1086,7 @@
               </spacer>
              </item>
             </layout>
-            <zorder>layoutWidget</zorder>
-            <zorder>segmentationMenu</zorder>
             <zorder>labelTools</zorder>
-            <zorder>foregroundBrush</zorder>
-            <zorder>backgroundBrush</zorder>
-            <zorder>label_12</zorder>
-            <zorder>label_13</zorder>
             <zorder>stackedWidget</zorder>
             <zorder>progressBar</zorder>
             <zorder>verticalSpacer</zorder>
@@ -1271,6 +1261,10 @@
    </property>
   </action>
   <action name="actionNewSegmentation">
+   <property name="icon">
+    <iconset resource="pviewAIRWindow.qrc">
+     <normaloff>:/Icons/Images/New-File-icon.png</normaloff>:/Icons/Images/New-File-icon.png</iconset>
+   </property>
    <property name="text">
     <string>Clear Segmentation</string>
    </property>
@@ -1279,6 +1273,10 @@
    </property>
   </action>
   <action name="actionSaveSegmentation">
+   <property name="icon">
+    <iconset resource="pviewAIRWindow.qrc">
+     <normaloff>:/Icons/Images/Save-icon.png</normaloff>:/Icons/Images/Save-icon.png</iconset>
+   </property>
    <property name="text">
     <string>Save Segmentation</string>
    </property>
@@ -1287,6 +1285,10 @@
    </property>
   </action>
   <action name="actionLoadSegmentation">
+   <property name="icon">
+    <iconset resource="pviewAIRWindow.qrc">
+     <normaloff>:/Icons/Images/Segmentation-Load.png</normaloff>:/Icons/Images/Segmentation-Load.png</iconset>
+   </property>
    <property name="text">
     <string>Load Segmentation</string>
    </property>
@@ -1316,6 +1318,15 @@
    </property>
    <property name="toolTip">
     <string>Paste the copied segmentation label</string>
+   </property>
+  </action>
+  <action name="actionSaveSegmentationAs">
+   <property name="icon">
+    <iconset resource="pviewAIRWindow.qrc">
+     <normaloff>:/Icons/Images/SaveAs-Icon.png</normaloff>:/Icons/Images/SaveAs-Icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save Segmentation As ...</string>
    </property>
   </action>
  </widget>

@@ -15,6 +15,7 @@
 #include <QHash>
 #include <QString>
 
+
 class QFileManager {
 private:
     QHash<int,QString> _sourceDirectories;
@@ -31,5 +32,6 @@ public:
 };
 
 extern QFileManager __fileManager;
+extern QHash<QString,QString> __stringHash;
 
 #endif /* defined(__ParticleGuidedRegistration__qutils__) */

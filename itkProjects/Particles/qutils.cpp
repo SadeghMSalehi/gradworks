@@ -11,6 +11,7 @@
 #include <QFileInfo>
 
 QFileManager __fileManager;
+QHash<QString,QString> __stringHash;
 
 void QFileManager::putFile(int key, QString fileName) {
     QFileInfo fileInfo(fileName);
@@ -30,7 +31,6 @@ QString QFileManager::openFile(int key, QWidget* parent, QString msg, QString fi
     if (dir.isEmpty()) {
         dir = _sourceDirectories[key];
     }
-    std::cout << dir.toStdString() << std::endl;
     QString fileName = QFileDialog::getOpenFileName(parent, msg, dir, filter);
     if (fileName.isEmpty()) {
         return fileName;

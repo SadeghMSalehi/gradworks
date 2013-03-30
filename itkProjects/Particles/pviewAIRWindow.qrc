@@ -1,5 +1,9 @@
 <RCC>
   <qresource prefix="Icons">
+    <file>Images/New-File-icon.png</file>
+    <file>Images/Save-icon.png</file>
+    <file>Images/SaveAs-Icon.png</file>
+    <file>Images/Segmentation-Load.png</file>
     <file>Images/Copy-icon.png</file>
     <file>Images/Paste-icon.png</file>
     <file>Images/background-label.png</file>
