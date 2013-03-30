@@ -15,6 +15,10 @@
 #include <QBitmap>
 #include "piImageSlice.h"
 
+extern uint __maxLabelColors;
+extern uint __labelColors[254];
+extern uint* __labelColorsPtr;
+
 class QAbstractGraphicsShapeItem;
 
 class QGraphicsGuideView: public QGraphicsView {
@@ -48,8 +52,9 @@ private:
 
     int _volumeSliceIdx;
     pi::SliceDirectionEnum _volumeSliceDirection;
-    pi::AIRLabel::Pointer _volumeSlice;
+    pi::AIRLabelSlice _volumeSlice;
     pi::AIRLabel::Pointer _labelVolume;
+    pi::AIRLabel::Pointer _copiedSlice;
 
 
 private: // private methods
@@ -62,11 +67,6 @@ private: // private methods
     void volumeToSlice();
     void sliceToLabelImage();
 
-    inline uint colorTable(pi::AIRClass p) {
-        QColor c;
-        static uint colors[5] = { 0, qRgb(0xff,0xff,0), qRgb(0,0xff,0), qRgb(0xff,0,0xff), qRgb(0,0xff,0xff) };
-        return colors[p];
-    }
 
 public:
     QGraphicsGuideView(QWidget* parent = NULL);
@@ -87,14 +87,27 @@ public:
     void brushMoveEvent(QMouseEvent* event);
     void brushEndEvent(QMouseEvent* event);
 
+    void setInteractionLabels(int f, int b);
+
+    inline uint colorTable(pi::AIRClass p) {
+        QColor c;
+        return __labelColorsPtr[p];
+    }
+
+    pi::AIRLabelSlice getLabelSlice();
+
 public slots:
     void segmentationCleared();
     void labelOpacityChanged(int n);
     void sliceChanged(pi::SliceDirectionEnum dir, int n);
     void labelVolumeChanged(pi::AIRLabel::Pointer);
-    void createLabelVolume(pi::AIRImage::Pointer);
+    void createLabelVolumeIfNecessary(pi::AIRImage::Pointer);
+    void loadLabelVolume(QString& fileName, pi::AIRImage::Pointer);
     void saveLabelVolume(QString& fileName);
     void propagateLabel(pi::IntVector& targetSlices);
+
+    void copyLabel();
+    void pasteLabel();
 };
 
 #endif /* defined(__ParticleGuidedRegistration__QGraphicsGuideView__) */

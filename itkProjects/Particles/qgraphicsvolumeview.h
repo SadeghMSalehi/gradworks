@@ -22,7 +22,8 @@
 class QGraphicsVolumeView: public QGraphicsView {
     Q_OBJECT
 public:
-    enum PixmapItemKey { SliceIndex, SliceHighlight };
+    enum PixmapItemKey { SliceIndex, RealSliceIndex, AnnotationType };
+    enum { SliceImage, SliceMarker, WorkingSet };
     
     QGraphicsVolumeView(QWidget* parent = NULL);
 
@@ -32,19 +33,25 @@ public:
 
     void mousePressEvent(QMouseEvent* event);
     void mouseReleaseEvent(QMouseEvent* event);
+    void mouseDoubleClickEvent(QMouseEvent* event);
     
     std::vector<int> getWorkingSet();
+
+signals:
+    void sliceDoubleClicked(int n);
 
 public slots:
     void updateDisplay();
     void createWorkingSet();
+    void removeWorkingSetItem(int i);
     void clearWorkingSet();
+    void currentSliceChanged(int slice);
 
 private:
     bool checkSliceCache();
     bool checkVolumeCache();
     bool updateSource();
-    void highlightSlice(QGraphicsPixmapItem *sliceItem);
+    void addWorkingSetItem(QGraphicsPixmapItem *sliceItem);
 
     
 private:
@@ -63,9 +70,13 @@ private:
     pi::SliceDirectionEnum _directionCache;
     pi::AIRImage::Pointer _volumeCache;
 
+    itk::ModifiedTimeType _volumeSourceModifiedTime;
+    pi::AIRImage::Pointer _volumeSource;
+
     typedef QSet<int> QIntSet;
     QIntSet _workingSet;
 
+    QGraphicsRectItem* _currentSliceMarker;
     QVector<QGraphicsPixmapItem*> _slicePixmaps;
 };
 

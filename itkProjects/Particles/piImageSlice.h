@@ -104,64 +104,115 @@ namespace pi {
 
     enum SliceDirectionEnum { IJ = 2, JK = 0, KI = 1, Unknown = -1 };
 
-    template<class T>
-    class ImageResampleGrid {
-    private:
-        typename T::Pointer GridImg;
+
+    class SliceView {
+    protected:
         int _width;
         int _height;
-        SliceDirectionEnum SliceDirection;
+        int _index;
+        SliceDirectionEnum _sliceDirection;
+    public:
+        SliceView(): _width(0), _height(0), _index(-1), _sliceDirection(Unknown) {}
+        SliceView(int w, int h, int i, SliceDirectionEnum d): _width(w), _height(h), _index(i), _sliceDirection(d) {}
+        virtual ~SliceView() {}
+        inline int Width() { return _width; }
+        inline int Height() { return _height; }
+        inline int Index() { return _index; }
+        inline SliceDirectionEnum Direction() { return _sliceDirection; }
+    };
+
+    template<class T>
+    class SliceDisplay: public SliceView {
+    private:
+        typename T::Pointer _sliceImg;
+        int _depth;
 
     public:
-        ImageResampleGrid(typename T::Pointer gridImg) {
-            GridImg = gridImg;
-            
+        SliceDisplay() : _depth(0) {
+        }
+        
+        SliceDisplay(typename T::Pointer gridImg): SliceView(0,0,-1,Unknown), _depth(0) {
+            _sliceImg = gridImg;
+            if (_sliceImg.IsNull()) {
+                cout << "source image is null " << __FILE__ << ":" << __LINE__ << endl;
+                return;
+            }
+
             typename T::RegionType region = gridImg->GetBufferedRegion();
             if (region.GetSize(0) == 1) {
-                SliceDirection = JK;
+                _sliceDirection = JK;
                 _width = region.GetSize(1);
                 _height = region.GetSize(2);
+                _index = region.GetIndex(0);
             } else if (region.GetSize(1) == 1) {
-                SliceDirection = KI;
+                _sliceDirection = KI;
+                _index = region.GetIndex(1);
                 _width = region.GetSize(0);
                 _height = region.GetSize(2);
             } else if (region.GetSize(2) == 1) {
+                _index = region.GetIndex(2);
                 _width = region.GetSize(0);
                 _height = region.GetSize(1);
-                SliceDirection = IJ;
+                _sliceDirection = IJ;
+            } else {
+                _sliceDirection = Unknown;
+                _width = region.GetSize(0);
+                _height = region.GetSize(1);
+                _depth = region.GetSize(2);
+                _index = region.GetIndex(0);
             }
         }
 
-        SliceDirectionEnum Direction() {
-            return SliceDirection;
+        int Index() {
+            return _index;
         }
-        
+
         typename T::ConstPointer GetConstImage() {
-            return typename T::ConstPointer(GridImg);
+            return typename T::ConstPointer(_sliceImg);
+        }
+
+        typename T::Pointer GetImage() {
+            return _sliceImg;
         }
         
         operator typename T::Pointer() {
-            return GridImg;
+            return _sliceImg;
         }
 
         operator const T*() {
-            return GridImg.GetPointer();
+            return _sliceImg.GetPointer();
         }
 
         bool IsNull() {
-            return GridImg.IsNull();
+            return _sliceImg.IsNull();
         }
 
         bool IsNotNull() {
-            return GridImg.IsNotNull();
+            return _sliceImg.IsNotNull();
+        }
+        inline int Depth() {
+            return _depth;
         }
 
-        inline int Width() {
-            return _width;
+        uchar* GetBufferPointer() {
+            if (_sliceImg.IsNull()) {
+                return NULL;
+            }
+            return _sliceImg->GetBufferPointer();
         }
 
-        inline int Height() {
-            return _height;
+        typename T::RegionType GetRegion() {
+            if (_sliceImg.IsNull()) {
+                return typename T::RegionType();
+            }
+            return _sliceImg->GetBufferedRegion();
+        }
+
+        void FillBuffer(typename T::PixelType p) {
+            if (_sliceImg.IsNull()) {
+                return;
+            }
+            _sliceImg->FillBuffer(p);
         }
     };
 
@@ -170,7 +221,7 @@ namespace pi {
     public:
         typedef itk::AffineTransform<double> TransformType;
         typedef TransformType::OutputVectorType VectorType;
-        typedef ImageResampleGrid<T> GridType;
+        typedef SliceDisplay<T> GridType;
 
     private:
         TransformType::Pointer _affineTransform;
@@ -396,15 +447,17 @@ namespace pi {
 
 
     template<class T>
-    typename T::Pointer ExtractSlice(typename T::Pointer srcImg, int idx, SliceDirectionEnum dir) {
+    SliceDisplay<T> ExtractSlice(typename T::Pointer srcImg, int idx, SliceDirectionEnum dir) {
         typename T::Pointer emptyImg;
         if (srcImg.IsNull() || dir == Unknown) {
+            cout << "source is null or direction unknown:" << __FILE__ << ":" << __LINE__ << endl;
             return emptyImg;
         }
 
         typename T::RegionType sliceRegion = srcImg->GetBufferedRegion();
         typename T::SizeType srcSize = sliceRegion.GetSize();
         if (srcSize[dir] <= idx || idx < 0) {
+            cout << "slice index is wrong: " << idx << " >= " << srcSize[dir] << __FILE__ << ":" << __LINE__ << endl;
             return emptyImg;
         }
         sliceRegion.SetIndex(dir, idx);
@@ -417,7 +470,7 @@ namespace pi {
         filter->Update();
         typename T::Pointer sliceImg = filter->GetOutput();
         sliceImg->DisconnectPipeline();
-        return sliceImg;
+        return SliceDisplay<T>(sliceImg);
     }
 
 
@@ -425,7 +478,7 @@ namespace pi {
     template<class T>
     class ImageDisplayCollection {
     public:
-        typedef ImageResampleGrid<T> GridType;
+        typedef SliceDisplay<T> GridType;
         typedef ImageDisplay<T> ImageDisplayType;
         typedef std::vector<ImageDisplayType> ImageDisplayVector;
 
@@ -560,7 +613,7 @@ namespace pi {
         }
 
         // recreate a slice grid
-        void SetSliceGrid(SliceDirectionEnum axis, int index) {
+        void SetReferenceSlice(SliceDirectionEnum axis, int index) {
             typename T::Pointer srcImg = GetReferenceGrid();
             if (srcImg.IsNull()) {
                 cout << "Emtpy reference grid" << endl;
@@ -571,10 +624,10 @@ namespace pi {
             if (sliceImg.IsNull()) {
                 return;
             }
-            SetResampleGrid(sliceImg);
+            SetReferenceSlice(sliceImg);
         }
 
-        void SetResampleGrid(typename T::Pointer grid) {
+        void SetReferenceSlice(typename T::Pointer grid) {
             _resampleGrids.clear();
             _resampleGrids.push_back(GridType(grid));
             for (int i = 0; i < _imageDisplays.size(); i++) {
@@ -585,8 +638,10 @@ namespace pi {
 
     typedef std::vector<RGBAVolumeType::Pointer> RGBAImageVector;
     typedef std::vector<AIRImage::Pointer> AIRImageVector;
-    typedef ImageDisplay<AIRImage> AIRDisplayImage;
-    typedef std::vector<AIRDisplayImage> AIRDISplayVector;
+    typedef SliceDisplay<AIRLabel> AIRLabelSlice;
+    typedef SliceDisplay<AIRImage> AIRImageSlice;
+    typedef ImageDisplay<AIRImage> AIRImageDisplay;
+    typedef std::vector<AIRImageDisplay> AIRDisplayVector;
     typedef ImageDisplayCollection<AIRImage> AIRDisplayCollection;
 
     

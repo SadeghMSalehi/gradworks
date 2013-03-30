@@ -33,7 +33,7 @@ bool QGraphicsCompositeImageItem::CheckCompositeBuffer(int id1) {
     // check composite image
     if (_compositeImage.IsNull()
         || _compositeImage->GetBufferedRegion() != fImg->GetBufferedRegion()) {
-        _compositeImage = io.CopyImage(fImg);
+        _compositeImage = io.CastImageToS<RealImage>(fImg);
     }
     return _compositeImage.IsNotNull();
 }
@@ -44,15 +44,15 @@ void QGraphicsCompositeImageItem::CompositeAlpha(int id1, int id2) {
     }
 
     _viewMin = 0;
-    _viewMax = USHRT_MAX;
+    _viewMax = 1;
 
     // prepare input and output buffer
     ImageDisplayType* img1 = _imageDisplays->at(id1);
     AIRImage::Pointer fImg = img1->GetResampled(_resampleIdx);
     const int nElems = fImg->GetPixelContainer()->Size();
-    AIRPixel* cBuf = _compositeImage->GetBufferPointer();
+    DataReal* cBuf = _compositeImage->GetBufferPointer();
     AIRPixel* fBuf = fImg->GetBufferPointer();
-    UShortClamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
+    Clamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
 
     if (_imageDisplays->IsValidId(id2)) {
         // if there is more than one image,
@@ -60,17 +60,17 @@ void QGraphicsCompositeImageItem::CompositeAlpha(int id1, int id2) {
         AIRImage::Pointer mImg = img2->GetResampled(_resampleIdx);
         AIRPixel* mBuf = mImg->GetBufferPointer();
 
-        UShortClamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
+        Clamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
         for (int i = 0; i < nElems; i++) {
-            const AIRPixel f = fClamp(fBuf[i]);
-            const AIRPixel m = mClamp(mBuf[i]);
-            cBuf[i] = AIRPixel(_alpha*f+(1-_alpha)*m);
+            const float f = fClamp(fBuf[i]);
+            const float m = mClamp(mBuf[i]);
+            cBuf[i] = _alpha*f+(1-_alpha)*m;
         }
     } else {
         // for the case of single image
         for (int i = 0; i < nElems; i++) {
-            const AIRPixel f = fClamp(fBuf[i]);
-            cBuf[i] = AIRPixel(_alpha * f);
+            const float f = fClamp(fBuf[i]);
+            cBuf[i] = _alpha * f;
         }
     }
 }
@@ -84,7 +84,7 @@ void QGraphicsCompositeImageItem::CompositeCheckerBoard(int id1, int id2) {
         return;
     }
     _viewMin = 0;
-    _viewMax = USHRT_MAX;
+    _viewMax = 1;
     
     // prepare input and output buffer
     ImageDisplayType* img1 = _imageDisplays->at(id1);
@@ -95,7 +95,7 @@ void QGraphicsCompositeImageItem::CompositeCheckerBoard(int id1, int id2) {
     AIRImage::Pointer mImg = img2->GetResampled(_resampleIdx);
     AIRPixel* mBuf = mImg->GetBufferPointer();
 
-    AIRPixel* cBuf = _compositeImage->GetBufferPointer();
+    DataReal* cBuf = _compositeImage->GetBufferPointer();
 
     // FIXME: need to select appropriate size, probably function at imageDisplays
     int w = _imageDisplays->GetGrid(_resampleIdx).Width();
@@ -107,14 +107,14 @@ void QGraphicsCompositeImageItem::CompositeCheckerBoard(int id1, int id2) {
     cout << cbszW << endl;
     cout << cbszH << endl;
 
-    UShortClamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
-    UShortClamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
+    Clamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
+    Clamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
 
     int k = 0;
     for (int j = 0; j < h; j++) {
         for (int i = 0; i < w; i++, k++) {
-            const AIRPixel f = fClamp(fBuf[k]);
-            const AIRPixel m = mClamp(mBuf[k]);
+            const float f = fClamp(fBuf[k]);
+            const float m = mClamp(mBuf[k]);
             if ((i/cbszW)%2 == (j/cbszH)%2) {
                 cBuf[k] = f;
             } else {
@@ -141,16 +141,16 @@ void QGraphicsCompositeImageItem::CompositeDifference(int id1, int id2) {
     ImageDisplayType* img2 = _imageDisplays->at(id2);
     AIRImage::Pointer mImg = img2->GetResampled(_resampleIdx);
     AIRPixel* mBuf = mImg->GetBufferPointer();
-    AIRPixel* cBuf = _compositeImage->GetBufferPointer();
+    DataReal* cBuf = _compositeImage->GetBufferPointer();
 
 
-    UShortClamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
-    UShortClamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
+    Clamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
+    Clamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
 
     int nElems = fImg->GetPixelContainer()->Size();
     for (int i = 0; i < nElems; i++) {
-        const AIRPixel f = fClamp(fBuf[i]);
-        const AIRPixel m = mClamp(mBuf[i]);
+        const float f = fClamp(fBuf[i]);
+        const float m = mClamp(mBuf[i]);
         cBuf[i] = std::abs(m-f);
         if (i == 0) {
             _viewMin = cBuf[i];
@@ -185,7 +185,7 @@ void QGraphicsCompositeImageItem::Refresh(int id1, int id2) {
 
     // convert to color image
     // assume that the composite image ranges from 0 to 65535 (in short range)
-    typedef itk::ScalarToARGBColormapImageFilter<AIRImage, RGBAVolumeType> ColorFilterType;
+    typedef itk::ScalarToARGBColormapImageFilter<RealImage, RGBAVolumeType> ColorFilterType;
 
     ColorFilterType::Pointer colorFilter = ColorFilterType::New();
     colorFilter->SetInput(_compositeImage);

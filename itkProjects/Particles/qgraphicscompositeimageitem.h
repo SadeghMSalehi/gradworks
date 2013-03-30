@@ -27,6 +27,21 @@ public:
     }
 };
 
+class FloatClamper {
+public:
+    const float Min;
+    const float Max;
+
+    FloatClamper(float min, float max): Min(min), Max(max) {
+    }
+
+    inline float operator()(float f) {
+        return (f-Min)/(Max-Min);
+    }
+};
+
+typedef FloatClamper Clamper;
+
 class QGraphicsCompositeImageItem: public QObject, public QGraphicsPixmapItem {
     Q_OBJECT
 
@@ -46,7 +61,7 @@ private:
     int _resampleIdx;
     double _alpha;
     int _cbRows, _cbCols;
-    pi::AIRPixel _viewMin, _viewMax;
+    pi::DataReal _viewMin, _viewMax;
 
     InteractionMode _mode;
     CompositionMode _compositionMode;
@@ -58,7 +73,7 @@ private:
     pi::RGBAVolumeType::Pointer _rgbImage;
 
     // memory holder for composite image
-    pi::AIRImage::Pointer _compositeImage;
+    pi::RealImage::Pointer _compositeImage;
 
     // drawing buffer for current image
     QImage m_drawingImage;

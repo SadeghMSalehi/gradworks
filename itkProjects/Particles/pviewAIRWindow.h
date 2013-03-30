@@ -21,6 +21,9 @@
 #include "piImageIO.h"
 #include "vtkMatrix4x4.h"
 
+namespace air {
+    class AlgorithmManager;
+}
 
 class QGLWidget;
 class QVTKWidget2;
@@ -47,9 +50,14 @@ public:
     void UpdateCompositeDisplay();
     bool UpdateMovingDisplayTransform(vtkMatrix4x4* mat);
 
+    bool IsImage1Loaded();
+    bool IsImage2Loaded();
+
 protected:
     void dragEnterEvent(QDragEnterEvent* event);
     void dropEvent(QDropEvent* event);
+
+    void setupShortcutKeys();
     
 public slots:
     void on_actionResample_triggered();
@@ -75,19 +83,30 @@ public slots:
 
     void OnTranslationWidgetChanged();
     void UpdateTranslationWidget();
-    void UpdateSliceDirection();
+    void ChangeSliceDirection();
+    void ChangeSliceIndex(int n);
     void ChangeInteractionMode();
+    void LoadSegmentation();
     void SaveSegmentation();
     void PropagateSegmentation();
+    void brushLabelChanged(int n);
     
     void on_image1Name_clicked(bool checked);
     void on_image2Name_clicked(bool checked);
     void on_image1Name_fileDropped(QString& fileName);
     void on_image2Name_fileDropped(QString& fileName);
+
+    void previousSlice();
+    void nextSlice();
+    void sliceZoomIn();
+    void sliceZoomOut();
+    void labelOpacityUp();
+    void labelOpacityDown();
     
 private:
     friend class vtkMouseHandler;
-
+    friend class air::AlgorithmManager;
+    
     Ui::AIRWindow ui;
     QGraphicsScene m_scene;
     QVTKWidget2* qvtkWidget;
@@ -96,7 +115,7 @@ private:
 
     int m_fixedId;
     int m_movingId;
-    pi::SliceDirectionEnum m_currentSliceDir;
+    pi::SliceDirectionEnum m_requestedSliceDir, m_currentSliceDir;
     int m_currentSliceIndex[3];
 
     QActionGroup m_sliceDirectionActions;
@@ -104,6 +123,10 @@ private:
 
     pi::ImageIO<pi::AIRImage> io;
     QButtonGroup* _drawingToolButtons;
+
+    QList<QIcon> _segmentationLabels;
+
+    air::AlgorithmManager* _algorithms;
 };
 
 #endif /* defined(__ParticleGuidedRegistration__pviewAIRWindow__) */

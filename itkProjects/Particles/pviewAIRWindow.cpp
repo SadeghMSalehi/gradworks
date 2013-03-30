@@ -26,12 +26,14 @@
 #include "itkExtractImageFilter.h"
 #include "qgraphicscompositeimageitem.h"
 #include "qgraphicsvolumeview.h"
-#include "QFileDialog"
+#include "qutils.h"
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
 #include <QList>
 #include <QUrl>
+#include <QShortcut>
+#include "airAlgorithmManager.h"
 
 typedef QList<QUrl> UrlList;
 
@@ -100,6 +102,7 @@ public:
 
 AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     ui.setupUi(this);
+    ui.progressBar->hide();
 
     // set up for segmentation tools
     _drawingToolButtons = new QButtonGroup(this);
@@ -109,12 +112,29 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     ui.freePath->setChecked(true);
 
 
+    ui.backgroundBrush->addItem("Any", QVariant(255));
+    ui.backgroundBrush->addItem("Empty", QVariant(0));
+    for (int i = 1; i < __maxLabelColors; i++) {
+        QImage iconImg(16,16, QImage::Format_RGB32);
+        iconImg.fill(ui.graphicsView->colorTable(uchar(i)));
+        QIcon icon(QPixmap::fromImage(iconImg));
+        ui.foregroundBrush->addItem(icon, QString("%1").arg(i), QVariant(i));
+        ui.backgroundBrush->addItem(icon, QString("%1").arg(i), QVariant(i));
+    }
+
+
     QList<QAction*> segmentationMenuActions;
-    segmentationMenuActions.append(ui.actionNewSegmentation);
+    segmentationMenuActions.append(ui.actionLoadSegmentation);
     segmentationMenuActions.append(ui.actionSaveSegmentation);
+    segmentationMenuActions.append(ui.actionNewSegmentation);
     segmentationMenuActions.append(ui.actionPropagateLabel);
     ui.segmentationMenu->addActions(segmentationMenuActions);
 
+    ui.copyButton->setDefaultAction(ui.actionCopyLabel);
+    ui.pasteButton->setDefaultAction(ui.actionPasteLabel);
+
+
+    // transformation widget
     vtkRenderer* renderer = vtkRenderer::New();
     m_mouseHandler = new vtkMouseHandler();
     m_mouseHandler->SetAIRWindow(this);
@@ -129,8 +149,6 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
         style->AddObserver(vtkCommand::LeftButtonReleaseEvent, m_mouseHandler);
         style->AddObserver(vtkCommand::MouseMoveEvent, m_mouseHandler);
     }
-    //    ui.graphicsView->setViewport(qvtkWidget);
-    ui.graphicsView->setScene(&m_scene);
 
     pivtk::PolyDataPointer sphere = pivtk::CreateSphere(60, 60);
     m_propScene.SetRenderer(renderer);
@@ -140,8 +158,17 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     renderer->ResetCamera();
     renderer->Render();
 
+
+    // slice direction and navigation
+    ui.graphicsView->setScene(&m_scene);
+
     m_fixedId = -1;
     m_movingId = -1;
+    m_currentSliceDir = IJ;
+    m_requestedSliceDir = IJ;
+
+    setupShortcutKeys();
+
 
     m_compositeDisplay = new QGraphicsCompositeImageItem();
     m_compositeDisplay->SetImageDisplays(&imageDisplays);
@@ -152,7 +179,6 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     m_sliceDirectionActions.addAction(ui.actionSliceKI);
     m_sliceDirectionActions.setExclusive(true);
     ui.actionSliceIJ->setChecked(true);
-    m_currentSliceDir = IJ;
 
 
 #pragma mark QObject Signal-Slot Connections
@@ -161,9 +187,9 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
 
     // slice view selection related signals
     connect(m_compositeDisplay, SIGNAL(translationChanged()), this, SLOT(UpdateTranslationWidget()));
-    connect(ui.actionSliceIJ, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
-    connect(ui.actionSliceJK, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
-    connect(ui.actionSliceKI, SIGNAL(triggered()), this, SLOT(UpdateSliceDirection()));
+    connect(ui.actionSliceIJ, SIGNAL(triggered()), this, SLOT(ChangeSliceDirection()));
+    connect(ui.actionSliceJK, SIGNAL(triggered()), this, SLOT(ChangeSliceDirection()));
+    connect(ui.actionSliceKI, SIGNAL(triggered()), this, SLOT(ChangeSliceDirection()));
     connect(ui.actionDrawing, SIGNAL(triggered()), this, SLOT(ChangeInteractionMode()));
 
     // working-set related signals
@@ -171,27 +197,50 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     connect(ui.actionClearWorkingSet, SIGNAL(triggered()), ui.multipleSliceView, SLOT(clearWorkingSet()));
 
     // drawing related signals
-    connect(_drawingToolButtons, SIGNAL(buttonClicked(int)), this, SLOT(ChangeInteractionMode()));
-    connect(ui.actionNewSegmentation, SIGNAL(triggered()), ui.graphicsView, SLOT(segmentationCleared()));
+    connect(ui.freeBrush, SIGNAL(toggled(bool)), this, SLOT(ChangeInteractionMode()));
+    connect(ui.freePath, SIGNAL(toggled(bool)), this, SLOT(ChangeInteractionMode()));
+    connect(ui.eraseBrush, SIGNAL(toggled(bool)), this, SLOT(ChangeInteractionMode()));
+
+    connect(ui.actionLoadSegmentation, SIGNAL(triggered()), this, SLOT(LoadSegmentation()));
     connect(ui.actionSaveSegmentation, SIGNAL(triggered()), this, SLOT(SaveSegmentation()));
+    connect(ui.actionNewSegmentation, SIGNAL(triggered()), ui.graphicsView, SLOT(segmentationCleared()));
     connect(ui.actionPropagateLabel, SIGNAL(triggered()), this, SLOT(PropagateSegmentation()));
     connect(ui.labelOpacity, SIGNAL(sliderMoved(int)), ui.graphicsView, SLOT(labelOpacityChanged(int)));
+    connect(ui.labelOpacity, SIGNAL(valueChanged(int)), ui.graphicsView, SLOT(labelOpacityChanged(int)));
+    connect(ui.foregroundBrush, SIGNAL(currentIndexChanged(int)), this, SLOT(brushLabelChanged(int)));
+    connect(ui.backgroundBrush, SIGNAL(currentIndexChanged(int)), this, SLOT(brushLabelChanged(int)));
+    connect(ui.actionCopyLabel, SIGNAL(triggered()), ui.graphicsView, SLOT(copyLabel()));
+    connect(ui.actionPasteLabel, SIGNAL(triggered()), ui.graphicsView, SLOT(pasteLabel()));
 
     // slice navigation
     connect(ui.sliceNumber, SIGNAL(valueChanged(int)), ui.sliceSlider, SLOT(setValue(int)));
     connect(ui.sliceSlider, SIGNAL(valueChanged(int)), ui.sliceNumber, SLOT(setValue(int)));
+    connect(ui.sliceSlider, SIGNAL(valueChanged(int)), ui.multipleSliceView, SLOT(currentSliceChanged(int)));
+    connect(ui.multipleSliceView, SIGNAL(sliceDoubleClicked(int)), ui.sliceSlider, SLOT(setValue(int)));
 
-    
     ui.multipleSliceView->addAction(ui.actionNewWorkingSet);
     ui.multipleSliceView->addAction(ui.actionPropagateLabel);
     ui.multipleSliceView->addAction(ui.actionClearWorkingSet);
 
     ui.multipleSliceView->hide();
+
+    // Prepare algorithm manager
+    _algorithms = new air::AlgorithmManager(this, ui);
+
 }
 
 AIRWindow::~AIRWindow() {
     m_mouseHandler->UnRegister();
 }
+
+bool AIRWindow::IsImage1Loaded() {
+    return imageDisplays.IsValidId(m_fixedId);
+}
+
+bool AIRWindow::IsImage2Loaded() {
+    return imageDisplays.IsValidId(m_movingId);
+}
+
 
 void AIRWindow::LoadImage(QString fileName) {
     if (!fileName.isEmpty() && !imageDisplays.IsValidId(m_movingId)) {
@@ -285,7 +334,7 @@ void AIRWindow::dropEvent(QDropEvent *event) {
 
 void AIRWindow::on_image1Name_clicked(bool checked) {
     if (checked) {
-        QString fileName = QFileDialog::getOpenFileName(this, "Load a fixed image", ".");
+        QString fileName = __fileManager.openFile(QFileManager::Single, this, "Load a fixed image");
         if (fileName.isNull()) {
             return;
         }
@@ -298,7 +347,7 @@ void AIRWindow::on_image1Name_clicked(bool checked) {
 
 void AIRWindow::on_image2Name_clicked(bool checked) {
     if (checked) {
-        QString fileName = QFileDialog::getOpenFileName(this, "Load a fixed image", ".");
+        QString fileName = __fileManager.openFile(QFileManager::Single, this, "Load a moving image");
         if (fileName.isNull()) {
             return;
         }
@@ -319,8 +368,11 @@ void AIRWindow::on_image1Name_fileDropped(QString& fileName) {
     if (!imageDisplays.SetImage(0, image)) {
         return;
     }
-    ui.graphicsView->createLabelVolume(imageDisplays[0].srcImg);
-    
+
+    ui.graphicsView->createLabelVolumeIfNecessary(imageDisplays[0].srcImg);
+
+    __fileManager.putFile(QFileManager::Single, fileName);
+
     m_fixedId = 0;
     ui.alphaOptions->setEnabled(true);
     ui.compositionOptions->setEnabled(false);
@@ -352,7 +404,7 @@ void AIRWindow::on_image1Name_fileDropped(QString& fileName) {
     m_currentSliceIndex[KI] = imageDisplays.GetReferenceSize(KI)/2.0;
 
     // slice axis selection
-    UpdateSliceDirection();
+    ChangeSliceDirection();
 
     ui.image1Name->setText(fileName.right(20));
     ui.image1Name->setToolTip(fileName);
@@ -402,24 +454,24 @@ void AIRWindow::on_image2Name_fileDropped(QString& fileName) {
 
 void AIRWindow::on_actionResample_triggered() {
     if (imageDisplays.IsValidId(m_movingId)) {
-        QString saveFilename = QFileDialog::getSaveFileName(this, "Save Image File", ".");
-        if (saveFilename.isNull()) {
+        QString fileName = __fileManager.saveFile(QFileManager::Single, this, "Save Resampled");
+        if (fileName.isNull()) {
             return;
         }
         pi::ImageIO<AIRImage> io;
         AIRImage::Pointer resampledImg = imageDisplays[m_movingId].Resample3D(imageDisplays.GetReferenceGrid(), 0);
-        io.WriteImage(saveFilename.toUtf8().data(), resampledImg);
+        io.WriteImage(fileName.toUtf8().data(), resampledImg);
     }
 }
 
 void AIRWindow::on_actionLoadTransform_triggered() {
     if (imageDisplays.IsValidId(m_movingId)) {
-        QString loadFilename = QFileDialog::getOpenFileName(this, "Load Transform File", ".");
-        if (loadFilename.isNull()) {
+        QString fileName = __fileManager.openFile(QFileManager::Single, this, "Load a transform");
+        if (fileName.isNull()) {
             return;
         }
         pi::ImageIO<AIRImage> io;
-        pi::ImageIO<AIRImage>::TransformType::Pointer transform = io.ReadTransform(loadFilename.toUtf8().data());
+        pi::ImageIO<AIRImage>::TransformType::Pointer transform = io.ReadTransform(fileName.toUtf8().data());
         imageDisplays[m_movingId].SetAffineTransform(transform);
         UpdateTranslationWidget();
         UpdateCompositeDisplay();
@@ -428,14 +480,14 @@ void AIRWindow::on_actionLoadTransform_triggered() {
 
 void AIRWindow::on_actionSaveTransform_triggered() {
     if (imageDisplays.IsValidId(m_movingId)) {
-        QString saveFilename = QFileDialog::getSaveFileName(this, "Save Transform File", ".");
-        if (saveFilename.isNull()) {
+        QString fileName = __fileManager.saveFile(QFileManager::Single, this, "Save a transform");
+        if (fileName.isNull()) {
             return;
         }
 
         itk::TransformFileWriter::Pointer writer = itk::TransformFileWriter::New();
         writer->SetInput(imageDisplays[m_movingId].GetAffineTransform());
-        writer->SetFileName(saveFilename.toUtf8().data());
+        writer->SetFileName(fileName.toUtf8().data());
         writer->Update();
     }
 }
@@ -450,6 +502,7 @@ void AIRWindow::on_actionMultipleSlice_triggered() {
         if (!ui.multipleSliceView->isHidden()) {
             ui.multipleSliceView->setDisplayCollection(&imageDisplays);
             ui.multipleSliceView->updateDisplay();
+            ui.multipleSliceView->currentSliceChanged(ui.sliceSlider->value());
         }
     }
 }
@@ -484,9 +537,10 @@ void AIRWindow::on_compositeOpacity_valueChanged(int n) {
 
 
 void AIRWindow::on_sliceSlider_valueChanged(int n) {
-    m_currentSliceIndex[m_currentSliceDir] = n;
-    imageDisplays.SetSliceGrid(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
-    ui.graphicsView->sliceChanged(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
+    if (!imageDisplays.IsValidId(m_fixedId)) {
+        return;
+    }
+    ChangeSliceIndex(n);
     UpdateCompositeDisplay();
 }
 
@@ -581,8 +635,15 @@ void AIRWindow::UpdateTranslationWidget() {
     }
 }
 
-void AIRWindow::UpdateSliceDirection() {
+void AIRWindow::ChangeSliceIndex(int n) {
+    m_currentSliceIndex[m_currentSliceDir] = n;
+    imageDisplays.SetReferenceSlice(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
+    ui.graphicsView->sliceChanged(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
+}
+
+void AIRWindow::ChangeSliceDirection() {
     if (imageDisplays.IsValidId(m_fixedId)) {
+        m_currentSliceDir = Unknown;
         if (ui.actionSliceIJ->isChecked()) {
             m_currentSliceDir = IJ;
         } else if (ui.actionSliceJK->isChecked()) {
@@ -590,13 +651,26 @@ void AIRWindow::UpdateSliceDirection() {
         } else if (ui.actionSliceKI->isChecked()) {
             m_currentSliceDir = KI;
         }
-        imageDisplays.SetSliceGrid(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
-        ui.sliceNumber->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir));
+
+        const int sliderValue = ui.sliceSlider->value();
+        const int sliderMaximum = ui.sliceSlider->maximum();
+        const int requestedSliceIdx = m_currentSliceIndex[m_currentSliceDir];
+        const int requestedSliceMaximum = imageDisplays.GetReferenceSize(m_currentSliceDir)-1;
+
+        if (requestedSliceMaximum < sliderMaximum) {
+            ui.sliceSlider->setValue(m_currentSliceIndex[m_currentSliceDir]);
+        }
+        if (requestedSliceIdx > sliderMaximum) {
+            ui.sliceNumber->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir)-1);
+            ui.sliceSlider->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir)-1);
+        }
+        
         ui.sliceSlider->setValue(m_currentSliceIndex[m_currentSliceDir]);
-        ui.sliceSlider->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir));
-
-
-        ui.graphicsView->sliceChanged(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
+        ui.sliceNumber->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir)-1);
+        ui.sliceSlider->setMaximum(imageDisplays.GetReferenceSize(m_currentSliceDir)-1);
+        if (requestedSliceIdx == sliderValue) {
+            on_sliceSlider_valueChanged(requestedSliceIdx);
+        }
     }
 }
 
@@ -617,8 +691,20 @@ void AIRWindow::ChangeInteractionMode() {
     }
 }
 
+
+void AIRWindow::LoadSegmentation() {
+    QString fileName = __fileManager.openFile(QFileManager::Single, this, "Load Segmentation");
+    if (fileName.isEmpty()) {
+        return;
+    }
+    if (imageDisplays.IsValidId(m_fixedId)) {
+        ui.graphicsView->loadLabelVolume(fileName, imageDisplays[m_fixedId].srcImg);
+    }
+}
+
+
 void AIRWindow::SaveSegmentation() {
-    QString fileName = QFileDialog::getSaveFileName(this, "Save Segmentation", ".");
+    QString fileName = __fileManager.saveFile(QFileManager::Single, this, "Save Segmentation");
     if (fileName.isEmpty()) {
         return;
     }
@@ -628,4 +714,85 @@ void AIRWindow::SaveSegmentation() {
 void AIRWindow::PropagateSegmentation() {
     std::vector<int> workingSet = ui.multipleSliceView->getWorkingSet();
     ui.graphicsView->propagateLabel(workingSet);
+}
+
+void AIRWindow::brushLabelChanged(int n) {
+    int f = ui.foregroundBrush->itemData(ui.foregroundBrush->currentIndex()).value<int>();
+    int b = ui.backgroundBrush->itemData(ui.backgroundBrush->currentIndex()).value<int>();
+    ui.graphicsView->setInteractionLabels(f,b);
+}
+
+
+#pragma mark -
+#pragma mark Private Methods
+
+void AIRWindow::previousSlice() {
+    ui.sliceSlider->setValue(ui.sliceSlider->value()-1);
+}
+
+void AIRWindow::nextSlice() {
+    ui.sliceSlider->setValue(ui.sliceSlider->value()+1);
+}
+
+void AIRWindow::sliceZoomIn() {
+    ui.zoomSlider->setValue(ui.zoomSlider->value() + ui.zoomSlider->pageStep());
+}
+
+void AIRWindow::sliceZoomOut() {
+    ui.zoomSlider->setValue(ui.zoomSlider->value() - ui.zoomSlider->pageStep());
+}
+
+void AIRWindow::labelOpacityUp() {
+    ui.labelOpacity->setValue(ui.labelOpacity->value() + ui.labelOpacity->pageStep());
+}
+
+void AIRWindow::labelOpacityDown() {
+    ui.labelOpacity->setValue(ui.labelOpacity->value() - ui.labelOpacity->pageStep());
+}
+
+
+void AIRWindow::setupShortcutKeys() {
+    // navigation
+    QShortcut* prevSliceKey = new QShortcut(QKeySequence(tr("a")), this);
+    QShortcut* nextSliceKey = new QShortcut(QKeySequence(tr("d")), this);
+    prevSliceKey->setContext(Qt::ApplicationShortcut);
+    nextSliceKey->setContext(Qt::ApplicationShortcut);
+
+    // zoom in out
+    QShortcut* zoomInKey = new QShortcut(QKeySequence(tr("w")), this);
+    QShortcut* zoomOutKey = new QShortcut(QKeySequence(tr("s")), this);
+    zoomInKey->setContext(Qt::ApplicationShortcut);
+    zoomOutKey->setContext(Qt::ApplicationShortcut);
+
+
+    // zoom in out
+    QShortcut* labelOpacityUp = new QShortcut(QKeySequence(tr("e")), this);
+    QShortcut* labelOpacityDown = new QShortcut(QKeySequence(tr("q")), this);
+    labelOpacityUp->setContext(Qt::ApplicationShortcut);
+    labelOpacityDown->setContext(Qt::ApplicationShortcut);
+
+    QShortcut* selectPathTool = new QShortcut(QKeySequence(tr("1")), this);
+    QShortcut* selectBrushTool = new QShortcut(QKeySequence(tr("2")), this);
+    QShortcut* selectEraseTool = new QShortcut(QKeySequence(tr("3")), this);
+    QShortcut* selectCopyTool = new QShortcut(QKeySequence(tr("c")), this);
+    QShortcut* selectPasteTool = new QShortcut(QKeySequence(tr("v")), this);
+
+    selectPathTool->setContext(Qt::ApplicationShortcut);
+    selectBrushTool->setContext(Qt::ApplicationShortcut);
+    selectEraseTool->setContext(Qt::ApplicationShortcut);
+    selectCopyTool->setContext(Qt::ApplicationShortcut);
+    selectPasteTool->setContext(Qt::ApplicationShortcut);
+
+    connect(prevSliceKey, SIGNAL(activated()), this, SLOT(previousSlice()));
+    connect(nextSliceKey, SIGNAL(activated()), this, SLOT(nextSlice()));
+    connect(zoomInKey, SIGNAL(activated()), this, SLOT(sliceZoomIn()));
+    connect(zoomOutKey, SIGNAL(activated()), this, SLOT(sliceZoomOut()));
+    connect(labelOpacityUp, SIGNAL(activated()), this, SLOT(labelOpacityUp()));
+    connect(labelOpacityDown, SIGNAL(activated()), this, SLOT(labelOpacityDown()));
+
+    connect(selectPathTool, SIGNAL(activated()), ui.freePath, SLOT(toggle()));
+    connect(selectBrushTool, SIGNAL(activated()), ui.freeBrush, SLOT(toggle()));
+    connect(selectEraseTool, SIGNAL(activated()), ui.eraseBrush, SLOT(toggle()));
+    connect(selectCopyTool, SIGNAL(activated()), ui.graphicsView, SLOT(copyLabel()));
+    connect(selectPasteTool, SIGNAL(activated()), ui.graphicsView, SLOT(pasteLabel()));
 }
