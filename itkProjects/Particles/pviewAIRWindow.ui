@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>919</width>
-    <height>820</height>
+    <width>918</width>
+    <height>970</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -86,7 +86,7 @@
          </brush>
         </property>
         <property name="renderHints">
-         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::SmoothPixmapTransform|QPainter::TextAntialiasing</set>
+         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
         </property>
        </widget>
        <widget class="QWidget" name="layoutWidget">
@@ -194,6 +194,52 @@
           </widget>
          </item>
          <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_15">
+           <item>
+            <widget class="QFileAcceptButton" name="image1Name">
+             <property name="font">
+              <font>
+               <pointsize>10</pointsize>
+              </font>
+             </property>
+             <property name="acceptDrops">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>Not Loaded</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+             <property name="flat">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFileAcceptButton" name="image2Name">
+             <property name="font">
+              <font>
+               <pointsize>10</pointsize>
+              </font>
+             </property>
+             <property name="acceptDrops">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>Not Loaded</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+             <property name="flat">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
           <widget class="QToolBox" name="toolBox">
            <property name="minimumSize">
             <size>
@@ -218,8 +264,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>150</width>
-              <height>344</height>
+              <width>300</width>
+              <height>462</height>
              </rect>
             </property>
             <attribute name="label">
@@ -229,52 +275,6 @@
              <property name="margin">
               <number>3</number>
              </property>
-             <item>
-              <layout class="QVBoxLayout" name="verticalLayout_7">
-               <item>
-                <widget class="QFileAcceptButton" name="image1Name">
-                 <property name="font">
-                  <font>
-                   <pointsize>10</pointsize>
-                  </font>
-                 </property>
-                 <property name="acceptDrops">
-                  <bool>true</bool>
-                 </property>
-                 <property name="text">
-                  <string>Not Loaded</string>
-                 </property>
-                 <property name="checkable">
-                  <bool>true</bool>
-                 </property>
-                 <property name="flat">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QFileAcceptButton" name="image2Name">
-                 <property name="font">
-                  <font>
-                   <pointsize>10</pointsize>
-                  </font>
-                 </property>
-                 <property name="acceptDrops">
-                  <bool>true</bool>
-                 </property>
-                 <property name="text">
-                  <string>Not Loaded</string>
-                 </property>
-                 <property name="checkable">
-                  <bool>true</bool>
-                 </property>
-                 <property name="flat">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
              <item>
               <widget class="QGroupBox" name="alphaOptions">
                <property name="title">
@@ -384,8 +384,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>242</width>
-              <height>430</height>
+              <width>300</width>
+              <height>462</height>
              </rect>
             </property>
             <attribute name="label">
@@ -699,263 +699,407 @@
               <x>0</x>
               <y>0</y>
               <width>300</width>
-              <height>356</height>
+              <height>462</height>
              </rect>
             </property>
             <attribute name="label">
              <string>Segmentation Tools</string>
             </attribute>
-            <widget class="QToolButton" name="foregroundLabel">
-             <property name="enabled">
-              <bool>false</bool>
+            <layout class="QVBoxLayout" name="verticalLayout_11">
+             <property name="margin">
+              <number>3</number>
              </property>
-             <property name="geometry">
-              <rect>
-               <x>90</x>
-               <y>120</y>
-               <width>71</width>
-               <height>61</height>
-              </rect>
-             </property>
-             <property name="text">
-              <string>Foreground</string>
-             </property>
-             <property name="icon">
-              <iconset resource="pviewAIRWindow.qrc">
-               <normaloff>:/Icons/Images/foreground-label.png</normaloff>:/Icons/Images/foreground-label.png</iconset>
-             </property>
-             <property name="iconSize">
-              <size>
-               <width>32</width>
-               <height>32</height>
-              </size>
-             </property>
-             <property name="checkable">
-              <bool>true</bool>
-             </property>
-             <property name="toolButtonStyle">
-              <enum>Qt::ToolButtonTextUnderIcon</enum>
-             </property>
-             <property name="autoRaise">
-              <bool>true</bool>
-             </property>
-            </widget>
-            <widget class="QToolButton" name="backgroundLabel">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-             <property name="geometry">
-              <rect>
-               <x>170</x>
-               <y>120</y>
-               <width>71</width>
-               <height>61</height>
-              </rect>
-             </property>
-             <property name="text">
-              <string>Background</string>
-             </property>
-             <property name="icon">
-              <iconset resource="pviewAIRWindow.qrc">
-               <normaloff>:/Icons/Images/background-label.png</normaloff>:/Icons/Images/background-label.png</iconset>
-             </property>
-             <property name="iconSize">
-              <size>
-               <width>32</width>
-               <height>32</height>
-              </size>
-             </property>
-             <property name="checkable">
-              <bool>true</bool>
-             </property>
-             <property name="toolButtonStyle">
-              <enum>Qt::ToolButtonTextUnderIcon</enum>
-             </property>
-             <property name="autoRaise">
-              <bool>true</bool>
-             </property>
-            </widget>
-            <widget class="QToolButton" name="segmentationMenu">
-             <property name="geometry">
-              <rect>
-               <x>20</x>
-               <y>120</y>
-               <width>61</width>
-               <height>61</height>
-              </rect>
-             </property>
-             <property name="text">
-              <string>Menu</string>
-             </property>
-             <property name="iconSize">
-              <size>
-               <width>32</width>
-               <height>32</height>
-              </size>
-             </property>
-             <property name="checkable">
-              <bool>false</bool>
-             </property>
-             <property name="popupMode">
-              <enum>QToolButton::InstantPopup</enum>
-             </property>
-             <property name="toolButtonStyle">
-              <enum>Qt::ToolButtonTextUnderIcon</enum>
-             </property>
-             <property name="autoRaise">
-              <bool>false</bool>
-             </property>
-             <property name="arrowType">
-              <enum>Qt::DownArrow</enum>
-             </property>
-            </widget>
-            <widget class="QGroupBox" name="labelTools">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-             <property name="geometry">
-              <rect>
-               <x>20</x>
-               <y>0</y>
-               <width>181</width>
-               <height>108</height>
-              </rect>
-             </property>
-             <property name="title">
-              <string>Label Tools</string>
-             </property>
-             <layout class="QHBoxLayout" name="horizontalLayout_9">
-              <property name="margin">
-               <number>1</number>
-              </property>
-              <item>
-               <widget class="QToolButton" name="freePath">
-                <property name="text">
-                 <string>Path</string>
+             <item>
+              <widget class="QGroupBox" name="labelTools">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="title">
+                <string>Label Tools</string>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_9">
+                <property name="margin">
+                 <number>1</number>
                 </property>
-                <property name="icon">
-                 <iconset resource="pviewAIRWindow.qrc">
-                  <normaloff>:/Icons/Images/outline32/Brush.png</normaloff>:/Icons/Images/outline32/Brush.png</iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>32</width>
-                  <height>32</height>
-                 </size>
-                </property>
-                <property name="checkable">
-                 <bool>true</bool>
-                </property>
-                <property name="toolButtonStyle">
-                 <enum>Qt::ToolButtonTextUnderIcon</enum>
-                </property>
-                <property name="autoRaise">
-                 <bool>true</bool>
-                </property>
+                <item>
+                 <widget class="QToolButton" name="freePath">
+                  <property name="text">
+                   <string>Path</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="pviewAIRWindow.qrc">
+                    <normaloff>:/Icons/Images/outline32/Brush.png</normaloff>:/Icons/Images/outline32/Brush.png</iconset>
+                  </property>
+                  <property name="iconSize">
+                   <size>
+                    <width>32</width>
+                    <height>32</height>
+                   </size>
+                  </property>
+                  <property name="checkable">
+                   <bool>true</bool>
+                  </property>
+                  <property name="toolButtonStyle">
+                   <enum>Qt::ToolButtonTextUnderIcon</enum>
+                  </property>
+                  <property name="autoRaise">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="freeBrush">
+                  <property name="text">
+                   <string>Brush</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="pviewAIRWindow.qrc">
+                    <normaloff>:/Icons/Images/outline32/Brush 3.png</normaloff>:/Icons/Images/outline32/Brush 3.png</iconset>
+                  </property>
+                  <property name="iconSize">
+                   <size>
+                    <width>32</width>
+                    <height>32</height>
+                   </size>
+                  </property>
+                  <property name="checkable">
+                   <bool>true</bool>
+                  </property>
+                  <property name="toolButtonStyle">
+                   <enum>Qt::ToolButtonTextUnderIcon</enum>
+                  </property>
+                  <property name="autoRaise">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="eraseBrush">
+                  <property name="text">
+                   <string>Erase</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="pviewAIRWindow.qrc">
+                    <normaloff>:/Icons/Images/outline32/Eraser.png</normaloff>:/Icons/Images/outline32/Eraser.png</iconset>
+                  </property>
+                  <property name="iconSize">
+                   <size>
+                    <width>32</width>
+                    <height>32</height>
+                   </size>
+                  </property>
+                  <property name="checkable">
+                   <bool>true</bool>
+                  </property>
+                  <property name="toolButtonStyle">
+                   <enum>Qt::ToolButtonTextUnderIcon</enum>
+                  </property>
+                  <property name="autoRaise">
+                   <bool>true</bool>
+                  </property>
+                  <property name="arrowType">
+                   <enum>Qt::NoArrow</enum>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="copyButton">
+                  <property name="text">
+                   <string>Copy</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="pviewAIRWindow.qrc">
+                    <normaloff>:/Icons/Images/Copy-icon.png</normaloff>:/Icons/Images/Copy-icon.png</iconset>
+                  </property>
+                  <property name="iconSize">
+                   <size>
+                    <width>32</width>
+                    <height>32</height>
+                   </size>
+                  </property>
+                  <property name="toolButtonStyle">
+                   <enum>Qt::ToolButtonTextUnderIcon</enum>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QToolButton" name="pasteButton">
+                  <property name="text">
+                   <string>Paste</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="pviewAIRWindow.qrc">
+                    <normaloff>:/Icons/Images/Paste-icon.png</normaloff>:/Icons/Images/Paste-icon.png</iconset>
+                  </property>
+                  <property name="iconSize">
+                   <size>
+                    <width>32</width>
+                    <height>32</height>
+                   </size>
+                  </property>
+                  <property name="toolButtonStyle">
+                   <enum>Qt::ToolButtonTextUnderIcon</enum>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_12">
+               <item>
+                <widget class="QToolButton" name="segmentationMenu">
+                 <property name="text">
+                  <string>Menu</string>
+                 </property>
+                 <property name="iconSize">
+                  <size>
+                   <width>32</width>
+                   <height>32</height>
+                  </size>
+                 </property>
+                 <property name="checkable">
+                  <bool>false</bool>
+                 </property>
+                 <property name="popupMode">
+                  <enum>QToolButton::InstantPopup</enum>
+                 </property>
+                 <property name="toolButtonStyle">
+                  <enum>Qt::ToolButtonTextUnderIcon</enum>
+                 </property>
+                 <property name="autoRaise">
+                  <bool>false</bool>
+                 </property>
+                 <property name="arrowType">
+                  <enum>Qt::DownArrow</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QDial" name="labelOpacity">
+                 <property name="maximumSize">
+                  <size>
+                   <width>16777215</width>
+                   <height>50</height>
+                  </size>
+                 </property>
+                 <property name="toolTip">
+                  <string>Label Opacity</string>
+                 </property>
+                 <property name="maximum">
+                  <number>255</number>
+                 </property>
+                 <property name="value">
+                  <number>128</number>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <layout class="QGridLayout" name="gridLayout_2">
+                 <item row="1" column="1">
+                  <widget class="QComboBox" name="backgroundBrush">
+                   <property name="toolTip">
+                    <string>Background Label: drawing tools will paint over this label</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="label_13">
+                   <property name="toolTip">
+                    <string>Background Label: drawing tools will paint over this label</string>
+                   </property>
+                   <property name="text">
+                    <string>BG</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QComboBox" name="foregroundBrush"/>
+                 </item>
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="label_12">
+                   <property name="toolTip">
+                    <string>Foreground Label</string>
+                   </property>
+                   <property name="text">
+                    <string>FG</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <widget class="QProgressBar" name="progressBar">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="value">
+                <number>0</number>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QStackedWidget" name="stackedWidget">
+               <property name="frameShape">
+                <enum>QFrame::NoFrame</enum>
+               </property>
+               <property name="currentIndex">
+                <number>0</number>
+               </property>
+               <widget class="QWidget" name="kMeanOptions">
+                <widget class="QLabel" name="label_14">
+                 <property name="geometry">
+                  <rect>
+                   <x>-10</x>
+                   <y>0</y>
+                   <width>211</width>
+                   <height>16</height>
+                  </rect>
+                 </property>
+                 <property name="font">
+                  <font>
+                   <weight>75</weight>
+                   <bold>true</bold>
+                  </font>
+                 </property>
+                 <property name="text">
+                  <string>k-Means Classification</string>
+                 </property>
+                 <property name="textFormat">
+                  <enum>Qt::AutoText</enum>
+                 </property>
+                 <property name="scaledContents">
+                  <bool>true</bool>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignCenter</set>
+                 </property>
+                </widget>
+                <widget class="QPushButton" name="kMeansRun">
+                 <property name="geometry">
+                  <rect>
+                   <x>160</x>
+                   <y>30</y>
+                   <width>114</width>
+                   <height>32</height>
+                  </rect>
+                 </property>
+                 <property name="toolTip">
+                  <string>Run k-means classification after copying current label</string>
+                 </property>
+                 <property name="text">
+                  <string>Run</string>
+                 </property>
+                </widget>
+                <widget class="QPushButton" name="pushButton_2">
+                 <property name="geometry">
+                  <rect>
+                   <x>160</x>
+                   <y>60</y>
+                   <width>114</width>
+                   <height>32</height>
+                  </rect>
+                 </property>
+                 <property name="text">
+                  <string>Paste Previous</string>
+                 </property>
+                </widget>
+                <widget class="QWidget" name="">
+                 <property name="geometry">
+                  <rect>
+                   <x>20</x>
+                   <y>30</y>
+                   <width>137</width>
+                   <height>81</height>
+                  </rect>
+                 </property>
+                 <layout class="QVBoxLayout" name="verticalLayout_7">
+                  <item>
+                   <widget class="QLabel" name="label_9">
+                    <property name="font">
+                     <font>
+                      <weight>75</weight>
+                      <bold>true</bold>
+                     </font>
+                    </property>
+                    <property name="text">
+                     <string>ROI</string>
+                    </property>
+                    <property name="textFormat">
+                     <enum>Qt::AutoText</enum>
+                    </property>
+                    <property name="scaledContents">
+                     <bool>true</bool>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QRadioButton" name="kMeanUseAllLabels">
+                    <property name="text">
+                     <string>All Labels</string>
+                    </property>
+                    <property name="checked">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QRadioButton" name="kMeanUseForeground">
+                    <property name="text">
+                     <string>Foreground Label</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QRadioButton" name="kMeanUseForeground_2">
+                    <property name="text">
+                     <string>None</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <zorder>labelOpacity</zorder>
+                <zorder>kMeanUseForeground</zorder>
+                <zorder>kMeanUseAllLabels</zorder>
+                <zorder>kMeanUseForeground_2</zorder>
+                <zorder>label_9</zorder>
+                <zorder>label_14</zorder>
+                <zorder>kMeansRun</zorder>
+                <zorder>pushButton_2</zorder>
                </widget>
-              </item>
-              <item>
-               <widget class="QToolButton" name="freeBrush">
-                <property name="text">
-                 <string>Brush</string>
-                </property>
-                <property name="icon">
-                 <iconset resource="pviewAIRWindow.qrc">
-                  <normaloff>:/Icons/Images/outline32/Brush 3.png</normaloff>:/Icons/Images/outline32/Brush 3.png</iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>32</width>
-                  <height>32</height>
-                 </size>
-                </property>
-                <property name="checkable">
-                 <bool>true</bool>
-                </property>
-                <property name="toolButtonStyle">
-                 <enum>Qt::ToolButtonTextUnderIcon</enum>
-                </property>
-                <property name="autoRaise">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QToolButton" name="eraseBrush">
-                <property name="text">
-                 <string>Erase</string>
-                </property>
-                <property name="icon">
-                 <iconset resource="pviewAIRWindow.qrc">
-                  <normaloff>:/Icons/Images/outline32/Eraser.png</normaloff>:/Icons/Images/outline32/Eraser.png</iconset>
-                </property>
-                <property name="iconSize">
-                 <size>
-                  <width>32</width>
-                  <height>32</height>
-                 </size>
-                </property>
-                <property name="checkable">
-                 <bool>true</bool>
-                </property>
-                <property name="toolButtonStyle">
-                 <enum>Qt::ToolButtonTextUnderIcon</enum>
-                </property>
-                <property name="autoRaise">
-                 <bool>true</bool>
-                </property>
-                <property name="arrowType">
-                 <enum>Qt::NoArrow</enum>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-            <widget class="QWidget" name="layoutWidget">
-             <property name="geometry">
-              <rect>
-               <x>20</x>
-               <y>200</y>
-               <width>125</width>
-               <height>128</height>
-              </rect>
-             </property>
-             <layout class="QVBoxLayout" name="verticalLayout_11">
-              <item>
-               <widget class="QDial" name="labelOpacity">
-                <property name="maximum">
-                 <number>255</number>
-                </property>
-                <property name="value">
-                 <number>128</number>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QLabel" name="label_9">
-                <property name="font">
-                 <font>
-                  <stylestrategy>PreferAntialias</stylestrategy>
-                 </font>
-                </property>
-                <property name="layoutDirection">
-                 <enum>Qt::LeftToRight</enum>
-                </property>
-                <property name="text">
-                 <string>Label Opacity</string>
-                </property>
-                <property name="alignment">
-                 <set>Qt::AlignCenter</set>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
+               <widget class="QWidget" name="page_4"/>
+              </widget>
+             </item>
+             <item>
+              <spacer name="verticalSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>116</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
             <zorder>layoutWidget</zorder>
-            <zorder>foregroundLabel</zorder>
-            <zorder>backgroundLabel</zorder>
             <zorder>segmentationMenu</zorder>
             <zorder>labelTools</zorder>
+            <zorder>foregroundBrush</zorder>
+            <zorder>backgroundBrush</zorder>
+            <zorder>label_12</zorder>
+            <zorder>label_13</zorder>
+            <zorder>stackedWidget</zorder>
+            <zorder>progressBar</zorder>
+            <zorder>verticalSpacer</zorder>
            </widget>
           </widget>
          </item>
@@ -971,7 +1115,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>919</width>
+     <width>918</width>
      <height>22</height>
     </rect>
    </property>
@@ -1128,7 +1272,7 @@
   </action>
   <action name="actionNewSegmentation">
    <property name="text">
-    <string>New Segmentation</string>
+    <string>Clear Segmentation</string>
    </property>
    <property name="toolTip">
     <string>New segmentation and clear any current segmentation drawing</string>
@@ -1140,6 +1284,38 @@
    </property>
    <property name="toolTip">
     <string>Save Segmentation</string>
+   </property>
+  </action>
+  <action name="actionLoadSegmentation">
+   <property name="text">
+    <string>Load Segmentation</string>
+   </property>
+   <property name="toolTip">
+    <string>Load a segmentation</string>
+   </property>
+  </action>
+  <action name="actionCopyLabel">
+   <property name="icon">
+    <iconset resource="pviewAIRWindow.qrc">
+     <normaloff>:/Icons/Images/Copy-icon.png</normaloff>:/Icons/Images/Copy-icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Copy</string>
+   </property>
+   <property name="toolTip">
+    <string>Copy the working segmentation label</string>
+   </property>
+  </action>
+  <action name="actionPasteLabel">
+   <property name="icon">
+    <iconset resource="pviewAIRWindow.qrc">
+     <normaloff>:/Icons/Images/Paste-icon.png</normaloff>:/Icons/Images/Paste-icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Paste</string>
+   </property>
+   <property name="toolTip">
+    <string>Paste the copied segmentation label</string>
    </property>
   </action>
  </widget>

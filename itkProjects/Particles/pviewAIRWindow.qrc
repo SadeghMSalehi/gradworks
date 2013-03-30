@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="Icons">
+    <file>Images/Copy-icon.png</file>
+    <file>Images/Paste-icon.png</file>
     <file>Images/background-label.png</file>
     <file>Images/foreground-label.png</file>
     <file>Images/outline32/Brush 3.png</file>

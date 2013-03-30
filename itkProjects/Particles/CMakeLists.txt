@@ -44,8 +44,8 @@ SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp qcustomplot.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
 
-SET (QT_PVIEW_HEADERS pviewMainWindow.h pviewAIRWindow.h qcustomplot.h qdualslider.h qgraphicsguideview.h  qgraphicscompositeimageitem.h qgraphicsdrawingimageitem.h qfileacceptbutton.h qgraphicsvolumeview.h qtypedef.h piDelegateImageFilter.h)
-SET (QT_PVIEW_SOURCES pviewMainWindow.cpp pviewAIRWindow.cpp qcustomplot.cpp qdualslider.cpp qgraphicsguideview.cpp qgraphicscompositeimageitem.cpp qgraphicsdrawingimageitem.cpp qfileacceptbutton.cpp qgraphicsvolumeview.cpp)
+SET (QT_PVIEW_HEADERS pviewMainWindow.h pviewAIRWindow.h qcustomplot.h qdualslider.h qgraphicsguideview.h  qgraphicscompositeimageitem.h qgraphicsdrawingimageitem.h qfileacceptbutton.h qgraphicsvolumeview.h airAlgorithmManager.h)
+SET (QT_PVIEW_SOURCES pviewMainWindow.cpp pviewAIRWindow.cpp qcustomplot.cpp qdualslider.cpp qgraphicsguideview.cpp qgraphicscompositeimageitem.cpp qgraphicsdrawingimageitem.cpp qfileacceptbutton.cpp qgraphicsvolumeview.cpp airAlgorithmManager.cpp)
 QT4_WRAP_CPP(QT_PVIEW_MOC_HEADERS ${QT_PVIEW_HEADERS})
 QT4_WRAP_UI(QT_PVIEW_UI_FILES pviewMainWindow.ui pviewAIRWindow.ui)
 QT4_ADD_RESOURCES(QT_PVIEW_RCC pviewAIRWindow.qrc)
@@ -105,11 +105,11 @@ IF (${BUILD_GUI})
 	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
-	ADD_EXECUTABLE(pview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageDef.h 
+	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageDef.h 
 		piImageIO.h piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h 
-		piImageHistogram.cpp piImageHistogram.h
+		piImageHistogram.cpp piImageHistogram.h qtypedef.h qutils.h qutils.cpp
 		${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES} ${QT_PVIEW_RCC})
-	TARGET_LINK_LIBRARIES(pview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+	TARGET_LINK_LIBRARIES(airview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
 	ADD_EXECUTABLE(pani3 piParticleAniMain.cpp piParticleAniMain.h ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS} piVTK.cpp piVTK.h)
 	TARGET_LINK_LIBRARIES(pani3 ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
