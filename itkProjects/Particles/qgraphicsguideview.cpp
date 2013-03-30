@@ -190,6 +190,7 @@ void QGraphicsGuideView::pathMoveEvent(QMouseEvent *event) {
 
 void QGraphicsGuideView::pathEndEvent(QMouseEvent *event) {
     QPainter painter(&_userDrawingCanvas);
+    painter.setRenderHints(0);
     painter.setBrush(QBrush(Qt::yellow,Qt::SolidPattern));
     painter.setPen(Qt::NoPen);
     painter.drawPath(_drawingPath);
@@ -264,6 +265,7 @@ void QGraphicsGuideView::brushEndEvent(QMouseEvent *event) {
 
 void QGraphicsGuideView::paintBrushEllipse(QRectF& sceneBrushRect) {
     QPainter painter(&_userDrawingCanvas);
+    painter.setRenderHints(0);
     painter.setBrush(QBrush(0x1,Qt::SolidPattern));
     painter.setPen(Qt::NoPen);
     painter.drawEllipse(sceneBrushRect);
@@ -448,9 +450,8 @@ void QGraphicsGuideView::sliceChanged(SliceDirectionEnum dir, int n) {
         _labelImage = QImage(_canvasSize, QImage::Format_ARGB32_Premultiplied);
         _labelImage.fill(0x0);
         _userDrawingCanvas = QImage(_canvasSize, QImage::Format_RGB32);
-        _userDrawingCanvas.fill(0x0);
-
     }
+    _userDrawingCanvas.fill(0x0);
     sliceToLabelImage(false);
     updateLabelItem();
 }
