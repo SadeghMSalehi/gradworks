@@ -11,9 +11,11 @@
 
 #include <QSet>
 #include <QList>
+#include <QUrl>
 
 typedef QSet<int> QIntSet;
 typedef QList<int> QIntList;
+typedef QList<QUrl> UrlList;
 
 
 #endif

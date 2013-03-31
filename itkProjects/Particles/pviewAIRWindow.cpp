@@ -732,6 +732,7 @@ void AIRWindow::SaveSegmentation() {
         }
     }
 
+    __stringHash["Segmentation"] = fileName;
     ui.graphicsView->saveLabelVolume(fileName);
 }
 

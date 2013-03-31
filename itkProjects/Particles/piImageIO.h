@@ -29,7 +29,8 @@ using namespace std;
 
 namespace pi {
     typedef std::vector<int> IntVector;
-    
+    enum SliceDirectionEnum { IJ = 2, JK = 0, KI = 1, Unknown = -1 };
+
     class ImageInfo {
     public:
         int numdims;

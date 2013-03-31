@@ -31,49 +31,78 @@
 class QGraphicsPixmapItem;
 
 namespace itk {
+#pragma mark -
+#pragma Templated Class Definitions
+
+#pragma mark -
+#pragma Templated Class Definitions
+
     template <class T>
-    class PointerCache {
+    class RescaledImage {
     private:
-        bool _cached;
-
+        typename T::Pointer _img;
+        float _rescaleFactor;
     public:
-        typename T::Pointer Cache;
-
-        PointerCache() {
-            _cached = false;
+        RescaledImage() {
+            _rescaleFactor = 1;
         }
 
-        PointerCache(typename T::Pointer data) {
-            Cache = data;
-            _cached = true;
+        bool IsNull() {
+            return _img.IsNull();
         }
 
-        ~PointerCache() {
-            Cache = NULL;
+        bool IsNotNull() {
+            return _img.IsNotNull();
+        }
+        
+        ulong GetMTime() {
+            return _img->GetMTime();
         }
 
-        bool HasSamePointer(typename T::Pointer another) {
-            return Cache.GetPointer() == another.GetPointer();
+        operator typename T::Pointer() {
+            return _img;
         }
 
-        bool IsValid() {
-            return Cache.IsNotNull() && _cached;
+        typename T::SizeType GetSize() {
+            return _img->GetBufferedRegion().GetSize();
         }
 
-        void Invalidate() {
-            _cached = false;
-            Cache = NULL;
+        int GetSize(int dir) {
+            return _img->GetBufferedRegion().GetSize(dir);
         }
 
-        PointerCache& operator=(typename T::Pointer data) {
-            if (data.IsNotNull()) {
-                Cache = data;
-                _cached = true;
-            } else {
-                Cache = NULL;
-                _cached = false;
+        int GetOriginalIndex(int idx) {
+            return idx * _rescaleFactor;
+        }
+
+        int GetIndexFromOriginal(int idx) {
+            return idx / _rescaleFactor;
+        }
+
+        void SetImage(typename T::Pointer img, float rescale = 1) {
+            if (img.IsNull() || (_img.IsNotNull() && _img->GetMTime() > img->GetMTime())) {
+                return;
             }
-            return (*this);
+            _rescaleFactor = rescale;
+
+            typename T::SpacingType spacing = img->GetSpacing();
+            typename T::SizeType size = img->GetBufferedRegion().GetSize();
+
+            fordim(k) {
+                spacing[k] = spacing[k] * _rescaleFactor;
+                size[k] = size[k] / _rescaleFactor;
+            }
+
+            typedef itk::ResampleImageFilter<T,T> ResampleFilter;
+            typename ResampleFilter::Pointer resampler = ResampleFilter::New();
+            resampler->SetInput(img);
+            resampler->SetOutputParametersFromImage(img.GetPointer());
+            resampler->SetOutputSpacing(spacing);
+            resampler->SetSize(size);
+            resampler->Update();
+
+            _img = resampler->GetOutput();
+            _img->DisconnectPipeline();
         }
     };
 }
@@ -102,9 +131,6 @@ namespace pi {
         }
     };
 
-    enum SliceDirectionEnum { IJ = 2, JK = 0, KI = 1, Unknown = -1 };
-
-
     class SliceView {
     protected:
         int _width;
@@ -123,8 +149,11 @@ namespace pi {
 
     template<class T>
     class SliceDisplay: public SliceView {
-    private:
-        typename T::Pointer _sliceImg;
+    protected:
+        typedef typename T::PixelType TPixel;
+        typedef typename T::Pointer TPointer;
+        typedef typename T::RegionType TRegion;
+        TPointer _srcImg;
         int _depth;
 
     public:
@@ -132,34 +161,25 @@ namespace pi {
         }
         
         SliceDisplay(typename T::Pointer gridImg): SliceView(0,0,-1,Unknown), _depth(0) {
-            _sliceImg = gridImg;
-            if (_sliceImg.IsNull()) {
+            SetImage(gridImg);
+        }
+
+        virtual ~SliceDisplay() {
+        }
+
+        void SetImage(TPointer img) {
+            _srcImg = img;
+            if (_srcImg.IsNull()) {
                 cout << "source image is null " << __FILE__ << ":" << __LINE__ << endl;
                 return;
             }
-
-            typename T::RegionType region = gridImg->GetBufferedRegion();
-            if (region.GetSize(0) == 1) {
-                _sliceDirection = JK;
-                _width = region.GetSize(1);
-                _height = region.GetSize(2);
-                _index = region.GetIndex(0);
-            } else if (region.GetSize(1) == 1) {
-                _sliceDirection = KI;
-                _index = region.GetIndex(1);
-                _width = region.GetSize(0);
-                _height = region.GetSize(2);
-            } else if (region.GetSize(2) == 1) {
-                _index = region.GetIndex(2);
-                _width = region.GetSize(0);
-                _height = region.GetSize(1);
-                _sliceDirection = IJ;
-            } else {
-                _sliceDirection = Unknown;
-                _width = region.GetSize(0);
-                _height = region.GetSize(1);
-                _depth = region.GetSize(2);
-                _index = region.GetIndex(0);
+            SliceView view = SliceDisplay<T>::GetSliceView(_srcImg);
+            _width = view.Width();
+            _height = view.Height();
+            _index = view.Index();
+            _sliceDirection = view.Direction();
+            if (_sliceDirection == Unknown) {
+                _depth = _srcImg->GetBufferedRegion().GetSize(2);
             }
         }
 
@@ -168,51 +188,51 @@ namespace pi {
         }
 
         typename T::ConstPointer GetConstImage() {
-            return typename T::ConstPointer(_sliceImg);
+            return typename T::ConstPointer(_srcImg);
         }
 
         typename T::Pointer GetImage() {
-            return _sliceImg;
+            return _srcImg;
         }
         
         operator typename T::Pointer() {
-            return _sliceImg;
+            return _srcImg;
         }
 
         operator const T*() {
-            return _sliceImg.GetPointer();
+            return _srcImg.GetPointer();
         }
 
         bool IsNull() {
-            return _sliceImg.IsNull();
+            return _srcImg.IsNull();
         }
 
         bool IsNotNull() {
-            return _sliceImg.IsNotNull();
+            return _srcImg.IsNotNull();
         }
         inline int Depth() {
             return _depth;
         }
 
         typename T::PixelType* GetBufferPointer() {
-            if (_sliceImg.IsNull()) {
+            if (_srcImg.IsNull()) {
                 return NULL;
             }
-            return _sliceImg->GetBufferPointer();
+            return _srcImg->GetBufferPointer();
         }
 
         typename T::RegionType GetRegion() {
-            if (_sliceImg.IsNull()) {
+            if (_srcImg.IsNull()) {
                 return typename T::RegionType();
             }
-            return _sliceImg->GetBufferedRegion();
+            return _srcImg->GetBufferedRegion();
         }
         
         typename T::RegionType GetRegion(int left, int top, int width, int height) {
-            if (_sliceImg.IsNull()) {
+            if (_srcImg.IsNull()) {
                 return typename T::RegionType();
             }
-            typename T::RegionType region =  _sliceImg->GetBufferedRegion();
+            typename T::RegionType region =  _srcImg->GetBufferedRegion();
             switch (_sliceDirection) {
                 case IJ:
                     region.SetIndex(0, left);
@@ -239,10 +259,50 @@ namespace pi {
         }
 
         void FillBuffer(typename T::PixelType p) {
-            if (_sliceImg.IsNull()) {
+            if (_srcImg.IsNull()) {
                 return;
             }
-            _sliceImg->FillBuffer(p);
+            _srcImg->FillBuffer(p);
+        }
+
+
+        static SliceView GetSliceView(typename T::Pointer img) {
+            typename T::RegionType region = img->GetBufferedRegion();
+            if (region.GetSize(0) == 1) {
+                return SliceView(region.GetSize(1), region.GetSize(2), region.GetIndex(0), JK);
+            } else if (region.GetSize(1) == 1) {
+                return SliceView(region.GetSize(0), region.GetSize(2), region.GetIndex(1), KI);
+            } else if (region.GetSize(2) == 1) {
+                return SliceView(region.GetSize(0), region.GetSize(1), region.GetIndex(2), IJ);
+            } else {
+                return SliceView(region.GetSize(0), region.GetSize(2), region.GetIndex(0), Unknown);
+            }
+        }
+
+        static SliceDisplay<T> ExtractSlice(typename T::Pointer srcImg, int idx, SliceDirectionEnum dir) {
+            typename T::Pointer emptyImg;
+            if (srcImg.IsNull() || dir == Unknown) {
+                cout << "source is null or direction unknown:" << __FILE__ << ":" << __LINE__ << endl;
+                return emptyImg;
+            }
+
+            typename T::RegionType sliceRegion = srcImg->GetBufferedRegion();
+            typename T::SizeType srcSize = sliceRegion.GetSize();
+            if (srcSize[dir] <= idx || idx < 0) {
+                cout << "slice index is wrong: " << idx << " >= " << srcSize[dir] << __FILE__ << ":" << __LINE__ << endl;
+                return emptyImg;
+            }
+            sliceRegion.SetIndex(dir, idx);
+            sliceRegion.SetSize(dir,1);
+
+            typedef itk::ExtractImageFilter<T, T> ExtractFilterType;
+            typename ExtractFilterType::Pointer filter = ExtractFilterType::New();
+            filter->SetInput(srcImg);
+            filter->SetExtractionRegion(sliceRegion);
+            filter->Update();
+            typename T::Pointer sliceImg = filter->GetOutput();
+            sliceImg->DisconnectPipeline();
+            return SliceDisplay<T>(sliceImg);
         }
     };
 
@@ -259,13 +319,14 @@ namespace pi {
         VectorType _currentTranslation;
 
         // (grid x transform)
-        typedef itk::PointerCache<T> ImageCache;
-        std::vector<ImageCache> _resampledImageCache;
+        std::vector<typename T::Pointer> _resampledImageCache;
 
     public:
         typename T::Pointer srcImg;
         typename T::PointType srcOrigin;
         typename T::SpacingType srcSpacing;
+
+        itk::RescaledImage<T> navigationImg;
 
         // how to determine bin-size automatically?
         ImageHistogram<T> histogram;
@@ -396,6 +457,13 @@ namespace pi {
             InvalidateCaches();
         }
 
+        itk::RescaledImage<T>& GetNavigationImage() {
+            if (navigationImg.IsNull() && srcImg->GetMTime() > navigationImg.GetMTime()) {
+                navigationImg.SetImage(srcImg, 2);
+            }
+            return navigationImg;
+        }
+
         void SetWindowRange(typename T::PixelType m1, typename T::PixelType m2) {
             displayProperty.windowMin = m1;
             displayProperty.windowMax = m2;
@@ -433,10 +501,10 @@ namespace pi {
         void InvalidateCaches(int i = -1) {
             if (i == -1) {
                 for (int j = 0; j < _resampledImageCache.size(); j++) {
-                    _resampledImageCache[j].Invalidate();
+                    _resampledImageCache[j] = NULL;
                 }
             } else {
-                _resampledImageCache[i].Invalidate();
+                _resampledImageCache[i] = NULL;
             }
         }
 
@@ -476,33 +544,7 @@ namespace pi {
     };
 
 
-    template<class T>
-    SliceDisplay<T> ExtractSlice(typename T::Pointer srcImg, int idx, SliceDirectionEnum dir) {
-        typename T::Pointer emptyImg;
-        if (srcImg.IsNull() || dir == Unknown) {
-            cout << "source is null or direction unknown:" << __FILE__ << ":" << __LINE__ << endl;
-            return emptyImg;
-        }
-
-        typename T::RegionType sliceRegion = srcImg->GetBufferedRegion();
-        typename T::SizeType srcSize = sliceRegion.GetSize();
-        if (srcSize[dir] <= idx || idx < 0) {
-            cout << "slice index is wrong: " << idx << " >= " << srcSize[dir] << __FILE__ << ":" << __LINE__ << endl;
-            return emptyImg;
-        }
-        sliceRegion.SetIndex(dir, idx);
-        sliceRegion.SetSize(dir,1);
-
-        typedef itk::ExtractImageFilter<T, T> ExtractFilterType;
-        typename ExtractFilterType::Pointer filter = ExtractFilterType::New();
-        filter->SetInput(srcImg);
-        filter->SetExtractionRegion(sliceRegion);
-        filter->Update();
-        typename T::Pointer sliceImg = filter->GetOutput();
-        sliceImg->DisconnectPipeline();
-        return SliceDisplay<T>(sliceImg);
-    }
-
+    
 
 
     template<class T>
@@ -549,6 +591,10 @@ namespace pi {
             _referenceCenter.Fill(0);
         }
 
+        int GetReferenceId() {
+            return _referenceId;
+        }
+        
         bool IsValidId(int n) {
             if (n >= 0 && n < _imageDisplays.size()) {
                 return true;
@@ -650,7 +696,7 @@ namespace pi {
                 return;
             }
 
-            typename T::Pointer sliceImg = ExtractSlice<T>(srcImg, index, axis);
+            typename T::Pointer sliceImg = SliceDisplay<T>::ExtractSlice(srcImg, index, axis);
             if (sliceImg.IsNull()) {
                 return;
             }

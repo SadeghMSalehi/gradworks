@@ -17,8 +17,11 @@
 #include <QList>
 #include <QKeyEvent>
 #include <QGraphicsRectItem>
+#include <QtAlgorithms>
+#include "qtypedef.h"
 
 using namespace pi;
+
 
 QGraphicsVolumeView::QGraphicsVolumeView(QWidget* parent): QGraphicsView(parent) {
     setScene(&_scene);
@@ -26,9 +29,9 @@ QGraphicsVolumeView::QGraphicsVolumeView(QWidget* parent): QGraphicsView(parent)
     _thumbsWidth = 128;
     _columnCount = 10000;
 
-    _displayId = 0;
-    _displayReference = true;
-    _manualIntensityScaling = false;
+//    _displayId = 0;
+//    _displayReference = true;
+//    _manualIntensityScaling = false;
     _directionCache = Unknown;
 
     _airImages = NULL;
@@ -38,29 +41,62 @@ QGraphicsVolumeView::QGraphicsVolumeView(QWidget* parent): QGraphicsView(parent)
 //    setBackgroundBrush(QBrush(QPixmap::fromImage(QImage(QString::fromUtf8(":/Icons/Images/backgroundPattern.jpg")))));
 }
 
-void QGraphicsVolumeView::setDisplayCollection(pi::AIRDisplayCollection *images) {
+void QGraphicsVolumeView::setDisplayCollection(pi::AIRDisplayCollection *images, bool useNavigationImage) {
     if (images == NULL) {
         return;
     }
-
     if (_airImages == images) {
         return;
     }
     clear();
 
     _airImages = images;
+    _useNavigationImage = useNavigationImage;
+
+    if (_airImages->GetReferenceId() >= 0) {
+        setVolumeToShow(_airImages->GetReferenceId());
+    }
+}
+
+void QGraphicsVolumeView::fitToImage(int sliceIdx, int volumeId) {
+    if (_airImages != NULL && _airImages->Count() > 0) {
+        if (_volumeDisplays.contains(volumeId)) {
+            QGraphicsPixmapItem* item = _volumeDisplays[volumeId].GetSliceData<QGraphicsPixmapItem>(sliceIdx);
+            if (item != NULL) {
+                fitInView(item, Qt::KeepAspectRatio);
+            }
+        }
+    }
 }
 
 void QGraphicsVolumeView::clear() {
     _scene.clear();
-    _sliceCache.clear();
-    _slicePixmaps.clear();
-    _displayImages.clear();
+//    _sliceCache.clear();
+//    _slicePixmaps.clear();
+//    _displayImages.clear();
     _workingSet.clear();
     _directionCache = Unknown;
-    _volumeCache = NULL;
-    _volumeSource = NULL;
+//    _volumeCache = NULL;
+//    _volumeSource = NULL;
     _currentSliceMarker = NULL;
+    _volumeDisplays.clear();
+}
+
+void QGraphicsVolumeView::setVolumeToShow(int i) {
+    if (i >= _airImages->Count() || i < 0) {
+        return;
+    }
+    if (_volumeDisplays.contains(i)) {
+        if (_volumeDisplays[i].Has(_airImages->at(i))) {
+            return;
+        } else {
+            _volumeDisplays.remove(i);
+        }
+    }
+    AIRVolumeDisplay newVolume;
+    newVolume.SetDisplay(_airImages->at(i));
+
+    _volumeDisplays[i] = newVolume;
 }
 
 std::vector<int> QGraphicsVolumeView::getWorkingSet() {
@@ -76,89 +112,89 @@ std::vector<int> QGraphicsVolumeView::getWorkingSet() {
     return workingSet;
 }
 
-bool QGraphicsVolumeView::checkVolumeCache() {
-    AIRImageDisplay& refImg = _airImages->GetReference();
-    if (refImg.srcImg.IsNull()) {
-        _volumeCache = NULL;
-        _volumeSource = NULL;
-        return false;
-    }
+//bool QGraphicsVolumeView::checkVolumeCache() {
+//    AIRImageDisplay& refImg = _airImages->GetReference();
+//    if (refImg.srcImg.IsNull()) {
+//        _volumeCache = NULL;
+//        _volumeSource = NULL;
+//        return false;
+//    }
+//
+//    // check if source is different pointer or the source itself has changed
+//    if (_volumeSource != refImg.srcImg || _volumeSourceModifiedTime != refImg.srcImg->GetMTime()) {
+//        clear();
+//        _volumeSource = refImg.srcImg;
+//        _volumeSourceModifiedTime = refImg.srcImg->GetMTime();
+//    }
+//
+//    AIRImage::SpacingType spacing = refImg.srcSpacing;
+//    AIRImage::SizeType size = refImg.srcImg->GetBufferedRegion().GetSize();
+//
+//    _rescaleFactor = 1;
+//    if (_thumbsWidth != 0) {
+//        _rescaleFactor = size[0] / _thumbsWidth;
+//    }
+//
+//    if (std::abs(_rescaleFactor - 1) < 0.1) {
+//        _volumeCache = refImg.srcImg;
+//        return _volumeCache.IsNotNull();
+//    }
+//
+//    fordim(k) {
+//        spacing[k] = spacing[k] * _rescaleFactor;
+//        size[k] = size[k] / _rescaleFactor;
+//    }
+//
+//    typedef itk::ResampleImageFilter<AIRImage, AIRImage> ResampleFilter;
+//    ResampleFilter::Pointer resampler = ResampleFilter::New();
+//    resampler->SetInput(refImg.srcImg);
+//    resampler->SetOutputParametersFromImage(refImg.srcImg.GetPointer());
+//    resampler->SetOutputSpacing(spacing);
+//    resampler->SetSize(size);
+//    resampler->Update();
+//    _volumeCache = resampler->GetOutput();
+//    _volumeCache->DisconnectPipeline();
+//
+//    return _volumeCache.IsNotNull();
+//}
 
-    // check if source is different pointer or the source itself has changed
-    if (_volumeSource != refImg.srcImg || _volumeSourceModifiedTime != refImg.srcImg->GetMTime()) {
-        clear();
-        _volumeSource = refImg.srcImg;
-        _volumeSourceModifiedTime = refImg.srcImg->GetMTime();
-    }
+//bool QGraphicsVolumeView::checkSliceCache() {
+//    AIRImageDisplay& refImg = _airImages->GetReference();
+//    SliceDirectionEnum dir = refImg.GetResampleDirection(0);
+//
+//    // fire only when the slice direction is changed
+//    if (_directionCache == dir) {
+//        return true;
+//    }
+//
+//    _directionCache = dir;
+//    return false;
+//}
 
-    AIRImage::SpacingType spacing = refImg.srcSpacing;
-    AIRImage::SizeType size = refImg.srcImg->GetBufferedRegion().GetSize();
-
-    _rescaleFactor = 1;
-    if (_thumbsWidth != 0) {
-        _rescaleFactor = size[0] / _thumbsWidth;
-    }
-
-    if (std::abs(_rescaleFactor - 1) < 0.1) {
-        _volumeCache = refImg.srcImg;
-        return _volumeCache.IsNotNull();
-    }
-
-    fordim(k) {
-        spacing[k] = spacing[k] * _rescaleFactor;
-        size[k] = size[k] / _rescaleFactor;
-    }
-
-    typedef itk::ResampleImageFilter<AIRImage, AIRImage> ResampleFilter;
-    ResampleFilter::Pointer resampler = ResampleFilter::New();
-    resampler->SetInput(refImg.srcImg);
-    resampler->SetOutputParametersFromImage(refImg.srcImg.GetPointer());
-    resampler->SetOutputSpacing(spacing);
-    resampler->SetSize(size);
-    resampler->Update();
-    _volumeCache = resampler->GetOutput();
-    _volumeCache->DisconnectPipeline();
-
-    return _volumeCache.IsNotNull();
-}
-
-bool QGraphicsVolumeView::checkSliceCache() {
-    AIRImageDisplay& refImg = _airImages->GetReference();
-    SliceDirectionEnum dir = refImg.GetResampleDirection(0);
-
-    // fire only when the slice direction is changed
-    if (_directionCache == dir) {
-        return true;
-    }
-
-    _directionCache = dir;
-    return false;
-}
-
-bool QGraphicsVolumeView::updateSource() {
-    if (_directionCache == Unknown) {
-        return false;
-    }
-    AIRImage::RegionType region = _volumeCache->GetBufferedRegion();
-
-    _sliceCache.clear();
-    _sliceCache.reserve(region.GetSize(_directionCache));
-
-    typedef itk::ExtractImageFilter<AIRImage, AIRImage> ExtractFilter;
-
-    const int nSlices = region.GetSize(_directionCache);
-    for (int i = 0; i < nSlices; i++) {
-        ExtractFilter::Pointer extract = ExtractFilter::New();
-        extract->SetInput(_volumeCache);
-        region.SetIndex(_directionCache, i);
-        region.SetSize(_directionCache, 1);
-        extract->SetExtractionRegion(region);
-        extract->Update();
-        _sliceCache.push_back(extract->GetOutput());
-        _sliceCache.back()->DisconnectPipeline();
-    }
-    return true;
-}
+//bool QGraphicsVolumeView::updateSource() {
+//    if (_directionCache == Unknown) {
+//        return false;
+//    }
+//    AIRImage::RegionType region = _volumeCache->GetBufferedRegion();
+//
+//    _sliceCache.clear();
+//    _sliceCache.reserve(region.GetSize(_directionCache));
+//
+//    typedef itk::ExtractImageFilter<AIRImage, AIRImage> ExtractFilter;
+//
+//    const int nSlices = region.GetSize(_directionCache);
+//    for (int i = 0; i < nSlices; i++) {
+//        ExtractFilter::Pointer extract = ExtractFilter::New();
+//        extract->SetInput(_volumeCache);
+//        region.SetIndex(_directionCache, i);
+//        region.SetSize(_directionCache, 1);
+//        extract->SetExtractionRegion(region);
+//        extract->Update();
+//        _sliceCache.push_back(extract->GetOutput());
+//        _sliceCache.back()->DisconnectPipeline();
+//    }
+//    return true;
+//}
 
 void QGraphicsVolumeView::updateDisplay() {
     if (this->isHidden()) {
@@ -169,75 +205,61 @@ void QGraphicsVolumeView::updateDisplay() {
         return;
     }
 
-    if (!checkVolumeCache()) {
-        return;
-    }
+    _directionCache = _airImages->GetReference().GetResampleDirection(0);
 
-    if (!checkSliceCache()) {
-        if (!updateSource()) {
-            return;
-        }
-    }
+    QIntList showingVolumes = _volumeDisplays.keys();
+    qSort(showingVolumes);
 
-    // delete all graphics items
-    _displayImages.clear();
-    _scene.clear();
-    _slicePixmaps.clear();
     _currentSliceMarker = NULL;
 
-    // fire when intensity changed
-    AIRImageVector::iterator sliceIter;
-
-    int colPos = 0;
-
-    AIRImage::SizeType volumeSize = _volumeCache->GetBufferedRegion().GetSize();
-    int w = volumeSize[0];
-    int h = volumeSize[1];
-    if (_directionCache == JK) {
-        w = volumeSize[1];
-        h = volumeSize[2];
-    } else if (_directionCache == KI) {
-        w = volumeSize[0];
-        h = volumeSize[2];
-    }
-
-    _slicePixmaps.clear();
-
-    AIRImageDisplay& refImg = _airImages->GetReference();
-    int sliceIdx = 0;
-    int realSliceIdx = 0;
-    for (sliceIter = _sliceCache.begin(); sliceIter != _sliceCache.end(); sliceIter++, sliceIdx++) {
-        typedef itk::ScalarToARGBColormapImageFilter<AIRImage, RGBAVolumeType> ColorFilterType;
-        ColorFilterType::Pointer colorFilter = ColorFilterType::New();
-        colorFilter->SetInput((*sliceIter));
-        colorFilter->UseManualScalingOn();
-        colorFilter->SetMinimumValue(refImg.histogram.rangeMin);
-        colorFilter->SetMaximumValue(refImg.histogram.rangeMax);
-        colorFilter->Update();
-        RGBAVolumeType::Pointer rgbImg = colorFilter->GetOutput();
-        rgbImg->DisconnectPipeline();
-        _displayImages.push_back(rgbImg);
-        
-        QGraphicsPixmapItem* item = _scene.addPixmap(QPixmap::fromImage(QImage((unsigned char*)rgbImg->GetBufferPointer(), w, h, QImage::Format_ARGB32)));
-        item->setFlags(QGraphicsItem::ItemIsSelectable);
-        item->translate(colPos, 0);
-        item->setData(SliceIndex, QVariant(sliceIdx));
-        item->setData(AnnotationType, QVariant(SliceImage));
-        _slicePixmaps.push_back(item);
-
-        if (_workingSet.contains(sliceIdx)) {
-            addWorkingSetItem(item);
+    int volumeCount = 0;
+    QIntList::ConstIterator iter;
+    for (iter = showingVolumes.constBegin(); iter != showingVolumes.constEnd(); iter++) {
+        int id = *iter;
+        if (!_airImages->IsValidId(id)) {
+            _volumeDisplays.remove(id);
+            continue;
         }
+        AIRImageDisplay* src = _airImages->at(id);
+        if (!_volumeDisplays[id].Has(src)) {
+            _volumeDisplays[id].SetDisplay(src);
+        }
+        if (_volumeDisplays[id].UpdateSlice(_directionCache, _useNavigationImage)) {
+            const int w = _volumeDisplays[id].Width();
+            const int h = _volumeDisplays[id].Height();
+            const int s = _volumeDisplays[id].Count();
 
-        realSliceIdx = sliceIdx * _rescaleFactor;
-        item->setData(RealSliceIndex, QVariant(realSliceIdx));
-        QGraphicsTextItem* text = _scene.addText(QString("%1").arg(realSliceIdx), QFont("Courier", 24));
-        text->setPos(colPos+3, 3);
-        text->setZValue(1);
-        text->setDefaultTextColor(Qt::yellow);
+            for (int i = 0; i < s; i++) {
+                int colPos = i * w;
+                int rowPos = volumeCount * h;
+                QGraphicsPixmapItem* item = _volumeDisplays[id].GetSliceData<QGraphicsPixmapItem>(i);
+                QPixmap pixmap = QPixmap::fromImage(QImage(_volumeDisplays[id].GetColorImageBuffer(i), w, h, QImage::Format_ARGB32));
+                if (item == NULL) {
+                    item = _scene.addPixmap(QPixmap::fromImage(QImage(_volumeDisplays[id].GetColorImageBuffer(i), w, h, QImage::Format_ARGB32)));
+                    _volumeDisplays[id].SetSliceData(i, item);
+                } else {
+                    item->setPixmap(pixmap);
+                }
+                item->setFlags(QGraphicsItem::ItemIsSelectable);
+                item->setData(SliceIndex, QVariant(i));
+                item->setData(AnnotationType, QVariant(SliceImage));
+                item->setPos(colPos, rowPos);
+                int realSliceIdx = i;
+                if (_useNavigationImage) {
+                    realSliceIdx = _airImages->at(i)->GetNavigationImage().GetOriginalIndex(i);
+                }
+                item->setData(RealSliceIndex, QVariant(realSliceIdx));
 
-
-        colPos += (w + 1);
+                QGraphicsTextItem* text = _scene.addText(QString("%1").arg(realSliceIdx), QFont("Courier", 24));
+                text->setPos(colPos+3, rowPos+3);
+                text->setZValue(1);
+                text->setDefaultTextColor(Qt::yellow);
+                if (_workingSet.contains(i)) {
+                    addWorkingSetItem(item);
+                }
+            }
+        }
+        volumeCount++;
     }
 }
 
@@ -284,7 +306,7 @@ void QGraphicsVolumeView::createWorkingSet() {
 }
 
 void QGraphicsVolumeView::removeWorkingSetItem(int idx) {
-    QList<QGraphicsItem*> children = _slicePixmaps[idx]->childItems();
+    QList<QGraphicsItem*> children = _volumeDisplays[0].GetSliceData<QGraphicsPixmapItem>(idx)->childItems();
     QList<QGraphicsItem*>::ConstIterator iter = children.begin();
     for (; iter != children.end(); iter++) {
         if ((*iter)->data(AnnotationType).value<int>() == WorkingSet) {
@@ -313,17 +335,22 @@ void QGraphicsVolumeView::currentSliceChanged(int slice) {
     if (_rescaleFactor <= 0) {
         return;
     }
-    int sliceIdx = slice / _rescaleFactor;
-    if (sliceIdx < 0 || sliceIdx >= _slicePixmaps.size()) {
+
+    int sliceIdx = slice;
+    if (_useNavigationImage) {
+        sliceIdx = _airImages->at(0)->GetNavigationImage().GetIndexFromOriginal(sliceIdx);
+    }
+    if (sliceIdx < 0 || sliceIdx >= _volumeDisplays[0].Count()) {
         return;
     }
 
+    QGraphicsPixmapItem* currentSlicePixmap = _volumeDisplays[0].GetSliceData<QGraphicsPixmapItem>(sliceIdx);
     if (_currentSliceMarker == NULL) {
-        _currentSliceMarker = new QGraphicsRectItem(_slicePixmaps[sliceIdx]->boundingRect(), _slicePixmaps[sliceIdx]);
+        _currentSliceMarker = new QGraphicsRectItem(currentSlicePixmap->boundingRect(), currentSlicePixmap);
         _currentSliceMarker->setPen(QPen(Qt::green, 3));
         _currentSliceMarker->setData(AnnotationType, SliceMarker);
     } else {
-        _currentSliceMarker->setParentItem(_slicePixmaps[sliceIdx]);
+        _currentSliceMarker->setParentItem(currentSlicePixmap);
     }
 }
 
@@ -354,4 +381,35 @@ void QGraphicsVolumeView::mouseDoubleClickEvent(QMouseEvent* event) {
     }
     QGraphicsView::mouseDoubleClickEvent(event);
 
+}
+
+
+void QGraphicsVolumeView::dragEnterEvent(QDragEnterEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        UrlList urls = event->mimeData()->urls();
+        UrlList::ConstIterator iter;
+        for (iter = urls.constBegin(); iter != urls.constEnd(); iter++) {
+            const QUrl& url = (*iter);
+            if (url.scheme() != "file") {
+                event->setAccepted(false);
+                return;
+            }
+        }
+        event->setAccepted(true);
+        event->acceptProposedAction();
+    }
+}
+
+void QGraphicsVolumeView::dropEvent(QDropEvent *event) {
+    QList<QString> fileNames;
+    if (event->mimeData()->hasUrls()) {
+        UrlList urls = event->mimeData()->urls();
+        const QUrl& url = urls[0];
+        if (url.scheme() != "file") {
+            return;
+        }
+        event->acceptProposedAction();
+        QString filePath = url.path();
+        emit fileDropped(filePath);
+    }
 }
