@@ -365,7 +365,7 @@ void QGraphicsGuideView::volumeToSlice() {
     if (_volumeSliceIdx < 0) {
         return;
     }
-    _volumeSlice = ExtractSlice<AIRLabel>(_labelVolume, _volumeSliceIdx, _volumeSliceDirection);
+    _volumeSlice = SliceDisplay<AIRLabel>::ExtractSlice(_labelVolume, _volumeSliceIdx, _volumeSliceDirection);
 }
 
 void QGraphicsGuideView::sliceToLabelImage(bool useRect) {

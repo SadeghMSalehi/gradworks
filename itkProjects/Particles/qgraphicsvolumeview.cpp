@@ -212,6 +212,8 @@ void QGraphicsVolumeView::updateDisplay() {
 
     _currentSliceMarker = NULL;
 
+    QFont sliceIndexFont("Courier", 24);
+    
     int volumeCount = 0;
     QIntList::ConstIterator iter;
     for (iter = showingVolumes.constBegin(); iter != showingVolumes.constEnd(); iter++) {
@@ -246,14 +248,16 @@ void QGraphicsVolumeView::updateDisplay() {
                 item->setPos(colPos, rowPos);
                 int realSliceIdx = i;
                 if (_useNavigationImage) {
-                    realSliceIdx = _airImages->at(i)->GetNavigationImage().GetOriginalIndex(i);
+                    realSliceIdx = _airImages->at(id)->GetNavigationImage().GetOriginalIndex(i);
                 }
                 item->setData(RealSliceIndex, QVariant(realSliceIdx));
 
-                QGraphicsTextItem* text = _scene.addText(QString("%1").arg(realSliceIdx), QFont("Courier", 24));
-                text->setPos(colPos+3, rowPos+3);
+                QGraphicsTextItem* text = new QGraphicsTextItem(QString("%1").arg(realSliceIdx), item);
+                text->setFont(sliceIndexFont);
+                text->setPos(3, 3);
                 text->setZValue(1);
                 text->setDefaultTextColor(Qt::yellow);
+                
                 if (_workingSet.contains(i)) {
                     addWorkingSetItem(item);
                 }

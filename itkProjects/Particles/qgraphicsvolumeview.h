@@ -34,6 +34,7 @@ public:
     void keyReleaseEvent(QKeyEvent* key);
     void clear();
     void fitToImage(int sliceIdx, int volume = 0);
+    std::vector<int> getWorkingSet();
 
 protected:
     void mousePressEvent(QMouseEvent* event);
@@ -42,8 +43,6 @@ protected:
 
     void dragEnterEvent(QDragEnterEvent *event);
     void dropEvent(QDropEvent *event);
-
-    std::vector<int> getWorkingSet();
 
 signals:
     void sliceDoubleClicked(int n);

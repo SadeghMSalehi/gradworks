@@ -14,6 +14,7 @@
 #include <QDropEvent>
 #include <QDesktopWidget>
 #include <QGLWidget>
+#include <QShortcut>
 #include "qtypedef.h"
 
 using namespace pi;
@@ -22,6 +23,7 @@ BigViewWindow::BigViewWindow(QWidget* parent): QMainWindow(parent) {
     ui.setupUi(this);
 
     setupUi();
+    setupShortcuts();
     connectSignalSlots();
 
     initialize();
@@ -36,9 +38,14 @@ BigViewWindow::~BigViewWindow() {
 
 void BigViewWindow::setupUi() {
     ui.stackedWidget->hide();
+    
+    ui.toolBar->addWidget(ui.fileList);
+    ui.toolBar->addWidget(ui.intensitySlider);
 
     QGLWidget* glWidget = new QGLWidget();
     ui.graphicsView->setViewport(glWidget);
+    ui.graphicsView->setDragMode(QGraphicsView::ScrollHandDrag);
+    ui.graphicsView->setInteractive(true);
     
     centerToDesktop();
     raise();
@@ -89,7 +96,7 @@ void BigViewWindow::openFile(QString fileName) {
     if (image.IsNull()) {
         return;
     }
-    _images->AddImage(image);
+    _images->AddImage(image, fileName.toStdString());
     _images->SetReferenceId(0);
     if (_images->Count() == 1) {
         _images->SetReferenceSlice(_sliceDirection, 0);
@@ -98,6 +105,8 @@ void BigViewWindow::openFile(QString fileName) {
     ui.graphicsView->setVolumeToShow(_images->Count()-1);
     ui.graphicsView->updateDisplay();
     ui.graphicsView->fitToImage(_images->GetReferenceSize(_sliceDirection)/2);
+    
+    ui.fileList->addItem(fileName);
 }
 
 #pragma mark -
@@ -131,4 +140,25 @@ void BigViewWindow::dropEvent(QDropEvent *event) {
         QString filePath = url.path();
         emit fileDropped(filePath);
     }
+}
+
+
+void BigViewWindow::zoomIn() {
+    ui.graphicsView->scale(1.1,1.1);
+}
+
+void BigViewWindow::zoomOut() {
+    ui.graphicsView->scale(1/1.1,1/1.1);
+}
+
+
+void BigViewWindow::setupShortcuts() {
+    QShortcut* zoomIn = new QShortcut(QKeySequence(tr("w")), this);
+    zoomIn->setContext(Qt::ApplicationShortcut);
+    connect(zoomIn, SIGNAL(activated()), this, SLOT(zoomIn()));
+
+    QShortcut* zoomOut = new QShortcut(QKeySequence(tr("s")), this);
+    zoomOut->setContext(Qt::ApplicationShortcut);
+    connect(zoomOut, SIGNAL(activated()), this, SLOT(zoomOut()));
+
 }

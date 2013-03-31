@@ -30,6 +30,8 @@ signals:
 
 public slots:
     void openFile(QString);
+    void zoomIn();
+    void zoomOut();
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event);
@@ -37,6 +39,7 @@ protected:
 
 private:
     void setupUi();
+    void setupShortcuts();
     void connectSignalSlots();
     void initialize();
     void centerToDesktop();

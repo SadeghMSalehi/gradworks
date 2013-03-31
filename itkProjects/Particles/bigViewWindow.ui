@@ -50,7 +50,7 @@
        <property name="maximumSize">
         <size>
          <width>16777215</width>
-         <height>50</height>
+         <height>100</height>
         </size>
        </property>
        <widget class="QWidget" name="page">
@@ -65,13 +65,16 @@
             </widget>
            </item>
            <item>
-            <widget class="QDualSlider" name="horizontalSlider">
+            <widget class="QDualSlider" name="intensitySlider">
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
              </property>
             </widget>
            </item>
           </layout>
+         </item>
+         <item>
+          <widget class="QComboBox" name="fileList"/>
          </item>
          <item>
           <spacer name="verticalSpacer_2">

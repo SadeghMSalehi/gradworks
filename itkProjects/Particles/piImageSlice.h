@@ -325,6 +325,7 @@ namespace pi {
         typename T::Pointer srcImg;
         typename T::PointType srcOrigin;
         typename T::SpacingType srcSpacing;
+        std::string fileName;
 
         itk::RescaledImage<T> navigationImg;
 
@@ -492,10 +493,10 @@ namespace pi {
             if (_resampleGridVector->size() != _resampledImageCache.size()) {
                 _resampledImageCache.resize(_resampleGridVector->size());
             }
-            if (!_resampledImageCache[j].IsValid()) {
+            if (!_resampledImageCache[j].IsNull()) {
                 Resample(j);
             }
-            return _resampledImageCache[j].Cache;
+            return _resampledImageCache[j];
         }
 
         void InvalidateCaches(int i = -1) {
@@ -536,7 +537,7 @@ namespace pi {
                 cout << "No source image" << endl;
                 return;
             }
-            if (_resampledImageCache[j].IsValid()) {
+            if (_resampledImageCache[j].IsNull()) {
                 return;
             }
             _resampledImageCache[j] = Resample3D(_resampleGridVector->at(j));
@@ -612,8 +613,9 @@ namespace pi {
         }
 
         // image management
-        ImageDisplayType& AddImage(typename T::Pointer srcImg) {
+        ImageDisplayType& AddImage(typename T::Pointer srcImg, std::string fileName = "") {
             ImageDisplayType newImage(srcImg);
+            newImage.fileName = fileName;
             _imageDisplays.push_back(ImageDisplayType(srcImg));
 
             ImageDisplayType& lastImage = _imageDisplays.back();
