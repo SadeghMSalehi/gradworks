@@ -104,6 +104,11 @@ AIRLabelSlice QGraphicsGuideView::getLabelSlice() {
     return _volumeSlice;
 }
 
+AIRLabel::Pointer QGraphicsGuideView::getLabelVolume() {
+    sliceToVolume(false);
+    return _labelVolume;
+}
+
 void QGraphicsGuideView::mousePressEvent(QMouseEvent* event) {
     if (event->buttons() & Qt::LeftButton) {
         if (DrawingMode == _currentMode) {

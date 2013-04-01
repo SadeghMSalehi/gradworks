@@ -11,6 +11,7 @@
 #include "QPainter"
 #include "QStyleOptionSlider"
 
+using namespace std;
 
 QDualSlider::QDualSlider(QWidget* widget) {
     _pressedControl = QStyle::SC_None;
@@ -157,8 +158,10 @@ void QDualSlider::mouseMoveEvent(QMouseEvent *event) {
 
     if (_activeSlider != 1) {
         emit lowValueChanged(newPos);
+        emit realLowValueChanged(realLowValue());
     } else if (_activeSlider != 0) {
         emit highValueChanged(newPos);
+        emit realHighValueChanged(realHighValue());
     }
 }
 

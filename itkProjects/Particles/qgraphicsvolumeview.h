@@ -28,33 +28,35 @@ public:
     enum { SliceImage, SliceMarker, WorkingSet };
     
     QGraphicsVolumeView(QWidget* parent = NULL);
+    virtual ~QGraphicsVolumeView() {}
 
     void setThumbsWidth(int w) { _thumbsWidth = w; }
     void setDisplayCollection(pi::AIRDisplayCollection* images, bool useNavigationImage = true);
     void keyReleaseEvent(QKeyEvent* key);
     void clear();
-    void fitToImage(int sliceIdx, int volume = 0);
+    void fitToImage(int sliceIdx, int volume = -1);
     std::vector<int> getWorkingSet();
 
 protected:
-    void mousePressEvent(QMouseEvent* event);
-    void mouseReleaseEvent(QMouseEvent* event);
-    void mouseDoubleClickEvent(QMouseEvent* event);
+    virtual void mousePressEvent(QMouseEvent* event);
+    virtual void mouseReleaseEvent(QMouseEvent* event);
+    virtual void mouseDoubleClickEvent(QMouseEvent* event);
 
-    void dragEnterEvent(QDragEnterEvent *event);
-    void dropEvent(QDropEvent *event);
+    virtual void dragEnterEvent(QDragEnterEvent *event);
+    virtual void dropEvent(QDropEvent *event);
 
 signals:
     void sliceDoubleClicked(int n);
     void fileDropped(QString fileName);
 
 public slots:
-    void updateDisplay();
+    void updateDisplay(int volumeId = -1);
     void createWorkingSet();
     void removeWorkingSetItem(int i);
     void clearWorkingSet();
     void currentSliceChanged(int slice);
     void setVolumeToShow(int i);
+    void moveToVolume(int i);
 
 private:
     bool checkSliceCache();

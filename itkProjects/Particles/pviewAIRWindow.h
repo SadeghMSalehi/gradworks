@@ -53,6 +53,9 @@ public:
     bool IsImage1Loaded();
     bool IsImage2Loaded();
 
+    int getForegroundLabel();
+    int getBackgroundLabel();
+    
 protected:
     void dragEnterEvent(QDragEnterEvent* event);
     void dropEvent(QDropEvent* event);

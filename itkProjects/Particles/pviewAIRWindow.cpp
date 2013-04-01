@@ -183,6 +183,11 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     m_compositeDisplay = new QGraphicsCompositeImageItem();
     m_compositeDisplay->SetImageDisplays(&imageDisplays);
 
+    m_scene.addItem(m_compositeDisplay);
+    m_compositeDisplay->grabMouse();
+    m_compositeDisplay->grabKeyboard();
+    m_compositeDisplay->setSelected(true);
+
     // Slice Direction
     m_sliceDirectionActions.addAction(ui.actionSliceIJ);
     m_sliceDirectionActions.addAction(ui.actionSliceJK);
@@ -235,7 +240,7 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
 
     ui.multipleSliceView->hide();
 
-    // Prepare algorithm manager
+#pragma mark Algorithm-related setup
     _algorithms = new air::AlgorithmManager(this, ui);
 
 }
@@ -252,6 +257,17 @@ bool AIRWindow::IsImage2Loaded() {
     return imageDisplays.IsValidId(m_movingId);
 }
 
+int AIRWindow::getForegroundLabel() {
+    QVariant label = ui.foregroundBrush->itemData(ui.foregroundBrush->currentIndex());
+    int labelId = label.value<int>();
+    return labelId;
+}
+
+int AIRWindow::getBackgroundLabel() {
+    QVariant label = ui.backgroundBrush->itemData(ui.backgroundBrush->currentIndex());
+    int labelId = label.value<int>();
+    return labelId;
+}
 
 void AIRWindow::LoadImage(QString fileName) {
     if (!fileName.isEmpty() && !imageDisplays.IsValidId(m_movingId)) {
@@ -399,10 +415,10 @@ void AIRWindow::on_image1Name_fileDropped(QString& fileName) {
     ImageDisplayType& dispImg = imageDisplays.GetLast();
     imageDisplays.SetReferenceId(m_fixedId);
 
-    m_scene.addItem(m_compositeDisplay);
-    m_compositeDisplay->grabMouse();
-    m_compositeDisplay->grabKeyboard();
-    m_compositeDisplay->setSelected(true);
+//    m_scene.addItem(m_compositeDisplay);
+//    m_compositeDisplay->grabMouse();
+//    m_compositeDisplay->grabKeyboard();
+//    m_compositeDisplay->setSelected(true);
 
     ui.intensitySlider->setRealMin(dispImg.histogram.dataMin);
     ui.intensitySlider->setRealMax(dispImg.histogram.dataMax);
@@ -683,8 +699,9 @@ void AIRWindow::ChangeSliceDirection() {
             on_sliceSlider_valueChanged(requestedSliceIdx);
         }
 
-        ui.graphicsView->setSceneRect(m_compositeDisplay->boundingRect());
+//        ui.graphicsView->setSceneRect(m_compositeDisplay->boundingRect());
         ui.graphicsView->centerOn(m_compositeDisplay);
+        ui.graphicsView->fitInView(m_compositeDisplay);
     }
 }
 

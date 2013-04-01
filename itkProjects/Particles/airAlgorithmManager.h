@@ -18,7 +18,7 @@ class AIRWindow;
 namespace air {
 
 enum AlgorithmType { KMEANS };
-enum AlgorithmResult { SUCCESS, FAIL };
+enum AlgorithmResult { SUCCESS, FAIL, NORUN };
 
 class AlgorithmManager: public QObject {
     Q_OBJECT
@@ -33,9 +33,12 @@ public:
     AlgorithmManager(AIRWindow* parent, Ui::AIRWindow& u);
     virtual ~AlgorithmManager();
 
+    pi::AIRImage::RegionType ComputeLabelRegion(pi::AIRLabel::Pointer labelVolume, int label = -1);
+
 public slots:
     void executeKmeans2D();
-
+    void executeIsoRG();
+    
 signals:
     void algorithmFinished(AlgorithmType, AlgorithmResult, pi::AIRLabel::Pointer output);
 

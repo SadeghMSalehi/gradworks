@@ -13,6 +13,7 @@
 #include "piImageDef.h"
 #include "itkRescaleIntensityImageFilter.h"
 #include <itkImageToHistogramFilter.h>
+#include <itkLabelGeometryImageFilter.h>
 
 class vtkPolyData;
 
@@ -95,5 +96,6 @@ namespace pi {
             return filter->GetOutput();
         }
     };
+
 }
 #endif /* defined(__ParticlesGUI__myImageProcessing__) */

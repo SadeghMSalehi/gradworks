@@ -114,6 +114,7 @@ IF (${BUILD_GUI})
 	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageDef.h 
 		piImageIO.h piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h 
 		piImageHistogram.cpp piImageHistogram.h qtypedef.h qutils.h qutils.cpp
+        airImageAlgorithm.cpp airImageAlgorithm.h
 		${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES} ${QT_PVIEW_RCC})
 	TARGET_LINK_LIBRARIES(airview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 

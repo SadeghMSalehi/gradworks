@@ -493,7 +493,7 @@ namespace pi {
             if (_resampleGridVector->size() != _resampledImageCache.size()) {
                 _resampledImageCache.resize(_resampleGridVector->size());
             }
-            if (!_resampledImageCache[j].IsNull()) {
+            if (_resampledImageCache[j].IsNull()) {
                 Resample(j);
             }
             return _resampledImageCache[j];
@@ -537,7 +537,7 @@ namespace pi {
                 cout << "No source image" << endl;
                 return;
             }
-            if (_resampledImageCache[j].IsNull()) {
+            if (_resampledImageCache[j].IsNotNull()) {
                 return;
             }
             _resampledImageCache[j] = Resample3D(_resampleGridVector->at(j));

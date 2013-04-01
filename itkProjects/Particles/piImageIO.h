@@ -366,6 +366,11 @@ namespace pi {
 			return 0;
 		}
 		int WriteImage(const char* filename, ImagePointer image, bool compression) {
+            if (image.IsNull()) {
+                std::cout << filename << " is not written: null input" << std::endl;
+                return 1;
+            }
+
 			typename itk::ImageFileWriter<T>::Pointer writer = itk::ImageFileWriter<T>::New();
 			writer->SetFileName(filename);
 			if (compression) {

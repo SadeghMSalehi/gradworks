@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1025</width>
-    <height>773</height>
+    <width>1153</width>
+    <height>787</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="acceptDrops">
    <bool>true</bool>
@@ -27,6 +33,12 @@
        <enum>Qt::Vertical</enum>
       </property>
       <widget class="QGraphicsVolumeView" name="graphicsView">
+       <property name="baseSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="backgroundBrush">
         <brush brushstyle="SolidPattern">
          <color alpha="255">
@@ -66,6 +78,21 @@
            </item>
            <item>
             <widget class="QDualSlider" name="intensitySlider">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>400</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <number>10000</number>
+             </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
              </property>
@@ -74,7 +101,14 @@
           </layout>
          </item>
          <item>
-          <widget class="QComboBox" name="fileList"/>
+          <widget class="QComboBox" name="fileList">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
          </item>
          <item>
           <spacer name="verticalSpacer_2">
@@ -102,7 +136,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1025</width>
+     <width>1153</width>
      <height>22</height>
     </rect>
    </property>
@@ -118,7 +152,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionShowMenu"/>
+   <addaction name="actionLoad"/>
   </widget>
   <action name="actionShowMenu">
    <property name="checkable">
@@ -133,6 +167,18 @@
    </property>
    <property name="toolTip">
     <string>Show Intensity Control Menu</string>
+   </property>
+  </action>
+  <action name="actionLoad">
+   <property name="icon">
+    <iconset resource="bigViewWindow.qrc">
+     <normaloff>:/Icons/Images/folder-icon.png</normaloff>:/Icons/Images/folder-icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Load</string>
+   </property>
+   <property name="toolTip">
+    <string>Load an image</string>
    </property>
   </action>
  </widget>

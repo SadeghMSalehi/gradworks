@@ -14,6 +14,8 @@
 #include "ui_bigViewWindow.h"
 #include <QGraphicsScene>
 
+class QDoubleSpinBox;
+
 namespace pi {
     template<class T>
     class ImageDisplayCollection;
@@ -27,11 +29,15 @@ public:
 
 signals:
     void fileDropped(QString);
+    void multipleFileDropeed(QList<QString>);
 
 public slots:
-    void openFile(QString);
+    void openFile(QString fileName = "");
+    void openFiles(QList<QString> files);
     void zoomIn();
     void zoomOut();
+    void volumeSelected(int);
+    void changeIntensity();
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event);
@@ -45,6 +51,8 @@ private:
     void centerToDesktop();
     
 private:
+    QDoubleSpinBox* _lowIntensitySpinBox;
+    QDoubleSpinBox* _highIntensitySpinBox;
     Ui::BigViewWindow ui;
     pi::AIRDisplayCollection* _images;
     pi::SliceDirectionEnum _sliceDirection;

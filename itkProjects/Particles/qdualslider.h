@@ -28,9 +28,6 @@ public:
     void setRealMax(double v) { _realMax = v; }
     void setRealMin(double v) { _realMin = v; }
     
-    void setRealLowValue(double v) { setLowValue(v/(_realMax-_realMin)*(maximum()-minimum())+minimum()); }
-    void setRealHighValue(double v) { setHighValue(v/(_realMax-_realMin)*(maximum()-minimum())+minimum()); }
-
     double realLowValue() { return _low*(_realMax-_realMin)/(maximum()-minimum())+_realMin; }
     double realHighValue() { return _high*(_realMax-_realMin)/(maximum()-minimum())+_realMin; }
     
@@ -38,6 +35,11 @@ public:
     virtual void mousePressEvent(QMouseEvent* event);
     virtual void mouseMoveEvent(QMouseEvent* event);
     virtual void mouseReleaseEvent(QMouseEvent* event);
+
+public slots:
+    void setRealLowValue(double v) { setLowValue(v/(_realMax-_realMin)*(maximum()-minimum())+minimum()); }
+    void setRealHighValue(double v) { setHighValue(v/(_realMax-_realMin)*(maximum()-minimum())+minimum()); }
+
 
 private:
     int pick(QPoint pt) {
@@ -53,7 +55,9 @@ private:
 signals:
     void lowValueChanged(int n);
     void highValueChanged(int n);
-
+    void realLowValueChanged(double n);
+    void realHighValueChanged(double n);
+    
 private:
     int _low;
     int _high;

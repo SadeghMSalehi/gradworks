@@ -33,12 +33,12 @@ namespace pi {
 
     // storage for particle drawing
     QTransform viewTransform;
-    ImageSlice<LabelImage> viewSlice;
+    ImagePixmap<LabelImage> viewSlice;
     QGraphicsPixmapItem* pixmapItem;
     vector<QGraphicsEllipseItem*> ellipseItems;
 
-    ImageSlice<LabelImage> sourceSlice;
-    ImageSlice<LabelImage> targetSlice;
+    ImagePixmap<LabelImage> sourceSlice;
+    ImagePixmap<LabelImage> targetSlice;
     
     string configcache = "psim.txt";
     

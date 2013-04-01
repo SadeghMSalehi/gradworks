@@ -97,6 +97,7 @@ public:
     }
 
     pi::AIRLabelSlice getLabelSlice();
+    pi::AIRLabel::Pointer getLabelVolume();
 
 public slots:
     void segmentationCleared();
