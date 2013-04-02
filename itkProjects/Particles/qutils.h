@@ -16,6 +16,7 @@
 #include <QString>
 
 
+
 class QFileManager {
 private:
     QHash<int,QString> _sourceDirectories;

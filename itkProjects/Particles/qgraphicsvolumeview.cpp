@@ -29,6 +29,9 @@ QGraphicsVolumeView::QGraphicsVolumeView(QWidget* parent): QGraphicsView(parent)
 
     _thumbsWidth = 128;
     _columnCount = 10000;
+    
+    _xFlipped = false;
+    _yFlipped = false;
 
 //    _displayId = 0;
 //    _displayReference = true;
@@ -41,6 +44,12 @@ QGraphicsVolumeView::QGraphicsVolumeView(QWidget* parent): QGraphicsView(parent)
     QGraphicsView::setDragMode(QGraphicsView::ScrollHandDrag);
 //    setBackgroundBrush(QBrush(QPixmap::fromImage(QImage(QString::fromUtf8(":/Icons/Images/backgroundPattern.jpg")))));
 }
+
+void QGraphicsVolumeView::setImageFlip(bool xFlip, bool yFlip) {
+    _xFlipped = xFlip;
+    _yFlipped = yFlip;
+}
+
 
 void QGraphicsVolumeView::setDisplayCollection(pi::AIRDisplayCollection *images, bool useNavigationImage) {
     if (images == NULL) {

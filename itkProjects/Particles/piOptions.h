@@ -82,6 +82,7 @@ namespace pi {
         StringVector& GetStringVector(std::string name);
         std::string GetStringVectorValue(std::string name, int i, std::string def = "");
         StringVector GetSplitString(std::string name, std::string tok, std::string def = "");
+        IntVector GetStringAsIntVector(std::string name);        
         
         RealVector& GetRealVector(std::string name);
         OptionReal GetRealVectorValue(std::string name, int nth, OptionReal def = 0);

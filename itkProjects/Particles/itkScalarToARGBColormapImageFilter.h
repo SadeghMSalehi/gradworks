@@ -14,14 +14,11 @@
 #include "itkImageRegionIterator.h"
 #include "itkImageRegionConstIterator.h"
 #include "itkProgressReporter.h"
+#include "itkImageSliceConstIteratorWithIndex.h"
 
 namespace itk {
-    /**
-     * Enum type that provides for an easy interface to existing colormaps.
-     */
-    typedef enum { Red, Green, Blue, Grey, Hot, Cool, Spring, Summer,
-        Autumn, Winter, Copper, Jet, HSV, OverUnder } ColormapEnumType;
-    
+
+
     template< class TInputImage, class TOutputImage >
     class ITK_EXPORT ScalarToARGBColormapImageFilter:
     public ImageToImageFilter< TInputImage, TOutputImage >

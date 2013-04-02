@@ -11,12 +11,21 @@
 
 #include "itkObject.h"
 #include "itkSmartPointer.h"
+#include "itkNumericTraits.h"
+#include "itkObjectFactory.h"
+#include "itkMath.h"
 
 namespace itk
 {
+    /**
+     * Enum type that provides for an easy interface to existing colormaps.
+     */
+    typedef enum { Red, Green, Blue, Grey, Hot, Cool, Spring, Summer,
+        Autumn, Winter, Copper, Jet, HSV, OverUnder } ColormapEnumType;
+
+    
     namespace Function
     {
-
         /**
          * \class ARGBColormapFunction
          * \brief Function object which maps a scalar value into an RGB colormap value.

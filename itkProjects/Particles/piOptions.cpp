@@ -361,6 +361,15 @@ namespace pi {
         return Split(val, tok);
     }
 
+    IntVector Options::GetStringAsIntVector(std::string name) {
+        StringVector data = GetSplitString(name, ",");
+        IntVector intVector;
+        for (int i = 0; i < data.size(); i++) {
+            intVector.push_back(atoi(data[i].c_str()));
+        }
+        return intVector;
+    }
+
 
     //////////////////////////////////////////////////////////////////////////////////////
     //

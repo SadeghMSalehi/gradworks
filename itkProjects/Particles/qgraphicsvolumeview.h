@@ -57,11 +57,9 @@ public slots:
     void currentSliceChanged(int slice);
     void setVolumeToShow(int i);
     void moveToVolume(int i);
+    void setImageFlip(bool xFlip, bool yFlip);
 
 private:
-    bool checkSliceCache();
-    bool checkVolumeCache();
-    bool updateSource();
     void addWorkingSetItem(QGraphicsPixmapItem *sliceItem);
 
     
@@ -70,6 +68,9 @@ private:
     typedef pi::VolumeDisplay<pi::AIRImage> AIRVolumeDisplay;
     typedef QHash<int, AIRVolumeDisplay> VolumeHash;
     VolumeHash _volumeDisplays;
+
+    bool _xFlipped;
+    bool _yFlipped;
 
     int _thumbsWidth;
     double _rescaleFactor;

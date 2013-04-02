@@ -28,7 +28,9 @@
 using namespace std;
 
 namespace pi {
-    static int __noverbose = 0;
+    typedef std::vector<int> IntVector;
+    enum SliceDirectionEnum { IJ = 2, JK = 0, KI = 1, Unknown = -1 };
+
     class ImageInfo {
     public:
         int numdims;
@@ -60,6 +62,7 @@ namespace pi {
         typedef TransformFileReader::TransformType TransformType;
         typedef TransformFileReader::TransformListType   TransformListType;
         
+        bool __noverbose;
         
 		ImageIO() {
 			_pixelType = itk::ImageIOBase::SCALAR;
@@ -67,6 +70,8 @@ namespace pi {
             
 			itk::ObjectFactoryBase::RegisterFactory(itk::NrrdImageIOFactory::New());
 			itk::ObjectFactoryBase::RegisterFactory(itk::NiftiImageIOFactory::New());
+
+            __noverbose = false;
 		}
         
 		~ImageIO() {
@@ -181,6 +186,12 @@ namespace pi {
             // construct a generic imageIO factory
             itk::ImageIOBase::Pointer imageIO =
             itk::ImageIOFactory::CreateImageIO(inputFilename.c_str(), itk::ImageIOFactory::ReadMode);
+
+            if (imageIO.IsNull()) {
+                // probably not an image file
+                return ImagePointer();
+            }
+
             imageIO->SetFileName(inputFilename);
             imageIO->ReadImageInformation();
 
@@ -280,7 +291,6 @@ namespace pi {
             itk::ImageIOBase::IOComponentType pixelType = itk::ImageIOBase::GetComponentTypeFromString(type);
 //            cout << "converting " << itk::ImageIOBase::GetComponentTypeAsString(GetComponentType()) << " to  " << type << endl;
 
-            static const int numDimensions = 3;
             // process depending on pixel type
             switch (pixelType) {
                 case itk::ImageIOBase::DOUBLE:
@@ -356,6 +366,11 @@ namespace pi {
 			return 0;
 		}
 		int WriteImage(const char* filename, ImagePointer image, bool compression) {
+            if (image.IsNull()) {
+                std::cout << filename << " is not written: null input" << std::endl;
+                return 1;
+            }
+
 			typename itk::ImageFileWriter<T>::Pointer writer = itk::ImageFileWriter<T>::New();
 			writer->SetFileName(filename);
 			if (compression) {
@@ -548,6 +563,3 @@ namespace pi {
     
 }
 #endif
-
-
-

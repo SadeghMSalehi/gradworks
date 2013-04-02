@@ -118,7 +118,38 @@ namespace itkcmds {
             
 			return newImage;
 		}
-        
+
+        ImagePointer NewImageT(ImageSize size) {
+			ImagePointer newImage = T::New();
+			ImageRegion region;
+			region.SetSize(size);
+
+			ImageIndex index;
+			index.Fill(0);
+
+			region.SetIndex(index);
+
+			newImage->SetLargestPossibleRegion(region);
+			newImage->SetBufferedRegion(region);
+			newImage->SetRequestedRegion(region);
+
+            if (T::GetImageDimension() == 3) {
+                double spacing[3] = { 1, 1, 1 };
+                double origin[3] = { 0, 0, 0 };
+                newImage->SetOrigin(origin);
+                newImage->SetSpacing(spacing);
+            } else if (T::GetImageDimension() == 2) {
+                double spacing[2] = { 1, 1 };
+                double origin[2] = { 0, 0 };
+                newImage->SetOrigin(origin);
+                newImage->SetSpacing(spacing);
+            }
+
+			newImage->Allocate();
+			return newImage;
+		}
+
+
 		ImagePointer NewImageT(int sx, int sy, int sz) {
 			return NewImageT(sx, sy, sz, static_cast<typename T::PixelType>(0));
 		}

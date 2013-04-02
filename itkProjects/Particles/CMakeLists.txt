@@ -50,11 +50,11 @@ QT4_WRAP_CPP(QT_PVIEW_MOC_HEADERS ${QT_PVIEW_HEADERS})
 QT4_WRAP_UI(QT_PVIEW_UI_FILES pviewAIRWindow.ui testDialog.ui)
 QT4_ADD_RESOURCES(QT_PVIEW_RCC pviewAIRWindow.qrc)
 
-SET (QT_BVIEW_HEADERS bigViewWindow.h qcustomplot.h qdualslider.h qgraphicsvolumeview.h)
-SET (QT_BVIEW_SOURCES bigViewWindow.cpp qcustomplot.cpp qdualslider.cpp qgraphicsvolumeview.cpp)
+SET (QT_BVIEW_HEADERS bigViewWindow.h qcustomplot.h qdualslider.h qgraphicsvolumeview.h simpleSliceViewer.h)
+SET (QT_BVIEW_SOURCES bigViewWindow.cpp qcustomplot.cpp qdualslider.cpp qgraphicsvolumeview.cpp simpleSliceViewer.cpp)
 QT4_WRAP_CPP(QT_BVIEW_MOC_HEADERS ${QT_BVIEW_HEADERS})
-QT4_WRAP_UI(QT_BVIEW_UI_FILES bigViewWindow.ui)
-QT4_ADD_RESOURCES(QT_BVIEW_RCC bigViewWindow.qrc)
+QT4_WRAP_UI(QT_BVIEW_UI_FILES bigViewWindow.ui simpleSliceViewer.ui)
+QT4_ADD_RESOURCES(QT_BVIEW_RCC bigViewWindow.qrc simpleSliceViewer.qrc)
 
 add_definitions(${QT_DEFINITIONS})
 
@@ -114,12 +114,14 @@ IF (${BUILD_GUI})
 	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageDef.h 
 		piImageIO.h piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h 
 		piImageHistogram.cpp piImageHistogram.h qtypedef.h qutils.h qutils.cpp
-        airImageAlgorithm.cpp airImageAlgorithm.h
+        airImageAlgorithm.cpp airImageAlgorithm.h airCLI.h airCLI.cpp
 		${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES} ${QT_PVIEW_RCC})
 	TARGET_LINK_LIBRARIES(airview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
 	ADD_EXECUTABLE(bview bigview.cpp piImageDef.h 
-		piImageIO.h piOptions.h piOptions.cpp piImageSlice.h piImageSlice.cpp piVolumeDisplay.h qtypedef.h qutils.h qutils.cpp
+		piImageIO.h piOptions.h piOptions.cpp piImageSlice.h piImageSlice.cpp piVolumeDisplay.h 
+		itkARGBSliceExtractImageFilter.h itkARGBSliceExtractImageFilter.cpp
+		qtypedef.h qutils.h qutils.cpp
 		${QT_BVIEW_HEADERS} ${QT_BVIEW_SOURCES} ${QT_BVIEW_MOC_HEADERS} ${QT_BVIEW_UI_FILES} ${QT_BVIEW_RCC})
 	TARGET_LINK_LIBRARIES(bview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
