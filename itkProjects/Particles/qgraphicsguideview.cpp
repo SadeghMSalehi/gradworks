@@ -13,9 +13,12 @@
 #include <QGraphicsPathItem>
 #include <QPainter>
 #include "qgraphicscompositeimageitem.h"
+#include "qutils.h"
 #include "piImageIO.h"
 #include "itkImageRegionIteratorWithIndex.h"
 #include "piDelegateImageFilter.h"
+#include "piFitCurve.h"
+
 
 using namespace std;
 using namespace pi;
@@ -76,6 +79,8 @@ public:
 
 QGraphicsGuideView::QGraphicsGuideView(QWidget* parent): QGraphicsView(parent) {
     _currentMode = TransformMode;
+    _pathMode = FillMode;
+    
     _labelItem = NULL;
     _brushCursor = NULL;
     _brushRadius = 10.5;
@@ -85,6 +90,8 @@ QGraphicsGuideView::QGraphicsGuideView(QWidget* parent): QGraphicsView(parent) {
 
     _foregroundLabel = 1;
     _backgroundLabel = 255;
+
+    _drawingPathItem = NULL;
 }
 
 QGraphicsGuideView::~QGraphicsGuideView() {
@@ -107,6 +114,25 @@ AIRLabelSlice QGraphicsGuideView::getLabelSlice() {
 AIRLabel::Pointer QGraphicsGuideView::getLabelVolume() {
     sliceToVolume(false);
     return _labelVolume;
+}
+
+void QGraphicsGuideView::simplifyPainterPath() {
+    ParticleVector data;
+    data.resize(_drawingPath.elementCount());
+    for (int i = 0; i < data.size(); i++) {
+        data[i].x[0] = _drawingPath.elementAt(i).x;
+        data[i].x[1] = _drawingPath.elementAt(i).y;
+    }
+
+    CurveFitting fitter;
+    fitter.FitCurve(data);
+    ParticleVector& result = fitter.GetResult();
+
+    _drawingPath = QPainterPath();
+    _drawingPath.moveTo(result[0].x[0], result[0].x[1]);
+    for (int i = 1; i < result.size(); i++) {
+        _drawingPath.lineTo(result[i].x[0], result[i].x[1]);
+    }
 }
 
 void QGraphicsGuideView::mousePressEvent(QMouseEvent* event) {
@@ -175,40 +201,55 @@ void QGraphicsGuideView::mouseReleaseEvent(QMouseEvent* event) {
 }
 
 void QGraphicsGuideView::pathStartEvent(QMouseEvent *event) {
-    QPointF pos = mapToScene(event->pos());
-    _drawingPressPoint = pos;
-    _drawingPath = QPainterPath(_drawingPressPoint);
+    if (_drawingPathItem == NULL) {
+        QPointF pos = mapToScene(event->pos());
+        _drawingPressPoint = pos;
+        _drawingPath = QPainterPath(_drawingPressPoint);
 
-    if (this->scene() != NULL) {
-        _drawingPathItem = this->scene()->addPath(_drawingPath);
-        _drawingPathItem->setOpacity(0.2);
+        if (this->scene() != NULL) {
+            _drawingPathItem = this->scene()->addPath(_drawingPath);
+            _drawingPathItem->setOpacity(0.2);
+        }
+        _drawingPathItem->setPen(QPen(Qt::green,3));
     }
-    _drawingPathItem->setPen(QPen(Qt::green,1));
 }
 
 void QGraphicsGuideView::pathMoveEvent(QMouseEvent *event) {
-    QPointF pos = mapToScene(event->pos());
-    _drawingPath.lineTo(pos);
-    _drawingPathItem->setPath(_drawingPath);
-    _drawingPathItem->update();
+    if (_drawingPathItem != NULL) {
+        QPointF pos = mapToScene(event->pos());
+        _drawingPath.lineTo(pos);
+        _drawingPathItem->setPath(_drawingPath);
+        _drawingPathItem->update();
+    }
 }
 
 void QGraphicsGuideView::pathEndEvent(QMouseEvent *event) {
-    QPainter painter(&_userDrawingCanvas);
-    painter.setRenderHints(0);
-    painter.setBrush(QBrush(Qt::yellow,Qt::SolidPattern));
-    painter.setPen(Qt::NoPen);
-    painter.drawPath(_drawingPath);
-    painter.end();
+    cout << "Drawing Path (Before Simplification): " << _drawingPath.elementCount();
+    simplifyPainterPath();
+    if (_pathMode == FillMode) {
+        QPainter painter(&_userDrawingCanvas);
+        painter.setRenderHints(0);
+        painter.setBrush(QBrush(Qt::yellow,Qt::SolidPattern));
+        painter.setPen(Qt::NoPen);
+        painter.drawPath(_drawingPath);
+        painter.end();
 
-    this->scene()->removeItem(_drawingPathItem);
-
-    _updateRect = _drawingPath.boundingRect();
-    
-    userDrawingToSlice();
-    sliceToLabelImage(true);
-    updateLabelItem();
-    sliceToVolume(true);
+        this->scene()->removeItem(_drawingPathItem);
+        _drawingPathItem = NULL;
+        _updateRect = _drawingPath.boundingRect();
+        userDrawingToSlice();
+        sliceToLabelImage(true);
+        updateLabelItem();
+        sliceToVolume(true);
+    } else {
+        cout << "Drawing Path (After Simplification): " << _drawingPath.elementCount();
+        for (int i = 0; i < _drawingPath.elementCount(); i++) {
+            QPainterPath::Element e = _drawingPath.elementAt(i);
+            QGraphicsEllipseItem* el = new QGraphicsEllipseItem(e.x-2,e.y-2,5,5,_drawingPathItem);
+            el->setBrush(QBrush(0xFFFFBBDD, Qt::SolidPattern));
+            el->setOpacity(0.3);
+        }
+    }
 }
 
 void QGraphicsGuideView::brushStartEvent(QMouseEvent *event) {
@@ -414,6 +455,37 @@ void QGraphicsGuideView::sliceToLabelImage(bool useRect) {
 
 #pragma mark -
 #pragma mark Public Slots
+
+void QGraphicsGuideView::setPathMode(bool polygonMode) {
+    if (polygonMode) {
+        _pathMode = PolygonMode;
+    } else {
+        _pathMode = FillMode;
+    }
+}
+
+void QGraphicsGuideView::exportPath() {
+    if (_drawingPathItem == NULL) {
+        return;
+    }
+    // save drawing path
+
+    QString fileName = __fileManager.saveFile(QFileManager::Single, this->topLevelWidget(), "Save Path To File")
+    ;
+    if (fileName.isEmpty()) {
+        for (int i = 0; i < _drawingPath.elementCount(); i++) {
+            QPainterPath::Element e = _drawingPath.elementAt(i);
+            cout << e.x << "," << e.y << endl;
+        }
+    }
+}
+
+void QGraphicsGuideView::clearPath() {
+    if (_drawingPathItem != NULL) {
+        scene()->removeItem(_drawingPathItem);
+        _drawingPathItem = NULL;
+    }
+}
 
 void QGraphicsGuideView::segmentationCleared() {
     if (_volumeSlice.IsNull()) {

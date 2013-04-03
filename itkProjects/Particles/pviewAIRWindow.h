@@ -62,6 +62,7 @@ protected:
     void dropEvent(QDropEvent* event);
 
     void setupShortcutKeys();
+    void centerToDesktop();
     
 public slots:
     void on_actionTest_triggered();

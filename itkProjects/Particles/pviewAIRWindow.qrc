@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="Icons">
+    <file>Images/transform-flip-icon.png</file>
+    <file>Images/transform-flip-updown-icon.png</file>
     <file>Images/New-File-icon.png</file>
     <file>Images/Save-icon.png</file>
     <file>Images/SaveAs-Icon.png</file>

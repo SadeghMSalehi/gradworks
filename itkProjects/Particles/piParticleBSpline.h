@@ -76,11 +76,11 @@ namespace pi {
         m_FieldPoints->Initialize();
 
         // create point structures
-        IntPointSetType::Pointer srcPoints = IntPointSetType::New();
-        IntPointSetType::Pointer dstPoints = IntPointSetType::New();
-
-        srcPoints->Initialize();
-        dstPoints->Initialize();
+//        IntPointSetType::Pointer srcPoints = IntPointSetType::New();
+//        IntPointSetType::Pointer dstPoints = IntPointSetType::New();
+//
+//        srcPoints->Initialize();
+//        dstPoints->Initialize();
 
         // casting object C;
         C caster;

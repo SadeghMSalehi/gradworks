@@ -25,9 +25,12 @@ class QGraphicsGuideView: public QGraphicsView {
     Q_OBJECT
 public:
     enum ToolType { FreePath, FreeBrush, EraseBrush };
+    enum PathMode { FillMode, PolygonMode };
     
 private:
     enum { DrawingMode, TransformMode } _currentMode;
+
+    PathMode _pathMode;
     ToolType _currentTool;
 
     QPointF _drawingPressPoint;
@@ -69,7 +72,8 @@ private: // private methods
     void volumeToSlice();
     void sliceToLabelImage(bool);
 
-
+    void simplifyPainterPath();
+    
 public:
     QGraphicsGuideView(QWidget* parent = NULL);
     ~QGraphicsGuideView();
@@ -100,6 +104,12 @@ public:
     pi::AIRLabel::Pointer getLabelVolume();
 
 public slots:
+    // path tool related functions
+    void setPathMode(bool polygonMode);
+    void exportPath();
+    void clearPath();
+
+    // segmentation brush related functions
     void segmentationCleared();
     void labelOpacityChanged(int n);
     void sliceChanged(pi::SliceDirectionEnum dir, int n);

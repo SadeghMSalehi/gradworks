@@ -34,6 +34,7 @@
 #include <QUrl>
 #include <QShortcut>
 #include <QMessageBox>
+#include <QDesktopWidget>
 #include "airAlgorithmManager.h"
 #include "airSuperZoom.h"
 #include "qdrawingframe.h"
@@ -105,6 +106,8 @@ public:
 
 AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     ui.setupUi(this);
+    centerToDesktop();
+
     QGLWidget* glWidget1 = new QGLWidget(QGLFormat(QGL::DoubleBuffer), this);
     QGLWidget* glWidget2 = new QGLWidget(QGLFormat(QGL::DoubleBuffer), this);
     
@@ -197,6 +200,10 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     ui.actionSliceIJ->setChecked(true);
 
 
+    // path tool mode
+    ui.pathToolMode->setDefaultAction(ui.actionPathPolygon);
+    ui.pathToolMode->addAction(ui.actionExportPath);
+
 #pragma mark QObject Signal-Slot Connections
     // image IO
     connect(this, SIGNAL(fileDropped(QString&)), this, SLOT(on_image1Name_fileDropped(QString&)));
@@ -216,6 +223,9 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     connect(ui.freeBrush, SIGNAL(toggled(bool)), this, SLOT(ChangeInteractionMode()));
     connect(ui.freePath, SIGNAL(toggled(bool)), this, SLOT(ChangeInteractionMode()));
     connect(ui.eraseBrush, SIGNAL(toggled(bool)), this, SLOT(ChangeInteractionMode()));
+    connect(ui.actionPathPolygon, SIGNAL(toggled(bool)), ui.graphicsView, SLOT(setPathMode(bool)));
+    connect(ui.actionExportPath, SIGNAL(triggered()), ui.graphicsView, SLOT(exportPath()));
+    connect(ui.actionClearPath, SIGNAL(triggered()), ui.graphicsView, SLOT(clearPath()));
 
     connect(ui.actionLoadSegmentation, SIGNAL(triggered()), this, SLOT(LoadSegmentation()));
     connect(ui.actionSaveSegmentation, SIGNAL(triggered()), this, SLOT(SaveSegmentation()));
@@ -248,6 +258,30 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
 
 AIRWindow::~AIRWindow() {
     m_mouseHandler->UnRegister();
+}
+
+
+void AIRWindow::centerToDesktop() {
+    QDesktopWidget *desktop = QApplication::desktop();
+
+    int screenWidth, width;
+    int screenHeight, height;
+    int x, y;
+    QSize windowSize;
+
+    screenWidth = desktop->width();
+    screenHeight = desktop->height();
+
+    windowSize = size();
+    width = windowSize.width();
+    height = windowSize.height();
+
+    x = (screenWidth - width) / 2;
+    y = (screenHeight - height) / 2;
+    y -= 50;
+
+    move(x, y);
+    resize(windowSize.width(), windowSize.height());
 }
 
 bool AIRWindow::IsImage1Loaded() {
@@ -712,7 +746,7 @@ void AIRWindow::ChangeSliceDirection() {
 
 //        ui.graphicsView->setSceneRect(m_compositeDisplay->boundingRect());
         ui.graphicsView->centerOn(m_compositeDisplay);
-        ui.graphicsView->fitInView(m_compositeDisplay);
+        ui.graphicsView->fitInView(m_compositeDisplay, Qt::KeepAspectRatio);
     }
 }
 
