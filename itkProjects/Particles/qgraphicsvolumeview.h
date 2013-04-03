@@ -28,7 +28,11 @@ public:
     enum { SliceImage, SliceMarker, WorkingSet };
     
     QGraphicsVolumeView(QWidget* parent = NULL);
-    virtual ~QGraphicsVolumeView() {}
+    virtual ~QGraphicsVolumeView() {
+        if (_scene != NULL) {
+            delete _scene;
+        }
+    }
 
     void setThumbsWidth(int w) { _thumbsWidth = w; }
     void setDisplayCollection(pi::AIRDisplayCollection* images, bool useNavigationImage = true);
@@ -55,47 +59,43 @@ public slots:
     void removeWorkingSetItem(int i);
     void clearWorkingSet();
     void currentSliceChanged(int slice);
-    void setVolumeToShow(int i);
+    void directionChanged(pi::SliceDirectionEnum dir);
+
     void moveToVolume(int i);
-    void setImageFlip(bool xFlip, bool yFlip);
+    void flipLR(bool toggle);
+    void flipUD(bool toggle);
 
 private:
-    void addWorkingSetItem(QGraphicsPixmapItem *sliceItem);
-
+    void addWorkingSetItem(QGraphicsItem *sliceItem);
+    void updatePixmaps();
     
 private:
     // volume view storage
     typedef pi::VolumeDisplay<pi::AIRImage> AIRVolumeDisplay;
-    typedef QHash<int, AIRVolumeDisplay> VolumeHash;
-    VolumeHash _volumeDisplays;
+    QVector<AIRVolumeDisplay> _volumeDisplays;
+
+//    typedef QList<QGraphicsItem*> QGraphicsItemList;
+//    typedef QList<QGraphicsItemList> QGraphicsItemTable;
+//    QGraphicsItemTable _pixmapTable;
+//    QGraphicsItemTable _pximapRegionTable;
 
     bool _xFlipped;
     bool _yFlipped;
+    bool _showAll;
 
     int _thumbsWidth;
     double _rescaleFactor;
     int _columnCount;
-//
-//    int _displayId;
-//    bool _displayReference;
-//    bool _manualIntensityScaling;
     bool _useNavigationImage;
     pi::SliceDirectionEnum _directionCache;
 
-
-    QGraphicsScene _scene;
+    QGraphicsScene* _scene;
     pi::AIRDisplayCollection* _airImages;
-//    pi::AIRImageVector _sliceCache;
-//    pi::RGBAImageVector _displayImages;
-//    pi::AIRImage::Pointer _volumeCache;
-//    itk::ModifiedTimeType _volumeSourceModifiedTime;
-//    pi::AIRImage::Pointer _volumeSource;
 
     typedef QSet<int> QIntSet;
     QIntSet _workingSet;
 
     QGraphicsRectItem* _currentSliceMarker;
-//    QVector<QGraphicsPixmapItem*> _slicePixmaps;
 };
 
 #endif /* defined(__ParticleGuidedRegistration__qgraphicsvolumeview__) */

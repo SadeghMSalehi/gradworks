@@ -16,6 +16,8 @@
 #include "piImageHistogram.h"
 #include "piImageIO.h"
 
+#include "itkObject.h"
+#include "itkSmartPointer.h"
 #include "itkRGBAPixel.h"
 #include "itkScalarToARGBColormapImageFilter.h"
 #include "itkExtractImageFilter.h"
@@ -31,9 +33,6 @@
 class QGraphicsPixmapItem;
 
 namespace itk {
-#pragma mark -
-#pragma Templated Class Definitions
-
 #pragma mark -
 #pragma Templated Class Definitions
 
@@ -306,135 +305,159 @@ namespace pi {
         }
     };
 
+    template <class T>
+    class ImageDisplayCollection;
+    
     template<class T>
-    class ImageDisplay {
+    class ImageDisplay: public itk::Object {
     public:
+        typedef ImageDisplay Self;
+        typedef Object Superclass;
+        typedef ImageDisplayCollection<T> CollectionType;
+        typedef SliceDisplay<T> SliceType;
+        typedef itk::SmartPointer<Self> Pointer;
+        typedef itk::SmartPointer<const Self> ConstPointer;
+
+        itkTypeMacro(ImageDisplay, Superclass);
+        itkNewMacro(ImageDisplay);
+
         typedef itk::AffineTransform<double> TransformType;
         typedef TransformType::OutputVectorType VectorType;
         typedef SliceDisplay<T> GridType;
 
+        typedef typename T::Pointer ImagePointer;
+        typedef typename T::PointType ImagePoint;
+        typedef typename T::SpacingType ImageSpacing;
+        typedef ImageHistogram<T> ImageHistogram;
+
+        itkGetMacro(SourceImage, ImagePointer);
+        itkGetMacro(Origin, ImagePoint);
+        itkGetMacro(Spacing, ImageSpacing);
+        itkGetMacro(FileName, std::string);
+        itkGetMacro(AffineTransform, TransformType::Pointer);
+
+        itkSetMacro(FileName, std::string);
+        itkSetMacro(AffineTransform, TransformType::Pointer);
+
+        itkGetMacro(ParentCollection, CollectionType*);
+
+    protected:
+        ImageDisplay() {
+            m_ParentCollection = NULL;
+        }
+        virtual ~ImageDisplay() {
+        }
+
     private:
-        TransformType::Pointer _affineTransform;
+        ImageDisplay(const Self& other);
+        void operator=(const Self& other);
+
+        CollectionType* m_ParentCollection;
+        ImagePointer m_SourceImage;
+        ImagePoint m_Origin;
+        ImageSpacing m_Spacing;
+
+        std::string m_FileName;
+        itk::RescaledImage<T> navigationImg;
+        TransformType::Pointer m_AffineTransform;
+
         typename T::PointType _currentOrigin;
         VectorType _currentTranslation;
 
         // (grid x transform)
-        std::vector<typename T::Pointer> _resampledImageCache;
+        std::vector<SliceType> _sliceDisplayCache;
 
-    public:
-        typename T::Pointer srcImg;
-        typename T::PointType srcOrigin;
-        typename T::SpacingType srcSpacing;
-        std::string fileName;
-
-        itk::RescaledImage<T> navigationImg;
-
-        // how to determine bin-size automatically?
-        ImageHistogram<T> histogram;
+        ImageHistogram histogram;
         ImageDisplayProperty displayProperty;
 
-        // set from outside
-        std::vector<GridType>* _resampleGridVector;
-
     public:
-        ImageDisplay(typename T::Pointer img) {
-            SetImage(img);
-            _resampleGridVector = NULL;
+        ImageHistogram& GetHistogram() {
+            return histogram;
         }
 
-        ~ImageDisplay() {
-            _resampleGridVector = NULL;
-            _resampledImageCache.clear();
-        }
-
-        void SetGridVector(std::vector<GridType>* grids) {
-            _resampleGridVector = grids;
-            _resampledImageCache.clear();
-            _resampledImageCache.resize(grids->size());
+        void SetParentCollection(CollectionType* parent) {
+            m_ParentCollection = parent;
+            InvalidateCaches();
         }
 
         void SetAffineTransform(vtkMatrix4x4* mat) {
-            if (srcImg.IsNull()) {
+            if (m_SourceImage.IsNull()) {
                 return;
             }
-            TransformType::ParametersType params = _affineTransform->GetParameters();
+            TransformType::ParametersType params = m_AffineTransform->GetParameters();
             for (int i = 0; i < DIMENSIONS; i++) {
                 for (int j = 0; j < DIMENSIONS; j++) {
                     params[3 * i + j] = mat->GetElement(i, j);
                 }
             }
-            _affineTransform->SetParameters(params);
+            m_AffineTransform->SetParameters(params);
             InvalidateCaches();
         }
 
         void SetAffineTransform(TransformType::TransformBase::Pointer baseTransform) {
-            if (srcImg.IsNull()) {
+            if (m_SourceImage.IsNull()) {
                 return;
             }
-            _affineTransform->SetParameters(baseTransform->GetParameters());
-            _affineTransform->SetFixedParameters(baseTransform->GetFixedParameters());
+            m_AffineTransform->SetParameters(baseTransform->GetParameters());
+            m_AffineTransform->SetFixedParameters(baseTransform->GetFixedParameters());
             InvalidateCaches();
         }
 
-        TransformType::Pointer GetAffineTransform() {
-            return _affineTransform;
-        }
 
         void SetAffineParameters(TransformType::ParametersType params) {
             if (params.GetSize() == 12) {
-                _affineTransform->SetParameters(params);
+                m_AffineTransform->SetParameters(params);
             }
             InvalidateCaches();
         }
 
         VectorType GetAffineTranslation() {
-            return _affineTransform->GetTranslation();
+            return m_AffineTransform->GetTranslation();
         }
         
         void SetAffineTranslation() {
-            _currentTranslation = _affineTransform->GetTranslation();
+            _currentTranslation = m_AffineTransform->GetTranslation();
         }
 
         void SetAffineTranslation(int idx, float x, float y) {
-            GridType& refGrid = _resampleGridVector->at(idx);
+            GridType& refGrid = m_ParentCollection->GetDisplay(idx);
             TransformType::OutputVectorType translation = _currentTranslation;
             if (refGrid.Direction() == IJ) {
-                translation[0] += x * srcSpacing[0];
-                translation[1] += y * srcSpacing[1];
+                translation[0] += x * m_Spacing[0];
+                translation[1] += y * m_Spacing[1];
             } else if (refGrid.Direction() == JK) {
-                translation[1] += x * srcSpacing[1];
-                translation[2] += y * srcSpacing[2];
+                translation[1] += x * m_Spacing[1];
+                translation[2] += y * m_Spacing[2];
             } else if (refGrid.Direction() == KI) {
-                translation[0] += x * srcSpacing[0];
-                translation[2] += y * srcSpacing[2];
+                translation[0] += x * m_Spacing[0];
+                translation[2] += y * m_Spacing[2];
             }
-            _affineTransform->SetTranslation(translation);
+            m_AffineTransform->SetTranslation(translation);
             InvalidateCaches();
         }
 
         void SetAffineTranslation(VectorType tx) {
-            _affineTransform->SetTranslation(tx);
+            m_AffineTransform->SetTranslation(tx);
             InvalidateCaches();
         }
 
         void SetAffineCenter(typename T::PointType center) {
-            _affineTransform->SetCenter(center);
+            m_AffineTransform->SetCenter(center);
             InvalidateCaches();
         }
 
         // 2d slice related functions
-        void SetImage(typename T::Pointer img) {
+        void SetSourceImage(typename T::Pointer img) {
             if (img.IsNull()) {
                 cout << "Empty source image" << endl;
                 return;
             }
 
-            srcImg = img;
-            srcOrigin = img->GetOrigin();
-            srcSpacing = img->GetSpacing();
+            m_SourceImage = img;
+            m_Origin = img->GetOrigin();
+            m_Spacing = img->GetSpacing();
             
-            histogram.SetImage(srcImg);
-//            histogram.Compute();
+            histogram.SetImage(m_SourceImage);
 
             TransformType::ParametersType params;
             params.SetSize(12);
@@ -443,26 +466,19 @@ namespace pi {
                 params[3 * i + i] = 1;
             }
             
-            _affineTransform = TransformType::New();
-            _affineTransform->SetParameters(params);
+            m_AffineTransform = TransformType::New();
+            m_AffineTransform->SetParameters(params);
 
             typename T::PointType center;
-            typename T::SizeType imgSz = srcImg->GetBufferedRegion().GetSize();
+            typename T::SizeType imgSz = m_SourceImage->GetBufferedRegion().GetSize();
             RealIndex centerIdx;
             fordim (k) {
                 centerIdx[k] = imgSz[k]/2.0;
             }
-            srcImg->TransformContinuousIndexToPhysicalPoint(centerIdx, center);
-            _affineTransform->SetCenter(center);
+            m_SourceImage->TransformContinuousIndexToPhysicalPoint(centerIdx, center);
+            m_AffineTransform->SetCenter(center);
 
             InvalidateCaches();
-        }
-
-        itk::RescaledImage<T>& GetNavigationImage() {
-            if (navigationImg.IsNull() && srcImg->GetMTime() > navigationImg.GetMTime()) {
-                navigationImg.SetImage(srcImg, 2);
-            }
-            return navigationImg;
         }
 
         void SetWindowRange(typename T::PixelType m1, typename T::PixelType m2) {
@@ -474,53 +490,38 @@ namespace pi {
             displayProperty.colorMap = map;
         }
 
-        SliceDirectionEnum GetResampleDirection(int j) {
-            if (_resampleGridVector == NULL || j < 0 || _resampleGridVector->size() <= j || _resampleGridVector->at(j).IsNull()) {
-                return Unknown;
+        typename T::Pointer GetDisplayImage(int j = 0) {
+            if (_sliceDisplayCache.size() != m_ParentCollection->GetDisplayCount()) {
+                _sliceDisplayCache.resize(m_ParentCollection->GetDisplayCount());
             }
-            return _resampleGridVector->at(j).Direction();
-        }
-
-        typename T::Pointer GetResampled(int j = 0) {
-            if (j < 0) {
-                cout << "Wrong sampling index" << endl;
-                return typename T::Pointer();
-            }
-            if (_resampleGridVector == NULL || _resampleGridVector->size() <= j || _resampleGridVector->at(j).IsNull()) {
-                cout << "no sampling grid" << endl;
-                return typename T::Pointer();
-            }
-            if (_resampleGridVector->size() != _resampledImageCache.size()) {
-                _resampledImageCache.resize(_resampleGridVector->size());
-            }
-            if (_resampledImageCache[j].IsNull()) {
+            if (_sliceDisplayCache[j].IsNull()) {
                 Resample(j);
             }
-            return _resampledImageCache[j];
+            return _sliceDisplayCache[j];
         }
 
         void InvalidateCaches(int i = -1) {
             if (i == -1) {
-                for (int j = 0; j < _resampledImageCache.size(); j++) {
-                    _resampledImageCache[j] = NULL;
+                if (m_ParentCollection != NULL) {
+                    _sliceDisplayCache = std::vector<SliceType>(m_ParentCollection->GetDisplayCount());
                 }
             } else {
-                _resampledImageCache[i] = NULL;
+                _sliceDisplayCache[i] = SliceType();
             }
         }
 
         typename T::Pointer Resample3D(typename T::Pointer resampleGrid, int interpolator = 0) {
             typedef itk::ResampleImageFilter<AIRImage, AIRImage> ResampleFilter;
             typename ResampleFilter::Pointer resampleFilter = ResampleFilter::New();
-            resampleFilter->SetInput(srcImg);
+            resampleFilter->SetInput(m_SourceImage);
             resampleFilter->SetReferenceImage(resampleGrid);
             resampleFilter->UseReferenceImageOn();
             if (interpolator == 1) {
                 typedef itk::BSplineInterpolateImageFunction<T> BspFuncType;
                 resampleFilter->SetInterpolator(BspFuncType::New());
             }
-            if (_affineTransform.IsNotNull()) {
-                typename ResampleFilter::TransformType* transformInput = dynamic_cast<typename ResampleFilter::TransformType*>(_affineTransform.GetPointer());
+            if (m_AffineTransform.IsNotNull()) {
+                typename ResampleFilter::TransformType* transformInput = dynamic_cast<typename ResampleFilter::TransformType*>(m_AffineTransform.GetPointer());
                 resampleFilter->SetTransform(transformInput);
             }
             resampleFilter->Update();
@@ -529,50 +530,48 @@ namespace pi {
 
     private:
         void Resample(int j) {
-            if (_resampleGridVector->at(j).IsNull()) {
+            if (m_ParentCollection == NULL || m_ParentCollection->GetDisplay(j).IsNull()) {
                 cout << "No sampling grid" << endl;
                 return;
             }
-            if (srcImg.IsNull()) {
+            if (m_SourceImage.IsNull()) {
                 cout << "No source image" << endl;
                 return;
             }
-            if (_resampledImageCache[j].IsNotNull()) {
+            if (_sliceDisplayCache.size() < m_ParentCollection->GetDisplayCount()) {
+                _sliceDisplayCache.resize(m_ParentCollection->GetDisplayCount());
+            }
+            if (_sliceDisplayCache[j].IsNotNull()) {
                 return;
             }
-            _resampledImageCache[j] = Resample3D(_resampleGridVector->at(j));
+            _sliceDisplayCache[j] = Resample3D(m_ParentCollection->GetDisplay(j));
         }
     };
-
-
-    
 
 
     template<class T>
     class ImageDisplayCollection {
     public:
-        typedef SliceDisplay<T> GridType;
+        typedef SliceDisplay<T> SliceType;
         typedef ImageDisplay<T> ImageDisplayType;
-        typedef std::vector<ImageDisplayType> ImageDisplayVector;
+        typedef typename ImageDisplayType::Pointer ImageDisplayPointer;
 
     private:
-        int _referenceId;
+        std::vector<ImageDisplayPointer> _imageDisplays;
+        std::vector<SliceType> _displayArray;
         typename T::PointType _referenceCenter;
-        ImageDisplayVector _imageDisplays;
-        std::vector<GridType> _resampleGrids;
+        typename T::RegionType _referenceRegion;
+        typedef typename T::PixelType TPixel;
 
         void SetCenterOfRotation() {
-            if (IsValidId(_referenceId)) {
-                typename T::Pointer refImg = _imageDisplays[_referenceId].srcImg;
-                typename T::RegionType refRegion = refImg->GetBufferedRegion();
-                typename T::IndexType idx1 = refRegion.GetIndex();
-                typename T::IndexType idx2 = refRegion.GetUpperIndex();
+            if (_imageDisplays.size() > 0) {
+                typename T::IndexType idx1 = _referenceRegion.GetIndex();
+                typename T::IndexType idx2 = _referenceRegion.GetUpperIndex();
                 RealIndex centerIdx;
                 for (int i = 0; i < 3; i++) {
                     centerIdx[i] = (idx1[i] + idx2[i]) / 2.0;
                 }
-                refImg->TransformContinuousIndexToPhysicalPoint(centerIdx, _referenceCenter);
-
+                _imageDisplays[0]->GetSourceImage()->TransformContinuousIndexToPhysicalPoint(centerIdx, _referenceCenter);
                 for (int i = 0; i < _imageDisplays.size(); i++) {
                     _imageDisplays[i].SetAffineCenter(_referenceCenter);
                     _imageDisplays[i].InvalidateCaches();
@@ -581,21 +580,21 @@ namespace pi {
         }
 
     public:
-        ImageDisplayCollection(): _referenceId(-1) {
+        ImageDisplayCollection() {
             _imageDisplays.reserve(2);
+        }
+
+        bool IsEmpty() {
+            return _imageDisplays.size() == 0;
         }
 
         void Reset() {
             _imageDisplays.clear();
-            _resampleGrids.clear();
-            _referenceId = -1;
+            _displayArray.clear();
             _referenceCenter.Fill(0);
+            _referenceRegion = typename  T::RegionType();
         }
 
-        int GetReferenceId() {
-            return _referenceId;
-        }
-        
         bool IsValidId(int n) {
             if (n >= 0 && n < _imageDisplays.size()) {
                 return true;
@@ -608,91 +607,61 @@ namespace pi {
         }
         
         // may be changed to a piece-wise function
-        void SetWindowRange(int n, AIRPixel min, AIRPixel max) {
+        void SetWindowRange(int n, TPixel min, TPixel max) {
             _imageDisplays[n].SetWindowRange(min, max);
         }
 
         // image management
-        ImageDisplayType& AddImage(typename T::Pointer srcImg, std::string fileName = "") {
-            ImageDisplayType newImage(srcImg);
-            newImage.fileName = fileName;
-            _imageDisplays.push_back(ImageDisplayType(srcImg));
-
-            ImageDisplayType& lastImage = _imageDisplays.back();
-            lastImage.SetGridVector(&_resampleGrids);
-
-            if (IsValidId(_referenceId)) {
-                lastImage.SetAffineCenter(_referenceCenter);
+        ImageDisplayPointer AddImage(typename T::Pointer srcImg, std::string fileName = "") {
+            ImageDisplayPointer newImage = ImageDisplayType::New();
+            newImage->SetSourceImage(srcImg);
+            newImage->SetFileName(fileName);
+            newImage->SetParentCollection(this);
+            if (_imageDisplays.size() == 0) {
+                _referenceRegion = srcImg->GetBufferedRegion();
             }
-            return lastImage;
+            if (_imageDisplays.size() > 1) {
+                newImage->SetAffineCenter(_referenceCenter);
+            }
+            _imageDisplays.push_back(newImage);
+            return newImage;
         }
-//
-//        void DeleteImage(int n) {
-//            if (n == _referenceId && _imageDisplays.size() > 1) {
-//                SetReferenceId(0);
-//            }
-//            if (n >= 0 && n < _imageDisplays.size()) {
-//                _imageDisplays.erase(_imageDisplays.begin() + n);
-//            }
-//            if (_imageDisplays.size() == 0) {
-//                _referenceId = -1;
-//            }
-//        }
+
 
         bool SetImage(int n, typename T::Pointer img) {
-            if (IsValidId(n)) {
-                _imageDisplays[n].SetImage(img);
-            } else if (n == Count()) {
-                _imageDisplays.push_back(ImageDisplayType(img));
-            } else {
+            if (!IsValidId(n)) {
                 return false;
             }
-            _imageDisplays[n].SetGridVector(&_resampleGrids);
-            if (n == _referenceId) {
-                SetReferenceId(n);
-            }
+            _imageDisplays[n]->SetSourceImage(img);
             return true;
         }
 
-        ImageDisplayType* at(int i) {
-            return &(_imageDisplays[i]);
-        }
-        GridType& GetGrid(int i) {
-            return _resampleGrids[i];
-        }
-        ImageDisplayType& operator[](int i) {
+        ImageDisplayPointer& at(int i) {
             return _imageDisplays[i];
         }
-        ImageDisplayType& GetReference() {
-            return _imageDisplays[_referenceId];
+
+        ImageDisplayPointer& operator[](int i) {
+            return _imageDisplays[i];
         }
-        typename T::Pointer GetReferenceGrid() {
-            if (IsValidId(_referenceId)) {
-                return _imageDisplays[_referenceId].srcImg;
-            } else {
-                return typename T::Pointer();
-            }
+
+        ImageDisplayPointer& GetReference() {
+            return _imageDisplays[0];
         }
+
         int GetReferenceSize(SliceDirectionEnum dir) {
-            return GetReferenceGrid()->GetBufferedRegion().GetSize(dir);
+            return _referenceRegion.GetSize(dir);
         }
-        ImageDisplayType& GetLast() {
+        
+        ImageDisplayPointer& GetLast() {
             return _imageDisplays.back();
         }
 
-        // what should happen if the reference is changed?
-        void SetReferenceId(int n) {
-            if (n >= 0 && n < _imageDisplays.size()) {
-                if (_referenceId != n) {
-                    _referenceId = n;
-                    SetCenterOfRotation();
-                }
-            }
-        }
-
         // recreate a slice grid
-        void SetReferenceSlice(SliceDirectionEnum axis, int index) {
-            typename T::Pointer srcImg = GetReferenceGrid();
+        void SetSliceDisplay(SliceDirectionEnum axis, int index) {
+            if (_imageDisplays.size() == 0) {
+                return;
+            }
+            typename T::Pointer srcImg = _imageDisplays[0]->GetSourceImage();
             if (srcImg.IsNull()) {
                 cout << "Emtpy reference grid" << endl;
                 return;
@@ -702,15 +671,23 @@ namespace pi {
             if (sliceImg.IsNull()) {
                 return;
             }
-            SetReferenceSlice(sliceImg);
+            SetDisplay(sliceImg);
         }
 
-        void SetReferenceSlice(typename T::Pointer grid) {
-            _resampleGrids.clear();
-            _resampleGrids.push_back(GridType(grid));
+        void SetDisplay(typename T::Pointer grid) {
+            _displayArray.clear();
+            _displayArray.push_back(SliceType(grid));
             for (int i = 0; i < _imageDisplays.size(); i++) {
-                _imageDisplays[i].InvalidateCaches();
+                _imageDisplays[i]->InvalidateCaches();
             }
+        }
+
+        SliceType& GetDisplay(int i) {
+            return _displayArray[i];
+        }
+
+        int GetDisplayCount() {
+            return _displayArray.size();
         }
     };
 
@@ -718,7 +695,7 @@ namespace pi {
     typedef std::vector<AIRImage::Pointer> AIRImageVector;
     typedef SliceDisplay<AIRLabel> AIRLabelSlice;
     typedef SliceDisplay<AIRImage> AIRImageSlice;
-    typedef ImageDisplay<AIRImage> AIRImageDisplay;
+    typedef ImageDisplay<AIRImage>::Pointer AIRImageDisplay;
     typedef std::vector<AIRImageDisplay> AIRDisplayVector;
     typedef ImageDisplayCollection<AIRImage> AIRDisplayCollection;
 

@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="DualIcons">
+    <file>Images/outline32/Canvas.png</file>
+    <file>Images/New-File-icon.png</file>
+  </qresource>
+</RCC>

@@ -10,13 +10,16 @@
 #include "QMouseEvent"
 
 void myQGraphicsView::mousePressEvent(QMouseEvent* event) {
+    event->accept();
     emit mousePressed(event);
 }
 
 void myQGraphicsView::mouseReleaseEvent(QMouseEvent* event) {
+    event->accept();
     emit mouseReleased(event);
 }
 
 void myQGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    event->accept();    
     emit mouseMoved(event);
 }

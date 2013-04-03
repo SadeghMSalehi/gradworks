@@ -15,6 +15,8 @@
 using namespace pi;
 
 typedef pi::ImageDisplay<AIRImage> ImageDisplayType;
+typedef pi::ImageDisplay<AIRImage>::Pointer ImageDisplayPointer;
+
 
 bool QGraphicsCompositeImageItem::CheckCompositeBuffer(int id1) {
     if (_imageDisplays == NULL) {
@@ -25,7 +27,7 @@ bool QGraphicsCompositeImageItem::CheckCompositeBuffer(int id1) {
     ImageDisplayType* img1 = _imageDisplays->at(id1);
 
     // check foreground image
-    AIRImage::Pointer fImg = img1->GetResampled(_resampleIdx);
+    AIRImage::Pointer fImg = img1->GetDisplayImage(_resampleIdx);
     if (fImg.IsNull()) {
         return false;
     }
@@ -48,19 +50,19 @@ void QGraphicsCompositeImageItem::CompositeAlpha(int id1, int id2) {
 
     // prepare input and output buffer
     ImageDisplayType* img1 = _imageDisplays->at(id1);
-    AIRImage::Pointer fImg = img1->GetResampled(_resampleIdx);
+    AIRImage::Pointer fImg = img1->GetDisplayImage(_resampleIdx);
     const int nElems = fImg->GetPixelContainer()->Size();
     DataReal* cBuf = _compositeImage->GetBufferPointer();
     AIRPixel* fBuf = fImg->GetBufferPointer();
-    Clamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
+    Clamper fClamp(img1->GetHistogram().rangeMin, img1->GetHistogram().rangeMax);
 
     if (_imageDisplays->IsValidId(id2)) {
         // if there is more than one image,
         ImageDisplayType* img2 = _imageDisplays->at(id2);
-        AIRImage::Pointer mImg = img2->GetResampled(_resampleIdx);
+        AIRImage::Pointer mImg = img2->GetDisplayImage(_resampleIdx);
         AIRPixel* mBuf = mImg->GetBufferPointer();
 
-        Clamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
+        Clamper mClamp(img2->GetHistogram().rangeMin, img2->GetHistogram().rangeMax);
         for (int i = 0; i < nElems; i++) {
             const float f = fClamp(fBuf[i]);
             const float m = mClamp(mBuf[i]);
@@ -88,18 +90,18 @@ void QGraphicsCompositeImageItem::CompositeCheckerBoard(int id1, int id2) {
     
     // prepare input and output buffer
     ImageDisplayType* img1 = _imageDisplays->at(id1);
-    AIRImage::Pointer fImg = img1->GetResampled(_resampleIdx);
+    AIRImage::Pointer fImg = img1->GetDisplayImage(_resampleIdx);
     AIRPixel* fBuf = fImg->GetBufferPointer();
 
     ImageDisplayType* img2 = _imageDisplays->at(id2);
-    AIRImage::Pointer mImg = img2->GetResampled(_resampleIdx);
+    AIRImage::Pointer mImg = img2->GetDisplayImage(_resampleIdx);
     AIRPixel* mBuf = mImg->GetBufferPointer();
 
     DataReal* cBuf = _compositeImage->GetBufferPointer();
 
     // FIXME: need to select appropriate size, probably function at imageDisplays
-    int w = _imageDisplays->GetGrid(_resampleIdx).Width();
-    int h = _imageDisplays->GetGrid(_resampleIdx).Height();
+    int w = _imageDisplays->GetDisplay(_resampleIdx).Width();
+    int h = _imageDisplays->GetDisplay(_resampleIdx).Height();
 
     const int cbszW = w / _cbCols;
     const int cbszH = h / _cbRows;
@@ -107,8 +109,8 @@ void QGraphicsCompositeImageItem::CompositeCheckerBoard(int id1, int id2) {
     cout << cbszW << endl;
     cout << cbszH << endl;
 
-    Clamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
-    Clamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
+    Clamper fClamp(img1->GetHistogram().rangeMin, img1->GetHistogram().rangeMax);
+    Clamper mClamp(img2->GetHistogram().rangeMin, img2->GetHistogram().rangeMax);
 
     int k = 0;
     for (int j = 0; j < h; j++) {
@@ -135,17 +137,17 @@ void QGraphicsCompositeImageItem::CompositeDifference(int id1, int id2) {
 
     // prepare input and output buffer
     ImageDisplayType* img1 = _imageDisplays->at(id1);
-    AIRImage::Pointer fImg = img1->GetResampled(_resampleIdx);
+    AIRImage::Pointer fImg = img1->GetDisplayImage(_resampleIdx);
     AIRPixel* fBuf = fImg->GetBufferPointer();
 
     ImageDisplayType* img2 = _imageDisplays->at(id2);
-    AIRImage::Pointer mImg = img2->GetResampled(_resampleIdx);
+    AIRImage::Pointer mImg = img2->GetDisplayImage(_resampleIdx);
     AIRPixel* mBuf = mImg->GetBufferPointer();
     DataReal* cBuf = _compositeImage->GetBufferPointer();
 
 
-    Clamper fClamp(img1->histogram.rangeMin, img1->histogram.rangeMax);
-    Clamper mClamp(img2->histogram.rangeMin, img2->histogram.rangeMax);
+    Clamper fClamp(img1->GetHistogram().rangeMin, img1->GetHistogram().rangeMax);
+    Clamper mClamp(img2->GetHistogram().rangeMin, img2->GetHistogram().rangeMax);
 
     int nElems = fImg->GetPixelContainer()->Size();
     for (int i = 0; i < nElems; i++) {
@@ -196,8 +198,8 @@ void QGraphicsCompositeImageItem::Refresh(int id1, int id2) {
     _rgbImage = colorFilter->GetOutput();
 
     // may have to correct to deal with various slice
-    int w = _imageDisplays->GetGrid(_resampleIdx).Width();
-    int h = _imageDisplays->GetGrid(_resampleIdx).Height();
+    int w = _imageDisplays->GetDisplay(_resampleIdx).Width();
+    int h = _imageDisplays->GetDisplay(_resampleIdx).Height();
 
 
     //

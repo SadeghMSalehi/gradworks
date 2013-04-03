@@ -53,7 +53,7 @@ namespace air {
         AIRClass bgId = _window->getBackgroundLabel();
 
         AIRImageDisplay gray = _window->imageDisplays[0];
-        AIRImage::Pointer srcImg = gray.srcImg;
+        AIRImage::Pointer srcImg = gray->GetSourceImage();
         AIRLabel::Pointer labelImg = ui.graphicsView->getLabelVolume();
         AIRLabel::Pointer labelOutput = __algo.ExecuteIsolatedConnectedImageFilter(labelImg, srcImg, fgId, bgId);
 

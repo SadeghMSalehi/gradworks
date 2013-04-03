@@ -38,6 +38,8 @@ public slots:
     void zoomOut();
     void volumeSelected(int);
     void changeIntensity();
+    void changeDirection();
+    void openDualViewer();
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event);
@@ -51,10 +53,13 @@ private:
     void centerToDesktop();
     
 private:
+    QMovie* _loadingMovie;
     QDoubleSpinBox* _lowIntensitySpinBox;
     QDoubleSpinBox* _highIntensitySpinBox;
+
     Ui::BigViewWindow ui;
     pi::AIRDisplayCollection* _images;
     pi::SliceDirectionEnum _sliceDirection;
 };
+
 #endif /* defined(__ParticleGuidedRegistration__bigViewWindow__) */

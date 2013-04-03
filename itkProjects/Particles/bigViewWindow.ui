@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1309</width>
-    <height>967</height>
+    <width>1002</width>
+    <height>828</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -136,7 +136,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1309</width>
+     <width>1002</width>
      <height>22</height>
     </rect>
    </property>
@@ -153,6 +153,16 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionLoad"/>
+   <addaction name="separator"/>
+   <addaction name="actionIJ"/>
+   <addaction name="actionJK"/>
+   <addaction name="actionKI"/>
+   <addaction name="separator"/>
+   <addaction name="actionLR"/>
+   <addaction name="actionUD"/>
+   <addaction name="separator"/>
+   <addaction name="actionDualView"/>
+   <addaction name="separator"/>
   </widget>
   <action name="actionShowMenu">
    <property name="checkable">
@@ -179,6 +189,69 @@
    </property>
    <property name="toolTip">
     <string>Load an image</string>
+   </property>
+  </action>
+  <action name="actionIJ">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>IJ</string>
+   </property>
+   <property name="toolTip">
+    <string>Axial View</string>
+   </property>
+  </action>
+  <action name="actionJK">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>JK</string>
+   </property>
+   <property name="toolTip">
+    <string>Sagittal View</string>
+   </property>
+  </action>
+  <action name="actionKI">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>KI</string>
+   </property>
+   <property name="toolTip">
+    <string>Coronal View</string>
+   </property>
+  </action>
+  <action name="actionLR">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>LR</string>
+   </property>
+   <property name="toolTip">
+    <string>Flip left and right</string>
+   </property>
+  </action>
+  <action name="actionUD">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>UD</string>
+   </property>
+   <property name="toolTip">
+    <string>Up and Down</string>
+   </property>
+  </action>
+  <action name="actionDualView">
+   <property name="text">
+    <string>DualView</string>
+   </property>
+   <property name="toolTip">
+    <string>Open dual image viewer</string>
    </property>
   </action>
  </widget>

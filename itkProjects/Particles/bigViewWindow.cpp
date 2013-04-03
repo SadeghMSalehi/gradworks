@@ -16,6 +16,10 @@
 #include <QGLWidget>
 #include <QShortcut>
 #include <QDoubleSpinBox>
+#include <QActionGroup>
+#include <QLabel>
+#include <QMovie>
+#include "dualImageViewer.h"
 #include "qtypedef.h"
 #include "qutils.h"
 
@@ -39,11 +43,17 @@ BigViewWindow::~BigViewWindow() {
 #pragma mark Private Functions
 
 void BigViewWindow::setupUi() {
-    setWindowFlags( windowFlags() | Qt::WindowMaximizeButtonHint ); // doesn't remove maximise button
     ui.stackedWidget->hide();
 
-    ui.toolBar->addWidget(ui.fileList);
+    QLabel* loadingLabel = new QLabel(this);
+    loadingLabel->setMaximumHeight(16);
+    _loadingMovie = new QMovie(":/Icons/Images/loading.gif");
+    loadingLabel->setMovie(_loadingMovie);
+    _loadingMovie->start();
+    _loadingMovie->stop();
 
+    ui.toolBar->addWidget(loadingLabel);
+    ui.toolBar->addWidget(ui.fileList);
 
     _lowIntensitySpinBox = new QDoubleSpinBox(ui.toolBar);
     _highIntensitySpinBox = new QDoubleSpinBox(ui.toolBar);
@@ -56,7 +66,13 @@ void BigViewWindow::setupUi() {
     ui.graphicsView->setViewport(glWidget);
     ui.graphicsView->setDragMode(QGraphicsView::ScrollHandDrag);
     ui.graphicsView->setInteractive(true);
-    
+
+    QActionGroup* actionGroup = new QActionGroup(this);
+    actionGroup->addAction(ui.actionIJ);
+    actionGroup->addAction(ui.actionJK);
+    actionGroup->addAction(ui.actionKI);
+    ui.actionIJ->setChecked(true);
+
     centerToDesktop();
     raise();
 }
@@ -92,8 +108,8 @@ void BigViewWindow::centerToDesktop() {
     y = (screenHeight - height) / 2;
     y -= 50;
 
-    move ( x, y );
-    setFixedSize(windowSize.width(), windowSize.height());
+    move(x, y);
+    resize(windowSize.width(), windowSize.height());
 }
 
 void BigViewWindow::connectSignalSlots() {
@@ -108,6 +124,15 @@ void BigViewWindow::connectSignalSlots() {
     connect(_highIntensitySpinBox, SIGNAL(valueChanged(double)), ui.intensitySlider, SLOT(setRealHighValue(double)));
     connect(this, SIGNAL(multipleFileDropeed(QList<QString>)), this, SLOT(openFiles(QList<QString>)));
     connect(ui.actionLoad, SIGNAL(triggered()), this, SLOT(openFile()));
+
+    connect(ui.actionLR, SIGNAL(toggled(bool)), ui.graphicsView, SLOT(flipLR(bool)));
+    connect(ui.actionUD, SIGNAL(toggled(bool)), ui.graphicsView, SLOT(flipUD(bool)));
+
+    connect(ui.actionIJ, SIGNAL(triggered()), this, SLOT(changeDirection()));
+    connect(ui.actionJK, SIGNAL(triggered()), this, SLOT(changeDirection()));
+    connect(ui.actionKI, SIGNAL(triggered()), this, SLOT(changeDirection()));
+
+    connect(ui.actionDualView, SIGNAL(triggered()), this, SLOT(openDualViewer()));
 }
 
 void BigViewWindow::initialize() {
@@ -122,6 +147,7 @@ void BigViewWindow::initialize() {
 #pragma mark Public Slots
 
 void BigViewWindow::openFile(QString fileName) {
+    _loadingMovie->start();
     if (fileName.isEmpty()) {
         fileName = __fileManager.openFile(0, this, "Choose an image file");
         if (fileName.isEmpty()) {
@@ -133,16 +159,15 @@ void BigViewWindow::openFile(QString fileName) {
         return;
     }
     _images->AddImage(image, fileName.toStdString());
-    _images->SetReferenceId(0);
     if (_images->Count() == 1) {
-        _images->SetReferenceSlice(_sliceDirection, 0);
+        _images->SetSliceDisplay(_sliceDirection, 0);
     }
     ui.statusbar->showMessage(QString(tr("%1 loaded").arg(fileName)), 10000);
-    ui.graphicsView->setVolumeToShow(_images->Count()-1);
     ui.graphicsView->updateDisplay();
     ui.graphicsView->fitToImage(_images->GetReferenceSize(_sliceDirection)/2);
     
     ui.fileList->addItem(fileName);
+    _loadingMovie->stop();
 }
 
 void BigViewWindow::openFiles(QList<QString> files) {
@@ -154,17 +179,16 @@ void BigViewWindow::openFiles(QList<QString> files) {
                 return;
             }
             _images->AddImage(image, fileName.toStdString());
-            _images->SetReferenceId(0);
             if (_images->Count() == 1) {
-                _images->SetReferenceSlice(_sliceDirection, 0);
+                _images->SetSliceDisplay(_sliceDirection, 0);
             }
             ui.statusbar->showMessage(QString(tr("%1 loaded").arg(fileName)), 10000);
-            ui.graphicsView->setVolumeToShow(_images->Count()-1);
             ui.graphicsView->fitToImage(_images->GetReferenceSize(_sliceDirection)/2);
             ui.fileList->addItem(fileName);
         }
     }
     ui.graphicsView->updateDisplay();
+    ui.graphicsView->fitToImage(_images->GetReferenceSize(_sliceDirection)/2);
 }
 
 void BigViewWindow::zoomIn() {
@@ -176,26 +200,46 @@ void BigViewWindow::zoomOut() {
 }
 
 void BigViewWindow::volumeSelected(int i) {
-    AIRImageDisplay* disp = _images->at(i);
-    _lowIntensitySpinBox->setMinimum(disp->histogram.dataMin);
-    _lowIntensitySpinBox->setMaximum(disp->histogram.dataMax);
-    _highIntensitySpinBox->setMinimum(disp->histogram.dataMin);
-    _highIntensitySpinBox->setMaximum(disp->histogram.dataMax);
-    _lowIntensitySpinBox->setValue(disp->histogram.rangeMin);
-    _highIntensitySpinBox->setValue(disp->histogram.rangeMax);
-    ui.intensitySlider->setRealMax(disp->histogram.dataMax);
-    ui.intensitySlider->setRealMin(disp->histogram.dataMin);
-    ui.intensitySlider->setRealLowValue(disp->histogram.rangeMin);
-    ui.intensitySlider->setRealHighValue(disp->histogram.rangeMax);
+    AIRImageDisplay disp = _images->at(i);
+    _lowIntensitySpinBox->setMinimum(disp->GetHistogram().dataMin);
+    _lowIntensitySpinBox->setMaximum(disp->GetHistogram().dataMax);
+    _highIntensitySpinBox->setMinimum(disp->GetHistogram().dataMin);
+    _highIntensitySpinBox->setMaximum(disp->GetHistogram().dataMax);
+    _lowIntensitySpinBox->setValue(disp->GetHistogram().rangeMin);
+    _highIntensitySpinBox->setValue(disp->GetHistogram().rangeMax);
+    ui.intensitySlider->setRealMax(disp->GetHistogram().dataMax);
+    ui.intensitySlider->setRealMin(disp->GetHistogram().dataMin);
+    ui.intensitySlider->setRealLowValue(disp->GetHistogram().rangeMin);
+    ui.intensitySlider->setRealHighValue(disp->GetHistogram().rangeMax);
     ui.graphicsView->moveToVolume(i);
 }
 
 void BigViewWindow::changeIntensity() {
     int idx = ui.fileList->currentIndex();
-    AIRImageDisplay* disp = _images->at(idx);
-    disp->histogram.rangeMin = ui.intensitySlider->realLowValue();
-    disp->histogram.rangeMax = ui.intensitySlider->realHighValue();
+    AIRImageDisplay disp = _images->at(idx);
+    disp->GetHistogram().rangeMin = ui.intensitySlider->realLowValue();
+    disp->GetHistogram().rangeMax = ui.intensitySlider->realHighValue();
     ui.graphicsView->updateDisplay();
+}
+
+void BigViewWindow::changeDirection() {
+    if (ui.actionIJ->isChecked()) {
+        _sliceDirection = IJ;
+    } else if (ui.actionJK->isChecked()) {
+        _sliceDirection = JK;
+    } else if (ui.actionKI->isChecked()) {
+        _sliceDirection = KI;
+    }
+    ui.graphicsView->directionChanged(_sliceDirection);
+    ui.graphicsView->fitToImage(_images->GetReferenceSize(_sliceDirection)/2);
+}
+
+void BigViewWindow::openDualViewer() {
+    static DualImageViewer* dualViewer = NULL;
+    if (dualViewer == NULL) {
+        dualViewer = new DualImageViewer(this);
+    }
+    dualViewer->show();
 }
 
 #pragma mark -

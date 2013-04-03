@@ -30,15 +30,47 @@ namespace pi {
         ImageHistogram(): _binCount(100) {
             binData.resize(_binCount);
         }
+        void FitRange() {
+            // fit rangeMin and rangeMax to 1% from dataMin and dataMax
+            const int binCount = 10000;
+            std::vector<int> binData(binCount);
+            PixelType* buff = _img->GetBufferPointer();
+            const int nSize = _img->GetPixelContainer()->Size();
+            const double dataMin = this->dataMin;
+            const double dataRange = (this->dataMax - this->dataMin);
+            for (int i = 0; i < nSize; i++) {
+                unsigned short bin = (unsigned short)(binCount*(double(*buff) - dataMin)/(dataRange));
+                binData[bin]++;
+                buff++;
+            }
 
+            int marginCount = nSize * 0.01;
+            int acc = 0;
+            for (int i = 0; i < binCount; i++) {
+                acc += binData[i];
+                if (acc > marginCount) {
+                    rangeMin = double(i)/double(binCount)*(dataRange)+dataMin;
+                    break;
+                }
+            }
+            acc = 0;
+            for (int i = binCount - 1; i >= 0; i--) {
+                acc += binData[i];
+                if (acc > marginCount) {
+                    rangeMax = double(i+1)/double(binCount)*(dataRange)+dataMin;
+                    break;
+                }
+            }
+        }
         void SetImage(typename T::Pointer img) {
             _img = img;
             typedef itk::StatisticsImageFilter<T> StatFilter;
             typename StatFilter::Pointer statFilter = StatFilter::New();
             statFilter->SetInput(_img);
             statFilter->Update();
-            rangeMin = dataMin = statFilter->GetMinimum();
-            rangeMax = dataMax = statFilter->GetMaximum();
+            dataMin = statFilter->GetMinimum();
+            dataMax = statFilter->GetMaximum();
+            FitRange();
         }
         void SetRange(PixelType min, PixelType max) {
             rangeMin = min;

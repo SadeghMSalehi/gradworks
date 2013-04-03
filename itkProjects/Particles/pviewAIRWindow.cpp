@@ -36,6 +36,7 @@
 #include <QMessageBox>
 #include "airAlgorithmManager.h"
 #include "airSuperZoom.h"
+#include "qdrawingframe.h"
 
 typedef QList<QUrl> UrlList;
 
@@ -317,7 +318,7 @@ void AIRWindow::UpdateCompositeDisplay() {
 
 bool AIRWindow::UpdateMovingDisplayTransform(vtkMatrix4x4* mat) {
     if (m_movingId >= 0 && imageDisplays.Count() > m_movingId) {
-        imageDisplays[m_movingId].SetAffineTransform(mat);
+        imageDisplays[m_movingId]->SetAffineTransform(mat);
         UpdateCompositeDisplay();
         return true;
     }
@@ -392,11 +393,13 @@ void AIRWindow::on_image1Name_fileDropped(QString& fileName) {
         return;
     }
 
-    if (!imageDisplays.SetImage(0, image)) {
+    if (imageDisplays.Count() == 0) {
+        imageDisplays.AddImage(image);
+    } else if (!imageDisplays.SetImage(0, image)) {
         return;
     }
 
-    ui.graphicsView->createLabelVolumeIfNecessary(imageDisplays[0].srcImg);
+    ui.graphicsView->createLabelVolumeIfNecessary(imageDisplays[0]->GetSourceImage());
 
     __fileManager.putFile(QFileManager::Single, fileName);
 
@@ -412,19 +415,18 @@ void AIRWindow::on_image1Name_fileDropped(QString& fileName) {
     ui.actionDrawing->setChecked(false);
 
 
-    ImageDisplayType& dispImg = imageDisplays.GetLast();
-    imageDisplays.SetReferenceId(m_fixedId);
+    ImageDisplayPointer& dispImg = imageDisplays.GetLast();
 
 //    m_scene.addItem(m_compositeDisplay);
 //    m_compositeDisplay->grabMouse();
 //    m_compositeDisplay->grabKeyboard();
 //    m_compositeDisplay->setSelected(true);
 
-    ui.intensitySlider->setRealMin(dispImg.histogram.dataMin);
-    ui.intensitySlider->setRealMax(dispImg.histogram.dataMax);
+    ui.intensitySlider->setRealMin(dispImg->GetHistogram().dataMin);
+    ui.intensitySlider->setRealMax(dispImg->GetHistogram().dataMax);
 
-    ui.intensitySlider->setLowValue(ui.intensitySlider->minimum());
-    ui.intensitySlider->setHighValue(ui.intensitySlider->maximum());
+    ui.intensitySlider->setRealLowValue(dispImg->GetHistogram().rangeMin);
+    ui.intensitySlider->setRealHighValue(dispImg->GetHistogram().rangeMax);
 
     m_currentSliceIndex[IJ] = imageDisplays.GetReferenceSize(IJ)/2.0;
     m_currentSliceIndex[JK] = imageDisplays.GetReferenceSize(JK)/2.0;
@@ -446,23 +448,26 @@ void AIRWindow::on_image2Name_fileDropped(QString& fileName) {
         return;
     }
 
-    if (!imageDisplays.SetImage(1, image)) {
+    if (imageDisplays.Count() == 1) {
+        imageDisplays.AddImage(image);
+    } else if (!imageDisplays.SetImage(1, image)) {
         return;
     }
 
     m_movingId = 1;
-    ImageDisplayType& dispImg = imageDisplays.GetLast();
-    ImageDisplayType::VectorType tx = dispImg.GetAffineTranslation();
+    ImageDisplayPointer& dispImg = imageDisplays.GetLast();
+    ImageDisplayType::VectorType tx = dispImg->GetAffineTranslation();
     ui.ox->setSingleStep(tx[0]);
     ui.oy->setSingleStep(tx[1]);
     ui.oz->setSingleStep(tx[2]);
 
-    ui.intensitySlider2->setRealMin(dispImg.histogram.dataMin);
-    ui.intensitySlider2->setRealMax(dispImg.histogram.dataMax);
+    ui.intensitySlider2->setRealMin(dispImg->GetHistogram().dataMin);
+    ui.intensitySlider2->setRealMax(dispImg->GetHistogram().dataMax);
 
-    ui.intensitySlider2->setLowValue(ui.intensitySlider2->minimum());
-    ui.intensitySlider2->setHighValue(ui.intensitySlider2->maximum());
 
+    ui.intensitySlider2->setRealLowValue(dispImg->GetHistogram().rangeMin);
+    ui.intensitySlider2->setRealHighValue(dispImg->GetHistogram().rangeMax);
+    
     ui.intensitySlider2->setEnabled(true);
 
     ui.originBox->setEnabled(true);
@@ -479,6 +484,12 @@ void AIRWindow::on_image2Name_fileDropped(QString& fileName) {
 
 }
 
+
+void AIRWindow::on_actionTest_triggered() {
+    static QDrawingFrame drawingFrame(NULL, Qt::Window);
+    drawingFrame.show();
+}
+
 void AIRWindow::on_actionResample_triggered() {
     if (imageDisplays.IsValidId(m_movingId)) {
         QString fileName = __fileManager.saveFile(QFileManager::Single, this, "Save Resampled");
@@ -486,7 +497,7 @@ void AIRWindow::on_actionResample_triggered() {
             return;
         }
         pi::ImageIO<AIRImage> io;
-        AIRImage::Pointer resampledImg = imageDisplays[m_movingId].Resample3D(imageDisplays.GetReferenceGrid(), 0);
+        AIRImage::Pointer resampledImg = imageDisplays[m_movingId]->Resample3D(imageDisplays.GetReference()->GetSourceImage());
         io.WriteImage(fileName.toUtf8().data(), resampledImg);
     }
 }
@@ -499,7 +510,7 @@ void AIRWindow::on_actionLoadTransform_triggered() {
         }
         pi::ImageIO<AIRImage> io;
         pi::ImageIO<AIRImage>::TransformType::Pointer transform = io.ReadTransform(fileName.toUtf8().data());
-        imageDisplays[m_movingId].SetAffineTransform(transform);
+        imageDisplays[m_movingId]->SetAffineTransform(transform);
         UpdateTranslationWidget();
         UpdateCompositeDisplay();
     }
@@ -513,7 +524,7 @@ void AIRWindow::on_actionSaveTransform_triggered() {
         }
 
         itk::TransformFileWriter::Pointer writer = itk::TransformFileWriter::New();
-        writer->SetInput(imageDisplays[m_movingId].GetAffineTransform());
+        writer->SetInput(imageDisplays[m_movingId]->GetAffineTransform());
         writer->SetFileName(fileName.toUtf8().data());
         writer->Update();
     }
@@ -583,8 +594,8 @@ void AIRWindow::on_intensitySlider_lowValueChanged(int n) {
 
 void AIRWindow::on_intensitySlider_highValueChanged(int n) {
     // correct to handle multiple image histogram intensity
-    imageDisplays[m_fixedId].histogram.rangeMin = ui.intensitySlider->realLowValue();
-    imageDisplays[m_fixedId].histogram.rangeMax = ui.intensitySlider->realHighValue();
+    imageDisplays[m_fixedId]->GetHistogram().rangeMin = ui.intensitySlider->realLowValue();
+    imageDisplays[m_fixedId]->GetHistogram().rangeMax = ui.intensitySlider->realHighValue();
 
     UpdateCompositeDisplay();
 }
@@ -599,8 +610,8 @@ void AIRWindow::on_intensitySlider2_lowValueChanged(int n) {
 
 void AIRWindow::on_intensitySlider2_highValueChanged(int n) {
     // correct to handle multiple image histogram intensity
-    imageDisplays[m_movingId].histogram.rangeMin = ui.intensitySlider2->realLowValue();
-    imageDisplays[m_movingId].histogram.rangeMax = ui.intensitySlider2->realHighValue();
+    imageDisplays[m_movingId]->GetHistogram().rangeMin = ui.intensitySlider2->realLowValue();
+    imageDisplays[m_movingId]->GetHistogram().rangeMax = ui.intensitySlider2->realHighValue();
     UpdateCompositeDisplay();
 }
 
@@ -642,7 +653,7 @@ void AIRWindow::OnTranslationWidgetChanged() {
         translation[0] = ui.ox->value();
         translation[1] = ui.oy->value();
         translation[2] = ui.oz->value();
-        imageDisplays[m_movingId].SetAffineTranslation(translation);
+        imageDisplays[m_movingId]->SetAffineTranslation(translation);
         UpdateCompositeDisplay();
     }
 }
@@ -652,7 +663,7 @@ void AIRWindow::UpdateTranslationWidget() {
         ui.ox->blockSignals(true);
         ui.oy->blockSignals(true);
         ui.oz->blockSignals(true);
-        ImageDisplayType::VectorType translation = imageDisplays[m_movingId].GetAffineTranslation();
+        ImageDisplayType::VectorType translation = imageDisplays[m_movingId]->GetAffineTranslation();
         ui.ox->setValue(translation[0]);
         ui.oy->setValue(translation[1]);
         ui.oz->setValue(translation[2]);
@@ -664,7 +675,7 @@ void AIRWindow::UpdateTranslationWidget() {
 
 void AIRWindow::ChangeSliceIndex(int n) {
     m_currentSliceIndex[m_currentSliceDir] = n;
-    imageDisplays.SetReferenceSlice(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
+    imageDisplays.SetSliceDisplay(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
     ui.graphicsView->sliceChanged(m_currentSliceDir, m_currentSliceIndex[m_currentSliceDir]);
 }
 
@@ -729,7 +740,7 @@ void AIRWindow::LoadSegmentation() {
         return;
     }
     if (imageDisplays.IsValidId(m_fixedId)) {
-        ui.graphicsView->loadLabelVolume(fileName, imageDisplays[m_fixedId].srcImg);
+        ui.graphicsView->loadLabelVolume(fileName, imageDisplays[m_fixedId]->GetSourceImage());
     }
     __stringHash["Segmentation"] = fileName;
 }

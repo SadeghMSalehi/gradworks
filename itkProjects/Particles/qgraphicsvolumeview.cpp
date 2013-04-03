@@ -25,31 +25,49 @@ using namespace pi;
 
 
 QGraphicsVolumeView::QGraphicsVolumeView(QWidget* parent): QGraphicsView(parent) {
-    setScene(&_scene);
+    _scene = new QGraphicsScene();
+    setScene(_scene);
 
     _thumbsWidth = 128;
     _columnCount = 10000;
     
     _xFlipped = false;
     _yFlipped = false;
-
-//    _displayId = 0;
-//    _displayReference = true;
-//    _manualIntensityScaling = false;
-    _directionCache = Unknown;
+    _showAll = true;
+    _directionCache = IJ;
 
     _airImages = NULL;
     _currentSliceMarker = NULL;
 
     QGraphicsView::setDragMode(QGraphicsView::ScrollHandDrag);
-//    setBackgroundBrush(QBrush(QPixmap::fromImage(QImage(QString::fromUtf8(":/Icons/Images/backgroundPattern.jpg")))));
 }
 
-void QGraphicsVolumeView::setImageFlip(bool xFlip, bool yFlip) {
-    _xFlipped = xFlip;
-    _yFlipped = yFlip;
+
+void QGraphicsVolumeView::flipLR(bool toggle) {
+    _xFlipped = toggle;
+    updatePixmaps();
 }
 
+
+void QGraphicsVolumeView::flipUD(bool toggle) {
+    _yFlipped = toggle;
+    updatePixmaps();
+}
+
+
+void QGraphicsVolumeView::directionChanged(pi::SliceDirectionEnum dir) {
+    if (_directionCache == dir) {
+        return;
+    }
+
+    _directionCache = dir;
+    delete _scene;
+
+    _scene = new QGraphicsScene();
+    setScene(_scene);
+
+    updateDisplay();
+}
 
 void QGraphicsVolumeView::setDisplayCollection(pi::AIRDisplayCollection *images, bool useNavigationImage) {
     if (images == NULL) {
@@ -63,50 +81,42 @@ void QGraphicsVolumeView::setDisplayCollection(pi::AIRDisplayCollection *images,
     _airImages = images;
     _useNavigationImage = useNavigationImage;
 
-    if (_airImages->GetReferenceId() >= 0) {
-        setVolumeToShow(_airImages->GetReferenceId());
+    if (!_airImages->IsEmpty()) {
     }
 }
 
 void QGraphicsVolumeView::fitToImage(int sliceIdx, int volumeId) {
     if (_airImages != NULL && _airImages->Count() > 0) {
-        if (volumeId < 0) {
-            if (_volumeDisplays.contains(volumeId)) {
-                QGraphicsPixmapItem* item = _volumeDisplays[volumeId].GetSliceData<QGraphicsPixmapItem>(sliceIdx);
-                if (item != NULL) {
-                    fitInView(item, Qt::KeepAspectRatio);
+        // clear scene rect to recompute bounding box
+        QRectF sceneRect = scene()->sceneRect();
+        if (_volumeDisplays.size() > 0) {
+            QGraphicsItem* item = _volumeDisplays[0].GetSliceData<QGraphicsItem>(sliceIdx);
+            QRectF viewport = item->boundingRect();
+            if (item != NULL) {
+                if (sceneRect.width() > sceneRect.height()) {
+                    viewport.setHeight(sceneRect.height());
+                } else {
+                    viewport.setWidth(sceneRect.width());
                 }
             }
-        } else {
-            QRectF sceneRect = this->sceneRect();
-            if (_volumeDisplays.size() > 0) {
-                QGraphicsPixmapItem* item = _volumeDisplays[0].GetSliceData<QGraphicsPixmapItem>(sliceIdx);
-                QRectF viewport = item->boundingRect();
-                if (item != NULL) {
-                    if (sceneRect.width() > sceneRect.height()) {
-                        viewport.setHeight(sceneRect.height());
-                    } else {
-                        viewport.setWidth(sceneRect.width());
-                    }
-                }
-            }
+            fitInView(viewport, Qt::KeepAspectRatio);
+            centerOn(item->pos().x() + viewport.width()/2, item->pos().y() + viewport.height()/2);
         }
     }
 }
 
 void QGraphicsVolumeView::clear() {
-    _scene.clear();
-//    _sliceCache.clear();
-//    _slicePixmaps.clear();
-//    _displayImages.clear();
     _workingSet.clear();
-    _directionCache = Unknown;
-//    _volumeCache = NULL;
-//    _volumeSource = NULL;
+    _directionCache = IJ;
     _currentSliceMarker = NULL;
     _volumeDisplays.clear();
+    delete _scene;
+    
+    _scene = new QGraphicsScene();
+    setScene(_scene);
 }
 
+/*
 void QGraphicsVolumeView::setVolumeToShow(int i) {
     if (i >= _airImages->Count() || i < 0) {
         return;
@@ -123,6 +133,7 @@ void QGraphicsVolumeView::setVolumeToShow(int i) {
 
     _volumeDisplays[i] = newVolume;
 }
+*/
 
 std::vector<int> QGraphicsVolumeView::getWorkingSet() {
     std::vector<int> workingSet;
@@ -137,89 +148,6 @@ std::vector<int> QGraphicsVolumeView::getWorkingSet() {
     return workingSet;
 }
 
-//bool QGraphicsVolumeView::checkVolumeCache() {
-//    AIRImageDisplay& refImg = _airImages->GetReference();
-//    if (refImg.srcImg.IsNull()) {
-//        _volumeCache = NULL;
-//        _volumeSource = NULL;
-//        return false;
-//    }
-//
-//    // check if source is different pointer or the source itself has changed
-//    if (_volumeSource != refImg.srcImg || _volumeSourceModifiedTime != refImg.srcImg->GetMTime()) {
-//        clear();
-//        _volumeSource = refImg.srcImg;
-//        _volumeSourceModifiedTime = refImg.srcImg->GetMTime();
-//    }
-//
-//    AIRImage::SpacingType spacing = refImg.srcSpacing;
-//    AIRImage::SizeType size = refImg.srcImg->GetBufferedRegion().GetSize();
-//
-//    _rescaleFactor = 1;
-//    if (_thumbsWidth != 0) {
-//        _rescaleFactor = size[0] / _thumbsWidth;
-//    }
-//
-//    if (std::abs(_rescaleFactor - 1) < 0.1) {
-//        _volumeCache = refImg.srcImg;
-//        return _volumeCache.IsNotNull();
-//    }
-//
-//    fordim(k) {
-//        spacing[k] = spacing[k] * _rescaleFactor;
-//        size[k] = size[k] / _rescaleFactor;
-//    }
-//
-//    typedef itk::ResampleImageFilter<AIRImage, AIRImage> ResampleFilter;
-//    ResampleFilter::Pointer resampler = ResampleFilter::New();
-//    resampler->SetInput(refImg.srcImg);
-//    resampler->SetOutputParametersFromImage(refImg.srcImg.GetPointer());
-//    resampler->SetOutputSpacing(spacing);
-//    resampler->SetSize(size);
-//    resampler->Update();
-//    _volumeCache = resampler->GetOutput();
-//    _volumeCache->DisconnectPipeline();
-//
-//    return _volumeCache.IsNotNull();
-//}
-
-//bool QGraphicsVolumeView::checkSliceCache() {
-//    AIRImageDisplay& refImg = _airImages->GetReference();
-//    SliceDirectionEnum dir = refImg.GetResampleDirection(0);
-//
-//    // fire only when the slice direction is changed
-//    if (_directionCache == dir) {
-//        return true;
-//    }
-//
-//    _directionCache = dir;
-//    return false;
-//}
-
-//bool QGraphicsVolumeView::updateSource() {
-//    if (_directionCache == Unknown) {
-//        return false;
-//    }
-//    AIRImage::RegionType region = _volumeCache->GetBufferedRegion();
-//
-//    _sliceCache.clear();
-//    _sliceCache.reserve(region.GetSize(_directionCache));
-//
-//    typedef itk::ExtractImageFilter<AIRImage, AIRImage> ExtractFilter;
-//
-//    const int nSlices = region.GetSize(_directionCache);
-//    for (int i = 0; i < nSlices; i++) {
-//        ExtractFilter::Pointer extract = ExtractFilter::New();
-//        extract->SetInput(_volumeCache);
-//        region.SetIndex(_directionCache, i);
-//        region.SetSize(_directionCache, 1);
-//        extract->SetExtractionRegion(region);
-//        extract->Update();
-//        _sliceCache.push_back(extract->GetOutput());
-//        _sliceCache.back()->DisconnectPipeline();
-//    }
-//    return true;
-//}
 
 void QGraphicsVolumeView::updateDisplay(int volumeId) {
     if (this->isHidden()) {
@@ -230,32 +158,16 @@ void QGraphicsVolumeView::updateDisplay(int volumeId) {
         return;
     }
 
-    _directionCache = _airImages->GetReference().GetResampleDirection(0);
-
-    QIntList showingVolumes;
-    if (volumeId < 0) {
-        showingVolumes = _volumeDisplays.keys();
-        qSort(showingVolumes);
-    } else {
-        if (!_volumeDisplays.contains(volumeId)) {
-            return;
-        }
-        showingVolumes.append(volumeId);
-    }
-
     _currentSliceMarker = NULL;
 
     QFont sliceIndexFont("Courier", 20);
-    
-    int volumeCount = 0;
-    QIntList::ConstIterator iter;
-    for (iter = showingVolumes.constBegin(); iter != showingVolumes.constEnd(); iter++) {
-        int id = *iter;
-        if (!_airImages->IsValidId(id)) {
-            _volumeDisplays.remove(id);
-            continue;
+
+    int showingVolumeCount = _showAll ? _airImages->Count() : 1;
+    for (int id = 0; id < showingVolumeCount; id++) {
+        AIRImageDisplay src = _airImages->at(id);
+        if (_volumeDisplays.size() <= id) {
+            _volumeDisplays.push_back(AIRVolumeDisplay());
         }
-        AIRImageDisplay* src = _airImages->at(id);
         if (!_volumeDisplays[id].Has(src)) {
             _volumeDisplays[id].SetDisplay(src);
         }
@@ -266,42 +178,82 @@ void QGraphicsVolumeView::updateDisplay(int volumeId) {
 
             for (int i = 0; i < s; i++) {
                 int realSliceIdx = i;
-                if (_useNavigationImage) {
-                    realSliceIdx = _airImages->at(id)->GetNavigationImage().GetOriginalIndex(i);
-                }
-
                 int colPos = i * w;
-                int rowPos = volumeCount * h;
-                QGraphicsPixmapItem* item = _volumeDisplays[id].GetSliceData<QGraphicsPixmapItem>(i);
-                QPixmap pixmap = QPixmap::fromImage(QImage(_volumeDisplays[id].GetColorImageBuffer(i), w, h, QImage::Format_ARGB32));
+                int rowPos = id * h;
+
+                QGraphicsRectItem* item = _volumeDisplays[id].GetSliceData<QGraphicsRectItem>(i);
+                QGraphicsPixmapItem* pixmapItem = NULL;
+                uchar* colorPointer = _volumeDisplays[id].GetColorImageBuffer(i);
+
+                QPixmap pixmap = QPixmap::fromImage(QImage(colorPointer, w, h, QImage::Format_ARGB32));
                 if (item == NULL) {
-                    item = _scene.addPixmap(QPixmap::fromImage(QImage(_volumeDisplays[id].GetColorImageBuffer(i), w, h, QImage::Format_ARGB32)));
-                    _volumeDisplays[id].SetSliceData(i, item);
+                    item = new QGraphicsRectItem(QRect(0, 0, w, h));
+                    item->setPen(Qt::NoPen);
+                    item->setBrush(Qt::NoBrush);
                     item->setPos(colPos, rowPos);
-//                    item->setFlags(QGraphicsItem::ItemIsSelectable);
                     item->setData(SliceIndex, QVariant(i));
                     item->setData(AnnotationType, QVariant(SliceImage));
                     item->setData(RealSliceIndex, QVariant(realSliceIdx));
+
+                    pixmapItem = new QGraphicsPixmapItem(QPixmap::fromImage(QImage(_volumeDisplays[id].GetColorImageBuffer(i), w, h, QImage::Format_ARGB32)), item);
+                    pixmapItem->setZValue(1);
+
+                    QGraphicsTextItem* text = new QGraphicsTextItem(QString("#%1.%2").arg(id).arg(realSliceIdx), item);
+                    text->setFont(sliceIndexFont);
+                    text->setPos(3, 3);
+                    text->setZValue(2);
+                    text->setDefaultTextColor(Qt::yellow);
+
+                    _volumeDisplays[id].SetSliceData(i, item);
+                    scene()->addItem(item);
                 } else {
-                    item->setPixmap(pixmap);
+                    QGraphicsPixmapItem* pixmapItem = (QGraphicsPixmapItem*) item->childItems()[0];
+                    pixmapItem->setPixmap(pixmap);
                 }
 
-                QGraphicsTextItem* text = new QGraphicsTextItem(QString("#%1.%2").arg(id).arg(realSliceIdx), item);
-                text->setFont(sliceIndexFont);
-                text->setPos(3, 3);
-                text->setZValue(1);
-                text->setDefaultTextColor(Qt::yellow);
-                
                 if (_workingSet.contains(i)) {
                     addWorkingSetItem(item);
                 }
             }
         }
-        volumeCount++;
+    }
+    updatePixmaps();
+}
+
+void QGraphicsVolumeView::updatePixmaps() {
+    for (int i = 0; i < _volumeDisplays.size(); i++) {
+        const int w = _volumeDisplays[i].Width();
+        const int h = _volumeDisplays[i].Height();
+        const int s = _volumeDisplays[i].Count();
+
+        for (int j = 0; j < s; j++) {
+            AIRVolumeDisplay& display = _volumeDisplays[i];
+            QGraphicsRectItem* item = display.GetSliceData<QGraphicsRectItem>(j);
+            if (item != NULL) {
+                QList<QGraphicsItem*> childItems = item->childItems();
+                if (childItems.size() > 0) {
+                    QGraphicsPixmapItem* pixmapItem = (QGraphicsPixmapItem*) childItems[0];
+                    QTransform pixmapTransform;
+                    if (_xFlipped && !_yFlipped) {
+                        pixmapTransform.setMatrix(-1, 0, 0, 0, 1, 0, w, 0, 1);
+                        pixmapItem->setTransform(pixmapTransform);
+                    } else if (!_xFlipped && _yFlipped) {
+                        pixmapTransform.setMatrix(1, 0, 0, 0, -1, 0, 0, h, 1);
+                        pixmapItem->setTransform(pixmapTransform);
+                    } else if (_xFlipped && _yFlipped) {
+                        pixmapTransform.setMatrix(-1, 0, 0, 0, -1, 0, w, h, 1);
+                        pixmapItem->setTransform(pixmapTransform);
+                    } else {
+                        pixmapItem->resetTransform();
+                    }
+
+                }
+            }
+        }
     }
 }
 
-void QGraphicsVolumeView::addWorkingSetItem(QGraphicsPixmapItem *sliceItem) {
+void QGraphicsVolumeView::addWorkingSetItem(QGraphicsItem *sliceItem) {
     const static int markerSize = 9;
     QRectF rect = sliceItem->boundingRect();
     QRectF ellipse = QRectF(rect.width() - markerSize - 3, 3, markerSize, markerSize);
@@ -325,7 +277,7 @@ void QGraphicsVolumeView::keyReleaseEvent(QKeyEvent* key) {
 }
 
 void QGraphicsVolumeView::createWorkingSet() {
-    QList<QGraphicsItem*> selections = _scene.selectedItems();
+    QList<QGraphicsItem*> selections = scene()->selectedItems();
     QList<QGraphicsItem*>::ConstIterator itemIter = selections.constBegin();
     for (;itemIter != selections.constEnd(); itemIter++) {
         QGraphicsPixmapItem* sliceItem = dynamic_cast<QGraphicsPixmapItem*>(*itemIter);
@@ -348,7 +300,7 @@ void QGraphicsVolumeView::removeWorkingSetItem(int idx) {
     QList<QGraphicsItem*>::ConstIterator iter = children.begin();
     for (; iter != children.end(); iter++) {
         if ((*iter)->data(AnnotationType).value<int>() == WorkingSet) {
-            _scene.removeItem(*iter);
+            scene()->removeItem(*iter);
         }
     }
     _workingSet.remove(idx);
@@ -376,7 +328,7 @@ void QGraphicsVolumeView::currentSliceChanged(int slice) {
 
     int sliceIdx = slice;
     if (_useNavigationImage) {
-        sliceIdx = _airImages->at(0)->GetNavigationImage().GetIndexFromOriginal(sliceIdx);
+        //sliceIdx = _airImages->at(0)->GetNavigationImage().GetIndexFromOriginal(sliceIdx);
     }
     if (sliceIdx < 0 || sliceIdx >= _volumeDisplays[0].Count()) {
         return;
@@ -393,22 +345,24 @@ void QGraphicsVolumeView::currentSliceChanged(int slice) {
 }
 
 void QGraphicsVolumeView::moveToVolume(int i) {
-    if (_volumeDisplays.contains(i)) {
-        QGraphicsPixmapItem* firstItem = _volumeDisplays[i].GetSliceData<QGraphicsPixmapItem>(0);
-        if (firstItem == NULL) {
-            return;
-        }
+    if (i >= _volumeDisplays.size()) {
+        return;
+    }
 
-        QRect contentsRect = viewport()->contentsRect();
-        QPolygonF visibleScene = mapToScene(contentsRect);
-        QRectF visibleRect = visibleScene.boundingRect();
-        QPointF firstPosition = firstItem->pos();
+    QGraphicsPixmapItem* firstItem = _volumeDisplays[i].GetSliceData<QGraphicsPixmapItem>(0);
+    if (firstItem == NULL) {
+        return;
+    }
 
-        visibleRect.moveTop(firstPosition.y());
-        this->ensureVisible(visibleRect, 0, 0);
+    QRect contentsRect = viewport()->contentsRect();
+    QPolygonF visibleScene = mapToScene(contentsRect);
+    QRectF visibleRect = visibleScene.boundingRect();
+    QPointF firstPosition = firstItem->pos();
+
+    visibleRect.moveTop(firstPosition.y());
+    this->ensureVisible(visibleRect, 0, 0);
 //        QPoint displacement = mapFromScene(0, firstPosition.y() - visibleRect.top());
 //        this->scroll(0, displacement.y());
-    }
 }
 
 void QGraphicsVolumeView::mousePressEvent(QMouseEvent* event) {
@@ -428,7 +382,7 @@ void QGraphicsVolumeView::mouseReleaseEvent(QMouseEvent* event) {
 void QGraphicsVolumeView::mouseDoubleClickEvent(QMouseEvent* event) {
     if (event->buttons() & Qt::LeftButton) {
         QPointF pos = mapToScene(event->pos());
-        QGraphicsItem* item = _scene.itemAt(pos);
+        QGraphicsItem* item = scene()->itemAt(pos);
         QGraphicsPixmapItem* sliceView = dynamic_cast<QGraphicsPixmapItem*>(item);
         if (sliceView != NULL) {
             int slice = sliceView->data(RealSliceIndex).value<int>();

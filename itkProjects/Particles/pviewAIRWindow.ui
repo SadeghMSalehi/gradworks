@@ -1371,6 +1371,11 @@ p, li { white-space: pre-wrap; }
     <string>Save Segmentation As ...</string>
    </property>
   </action>
+  <action name="actionTest">
+   <property name="text">
+    <string>Test</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

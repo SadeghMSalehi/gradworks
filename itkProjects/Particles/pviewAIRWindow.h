@@ -31,6 +31,7 @@ class vtkMouseHandler;
 class QGraphicsCompositeImageItem;
 
 typedef typename pi::ImageDisplayCollection<pi::AIRImage>::ImageDisplayType ImageDisplayType;
+typedef typename pi::ImageDisplayCollection<pi::AIRImage>::ImageDisplayPointer ImageDisplayPointer;
 
 class AIRWindow : public QMainWindow {
     Q_OBJECT
@@ -63,6 +64,7 @@ protected:
     void setupShortcutKeys();
     
 public slots:
+    void on_actionTest_triggered();
     void on_actionResample_triggered();
     void on_actionLoadTransform_triggered();
     void on_actionSaveTransform_triggered();
