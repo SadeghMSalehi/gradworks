@@ -43,7 +43,7 @@ BigViewWindow::~BigViewWindow() {
 #pragma mark Private Functions
 
 void BigViewWindow::setupUi() {
-    ui.stackedWidget->hide();
+//    ui.stackedWidget->hide();
 
     QLabel* loadingLabel = new QLabel(this);
     loadingLabel->setMaximumHeight(16);
@@ -53,14 +53,13 @@ void BigViewWindow::setupUi() {
     _loadingMovie->stop();
 
     ui.toolBar->addWidget(loadingLabel);
-    ui.toolBar->addWidget(ui.fileList);
 
     _lowIntensitySpinBox = new QDoubleSpinBox(ui.toolBar);
     _highIntensitySpinBox = new QDoubleSpinBox(ui.toolBar);
-
-    ui.toolBar->addWidget(_lowIntensitySpinBox);
-    ui.toolBar->addWidget(ui.intensitySlider);
-    ui.toolBar->addWidget(_highIntensitySpinBox);
+    ui.controlLayout->addWidget(ui.fileList);
+    ui.controlLayout->addWidget(_lowIntensitySpinBox);
+    ui.controlLayout->addWidget(ui.intensitySlider);
+    ui.controlLayout->addWidget(_highIntensitySpinBox);
 
     QGLWidget* glWidget = new QGLWidget();
     ui.graphicsView->setViewport(glWidget);
@@ -73,6 +72,12 @@ void BigViewWindow::setupUi() {
     actionGroup->addAction(ui.actionKI);
     ui.actionIJ->setChecked(true);
 
+    QList<QAction*> contextMenu;
+    contextMenu.append(ui.actionLoadToLeft);
+    contextMenu.append(ui.actionLoadToRight);
+    ui.graphicsView->addActions(contextMenu);
+    
+    ui.stackedWidget->setMaximumHeight(ui.intensitySlider->height()+12);
     centerToDesktop();
     raise();
 }

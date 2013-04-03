@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="Icons">
+    <file>Images/New-File-icon.png</file>
+    <file>Images/LemonSplash.png</file>
     <file>Images/folder-icon.png</file>
     <file>Images/Photos-icon.png</file>
   </qresource>

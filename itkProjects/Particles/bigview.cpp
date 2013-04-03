@@ -8,8 +8,11 @@
 
 #include "bigview.h"
 #include <iostream>
-#include "QMainWindow"
-#include "QApplication"
+#include <QMainWindow>
+#include <QApplication>
+#include <QSplashScreen>
+#include <QThread>
+#include <QTimer>
 #include "piOptions.h"
 #include "bigViewWindow.h"
 
@@ -33,6 +36,14 @@ public:
     }
 };
 
+class Sleeper : public QThread
+{
+public:
+    static void usleep(unsigned long usecs){QThread::usleep(usecs);}
+    static void msleep(unsigned long msecs){QThread::msleep(msecs);}
+    static void sleep(unsigned long secs){QThread::sleep(secs);}
+};
+
 int main(int argc, char* argv[]) {
     using namespace pi;
     CSimpleOpt::SOption options[] ={
@@ -42,9 +53,18 @@ int main(int argc, char* argv[]) {
 
     Options parser;
     StringVector& args = parser.ParseOptions(argc, argv, options);
+    MainApps apps(argc, argv);
+
+    QPixmap pixmap(":/Icons/Images/LemonSplash.png");
+    QSplashScreen splash(pixmap, Qt::WindowStaysOnTopHint);
+    splash.show();
+
+    QTimer timer;
+    splash.connect(&timer, SIGNAL(timeout()), SLOT(close()));
+    timer.setSingleShot(true);
+    timer.start(2000);
 
     if (args.size() == 0 || parser.GetBool("--gui")) {
-        MainApps apps(argc, argv);
         BigViewWindow w;
         w.show();
         return apps.exec();

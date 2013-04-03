@@ -69,6 +69,12 @@
    <property name="windowTitle">
     <string>toolBar</string>
    </property>
+   <property name="iconSize">
+    <size>
+     <width>16</width>
+     <height>16</height>
+    </size>
+   </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>
@@ -78,6 +84,10 @@
    <addaction name="actionClear"/>
   </widget>
   <action name="actionClear">
+   <property name="icon">
+    <iconset resource="dualImageViewer.qrc">
+     <normaloff>:/Icons/Images/New-File-icon.png</normaloff>:/Icons/Images/New-File-icon.png</iconset>
+   </property>
    <property name="text">
     <string>Clear</string>
    </property>
