@@ -72,6 +72,8 @@ namespace pi {
 
     void Particle::Zero() {
         t = 0;
+        subj = 0;
+        idx = 0;
         for4(j) {
             x[j] = y[j] = z[j] = v[j] = f[j] = w[j] = 0;
         }
@@ -120,6 +122,14 @@ namespace pi {
             pressure = other.pressure;
         }
         return (*this);
+    }
+
+    void createParticles(ParticleVector& particles, int subj, int n) {
+        particles.resize(n);
+        for (int i = 0; i < particles.size(); i++) {
+            particles[i].idx = i;
+            particles[i].subj = subj;
+        }
     }
 
     ParticleSubject::ParticleSubject(): m_SubjId(-1) {

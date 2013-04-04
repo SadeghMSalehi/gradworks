@@ -13,6 +13,7 @@
 #include "piImageDef.h"
 #include "piParticleCore.h"
 #include <itkBSplineScatteredDataPointSetToImageFilter.h>
+#include <itkVectorLinearInterpolateImageFunction.h>
 
 namespace pi {
     class CurveFitting {
@@ -22,6 +23,7 @@ namespace pi {
         typedef itk::PointSet<ScalarPoint,1> SparseScalarSet;
         typedef itk::Image<ScalarPoint,1> DenseScalarImage;
         typedef itk::BSplineScatteredDataPointSetToImageFilter<SparseScalarSet, DenseScalarImage> BSplineFitter;
+        typedef itk::VectorLinearInterpolateImageFunction<DenseScalarImage> BSplineInterpolator;
 
         CurveFitting();
         ~CurveFitting();
@@ -35,7 +37,6 @@ namespace pi {
         void ComputeChordLengthParameterization(pi::ParticleVector& particles);
 
     private:
-        VNLVector _chordLength;
         pi::ParticleVector _result;
     };
 }

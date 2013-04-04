@@ -6,19 +6,21 @@
 //
 //
 
+#include <fstream>
 #include "qgraphicsguideview.h"
 #include "QMouseEvent"
 #include "QGraphicsScene"
 #include <QPainterPath>
 #include <QGraphicsPathItem>
 #include <QPainter>
+
 #include "qgraphicscompositeimageitem.h"
 #include "qutils.h"
 #include "piImageIO.h"
 #include "itkImageRegionIteratorWithIndex.h"
 #include "piDelegateImageFilter.h"
 #include "piFitCurve.h"
-
+#include "piParticleTrace.h"
 
 using namespace std;
 using namespace pi;
@@ -131,6 +133,7 @@ void QGraphicsGuideView::simplifyPainterPath() {
     _drawingPath = QPainterPath();
     _drawingPath.moveTo(result[0].x[0], result[0].x[1]);
     for (int i = 1; i < result.size(); i++) {
+        cout << result[i].x[0] << "," << result[i].x[1] << endl;
         _drawingPath.lineTo(result[i].x[0], result[i].x[1]);
     }
 }
@@ -224,8 +227,8 @@ void QGraphicsGuideView::pathMoveEvent(QMouseEvent *event) {
 }
 
 void QGraphicsGuideView::pathEndEvent(QMouseEvent *event) {
-    cout << "Drawing Path (Before Simplification): " << _drawingPath.elementCount();
-    simplifyPainterPath();
+    cout << "Drawing Path (Before Simplification): " << _drawingPath.elementCount() << endl;
+//    simplifyPainterPath();
     if (_pathMode == FillMode) {
         QPainter painter(&_userDrawingCanvas);
         painter.setRenderHints(0);
@@ -242,7 +245,7 @@ void QGraphicsGuideView::pathEndEvent(QMouseEvent *event) {
         updateLabelItem();
         sliceToVolume(true);
     } else {
-        cout << "Drawing Path (After Simplification): " << _drawingPath.elementCount();
+        cout << "Drawing Path (After Simplification): " << _drawingPath.elementCount() << endl;
         for (int i = 0; i < _drawingPath.elementCount(); i++) {
             QPainterPath::Element e = _drawingPath.elementAt(i);
             QGraphicsEllipseItem* el = new QGraphicsEllipseItem(e.x-2,e.y-2,5,5,_drawingPathItem);
@@ -472,11 +475,19 @@ void QGraphicsGuideView::exportPath() {
 
     QString fileName = __fileManager.saveFile(QFileManager::Single, this->topLevelWidget(), "Save Path To File")
     ;
-    if (fileName.isEmpty()) {
+    if (!fileName.isEmpty()) {
+        ParticleVector particles;
+        pi::createParticles(particles, 0, _drawingPath.elementCount());
+
         for (int i = 0; i < _drawingPath.elementCount(); i++) {
             QPainterPath::Element e = _drawingPath.elementAt(i);
-            cout << e.x << "," << e.y << endl;
+            particles[i].x[0] = e.x;
+            particles[i].x[1] = e.y;
         }
+
+        ofstream fo(fileName.toUtf8().data());
+        ParticleTrace::Write(fo, particles);
+        fo.close();
     }
 }
 

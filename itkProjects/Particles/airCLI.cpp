@@ -14,6 +14,9 @@
 #include <itkPasteImageFilter.h>
 #include <itkImageRegionConstIteratorWithIndex.h>
 
+#include "piParticleCore.h"
+#include "piParticleTrace.h"
+
 #include <QString>
 
 using namespace pi;
@@ -86,6 +89,7 @@ namespace air {
         __imageIO.WriteCastedImage(output, pasteImage, imageInfo.componenttype);
         return;
     }
+
 
     void CommandLineTools::PasteLabel(StringVector args, string output) {
         int nSlices = args.size() - 1;

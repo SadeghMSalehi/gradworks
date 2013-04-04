@@ -26,11 +26,9 @@ namespace air {
     class CommandLineTools {
     public:
         void ExtractSlice(Image::Pointer img, pi::SliceDirectionEnum dir, pi::IntVector range, std::string outputPattern);
-
         void PasteSlice(pi::StringVector input, std::string output);
-
         void PasteLabel(pi::StringVector input, std::string output);
-
+        
         int Run(pi::Options* parser, pi::StringVector args);
     };
     

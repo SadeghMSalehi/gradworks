@@ -12,6 +12,7 @@
 #include "QApplication"
 #include "piOptions.h"
 #include "pviewAIRWindow.h"
+#include "piQTestModule.h"
 #include "airCLI.h"
 
 using namespace std;
@@ -42,17 +43,26 @@ int main(int argc, char* argv[]) {
         { 2, "--isoRG", SO_NONE },
         { 3, "-f", SO_REQ_SEP },
         { 4, "-b", SO_REQ_SEP },
+        // image related command
         { 5, "--extractSlice", SO_NONE },
         { 6, "--dir", SO_REQ_SEP },
         { 7, "--range", SO_REQ_SEP },
         { 8, "--pasteSlice", SO_NONE },
         { 9, "--pasteLabel", SO_NONE },
+        // non-image command
+        { 11, "-test", SO_NONE },
+        { 10, "--fitTest", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
     Options parser;
     StringVector& args = parser.ParseOptions(argc, argv, options);
 
+    if (parser.GetBool("-test")) {
+        pi::QTestModule test;
+        test.Run(&parser, args);
+        return 0;
+    }
     if (args.size() == 0 || parser.GetBool("--gui")) {
         MainApps apps(argc, argv);
         AIRWindow w;

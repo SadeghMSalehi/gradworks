@@ -105,7 +105,9 @@ namespace pi {
 
     typedef boost::numeric::ublas::vector<Particle> ParticleArray;
     typedef std::vector<Particle> ParticleVector;
-    
+
+    void createParticles(ParticleVector&, int subj, int n);
+
     class ParticleSubject {
     public:
         int m_SubjId;

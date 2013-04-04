@@ -135,6 +135,17 @@ namespace pi {
         }
     }
 
+    void ParticleTrace::Write(std::ostream& os, ParticleVector& trace) {
+        const int n = trace.size();
+        for (int i = 0; i < n; i++) {
+            os << trace[i].t << " " << trace[i].subj << " " << trace[i].idx;
+            fordim (k) {
+                os << " " << trace[i].x[k];
+            }
+            os << endl;
+        }
+    }
+
     ostream& operator<<(ostream& os, ParticleTrace& trace) {
         cout << "# subjects: " << trace.system.size() << endl;
         if (trace.system.size() == 0) {

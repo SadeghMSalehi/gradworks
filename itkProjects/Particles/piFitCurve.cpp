@@ -32,22 +32,26 @@ namespace pi {
         SparseScalarSet::Pointer scalarSet = SparseScalarSet::New();
         const int nParticles = particles.size();
         for (int i = 0; i < nParticles; i++) {
-            scalarSet->SetPoint(i, _chordLength[i]);
-            ScalarPoint point;
-            scalarSet->SetPointData(i, particles[i].x[dim]);
+            SparseScalarSet::PointType point;
+            point[0] = particles[i].t;
+            scalarSet->SetPoint(i, point);
+            ScalarPoint data;
+            data[0] = particles[i].x[dim];
+            scalarSet->SetPointData(i, data);
+            cout << particles[i].t << "," << particles[i].x[dim] << endl;
         }
 
         BSplineFitter::ArrayType closedDimensions;
         closedDimensions[0] = 1;
 
         BSplineFitter::PointType origin;
-        origin[0] = 0;
+        origin[0] = -1;
 
         BSplineFitter::SpacingType spacing;
-        spacing[0] = 0.01;
+        spacing[0] = 0.1;
 
         BSplineFitter::SizeType size;
-        size[0] = 1;
+        size[0] = 30;
 
         BSplineFitter::ArrayType controlPoints;
         controlPoints[0] = 25;
@@ -69,32 +73,37 @@ namespace pi {
     }
 
     void CurveFitting::ApproximateCurve(ParticleVector &particles, bool closed) {
-        assert(_chordLength.size() == particles.size());
-
         DenseScalarImage::Pointer xFit = OneDimensionalBsplineFitting(particles, 0, closed);
         DenseScalarImage::Pointer yFit = OneDimensionalBsplineFitting(particles, 1, closed);
 
-        const int nElems = xFit->GetBufferedRegion().GetSize(0);
-        _result.resize(nElems);
 
-        ScalarPoint* xSrc = xFit->GetBufferPointer();
-        ScalarPoint* ySrc = yFit->GetBufferPointer();
-        for (int i = 0; i < nElems; i++) {
-            _result[i].x[0] = xSrc[i][0];
-            _result[i].x[1] = ySrc[i][0];
+        BSplineInterpolator::Pointer xIntp = BSplineInterpolator::New();
+        xIntp->SetInputImage(xFit);
+
+        BSplineInterpolator::Pointer yIntp = BSplineInterpolator::New();
+        yIntp->SetInputImage(yFit);
+
+        BSplineInterpolator::PointType point;
+        pi::createParticles(_result, 0, particles.size());
+        for (int i = 0; i < particles.size(); i++) {
+            point[0] = particles[i].t;
+            _result[i].x[0] = xIntp->Evaluate(point)[0];
+            _result[i].x[1] = yIntp->Evaluate(point)[0];
         }
     }
 
     void CurveFitting::ComputeChordLengthParameterization(pi::ParticleVector &particles) {
         const int nParticles = particles.size();
-        _chordLength.set_size(nParticles);
         ParticleVector::iterator iter = particles.begin() + 1;
-        for (int i = 0; iter != particles.end(); i++, iter++) {
+        for (int i = 1; iter != particles.end(); i++, iter++) {
             Particle& prev = *(iter-1);
             Particle& curr = *(iter);
             double dist = std::sqrt(curr.Dist2(prev));
-            _chordLength[i] = dist;
+            particles[i].t = particles[i-1].t + dist;
         }
-        _chordLength /= _chordLength.sum();
+
+        for (int i = 0; i < nParticles; i++) {
+            particles[i].t /= particles.back().t;
+        }
     }
 }

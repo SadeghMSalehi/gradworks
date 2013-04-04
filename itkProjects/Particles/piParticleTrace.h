@@ -40,6 +40,7 @@ namespace pi {
         void Write(std::ostream& os);
         void Read(std::istream& is);
         static void Read(std::istream& is, ParticleVector& trace);
+        static void Write(std::ostream& os, ParticleVector& trace);
 
         // property for whole system
         std::vector<ParticleSetSeries> system;
