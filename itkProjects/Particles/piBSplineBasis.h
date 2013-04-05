@@ -87,15 +87,25 @@ namespace pi {
                 if (t < _x[_i] || t >= _x[_i+_k]) {
                     return 0;
                 } else {
-                    const double lowerBasis = (*_lower)(t);
-                    const double lowerCoeff = (t-_x[_i])/(_x[_i+_k-1]-_x[_i]);
-                    if (_lowerNext == NULL) {
-                        return lowerCoeff * lowerBasis;
+                    if (_x[_i+_k-1] == _x[_i]) {
+                        if (_x[_i+_k] == _x[_i+1]) {
+                            return 0;
+                        }
+                        const double lowerNextBasis = (*_lowerNext)(t);
+                        const double lowerNextCoeff = (_x[_i+_k]-t)/(_x[_i+_k]-_x[_i+1]);
+                        const double value = lowerNextCoeff * lowerNextBasis;
+                        return value;
+                    } else {
+                        const double lowerBasis = (*_lower)(t);
+                        const double lowerCoeff = (t-_x[_i])/(_x[_i+_k-1]-_x[_i]);
+                        if (_lowerNext == NULL || _x[_i+_k] == _x[_i+1]) {
+                            return lowerCoeff * lowerBasis;
+                        }
+                        const double lowerNextBasis = (*_lowerNext)(t);
+                        const double lowerNextCoeff = (_x[_i+_k]-t)/(_x[_i+_k]-_x[_i+1]);
+                        const double value = lowerCoeff * lowerBasis + lowerNextCoeff * lowerNextBasis;
+                        return value;
                     }
-                    const double lowerNextBasis = (*_lowerNext)(t);
-                    const double lowerNextCoeff = (_x[_i+_k]-t)/(_x[_i+_k]-_x[_i+1]);
-                    const double value = lowerCoeff * lowerBasis + lowerNextCoeff * lowerNextBasis;
-                    return value;
                 }
             }
         }

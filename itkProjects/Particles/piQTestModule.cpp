@@ -25,14 +25,15 @@ namespace piq {
 
 
     void TestModule::BSplineTest() {
-        BSplineBasis::TRealVector knots;
-        int k = 4;
-        for (int i = 0; i < k + 1; i++) {
-            knots.push_back(i);
-        }
-        pi::BSplineBasis basis(&knots[0], knots.size(), 0, k);
-        for (float t = 0; t < k; t += 0.1) {
-            cout << basis.eval(0, 3, t) << "\t" << basis.eval(1, 3, t) << endl;
+        int k = 3;
+        int np = 3;
+        BSplineBasis::TReal knots[7] = { 0, 0, 0, 1, 2, 2, 2 };
+        pi::BSplineBasis b1(knots, 7, 0, 3);
+        pi::BSplineBasis b2(knots, 7, 1, k);
+        pi::BSplineBasis b3(knots, 7, 2, k);
+        pi::BSplineBasis b4(knots, 7, 3, k);
+        for (float t = 0; t < 2.1; t += 0.1) {
+            cout << t << "\t" <<  b1(t) << "\t" << b2(t) << "\t" << b3(t) << "\t" << b4(t) << endl;
         }
     }
     
