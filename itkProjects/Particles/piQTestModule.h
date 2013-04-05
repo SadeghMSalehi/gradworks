@@ -13,15 +13,16 @@
 #include <QObject>
 #include "piOptions.h"
 
-namespace pi {
-    class QTestModule: public QObject {
+namespace piq {
+    class TestModule: public QObject {
         Q_OBJECT
     public:
-        QTestModule(QObject* parent = NULL);
-        virtual ~QTestModule();
+        TestModule(QObject* parent = NULL);
+        virtual ~TestModule();
 
+        void BSplineTest();
         void FitTest(pi::StringVector &args);
-        void Run(Options* opts, StringVector& args);
+        void Run(pi::Options* opts, pi::StringVector& args);
     };
 }
 #endif /* defined(__ParticleGuidedRegistration__piQTestModule__) */

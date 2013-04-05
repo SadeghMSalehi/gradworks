@@ -44,8 +44,8 @@ SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp qcustomplot.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
 
-SET (QT_PVIEW_HEADERS pviewAIRWindow.h airSuperZoom.h qcustomplot.h qdualslider.h qgraphicsguideview.h  qgraphicscompositeimageitem.h qgraphicsdrawingimageitem.h qfileacceptbutton.h qgraphicsvolumeview.h airAlgorithmManager.h qdrawingframe.h piQTestModule.h)
-SET (QT_PVIEW_SOURCES pviewAIRWindow.cpp airSuperZoom.cpp qcustomplot.cpp qdualslider.cpp qgraphicsguideview.cpp qgraphicscompositeimageitem.cpp qgraphicsdrawingimageitem.cpp qfileacceptbutton.cpp qgraphicsvolumeview.cpp airAlgorithmManager.cpp qdrawingframe.cpp piQTestModule.cpp)
+SET (QT_PVIEW_HEADERS pviewAIRWindow.h airSuperZoom.h qcustomplot.h qdualslider.h qgraphicsguideview.h  qgraphicscompositeimageitem.h qgraphicsdrawingimageitem.h qfileacceptbutton.h qgraphicsvolumeview.h airAlgorithmManager.h qdrawingframe.h piqTestModule.h)
+SET (QT_PVIEW_SOURCES pviewAIRWindow.cpp airSuperZoom.cpp qcustomplot.cpp qdualslider.cpp qgraphicsguideview.cpp qgraphicscompositeimageitem.cpp qgraphicsdrawingimageitem.cpp qfileacceptbutton.cpp qgraphicsvolumeview.cpp airAlgorithmManager.cpp qdrawingframe.cpp piqTestModule.cpp)
 QT4_WRAP_CPP(QT_PVIEW_MOC_HEADERS ${QT_PVIEW_HEADERS})
 QT4_WRAP_UI(QT_PVIEW_UI_FILES pviewAIRWindow.ui testDialog.ui)
 QT4_ADD_RESOURCES(QT_PVIEW_RCC pviewAIRWindow.qrc)
@@ -114,9 +114,10 @@ IF (${BUILD_GUI})
 	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageDef.h 
 		piImageIO.h piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h 
         piFitCurve.h piFitCurve.cpp piParticleCore.h piParticleCore.cpp piParticleTrace.h piParticleTrace.cpp
-		piImageHistogram.cpp piImageHistogram.h qtypedef.h qutils.h qutils.cpp
+        piBSplineBasis.h piBSplineBasis.cpp piImageHistogram.cpp piImageHistogram.h piqFitPack.h piqFitPack.cpp qtypedef.h qutils.h qutils.cpp
         airImageAlgorithm.cpp airImageAlgorithm.h airCLI.h airCLI.cpp
         GraphicsGems.h gemFitCurves.h gemFitCurves.cpp
+
 		${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES} ${QT_PVIEW_RCC})
 	TARGET_LINK_LIBRARIES(airview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 

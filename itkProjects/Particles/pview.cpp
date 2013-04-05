@@ -12,7 +12,7 @@
 #include "QApplication"
 #include "piOptions.h"
 #include "pviewAIRWindow.h"
-#include "piQTestModule.h"
+#include "piqTestModule.h"
 #include "airCLI.h"
 
 using namespace std;
@@ -52,6 +52,7 @@ int main(int argc, char* argv[]) {
         // non-image command
         { 11, "-test", SO_NONE },
         { 10, "--fitTest", SO_NONE },
+        { 12, "--bsplineBasisTest", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
@@ -59,7 +60,7 @@ int main(int argc, char* argv[]) {
     StringVector& args = parser.ParseOptions(argc, argv, options);
 
     if (parser.GetBool("-test")) {
-        pi::QTestModule test;
+        piq::TestModule test;
         test.Run(&parser, args);
         return 0;
     }
