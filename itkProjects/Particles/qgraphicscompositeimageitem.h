@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <climits>
+#include "piParticle.h"
 #include "piImageSlice.h"
 #include "QGraphicsPixmapItem"
 

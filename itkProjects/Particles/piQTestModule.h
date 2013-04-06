@@ -21,6 +21,7 @@ namespace piq {
         virtual ~TestModule();
 
         void BSplineTest();
+        void BSplineBasisTest();
         void FitTest(pi::StringVector &args);
         void Run(pi::Options* opts, pi::StringVector& args);
     };

@@ -7,7 +7,7 @@
 //
 
 #include "piFitCurve.h"
-
+#include "piBSplineBasis.h"
 #include <cmath>
 
 namespace pi {
@@ -24,8 +24,14 @@ namespace pi {
     }
     
     void CurveFitting::FitCurve(pi::ParticleVector &particles, bool closed) {
-        ComputeChordLengthParameterization(particles);
-        ApproximateCurve(particles, closed);
+        ParticleVector controls;
+        BSplineBasis::CubicContourFitting(particles, 25, controls);
+
+        std::vector<float> params(100);
+        for (int i = 0; i < params.size(); i++) {
+            params[i] = i / float(params.size());
+        }
+        BSplineBasis::CubicContour(controls, params, _result);
     }
 
     CurveFitting::DenseScalarImage::Pointer CurveFitting::OneDimensionalBsplineFitting(pi::ParticleVector &particles, int dim, bool closed) {

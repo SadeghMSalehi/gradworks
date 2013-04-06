@@ -23,6 +23,7 @@
 #include "vtkPoints.h"
 #include "vtkTransform.h"
 #include "vtkMatrix4x4.h"
+#include "piParticle.h"
 
 class vtkPolyData;
 
@@ -34,43 +35,6 @@ namespace pi {
 
     class ImageContext;
     class ParticleSystem;
-
-    class Particle {
-    public:
-        int subj;
-        int idx;
-        int label;
-        
-        DataReal t;
-
-        // the position x and the transformed point y
-        DataReal x[4];
-        DataReal y[4];
-
-        // the current velocity v and the force f
-        DataReal v[4];
-        DataReal f[4];
-
-        // the density and pressure of a particle
-        DataReal density;
-        DataReal pressure;
-
-        // temporary status
-        DataReal w[4];
-        DataReal z[4];
-
-        bool collisionEvent;
-
-        Particle();
-        ~Particle();
-        
-        void Zero();
-        void Sub(const Particle& p, DataReal* nx);
-        void AddForce(DataReal* ff, DataReal alpha = 1);
-        DataReal Dist2(const Particle& p);
-
-        Particle& operator=(const Particle& other);
-    };
 
     // utility classes
     class ParticleXCaster {
@@ -97,14 +61,10 @@ namespace pi {
         inline float castTarget(const Particle& p, int i) const { return p.z[i]; }
     };
 
-    // utility operator overloading
-    ostream& operator<<(ostream& os, const Particle& par);
-    istream& operator>>(istream& is, Particle& par);
     ostream& operator<<(ostream& os, const vtkTransformType& par);
     istream& operator>>(istream& is, vtkTransformType& par);
 
     typedef boost::numeric::ublas::vector<Particle> ParticleArray;
-    typedef std::vector<Particle> ParticleVector;
 
     void createParticles(ParticleVector&, int subj, int n);
 

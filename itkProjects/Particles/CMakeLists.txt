@@ -111,8 +111,9 @@ IF (${BUILD_GUI})
 	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
-	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageDef.h 
-		piImageIO.h piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h 
+	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp
+        piImageDef.h piImageIO.h piMacros.h piParticle.h piParticle.cpp
+		piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h
         piFitCurve.h piFitCurve.cpp piParticleCore.h piParticleCore.cpp piParticleTrace.h piParticleTrace.cpp
         piBSplineBasis.h piBSplineBasis.cpp piImageHistogram.cpp piImageHistogram.h piqFitPack.h piqFitPack.cpp qtypedef.h qutils.h qutils.cpp
         airImageAlgorithm.cpp airImageAlgorithm.h airCLI.h airCLI.cpp

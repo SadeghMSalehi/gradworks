@@ -133,7 +133,6 @@ void QGraphicsGuideView::simplifyPainterPath() {
     _drawingPath = QPainterPath();
     _drawingPath.moveTo(result[0].x[0], result[0].x[1]);
     for (int i = 1; i < result.size(); i++) {
-        cout << result[i].x[0] << "," << result[i].x[1] << endl;
         _drawingPath.lineTo(result[i].x[0], result[i].x[1]);
     }
 }
@@ -245,12 +244,14 @@ void QGraphicsGuideView::pathEndEvent(QMouseEvent *event) {
         updateLabelItem();
         sliceToVolume(true);
     } else {
+        simplifyPainterPath();
         cout << "Drawing Path (After Simplification): " << _drawingPath.elementCount() << endl;
         for (int i = 0; i < _drawingPath.elementCount(); i++) {
             QPainterPath::Element e = _drawingPath.elementAt(i);
             QGraphicsEllipseItem* el = new QGraphicsEllipseItem(e.x-2,e.y-2,5,5,_drawingPathItem);
             el->setBrush(QBrush(0xFFFFBBDD, Qt::SolidPattern));
-            el->setOpacity(0.3);
+            el->setOpacity(1);
+            el->setZValue(2);
         }
     }
 }

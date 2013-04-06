@@ -12,6 +12,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include "piParticleCore.h"
 
 namespace pi {
     class BSplineBasis {
@@ -109,6 +110,16 @@ namespace pi {
                 }
             }
         }
+        static void CubicBasis(TReal t, TReal* b) {
+            const TReal s[4] = { t*t*t, t*t, t, 1 };
+            b[0] = (-s[0] + 3*s[1] - 3*s[2] + 1)/6.0;
+            b[1] = (3*s[0] -6*s[1] + 4)/6.0;
+            b[2] = (-3*s[0]+3*s[1]+3*s[2]+s[3])/6.0;
+            b[3] = s[0]/6.0;
+        }
+
+        static void CubicContour(ParticleVector& controls, std::vector<TReal>& params, ParticleVector& contourOut);
+        static void CubicContourFitting(ParticleVector& p, int nControls, ParticleVector& controlsOut);
     };
 }
 #endif /* defined(__ParticleGuidedRegistration__piBSplineBasis__) */

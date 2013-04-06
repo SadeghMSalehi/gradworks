@@ -10,6 +10,7 @@
 #define __ParticlesGUI__myImageProcessing__
 
 #include <iostream>
+#include "piParticle.h"
 #include "piImageDef.h"
 #include "itkRescaleIntensityImageFilter.h"
 #include <itkImageToHistogramFilter.h>

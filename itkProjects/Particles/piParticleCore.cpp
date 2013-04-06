@@ -17,26 +17,6 @@
 #include "vtkLandmarkTransform.h"
 
 namespace pi {
-    ostream& operator<<(ostream& os, const Particle& par) {
-        for4(k) { os << par.x[k] << " "; }
-        for4(k) { os << par.y[k] << " "; }
-        for4(k) { os << par.v[k] << " "; }
-        for4(k) { os << par.f[k] << " "; }
-        os << par.density << " ";
-        os << par.pressure << " ";
-        return os;
-    }
-
-    istream& operator>>(istream& is, Particle& par) {
-        for4(k) { is >> par.x[k]; }
-        for4(k) { is >> par.y[k]; }
-        for4(k) { is >> par.v[k]; }
-        for4(k) { is >> par.f[k]; }
-        is >> par.density;
-        is >> par.pressure;
-        return is;
-    }
-
     ostream& operator<<(ostream& os, const vtkTransformType& t) {
         vtkMatrix4x4* mat = t->GetMatrix();
         for (int i = 0; i < 4; i++) {

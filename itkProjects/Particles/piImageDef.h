@@ -23,47 +23,22 @@
 #include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkPointSet.h"
 #include "vnl/vnl_vector.h"
+#include "piMacros.h"
 
 #include "vector"
 
 
-#ifndef DIMENSIONS
-#define DIMENSIONS 3
-#endif
-
 const static int __Dim = DIMENSIONS;
-
-#define for4(i) for (int i = 0; i < 4; i++)
-#define fordim(i) for (int i = 0; i < __Dim; i++)
-#define formin(x,y,z) for(int _=0;_<__Dim;_++) {z[_]=(x[_]<y[_])?x[_]:y[_];}
-#define formax(x,y,z) for(int _=0;_<__Dim;_++) {z[_]=(x[_]>y[_])?x[_]:y[_];}
-#define forset(x, y) for (int _=0;_<__Dim;_++) {y[_]=x[_];}
-#define forcopy(x, y) for (int _=0;_<__Dim;_++) {y[_]=x[_];}
-#define forfill(x, v) for (int _=0;_<__Dim;_++) {x[_]=v;}
-#define forroundset(x,y) for(int _=0; _<__Dim; _++) { y[_]=x[_]+0.5; }
-#define arrayset2(a,x,y) a[0]=x;a[1]=y
-#define arrayset3(a,x,y,z) a[0]=x;a[1]=y;a[2]=z
-#define x2string(x) x[0]<<","<<x[1]<<","<<x[2]
-
-#if DIMENSIONS == 3
-#define dimdot(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
-#define dimequal(x,x0,x1,x2) (x[0]==(x0)&&x[1]==(x1)&&x[2]==(x2))
-#define dimnorm2(x) (x[0]*x[0]+x[1]*x[1]+x[2]*x[2])
-#elif DIMENSIONS == 2
-#define dimdot(x,y) (x[0]*y[0]+x[1]*y[1])
-#define dimequal(x,x0,x1) (x[0]==(x0)&&x[1]==(x1))
-#define dimnorm2(x) (x[0]*x[0]+x[1]*x[1])
-#endif
 
 namespace pi {
     // type definitions
     typedef unsigned short LabelPixel;
     typedef float ImageReal;
     typedef double PointReal;
-    typedef float DataReal;
+
     typedef itk::Image<ImageReal,__Dim> RealImage;
     typedef itk::Image<LabelPixel,__Dim> LabelImage;
-    typedef itk::Vector<DataReal,__Dim> VectorType;
+    typedef itk::Vector<ImageReal,__Dim> VectorType;
     typedef itk::Image<VectorType,__Dim> VectorImage;
     typedef itk::Offset<__Dim> OffsetType;
     typedef itk::Image<OffsetType,__Dim> OffsetImage;
@@ -108,9 +83,7 @@ namespace pi {
     // auxiliary data structures
     typedef std::vector<std::string> StringVector;
 
-    // VNL related types
-    typedef vnl_vector<DataReal> VNLVector;
-    typedef vnl_matrix<DataReal> VNLMatrix;
+
     typedef vnl_vector<double> VNLDoubleVector;
     typedef vnl_matrix<double> VNLDoubleMatrix;
 }
