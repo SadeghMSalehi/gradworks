@@ -63,9 +63,19 @@ namespace pi {
 
     void Particle::AddForce(DataReal* ff, DataReal alpha) {
 #ifndef BATCH
-        if (abs(ff[0]) > 10 || abs(ff[1]) > 10 || abs(ff[2]) > 10) {
-            cout << "too large force at [" << x[0] << "," << x[1] << "," << x[2] << endl;
+#if DIMENSIONS == 3
+        if (std::abs(ff[0]) > 10 || std::abs(ff[1]) > 10 || std::abs(ff[2]) > 10) {
+            cout << "too large force at [" << x[0] << "," << x[1] << "," << x[2] << "]" << endl;
         }
+#else
+        if (std::abs(ff[0]) > 10 || std::abs(ff[1]) > 10) {
+            cout << "too large force: " << flush;
+            fordim (k) {
+                cout << x[k] << "," << ff[k] << "\t";
+            }
+            cout << endl;
+        }
+#endif
 #endif
         fordim(i) {
             f[i] += (alpha * ff[i]);

@@ -15,7 +15,7 @@ FIND_PACKAGE(Qt REQUIRED COMPONENTS QtOpenGL)
 FIND_PACKAGE(VTK COMPONENTS REQUIRED)
 SET(VTK_REQUIRED_OBJCXX_FLAGS -fobjc-gc)
 
-FIND_PACKAGE(Armadillo REQUIRED)
+#FIND_PACKAGE(Armadillo REQUIRED)
 
 SET(Boost_NO_BOOST_CMAKE 1)
 FIND_PACKAGE(Boost REQUIRED)
@@ -24,9 +24,11 @@ IF(Boost_FOUND)
   INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 ENDIF()
 
-IF(Aramadillo_FOUND)
-  INCLUDE_DIRECTORIES(${Armadillo_INCLUDE_DIRS})
-ENDIF()
+#IF(Aramadillo_FOUND)
+#  INCLUDE_DIRECTORIES(${Armadillo_INCLUDE_DIRS})
+#ENDIF()
+
+SET(Armadillo_LIBRARIES '')
 
 INCLUDE(${USE_ITK_FILE})
 SET(QT_USE_QTOPENGL TRUE)
@@ -63,7 +65,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
-SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piEntropyComputer.h piEntropyComputer.cpp)
+SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp)
 
 SET (PI_LIBS_SOURCE itkImageIO.h piTimer.h piTimer.cpp piImageProcessing.cpp piImageProcessing.h piImageDef.h piOptions.h piOptions.cpp piVTK.cpp piVTK.h)
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)
@@ -139,42 +141,6 @@ IF (${BUILD_GUI})
 ENDIF (${BUILD_GUI})
 
 
-# 2D version executables
-#ADD_EXECUTABLE(optionTest optionTestMain.cpp piOptions.h piOptions.cpp)
-
-#ADD_EXECUTABLE(particleWin particleViewerWindowMain.cpp ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
-#TARGET_LINK_LIBRARIES(particleWin ${ITK_LIBRARIES} ${QT_LIBRARIES} ${Armadillo_LIBRARIES} QVTK)
-
-#ADD_EXECUTABLE(particleReg particleRegistrationMain.cpp ${MY_PARTICLE_WORKS_SOURCES} ${PI_LIBS_SOURCE})
-#TARGET_LINK_LIBRARIES(particleReg ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
-
-#ADD_EXECUTABLE(particleRun particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
-#TARGET_LINK_LIBRARIES(particleRun ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
-
-
-# 3D version executables
-#ADD_EXECUTABLE(particleWin3 particleViewerWindowMain.cpp ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
-#SET_TARGET_PROPERTIES(particleWin3 PROPERTIES COMPILE_FLAGS -DDIMENSION3)
-#TARGET_LINK_LIBRARIES(particleWin3 ${ITK_LIBRARIES} ${QT_LIBRARIES} ${Armadillo_LIBRARIES} QVTK)
-
-#ADD_EXECUTABLE(particleCollision3 particleCollision.cpp ${PI_LIBS_SOURCE} ${MY_PARTICLE_WORKS_SOURCES})
-#SET_TARGET_PROPERTIES(particleCollision3 PROPERTIES COMPILE_FLAGS -DDIMENSION3)
-#TARGET_LINK_LIBRARIES(particleCollision3 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
-
-#ADD_EXECUTABLE(particleConstraint3 particleConstraint.cpp ${PI_LIBS_SOURCE} ${MY_PARTICLE_WORKS_SOURCES} ${PI_VTK_SOURCES})
-#SET_TARGET_PROPERTIES(particleConstraint3 PROPERTIES COMPILE_FLAGS -DDIMENSION3)
-#TARGET_LINK_LIBRARIES(particleConstraint3 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
-
-
-
-#ADD_EXECUTABLE(preg3 particleRegistrationMain.cpp ${MY_PARTICLE_WORKS_SOURCES} ${PI_LIBS_SOURCE})
-#SET_TARGET_PROPERTIES(preg3 PROPERTIES COMPILE_FLAGS -DDIMENSION3)
-#TARGET_LINK_LIBRARIES(preg3 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES})
-
-ADD_EXECUTABLE(sgen3 pwShapeGenerator.cpp pwShapeGenerator.h)
-SET_TARGET_PROPERTIES(sgen3 PROPERTIES COMPILE_FLAGS -DDIMENSION3)
-TARGET_LINK_LIBRARIES(sgen3 ${ITK_LIBRARIES})
-
-#ADD_EXECUTABLE(itkcmds itkcmdsMain.cpp ${MY_PARTICLE_WORKS_SOURCES})
-#SET_TARGET_PROPERTIES(itkcmds PROPERTIES COMPILE_FLAGS -DDIMENSION3)
-#TARGET_LINK_LIBRARIES(itkcmds ${ITK_LIBRARIES} ${Boost_LIBRARIES})
+#ADD_EXECUTABLE(sgen3 pwShapeGenerator.cpp pwShapeGenerator.h)
+#SET_TARGET_PROPERTIES(sgen3 PROPERTIES COMPILE_FLAGS -DDIMENSION3)
+#TARGET_LINK_LIBRARIES(sgen3 ${ITK_LIBRARIES})

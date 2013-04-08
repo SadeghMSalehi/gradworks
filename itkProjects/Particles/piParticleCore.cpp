@@ -4,6 +4,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/timer.hpp>
 
+#include "piImageIO.h"
 #include "piParticleCore.h"
 #include "piParticleBSpline.h"
 #include "piParticleForces.h"
@@ -288,7 +289,9 @@ namespace pi {
             }
         } else {
             for (int i = 0; i < nPoints; i++) {
-                m_Particles[i].z[i] = m_Particles[i].y[i];
+                fordim (k) {
+                    m_Particles[i].z[k] = m_Particles[i].y[k];
+                }
             }
         }
     }
@@ -304,6 +307,12 @@ namespace pi {
                 TransformType::OutputPointType outputPoint = transform->TransformPoint(inputPoint);
                 fordim (j) {
                     m_Particles[i].y[j] = outputPoint[j];
+                }
+            }
+        } else {
+            for (int i = 0; i < nPoints; i++) {
+                fordim (k) {
+                    m_Particles[i].y[k] = m_Particles[i].z[k];
                 }
             }
         }
@@ -371,8 +380,8 @@ namespace pi {
 
 
     void ImageContext::LoadLabel(std::string filename) {
-        itkcmds::itkImageIO<LabelImage> io;
-        LabelImage::Pointer image = io.ReadImageT(filename.c_str());
+        ImageIO<LabelImage> io;
+        LabelImage::Pointer image = io.ReadCastedImage(filename.c_str());
         if (image.IsNull()) {
             return;
         }
@@ -387,16 +396,19 @@ namespace pi {
     }
 
     void ImageContext::LoadRealImage(std::string filename) {
-        itkcmds::itkImageIO<RealImage> io;
-        RealImage::Pointer image = io.ReadImageT(filename.c_str());
-        m_Images.push_back(image);
+        ImageIO<RealImage> io;
+        RealImage::Pointer image = io.ReadCastedImage(filename.c_str());
+
+        ImageProcessing proc;
+        image = proc.NormalizeIntensity(image, LabelImage::Pointer(), 0.01);
 
         // set default spacing to 1 to match index and physical coordinate space
         RealImage::SpacingType defaultSpacing;
         defaultSpacing.Fill(1);
-        m_Images.back()->SetSpacing(defaultSpacing);
+        image->SetSpacing(defaultSpacing);
         
         m_RealImageFileNames.push_back(filename);
+        m_Images.push_back(image);
     }
 
     LabelImage::Pointer ImageContext::GetLabel(int j) {
@@ -416,8 +428,10 @@ namespace pi {
     }
 
     int ImageContext::ComputeIntersection() {
-        itkcmds::itkImageIO<LabelImage> io;
-        LabelImage::Pointer intersection = io.NewImageT(m_LabelImages[0]);
+        ImageIO<LabelImage> io;
+        LabelImage::Pointer intersection = io.CopyImage(m_LabelImages[0]);
+        intersection->FillBuffer(0);
+
         LabelImage::RegionType region = intersection->GetBufferedRegion();
 
         // set as member variable to reuse
@@ -443,7 +457,7 @@ namespace pi {
             }
         }
         if (m_IntersectionOutput != "") {
-            io.WriteImageT(m_IntersectionOutput.c_str(), intersection);
+            io.WriteImage(m_IntersectionOutput.c_str(), intersection);
         }
         return nIntersectionPixels;
     }
@@ -507,10 +521,10 @@ namespace pi {
         DataReal sigma = options.GetReal("AdaptiveSamplingBlurSigma:", 1);
         DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 2);
 
-        itkcmds::itkImageIO<RealImage> io;
+        ImageIO<RealImage> io;
         for (int i = 0; i < kappaNames.size(); i++) {
             if (io.FileExists(kappaNames[i].c_str())) {
-                m_Subjects[i].kappaImage = io.ReadImageT(kappaNames[i].c_str());
+                m_Subjects[i].kappaImage = io.ReadCastedImage(kappaNames[i].c_str());
             } else {
                 RealImage::Pointer realImg = context->GetRealImage(i);
                 if (realImg.IsNotNull()) {
@@ -518,7 +532,7 @@ namespace pi {
                     RealImage::Pointer gradImg = proc.ComputeGaussianGradientMagnitude(realImg, sigma);
                     RealImage::Pointer kappaImg = proc.RescaleIntensity<RealImage>(gradImg, 1.0, maxKappa);
                     m_Subjects[i].kappaImage = kappaImg;
-                    io.WriteImageT(kappaNames[i].c_str(), kappaImg);
+                    io.WriteImage(kappaNames[i].c_str(), kappaImg);
                 } else {
                     cout << "Real image is null for subject: " << m_Subjects[i].m_Name << endl;
                 }

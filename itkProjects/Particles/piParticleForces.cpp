@@ -14,9 +14,9 @@
 #include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkVectorLinearInterpolateImageFunction.h"
 #include "itkConstNeighborhoodIterator.h"
-#include "armadillo"
-#include "boost/numeric/ublas/matrix.hpp"
-#include "boost/numeric/ublas/io.hpp"
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/io.hpp>
+#include <cmath>
 
 #include <vtkProcrustesAlignmentFilter.h>
 #include <vtkLandmarkTransform.h>
@@ -26,6 +26,8 @@
 #include "vtkFloatArray.h"
 #include "vtkPointData.h"
 #include "piVTK.h"
+#include "piImageIO.h"
+
 
 #define __show2(t,x,m,n) for (int _=0;_<m;_++) { cout << t << " #" << _ << ":"; for (int __=0;__<n;__++) cout << " " << x[__+_*n]; cout << endl; }
 #define __show1(x,m) cout << #x << ":"; for (int _=0;_<m;_++) cout << " " << x[_]; cout << endl;
@@ -36,6 +38,10 @@ namespace pi {
     ostream& operator<<(ostream& os, Attr& attr) {
         int p = os.precision();
         os.precision(8);
+        fordim (k) {
+            os << attr.o[k] << " ";
+        }
+        os << ";";
         for (int i = 0; i < attr.NATTRS; i++) {
             os << " " << attr.x[i];
         }
@@ -337,41 +343,14 @@ namespace pi {
         const int nPoints = system.GetNumberOfParticles();
         const int nSubjects = system.GetNumberOfSubjects();
 
-        // Here, we align particles with the mean subject
-        // Let y be an aligned coordinate of a particle position x.
-        // The deformed coordinate z is estimated from the bspline landmark transform from y
-        // An ensemble force f_z in z-space is computed.
-        // An ensemble force f_y in y-space is computed by multiplying jacobian of the bspline
-        // An ensemble force f_x in the original x-space is computed by multiplying the jacobian of the alignment transform
-
-        // we assume that the mean and its corresponding alignment is already computed
-        // therefore, we store y from x
-        /*
-        // compute mean(Y)
-        for (int j = 0; j < nPoints; j++) {
-            fordim (k) {
-                meanSubj[j].y[k] = 0;
-            }
-            for (int i = 0; i < nSubjects; i++) {
-                fordim (k) {
-                    meanSubj[j].y[k] += system[i][j].y[k];
-                }
-            }
-            fordim (k) {
-                meanSubj[j].y[k] /= nSubjects;
-            }
-        }
-        */
-
-
         // now working at y-space estimating b-spline transform from the subject to the mean
-        system.ComputeZMeanSubject();
+        system.ComputeYMeanSubject();
         ParticleSubject& meanSubj = system.GetMeanSubject();
 
         for (int i = 0; i < nSubjects; i++) {
             ParticleBSpline bspline;
             bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
-            bspline.EstimateTransformYZ(system[i], meanSubj);
+            bspline.EstimateTransformY(system[i], meanSubj);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
             system[i].TransformY2Z(deformableTransform.GetPointer());
             system[i].m_DeformableTransform = deformableTransform;
@@ -492,7 +471,7 @@ namespace pi {
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
         const int nRadius = (int) (ATTR_SIZE / 2);
-        itkcmds::itkImageIO<RealImage> io;
+        ImageIO<RealImage> io;
 
         m_attrs.resize(nSubj, nPoints);
         m_attrsMean.set_size(nPoints, Attr::NATTRS);
@@ -529,7 +508,7 @@ namespace pi {
                     forwardBspline.EstimateTransform(subject, meanSubject);
                     FieldTransformType::Pointer forwardTransform = forwardBspline.GetTransform();
                     subject.TransformY2Z(forwardTransform);
-                    cout << "Warping in intensity force not desirable" << endl;
+                    cout << "Forward B-spline transform is null: might forget to include +ensemble term?" << endl;
                 }
             }
         } else {
@@ -559,6 +538,7 @@ namespace pi {
             RealImageNeighborhoodIteratorType iiter(radius, subject.realImage, subject.realImage->GetBufferedRegion());
             RealImage::IndexType idx;
 #pragma omp parallel for
+            // sample attributes for each pixel
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subject.m_Particles[j];
                 fordim(k) {
@@ -566,6 +546,9 @@ namespace pi {
                 }
                 iiter.SetLocation(idx);
                 Attr& jAttr = m_attrs(i, j);
+                fordim(k) {
+                    jAttr.o[k] = idx[k];
+                }
 
                 FieldTransformType::InputPointType inputPoint;
                 FieldTransformType::OutputPointType outputPoint;
@@ -749,7 +732,17 @@ namespace pi {
             // covariance matrix
             VNLDoubleMatrix cov;
             bool useDual = ComputeCovariance(m_attrs, i, cov);
-            VNLDoubleMatrix invC = vnl_matrix_inverse<double>(cov);
+            VNLDoubleMatrix invC(cov);
+            if (cov.is_finite() && !cov.has_nans()) {
+                invC = vnl_matrix_inverse<double>(cov);
+            } else {
+                cout << "Wrong Cov: " << cov << endl;
+                for (int j = 0; j < nSubj; j++) {
+                    Attr& attr = m_attrs(j, i);
+                    cout << attr << endl;
+                }
+                invC.fill(0);
+            }
             ComputeGradient(m_attrs, invC, i, useDual);
         }
 
@@ -796,7 +789,11 @@ namespace pi {
 //                ff.normalize();
                 subj.inverseAlignment->TransformVector(ff.data_block(), m_attrs(i,j).F);
 #ifndef BATCH
-                if (::abs(m_attrs(i,j).F[0]) > 2 || ::abs(m_attrs(i,j).F[1]) > 2 || ::abs(m_attrs(i,j).F[2]) > 2) {
+                bool forceCheck = false;
+                fordim (k) {
+                    forceCheck = forceCheck || (std::abs(m_attrs(i,j).F[k]) > 2);
+                }
+                if (forceCheck) {
                     //cout << "too big intensity term! at " << i << " subj " << j << " points: x=" << par.x[0]<< "," << par.x[1] << "," << par.x[2] <<  ";f=" << m_attrs(i,j).F[0] << "," << m_attrs(i,j).F[1] << "," << m_attrs(i,j).F[2] << endl;
                     cout << i << "." << j << " ";
                     ff.copy_in(m_attrs(i,j).F);

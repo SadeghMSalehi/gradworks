@@ -25,7 +25,10 @@
       </property>
       <widget class="QSplitter" name="splitter">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="handleWidth">
+        <number>6</number>
        </property>
        <widget class="myQGraphicsView" name="graphicsView">
         <property name="minimumSize">
@@ -166,7 +169,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>220</width>
+          <width>280</width>
           <height>653</height>
          </rect>
         </property>
@@ -236,9 +239,12 @@ LabelImages: strings 2
           </layout>
          </item>
          <item>
-          <widget class="QCheckBox" name="showImage">
+          <widget class="QCheckBox" name="verboseOutput">
            <property name="text">
-            <string>Show Image</string>
+            <string>Verbose Output</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
@@ -262,7 +268,7 @@ LabelImages: strings 2
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>220</width>
+          <width>280</width>
           <height>653</height>
          </rect>
         </property>
@@ -411,7 +417,7 @@ LabelImages: strings 2
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>220</width>
+          <width>280</width>
           <height>653</height>
          </rect>
         </property>

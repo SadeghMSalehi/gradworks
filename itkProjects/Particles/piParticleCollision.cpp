@@ -13,7 +13,7 @@
 #include "piImageProcessing.h"
 #include "boost/algorithm/string/predicate.hpp"
 
-#ifdef DIMENSION3
+#if DIMENSIONS == 3
 #define IsEqual(x, y) (x[0]==y[0]&&x[1]==y[1]&&x[2]==y[2])
 #else
 #define IsEqual(x, y) (x[0]==y[0]&&x[1]==y[1])

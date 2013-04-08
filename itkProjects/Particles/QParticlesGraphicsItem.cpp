@@ -6,6 +6,9 @@
 //
 //
 
+#include <cstdlib>
+#include <cmath>
+#include "itkRGBAPixel.h"
 #include "QParticlesGraphicsItem.h"
 #include "QPainter"
 #include "QStyleOptionGraphicsItem"
@@ -41,12 +44,12 @@ void QParticlesGraphicsItem::SetParticles(pi::Particle* particles, int n) {
             my[0] = my[1] = m_Particles[i].x[1];
             _md[0] = _md[1] = m_Particles[i].density;
         } else {
-            mx[0] = ::min(m_Particles[i].x[0], mx[0]);
-            mx[1] = ::max(m_Particles[i].x[0], mx[1]);
-            my[0] = ::min(m_Particles[i].x[1], my[0]);
-            my[1] = ::max(m_Particles[i].x[1], my[1]);
-            _md[0] = ::min(m_Particles[i].density, _md[0]);
-            _md[1] = ::max(m_Particles[i].density, _md[1]);
+            mx[0] = std::min(m_Particles[i].x[0], mx[0]);
+            mx[1] = std::max(m_Particles[i].x[0], mx[1]);
+            my[0] = std::min(m_Particles[i].x[1], my[0]);
+            my[1] = std::max(m_Particles[i].x[1], my[1]);
+            _md[0] = std::min(m_Particles[i].density, _md[0]);
+            _md[1] = std::max(m_Particles[i].density, _md[1]);
         }
     }
     m_Bounds = QRectF(mx[0]-3, my[0]-3, mx[1]-mx[0]+6, my[1]-my[0]+6);

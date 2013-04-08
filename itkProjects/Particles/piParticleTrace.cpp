@@ -7,7 +7,7 @@
 //
 
 #include "piParticleTrace.h"
-
+#include <cmath>
 
 namespace pi {
     ParticleSetSeries::ParticleSetSeries(): subjId(0), maxIdx(0), lastTime(-1) {
@@ -27,7 +27,7 @@ namespace pi {
         snapshot.push_back(p);
         snapshot.back().t = t;
         snapshot.back().subj = subj;
-        maxIdx = ::max(maxIdx, p.idx);
+        maxIdx = std::max(maxIdx, p.idx);
         if (boundingBox.idx == 0) {
             forcopy (p.x, boundingBox.x);
             forcopy (p.x, boundingBox.y);

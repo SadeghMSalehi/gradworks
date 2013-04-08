@@ -74,7 +74,7 @@ namespace pi {
         RealImage::Pointer ComputeGaussianGradientMagnitude(RealImage::Pointer img, double sigma = -1);
         LabelImage::Pointer Ellipse(int* outputSize, double* center, double* radius);
         vtkPolyData* ConvertToMesh(LabelImage::Pointer image);
-        RealImage::Pointer NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label);
+        RealImage::Pointer NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label, double percentile = 0);
         LabelImage::Pointer NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer label);
 
         LabelImage::Pointer ZeroCrossing(LabelImage::Pointer src);

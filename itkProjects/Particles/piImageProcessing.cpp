@@ -33,14 +33,15 @@
 #include "itkBinaryMask3DMeshSource.h"
 #include <itkStatisticsImageFilter.h>
 
-#include "itkImageIO.h"
+#include "piImageIO.h"
+#include "piImageHistogram.h"
 
-#ifdef DIMENSION3
+#if DIMENSIONS == 3
 #include "itkBinaryMask3DMeshSource.h"
 #endif
 
 namespace pi {
-#ifdef DIMENSION3
+#if DIMENSIONS == 3
     typedef itk::EllipseSpatialObject<__Dim> EllipseType;
     typedef itk::SpatialObjectToImageFilter<EllipseType, LabelImage> SpatialObjectToImageFilterType;
     typedef itk::Mesh<PointReal> MeshType;
@@ -243,7 +244,7 @@ namespace pi {
     }
 
     LabelImage::Pointer ImageProcessing::Ellipse(int* outputSize, double *center, double *radius) {
-#ifdef DIMENSION3
+#if DIMENSIONS == 3
         SpatialObjectToImageFilterType::Pointer imageFilter = SpatialObjectToImageFilterType::New();
         RealImage::SizeType size;
         fordim (k) {
@@ -317,7 +318,7 @@ namespace pi {
     }
 
     vtkPolyData* ImageProcessing::ConvertToMesh(LabelImage::Pointer image) {
-#ifdef DIMENSION3
+#if DIMENSIONS == 3
         typedef itk::Mesh<double> MeshType;
         typedef itk::BinaryMask3DMeshSource<LabelImage, MeshType> MeshSourceType;
 
@@ -340,8 +341,9 @@ namespace pi {
     }
     
     LabelImage::Pointer ImageProcessing::NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer mask) {
-        itkcmds::itkImageIO<LabelImage> io;
-        LabelImage::Pointer output = io.NewImageT<RealImage>(src);
+        ImageIO<LabelImage> io;
+        LabelImage::Pointer output = io.CastImageFromS<RealImage>(src);
+        output->FillBuffer(0);
 
         LabelImageIteratorType itermask(mask, mask->GetBufferedRegion());
         LabelImageIteratorType iterout(output, output->GetBufferedRegion());
@@ -370,37 +372,26 @@ namespace pi {
         return output;
     }
 
-    RealImage::Pointer ImageProcessing::NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label) {
-        double sum = 0, sum2 = 0;
-        itkcmds::itkImageIO<RealImage> io;
-        RealImage::Pointer output = io.NewImageT(image);
-        RealImageIteratorType iter(image, image->GetBufferedRegion());
-        LabelImageIteratorType iter2(label, image->GetBufferedRegion());
-        RealImageIteratorType oiter(output, image->GetBufferedRegion());
-        int n = 0;
-        iter.GoToBegin();
-        iter2.GoToBegin();
-        while (!iter.IsAtEnd()) {
-            if (iter2.Get() > 0) {
-                ImageReal v = iter.Get();
-                sum += v;
-                sum2 += (v*v);
-                ++n;
-            }
-            ++iter;
-            ++iter2;
+    RealImage::Pointer ImageProcessing::NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label, double percentile) {
+        ImageIO<RealImage> io;
+        RealImage::Pointer output = io.CopyImage(image);
+
+        ImageHistogram<RealImage> histo;
+        histo.fitPercentile = percentile;
+        histo.SetImage(image);
+
+        DataReal* inBuf = image->GetBufferPointer();
+        DataReal* outBuf = output->GetBufferPointer();
+        const int nPixels = image->GetPixelContainer()->Size();
+
+        for (int i = 0; i < nPixels; i++) {
+            outBuf[i] = (histo.rangeMax - histo.rangeMin) * inBuf[i] / (histo.dataMax - histo.dataMin) + histo.rangeMin;
         }
-        double mean = sum/(n-1);
-        double sigma  = sqrt(sum2/(n-1) - mean*mean);
-        iter.GoToBegin();
-        iter2.GoToBegin();
-        while (!iter.IsAtEnd()) {
-            if (iter2.Get() > 0) {
-                oiter.Set((iter.Get() - mean)/sigma);
-            }
-            ++iter;
-            ++iter2;
-            ++oiter;
+
+        ImageHistogram<RealImage> histo2;
+        histo2.SetImage(output);
+        for (int i = 0; i < nPixels; i++) {
+            outBuf[i] = histo2.NormalizePixel(outBuf[i]);
         }
         return output;
     }

@@ -174,7 +174,9 @@ namespace pi {
             typename itk::ImageDuplicator<T>::Pointer dub = itk::ImageDuplicator<T>::New();
             dub->SetInputImage(src);
             dub->Update();
-			return dub->GetOutput();
+			ImagePointer output = dub->GetOutput();
+            output->DisconnectPipeline();
+            return output;
 		}
         
         ImagePointer ReadImage(std::string filename) {
@@ -193,7 +195,9 @@ namespace pi {
                     std::cout << " done." << std::endl;
                 }
                 reader->Update();
-                return reader->GetOutput();
+                ImagePointer ret = reader->GetOutput();
+                ret->DisconnectPipeline();
+                return ret;
             } else {
                 if (!__noverbose) {
                     cout << "' failed. (file not exist)" << endl;
@@ -463,7 +467,9 @@ namespace pi {
             typename CastFilterType::Pointer caster = CastFilterType::New();
             caster->SetInput(img);
             caster->Update();
-            return caster->GetOutput();
+            typename S::Pointer output = caster->GetOutput();
+            output->DisconnectedPipeline();
+            return output;
         }
 
         // Write an image with different type

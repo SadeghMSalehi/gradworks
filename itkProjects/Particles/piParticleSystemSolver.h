@@ -47,8 +47,8 @@ namespace pi {
         Timer timer;
 
         // system state store
-        string systemSnapshot;
-        string traceFile;
+        std::string systemSnapshot;
+        std::string traceFile;
 
         // options
         bool useEnsemble;

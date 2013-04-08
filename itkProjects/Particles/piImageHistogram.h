@@ -21,6 +21,8 @@ namespace pi {
         std::vector<int> binData;
         PixelType dataMin, dataMax;
         PixelType rangeMin, rangeMax;
+        PixelType pixelMean, pixelVariance, pixelStdev;
+        double fitPercentile;
 
     private:
         int _binCount;
@@ -28,6 +30,7 @@ namespace pi {
 
     public:
         ImageHistogram(): _binCount(100) {
+            fitPercentile = 0.01;
             binData.resize(_binCount);
         }
         void FitRange() {
@@ -44,7 +47,7 @@ namespace pi {
                 buff++;
             }
 
-            int marginCount = nSize * 0.01;
+            int marginCount = nSize * fitPercentile;
             int acc = 0;
             for (int i = 0; i < binCount; i++) {
                 acc += binData[i];
@@ -70,6 +73,9 @@ namespace pi {
             statFilter->Update();
             dataMin = statFilter->GetMinimum();
             dataMax = statFilter->GetMaximum();
+            pixelMean = statFilter->GetMean();
+            pixelVariance = statFilter->GetVariance();
+            pixelStdev = statFilter->GetSigma();
             FitRange();
         }
         void SetRange(PixelType min, PixelType max) {
@@ -90,6 +96,9 @@ namespace pi {
                 int kIdx = (buff[i]-dataMin)/(dataRange) * (binCount-1);
                 binData[kIdx] ++;
             }
+        }
+        inline PixelType NormalizePixel(PixelType p) {
+            return (p-pixelMean)/(pixelStdev);
         }
     };
 }

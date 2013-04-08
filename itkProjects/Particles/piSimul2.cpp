@@ -32,7 +32,7 @@ namespace pi {
     ParticleSystem& system = main.m_System;
     ImageContext& images = main.m_ImageContext;
 
-    string configcache = "psim.txt";
+    string configcache = "/tmp/psim.txt";
     
     Simul2::Simul2(QWidget* parent): core(this) {
         ui.setupUi(this);
@@ -110,39 +110,30 @@ namespace pi {
         stringstream configstream;
         string config = ui.config->toPlainText().toStdString();
         configstream.str(config);
+
         main.LoadConfig(configstream);
         main.Preprocessing();
         main.Setup();
 
         core.setParticleSolver(&main);
         core.updateParticles();
-//        setupParticles();
-//        updateParticles();
 
+        stringstream cachestream;
+        main.SaveConfig("/tmp/psim.txt");
+        cachestream << main.m_Options << endl;
+        ui.config->setPlainText(QString::fromStdString(cachestream.str()));
+        
         ui.statusbar->showMessage(QString("%1 particles loaded!").arg(system.GetNumberOfParticles()));
-        /*
-        // together
-
-
-        ui.showImage->setChecked(true);
-
-        // save current configuration
-        ofstream cfg(configcache.c_str());
-        cfg << config;
-        cfg.close();
-
-
-         */
     }
 
     void Simul2::on_runStepButton_clicked() {
         // prepare simultation
-        main.t0 = 0;
-        main.t1 = 10;
-        main.dt = 0.05;
+        main.t0 = main.m_Options.GetRealVectorValue("TimeRange", 0);
+        main.t1 = main.m_Options.GetRealVectorValue("TimeRange", 2);
+        main.dt = main.m_Options.GetRealVectorValue("TimeRange", 1);
         main.t = 0;
 
-        main.verbose = true;
+        main.verbose = ui.verboseOutput->isChecked();
         m_timer.start(100);
     }
     
@@ -153,7 +144,7 @@ namespace pi {
             return;
         }
         // procede 1 secs
-        DataReal nextT = main.t + 5;
+        DataReal nextT = main.t + 1;
         while (main.t < nextT) {
             main.RunStep();
         }

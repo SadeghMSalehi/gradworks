@@ -6,17 +6,18 @@
 //
 //
 
+#include <fstream>
+#include <sstream>
+#include <itkMacro.h>
+
 #include "piParticleSystemSolver.h"
 #include "piParticleCollision.h"
 #include "piParticleForces.h"
 #include "piOptions.h"
 #include "piParticleTrace.h"
 #include "piImageProcessing.h"
-#include "itkExceptionObject.h"
-
-#include "fstream"
-#include "sstream"
 #include "piTimer.h"
+#include "piImageIO.h"
 
 namespace pi {
     using namespace std;
@@ -147,9 +148,9 @@ namespace pi {
         if (initial.GetNumberOfPoints() == 0) {
             
             // compute intersection in combination with particle boundary
-            itkcmds::itkImageIO<LabelImage> io;
+            ImageIO<LabelImage> io;
             if (io.FileExists(boundary.binaryMaskCache.c_str())) {
-                boundary.SetBinaryMask(io.ReadImageT(boundary.binaryMaskCache.c_str()));
+                boundary.SetBinaryMask(io.ReadCastedImage(boundary.binaryMaskCache.c_str()));
             } else {
                 int npixels = m_ImageContext.ComputeIntersection();
                 if (npixels == 0) {
@@ -472,7 +473,11 @@ namespace pi {
                 }
                 m_System.ComputeYMeanSubject();
             } else {
-                internalForce.ComputeForce(m_System[0]);
+                for (int n = 0; n < nSubz; n++) {
+                    internalForce.ComputeForce(m_System[n]);
+                    m_System[n].TransformX2Y();
+                    m_System[n].TransformY2Z();
+                }
             }
         }
         if (useEnsemble) {

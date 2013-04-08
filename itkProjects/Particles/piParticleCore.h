@@ -9,16 +9,15 @@
 #ifndef __myParticlesCore__
 #define __myParticlesCore__
 
-#include "boost/numeric/ublas/vector.hpp"
-#include "boost/numeric/ublas/matrix.hpp"
-#include "vector"
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <vector>
+#include <string>
+#include <iostream>
+#include <itkOffset.h>
+#include <vnl/vnl_matrix_fixed.h>
 #include "piImageDef.h"
-#include "itkImage.h"
-#include "itkImageIO.h"
-#include "itkOffset.h"
 #include "piOptions.h"
-#include "iostream"
-#include "vnl/vnl_matrix_fixed.h"
 #include "vtkSmartPointer.h"
 #include "vtkPoints.h"
 #include "vtkTransform.h"
@@ -71,7 +70,7 @@ namespace pi {
     class ParticleSubject {
     public:
         int m_SubjId;
-        string m_Name;
+        std::string m_Name;
         ParticleArray m_Particles;
         RealImage::Pointer kappaImage;
         LinearImageInterpolatorType::Pointer kappaSampler;
@@ -123,8 +122,8 @@ namespace pi {
         void TransformY2X(TransformType* transform = NULL);
         void TransformX2X(TransformType* transform);
         void TransformY2Y(TransformType* transform);
-        void TransformY2Z(TransformType* transform);
-        void TransformZ2Y(TransformType* transform);
+        void TransformY2Z(TransformType* transform = NULL);
+        void TransformZ2Y(TransformType* transform = NULL);
 
 
         void ReadParticlePositions(std::istream& is, int nPoints);

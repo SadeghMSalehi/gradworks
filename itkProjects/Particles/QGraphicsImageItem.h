@@ -92,8 +92,8 @@ void QGraphicsImageItem<T>::refresh() {
     typename ColorFilter::Pointer filter = ColorFilter::New();
     filter->SetInput(_image);
     filter->UseManualScalingOn();
-    filter->SetMinimumValue(_histogram.rangeMin);
-    filter->SetMaximumValue(_histogram.rangeMax);
+    filter->SetMinimumValue(_histogram.dataMin);
+    filter->SetMaximumValue(_histogram.dataMax);
     filter->Update();
     _colorImage = filter->GetOutput();
     _colorImage->DisconnectPipeline();

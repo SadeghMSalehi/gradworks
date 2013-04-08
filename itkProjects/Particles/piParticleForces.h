@@ -80,6 +80,7 @@ namespace pi {
     class ParticleAttribute3D {
     public:
         const static int NATTRS = N*N*N;
+        DataReal o[__Dim];
         DataReal f[__Dim];
         DataReal F[__Dim];
         DataReal x[NATTRS];
@@ -91,6 +92,7 @@ namespace pi {
     class ParticleAttribute2D {
     public:
         const static int NATTRS = N*N;
+        DataReal o[__Dim];
         DataReal f[__Dim];
         DataReal F[__Dim];
         DataReal x[NATTRS];
@@ -98,7 +100,7 @@ namespace pi {
         DataReal g[NATTRS][__Dim];
     };
 
-#ifdef DIMENSION3
+#if DIMENSIONS == 3
     typedef ParticleAttribute3D<ATTR_SIZE> Attr;
 #else
     typedef ParticleAttribute2D<ATTR_SIZE> Attr;
