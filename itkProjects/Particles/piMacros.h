@@ -15,13 +15,13 @@
 #endif
 
 #define for4(i) for (int i = 0; i < 4; i++)
-#define fordim(i) for (int i = 0; i < __Dim; i++)
-#define formin(x,y,z) for(int _=0;_<__Dim;_++) {z[_]=(x[_]<y[_])?x[_]:y[_];}
-#define formax(x,y,z) for(int _=0;_<__Dim;_++) {z[_]=(x[_]>y[_])?x[_]:y[_];}
-#define forset(x, y) for (int _=0;_<__Dim;_++) {y[_]=x[_];}
-#define forcopy(x, y) for (int _=0;_<__Dim;_++) {y[_]=x[_];}
-#define forfill(x, v) for (int _=0;_<__Dim;_++) {x[_]=v;}
-#define forroundset(x,y) for(int _=0; _<__Dim; _++) { y[_]=x[_]+0.5; }
+#define fordim(i) for (int i = 0; i < DIMENSIONS; i++)
+#define formin(x,y,z) for(int _=0;_<DIMENSIONS;_++) {z[_]=(x[_]<y[_])?x[_]:y[_];}
+#define formax(x,y,z) for(int _=0;_<DIMENSIONS;_++) {z[_]=(x[_]>y[_])?x[_]:y[_];}
+#define forset(x, y) for (int _=0;_<DIMENSIONS;_++) {y[_]=x[_];}
+#define forcopy(x, y) for (int _=0;_<DIMENSIONS;_++) {y[_]=x[_];}
+#define forfill(x, v) for (int _=0;_<DIMENSIONS;_++) {x[_]=v;}
+#define forroundset(x,y) for(int _=0; _<DIMENSIONS; _++) { y[_]=x[_]+0.5; }
 #define arrayset2(a,x,y) a[0]=x;a[1]=y
 #define arrayset3(a,x,y,z) a[0]=x;a[1]=y;a[2]=z
 #define x2string(x) x[0]<<","<<x[1]<<","<<x[2]

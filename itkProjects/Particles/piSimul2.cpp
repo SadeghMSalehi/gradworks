@@ -11,11 +11,15 @@
 #include "piParticleSystemSolver.h"
 #include "piParticleTrace.h"
 #include "piImageSlice.h"
-#include "QGraphicsItem"
-#include "QGraphicsPixmapItem"
+
+#include <QDesktopWidget>
+#include <QGraphicsItem>
+#include <QGraphicsPixmapItem>
+
 #include "QParticlesGraphicsItem.h"
 #include "itkImageIO.h"
 #include "piTimer.h"
+#include "qutils.h"
 
 
 
@@ -27,30 +31,12 @@ namespace pi {
     ParticleSystemSolver main;
     ParticleSystem& system = main.m_System;
     ImageContext& images = main.m_ImageContext;
-    LabelVector& labels = images.m_LabelImages;
-    ParticleTrace trace;
-    QParticlesGraphicsItem* particles;
 
-    // storage for particle drawing
-    QTransform viewTransform;
-    ImagePixmap<LabelImage> viewSlice;
-    QGraphicsPixmapItem* pixmapItem;
-    vector<QGraphicsEllipseItem*> ellipseItems;
-
-    ImagePixmap<LabelImage> sourceSlice;
-    ImagePixmap<LabelImage> targetSlice;
-    
     string configcache = "psim.txt";
     
-    Simul2::Simul2(QWidget* parent) {
+    Simul2::Simul2(QWidget* parent): core(this) {
         ui.setupUi(this);
-//        ui.toolBar->addWidget(ui.showImage);
-
-        ui.graphicsView->setScene(&m_scene);
-        ui.graphicsView->setBackgroundBrush(QBrush(Qt::black));
-
-        viewTransform.scale(4,4);
-        ui.graphicsView->setTransform(viewTransform);
+        centerToDesktop();
 
         // signal-slot connection
         QObject::connect(&m_timer, SIGNAL(timeout()), this, SLOT(tick()));
@@ -62,32 +48,81 @@ namespace pi {
             buffer << in.rdbuf();
             ui.config->setPlainText(buffer.str().c_str());
         }
-        particles = new QParticlesGraphicsItem();
-        m_scene.addItem(particles);
+
+        core.setUi(&ui);
+        ui.costPlot->hide();
     }
 
-    void Simul2::on_showImage_toggled(bool check) {
-        if (check) {
-            // constraint view
-            viewSlice.alpha = 60;
-            viewSlice.SetImage(labels[0]);
-            viewSlice.pixmapCache = m_scene.addPixmap(viewSlice.GetPixmap());
-            viewSlice.pixmapCache->setZValue(-1);
-        } else {
-            m_scene.removeItem((QGraphicsItem*) viewSlice.pixmapCache);
-        }
+
+    void Simul2::centerToDesktop() {
+        QDesktopWidget *desktop = QApplication::desktop();
+
+        int screenWidth, width;
+        int screenHeight, height;
+        int x, y;
+        QSize windowSize;
+
+        screenWidth = desktop->width();
+        screenHeight = desktop->height();
+
+        windowSize = size();
+        width = windowSize.width();
+        height = windowSize.height();
+
+        x = (screenWidth - width) / 2;
+        y = (screenHeight - height) / 2;
+        y -= 50;
+        
+        move(x, y);
+        resize(windowSize.width(), windowSize.height());
     }
+
+
+    void Simul2::on_actionTest_triggered() {
+        core.openImage1("/NIRAL/work/joohwi/nadia/SliceImages/C31/C31_E04_slice_128.nii.gz");
+        core.openImage2("/NIRAL/work/joohwi/nadia/SliceImages/C33/C33_E04_slice_128.nii.gz");
+        core.openLabel1("/NIRAL/work/joohwi/nadia/SliceImages/C31/C31_E04_label_128.nii.gz");
+        core.openLabel2("/NIRAL/work/joohwi/nadia/SliceImages/C33/C33_E04_label_128.nii.gz");
+    }
+
+    void Simul2::on_actionPrint_triggered() {
+        cout << main.m_Options << endl;
+        main.m_System.GetInitialSubject().WriteParticlePositions(cout);
+    }
+
+    void Simul2::on_loadImage1_clicked() {
+        core.openImage1(__fileManager.openFile(QFileManager::Image, this, "Open Gray Image1"));
+    }
+    void Simul2::on_loadImage2_clicked() {
+        core.openImage2(__fileManager.openFile(QFileManager::Image, this, "Open Gray Image2"));
+    }
+    void Simul2::on_loadLabel1_clicked() {
+        core.openLabel1(__fileManager.openFile(QFileManager::Image, this, "Open Label1"));
+    }
+    void Simul2::on_loadLabel2_clicked() {
+        core.openLabel2(__fileManager.openFile(QFileManager::Image, this, "Open Label2"));
+    }
+
 
     void Simul2::on_applyButton_clicked(bool value) {
+        ui.splitter->setOrientation(Qt::Vertical);
 
         stringstream configstream;
         string config = ui.config->toPlainText().toStdString();
         configstream.str(config);
         main.LoadConfig(configstream);
+        main.Preprocessing();
+        main.Setup();
 
+        core.setParticleSolver(&main);
+        core.updateParticles();
+//        setupParticles();
+//        updateParticles();
+
+        ui.statusbar->showMessage(QString("%1 particles loaded!").arg(system.GetNumberOfParticles()));
+        /*
         // together
-        setupParticles();
-        updateParticles();
+
 
         ui.showImage->setChecked(true);
 
@@ -96,7 +131,8 @@ namespace pi {
         cfg << config;
         cfg.close();
 
-        ui.statusbar->showMessage(QString("%1 particles loaded!").arg(system.GetNumberOfParticles()));
+
+         */
     }
 
     void Simul2::on_runStepButton_clicked() {
@@ -106,8 +142,7 @@ namespace pi {
         main.dt = 0.05;
         main.t = 0;
 
-        main.verbose = false;
-        main.Setup();
+        main.verbose = true;
         m_timer.start(100);
     }
     
@@ -122,55 +157,9 @@ namespace pi {
         while (main.t < nextT) {
             main.RunStep();
         }
-        updateParticles();
+        core.updateParticles();
     }
 
-    void Simul2::setupParticles() {
-        if (system.size() < 1 || labels.size() < 1) {
-            return;
-        }
-        if (labels[0].IsNull()) {
-            return;
-        }
-        system[0].InitializeRandomPoints(labels[0]);
-        for (int i = 0; i < system.size(); i++) {
-            for (int j = 0; j < system[i].size(); j++) {
-                Particle& p = system[i][j];
-                p.label = 1;
-//                p.label = p.x[1] > 80;
-//                p.label = j%2;
-            }
-        }
-        system[0].friendImage = viewSlice.GetImage();
-    }
-
-    void Simul2::updateParticles() {
-        for (int i = 0; i < system.size(); i++) {
-            particles->SetPen(Qt::NoPen);
-            particles->SetBrush(QBrush(Qt::red, Qt::SolidPattern));
-            particles->SetParticles(&system[i].m_Particles[0], system[i].m_Particles.size());
-            particles->ColorModeToDensity();
-            particles->update();
-
-            /*
-            m_scene.addItem(particles);
-            for (int j = 0; j < system[i].size(); j++) {
-
-                Particle& p = system[i][j];
-                QColor pointColor = getColor(p.label);
-                QGraphicsEllipseItem* item = m_scene.addEllipse(p.x[0]-.5, p.x[1]-.5, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
-                ellipseItems.push_back(item);
-            }
-            */
-        }
-    }
-
-    void Simul2::removeParticles() {
-        for (int i = 0; i < ellipseItems.size(); i++) {
-            m_scene.removeItem((QGraphicsItem*)ellipseItems[i]);
-        }
-        ellipseItems.clear();
-    }
 
     QColor Simul2::getColor(int i) {
         switch (i) {
@@ -187,32 +176,8 @@ namespace pi {
         }
     }
 
-
-    void Simul2::on_loadMoving_clicked() {
-        LabelImage::Pointer moving = imageIO.ReadImageT("/NIRAL/work/joohwi/data/synth/fixed2d.nii.gz");
-        sourceSlice.alpha = 60;
-        sourceSlice.SetImage(moving);
-    }
-
-    void Simul2::on_loadFixed_clicked() {
-        LabelImage::Pointer fixed = imageIO.ReadImageT("/NIRAL/work/joohwi/data/synth/moving2d.nii.gz");
-        targetSlice.alpha = 60;
-        targetSlice.SetImage(fixed);
-    }
-
-    void Simul2::on_loadTrace_clicked() {
-        Timer timer;
-        timer.start();
-        CharVector buf(1024*1024*10);
-        ifstream is("/NIRAL/work/joohwi/data/synth/run_trace_f2dm2d.txt");
-        is.rdbuf()->pubsetbuf(&buf[0], buf.size());
-        trace.Read(is);
-        ui.traceSteps->setMaximum(trace.system[0].timeSeries.size()-1);
-        ui.lcdNumber->display(0);
-        cout << timer.getElapsedTimeInSec() << " secs ..." << endl;
-    }
-
     void Simul2::on_traceSteps_valueChanged(int n) {
+        /*
         if (n >= trace.system[0].timeSeries.size() || n < 0) {
             return;
         }
@@ -227,6 +192,7 @@ namespace pi {
                 ellipseItems.push_back(item);
             }
         }
+         */
     }
 
     void Simul2::on_showWarped01_clicked() {
@@ -239,27 +205,5 @@ namespace pi {
 
     void Simul2::on_printAsPDF_clicked() {
 
-    }
-
-    void Simul2::on_showMoving_toggled(bool checked) {
-        if (checked) {
-            // constraint view
-            sourceSlice.alpha = 60;
-            sourceSlice.pixmapCache = m_scene.addPixmap(sourceSlice.GetPixmap());
-            sourceSlice.pixmapCache->setZValue(-1);
-        } else {
-            m_scene.removeItem((QGraphicsItem*) sourceSlice.pixmapCache);
-        }
-    }
-
-    void Simul2::on_showFixed_toggled(bool checked) {
-        if (checked) {
-            // constraint view
-            targetSlice.alpha = 60;
-            targetSlice.pixmapCache = m_scene.addPixmap(targetSlice.GetPixmap());
-            targetSlice.pixmapCache->setZValue(-1);
-        } else {
-            m_scene.removeItem((QGraphicsItem*) targetSlice.pixmapCache);
-        }
     }
 }

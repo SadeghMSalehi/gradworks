@@ -10,6 +10,8 @@
 #include "piParticleTrace.h"
 #include "piFitCurve.h"
 #include "piBSplineBasis.h"
+#include "piContourSystem.h"
+#include "piImageIO.h"
 
 using namespace std;
 using namespace pi;
@@ -21,6 +23,31 @@ namespace piq {
 
     TestModule::~TestModule() {
         
+    }
+
+    void TestModule::ContourTest() {
+        ifstream is("/NIRAL/work/joohwi/nadia/C31_E04_slice128_curve.txt");
+        ParticleVector particles;
+        ParticleTrace::Read(is, particles);
+
+        CurveFitting fit;
+        fit.FitCurve(particles);
+        ParticleVector& result = fit.GetResult();
+
+        ImageIO<RealSlice> io;
+        RealSlice::Pointer image1 = io.ReadCastedImage("/NIRAL/work/joohwi/nadia/SliceImages/C31_E04_slice_128.nii.gz");
+        RealSlice::Pointer image2 = io.ReadCastedImage("/NIRAL/work/joohwi/nadia/SliceImages/C31_E04_slice_129.nii.gz");
+
+        RealSliceVector images;
+        images.push_back(image1);
+        images.push_back(image2);
+
+        ContourSystem system;
+        system.SetSlices(images);
+        system.SetInitialParticles(result);
+        system.SetAttributeDimensions(10, 20);
+        system.AllocateAttributeBuffer();
+        system.Track(1);
     }
 
     void TestModule::BSplineTest() {
@@ -82,6 +109,8 @@ namespace piq {
             FitTest(args);
         } else if (opts->GetBool("--bsplineBasisTest")) {
             BSplineTest();
+        } else if (opts->GetBool("--contourTest")) {
+            ContourTest();
         }
     }
 }

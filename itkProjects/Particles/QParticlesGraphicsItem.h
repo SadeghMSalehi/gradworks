@@ -23,10 +23,11 @@ public:
     enum ColorMode {
         Brush,
         Density,
-        Label
+        Label,
+        Order
     } colorMode;
 
-    QParticlesGraphicsItem();
+    QParticlesGraphicsItem(QGraphicsItem* parent = NULL);
     virtual ~QParticlesGraphicsItem();
 
     void SetPen(QPen pen);

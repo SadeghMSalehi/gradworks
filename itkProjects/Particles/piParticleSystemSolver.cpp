@@ -192,10 +192,11 @@ namespace pi {
         internalForce.useAdaptiveSampling = false;
         
         const int nPoints = initial.GetNumberOfPoints();
+
+        int count = 0;
         Timer timer;
-        for (DataReal t = t0; t < t1; t += dt) {
-            timer.start();
-            cout << "t: " << t << " " << flush;
+        timer.start();
+        for (DataReal t = t0; t < t1; t += dt, count++) {
             ParticleSubject& sub = initial;
             
             for (int i = 0; i < nPoints; i++) {
@@ -229,7 +230,12 @@ namespace pi {
             }
             
             double elapsedTime = timer.getElapsedTimeInSec();
-            cout << "; elapsed time: " << elapsedTime << " sec                   \r" << flush;
+
+            if (count % 1000 == 0) {
+                cout << "t: " << t << " " << flush;
+                cout << "; elapsed time: " << elapsedTime << " sec" << endl;
+                timer.start();
+            }
         }
         
         if (traceOn) {

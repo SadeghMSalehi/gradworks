@@ -12,9 +12,10 @@
 #include "itkARGBColorFunction.h"
 #include "piParticleCore.h"
 
-QParticlesGraphicsItem::QParticlesGraphicsItem() {
+QParticlesGraphicsItem::QParticlesGraphicsItem(QGraphicsItem* parent): QGraphicsItem(parent) {
     m_Counts = 0;
     m_Particles = NULL;
+    colorMode = Order;
 }
 
 QParticlesGraphicsItem::~QParticlesGraphicsItem() {
@@ -65,6 +66,11 @@ void QParticlesGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphics
     HSVFunction::Pointer hsvFunc = HSVFunction::New();
     hsvFunc->SetMinimumInputValue(_md[0]);
     hsvFunc->SetMaximumInputValue(_md[1]);
+
+    if (colorMode == Order) {
+        hsvFunc->SetMinimumInputValue(0);
+        hsvFunc->SetMaximumInputValue(m_Counts);
+    }
     
     painter->setClipRect(option->exposedRect);
     const int n = m_Counts;
@@ -72,11 +78,14 @@ void QParticlesGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphics
     QPointF center;
     QBrush brush = m_Brush;
     for (int i = 0; i < n; i++) {
-        center.setX(m_Particles[i].x[0]);
-        center.setY(m_Particles[i].x[1]);
+        center.setX(m_Particles[i].x[0] - 0.5);
+        center.setY(m_Particles[i].x[1] - 0.5);
         QColor color;
         if (colorMode == Density) {
             RGBA rgba = hsvFunc->operator()(m_Particles[i].density);
+            brush.setColor(QColor(rgba[0], rgba[1], rgba[2]));
+        } else if (colorMode == Order) {
+            RGBA rgba = hsvFunc->operator()(m_Particles[i].idx);
             brush.setColor(QColor(rgba[0], rgba[1], rgba[2]));
         }
         painter->setBrush(brush);

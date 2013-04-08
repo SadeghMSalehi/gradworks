@@ -14,31 +14,77 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout_2">
+   <layout class="QVBoxLayout" name="verticalLayout_5">
+    <property name="margin">
+     <number>3</number>
+    </property>
     <item>
-     <widget class="QSplitter" name="splitter">
+     <widget class="QSplitter" name="splitter_2">
       <property name="orientation">
        <enum>Qt::Vertical</enum>
       </property>
-      <widget class="myQGraphicsView" name="graphicsView">
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>600</height>
-        </size>
+      <widget class="QSplitter" name="splitter">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
        </property>
-       <property name="frameShape">
-        <enum>QFrame::NoFrame</enum>
-       </property>
-       <property name="renderHints">
-        <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::SmoothPixmapTransform|QPainter::TextAntialiasing</set>
-       </property>
+       <widget class="myQGraphicsView" name="graphicsView">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>300</height>
+         </size>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::NoFrame</enum>
+        </property>
+        <property name="backgroundBrush">
+         <brush brushstyle="SolidPattern">
+          <color alpha="255">
+           <red>0</red>
+           <green>0</green>
+           <blue>0</blue>
+          </color>
+         </brush>
+        </property>
+        <property name="renderHints">
+         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::SmoothPixmapTransform|QPainter::TextAntialiasing</set>
+        </property>
+       </widget>
+       <widget class="myQGraphicsView" name="graphicsView2">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>300</height>
+         </size>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::NoFrame</enum>
+        </property>
+        <property name="backgroundBrush">
+         <brush brushstyle="SolidPattern">
+          <color alpha="255">
+           <red>0</red>
+           <green>0</green>
+           <blue>0</blue>
+          </color>
+         </brush>
+        </property>
+        <property name="renderHints">
+         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::SmoothPixmapTransform|QPainter::TextAntialiasing</set>
+        </property>
+       </widget>
       </widget>
       <widget class="QCustomPlot" name="costPlot" native="true">
        <property name="minimumSize">
         <size>
          <width>0</width>
          <height>150</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>300</height>
         </size>
        </property>
        <property name="autoFillBackground">
@@ -91,6 +137,9 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionTest"/>
+   <addaction name="actionRun"/>
+   <addaction name="actionPrint"/>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
@@ -110,7 +159,7 @@
      <item>
       <widget class="QToolBox" name="toolBox">
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="imageSettings">
         <property name="geometry">
@@ -118,22 +167,13 @@
           <x>0</x>
           <y>0</y>
           <width>220</width>
-          <height>665</height>
+          <height>653</height>
          </rect>
         </property>
         <attribute name="label">
          <string>Simulations</string>
         </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_7">
-         <property name="spacing">
-          <number>-1</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
+        <layout class="QVBoxLayout" name="verticalLayout_6">
          <item>
           <widget class="QLabel" name="label_4">
            <property name="text">
@@ -151,28 +191,49 @@
            <property name="plainText">
             <string>Options: +adaptive_sampling
 NumberOfParticles: int 100
+PreprocessingTimeRange: reals 0 0.05 30
 TimeRange: reals 0 0.05 30
-Subjects: strings 1
+InitialIntersectionMaskCache: /tmpfs/mask.nii.gz
+Subjects: strings 2
 00
-LabelImages: strings 1
-/NIRAL/work/joohwi/data/square/image_square_label.nrrd
+11
+RealImages: strings 2
+/NIRAL/work/joohwi/nadia/SliceImages/C33/C33_E04_slice_128.nii.gz
+/NIRAL/work/joohwi/nadia/SliceImages/C31/C31_E04_slice_128.nii.gz
+LabelImages: strings 2
+/NIRAL/work/joohwi/nadia/SliceImages/C33/C33_E04_label_128.nii.gz
+/NIRAL/work/joohwi/nadia/SliceImages/C31/C31_E04_label_128.nii.gz
 ==option_end==</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="applyButton">
-           <property name="text">
-            <string>Load</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="runStepButton">
-           <property name="text">
-            <string>Run Step</string>
-           </property>
-          </widget>
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="0" column="0">
+            <widget class="QPushButton" name="applyButton">
+             <property name="text">
+              <string>Load</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1" rowspan="2">
+            <widget class="QDial" name="labelOpacity">
+             <property name="maximum">
+              <number>255</number>
+             </property>
+             <property name="value">
+              <number>80</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QPushButton" name="runStepButton">
+             <property name="text">
+              <string>Run Step</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
          <item>
           <widget class="QCheckBox" name="showImage">
@@ -188,8 +249,8 @@ LabelImages: strings 1
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>20</width>
-             <height>13</height>
+             <width>17</width>
+             <height>245</height>
             </size>
            </property>
           </spacer>
@@ -202,50 +263,80 @@ LabelImages: strings 1
           <x>0</x>
           <y>0</y>
           <width>220</width>
-          <height>665</height>
+          <height>653</height>
          </rect>
         </property>
         <attribute name="label">
          <string>Visualization</string>
         </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <layout class="QVBoxLayout" name="verticalLayout_4">
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout">
+          <layout class="QVBoxLayout" name="verticalLayout_2">
            <item>
-            <widget class="QPushButton" name="loadMoving">
+            <widget class="QFileAcceptButton" name="loadImage1">
+             <property name="acceptDrops">
+              <bool>true</bool>
+             </property>
              <property name="text">
-              <string>Load Moving</string>
+              <string>Load Gray Image #1</string>
+             </property>
+             <property name="checkable">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="showMoving">
+            <widget class="QFileAcceptButton" name="loadLabel1">
+             <property name="acceptDrops">
+              <bool>true</bool>
+             </property>
              <property name="text">
-              <string>Show</string>
+              <string>Load Label Image #1</string>
+             </property>
+             <property name="checkable">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
           </layout>
          </item>
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <layout class="QVBoxLayout" name="verticalLayout_3">
            <item>
-            <widget class="QPushButton" name="loadFixed">
+            <widget class="QFileAcceptButton" name="loadImage2">
              <property name="minimumSize">
               <size>
                <width>123</width>
                <height>0</height>
               </size>
              </property>
+             <property name="acceptDrops">
+              <bool>true</bool>
+             </property>
              <property name="text">
-              <string>Load Fixed</string>
+              <string>Load Gray Image #2</string>
+             </property>
+             <property name="checkable">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="showFixed">
+            <widget class="QFileAcceptButton" name="loadLabel2">
+             <property name="minimumSize">
+              <size>
+               <width>123</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="acceptDrops">
+              <bool>true</bool>
+             </property>
              <property name="text">
-              <string>Show</string>
+              <string>Load Label Image #2</string>
+             </property>
+             <property name="checkable">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
@@ -321,7 +412,7 @@ LabelImages: strings 1
           <x>0</x>
           <y>0</y>
           <width>220</width>
-          <height>665</height>
+          <height>653</height>
          </rect>
         </property>
         <attribute name="label">
@@ -334,6 +425,24 @@ LabelImages: strings 1
     </layout>
    </widget>
   </widget>
+  <action name="actionTest">
+   <property name="text">
+    <string>Test</string>
+   </property>
+  </action>
+  <action name="actionRun">
+   <property name="text">
+    <string>Run</string>
+   </property>
+  </action>
+  <action name="actionPrint">
+   <property name="text">
+    <string>Print</string>
+   </property>
+   <property name="toolTip">
+    <string>Print Configurations</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="3"/>
  <customwidgets>
@@ -347,6 +456,11 @@ LabelImages: strings 1
    <extends>QWidget</extends>
    <header>qcustomplot.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QFileAcceptButton</class>
+   <extends>QPushButton</extends>
+   <header>qfileacceptbutton.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

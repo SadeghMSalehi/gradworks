@@ -165,7 +165,9 @@ namespace pi {
         LabelVector& GetLabelVector();
         RealImageVector& GetRealImageVector();
         RealImageVector& GetKappaImages();
+
         void Clear();
+        int Count();
 
     private:
         StringVector m_RealImageFileNames;
@@ -189,7 +191,9 @@ namespace pi {
         const int points() const { return size() > 0 ? m_Subjects[0].m_Particles.size() : 0; }
         int GetNumberOfSubjects();
         int GetNumberOfParticles();
+
         void InitializeSystem(Options& options);
+        void InitializeSystem(int nsubjs, int nparticles);
         void LoadKappaImages(Options& options, ImageContext* context);
 
         ParticleSubject& GetInitialSubject();

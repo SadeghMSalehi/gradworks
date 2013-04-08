@@ -39,8 +39,8 @@ SET (QT_PI_SOURCES particleViewerWindow.cpp  particleAni.cpp myQGraphicsView.cpp
 qt4_wrap_cpp(QT_PI_MOC_HEADERS ${QT_PI_HEADERS})
 qt4_wrap_ui(QT_PI_UI_FILES particleViewerWindow.ui particleAni.ui)
 
-SET (QT_PSIM2_HEADERS piSimul2.h myQGraphicsView.h qcustomplot.h)
-SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp qcustomplot.cpp)
+SET (QT_PSIM2_HEADERS piSimul2.h myQGraphicsView.h qcustomplot.h qfileacceptbutton.h piqSimulCore.h)
+SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp qcustomplot.cpp qfileacceptbutton.cpp piqSimulCore.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
 
@@ -63,7 +63,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
-SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piEntropyComputer.h piEntropyComputer.cpp)
+SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piEntropyComputer.h piEntropyComputer.cpp)
 
 SET (PI_LIBS_SOURCE itkImageIO.h piTimer.h piTimer.cpp piImageProcessing.cpp piImageProcessing.h piImageDef.h piOptions.h piOptions.cpp piVTK.cpp piVTK.h)
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)
@@ -107,7 +107,11 @@ IF (${BUILD_PEVAL})
 ENDIF(${BUILD_PEVAL})
 
 IF (${BUILD_GUI})
-	ADD_EXECUTABLE(psim simul2main.cpp piSimul2.cpp piSimul2.h piImageSlice.h piImageSlice.cpp itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
+	ADD_EXECUTABLE(psim simul2main.cpp piSimul2.cpp piSimul2.h piImageSlice.h piImageSlice.cpp
+        qutils.h qutils.cpp
+        itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsImageItem.h QGraphicsImageItem.cpp
+
+        ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
 	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
@@ -115,10 +119,11 @@ IF (${BUILD_GUI})
         piImageDef.h piImageIO.h piMacros.h piParticle.h piParticle.cpp
 		piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h
         piFitCurve.h piFitCurve.cpp piParticleCore.h piParticleCore.cpp piParticleTrace.h piParticleTrace.cpp
-        piBSplineBasis.h piBSplineBasis.cpp piImageHistogram.cpp piImageHistogram.h piqFitPack.h piqFitPack.cpp qtypedef.h qutils.h qutils.cpp
+        piParticleForces.h piParticleForces.cpp piParticleSystemSolver.h piParticleSystemSolver.cpp 
+        piEntropyComputer.h piEntropyComputer.cpp piParticleCollision.h piParticleCollision.cpp 
+        piTimer.h piTimer.cpp piParticleBSpline.h piParticleBSpline.cpp piContourSystem.h piContourSystem.cpp
+        piBSplineBasis.h piBSplineBasis.cpp piImageHistogram.cpp piImageHistogram.h qtypedef.h qutils.h qutils.cpp
         airImageAlgorithm.cpp airImageAlgorithm.h airCLI.h airCLI.cpp
-        GraphicsGems.h gemFitCurves.h gemFitCurves.cpp
-
 		${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES} ${QT_PVIEW_RCC})
 	TARGET_LINK_LIBRARIES(airview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 

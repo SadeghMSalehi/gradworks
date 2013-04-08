@@ -385,7 +385,7 @@ namespace pi {
         // let's use plenty of memory space!
         // now i'm back, and let's compute point gradient
         
-        EntropyComputer comp(nSubjects, nPoints, __Dim);
+        EntropyComputer<double> comp(nSubjects, nPoints, __Dim);
         comp.dataIter.FirstData();
         for (int i = 0; i < nSubjects; i++) {
             ParticleSubject& subj = system[i];
@@ -402,7 +402,7 @@ namespace pi {
         comp.ComputeCovariance();
         comp.ComputeGradient();
 
-        DataIterator3 gradIter(comp.gradient.data_block(), nPoints, __Dim);
+        EntropyComputer<double>::Iterator gradIter(comp.gradient.data_block(), nPoints, __Dim);
         gradIter.FirstData();
         for (int i = 0; i < nSubjects; i++) {
             ParticleSubject& iSubj = system[i];

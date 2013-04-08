@@ -151,6 +151,24 @@ namespace pi {
             }
             return NewImageT(size);
 		}
+
+        ImagePointer WrapImage(typename T::PixelType* imagePointer, int *size) {
+            int nElems = 1;
+            typename T::PixelContainer::Pointer importer = T::PixelContainer::New();
+            typename T::RegionType region;
+            for (int i = 0; i < ImageDimension; i++) {
+                region.SetSize(i, size[i]);
+                nElems *= size[i];
+            }
+            importer->SetImportPointer(imagePointer, nElems, false);
+            
+            ImagePointer image = T::New();
+            image->SetPixelContainer(importer);
+            image->SetRequestedRegion(region);
+            image->SetLargestPossibleRegion(region);
+            image->SetBufferedRegion(region);
+            return image;
+        }
         
         ImagePointer CopyImage(ImagePointer src) {
             typename itk::ImageDuplicator<T>::Pointer dub = itk::ImageDuplicator<T>::New();

@@ -16,7 +16,7 @@ class QFileAcceptButton: public QPushButton {
     Q_OBJECT
 
 signals:
-    void fileDropped(QString& filePath);
+    void fileDropped(QString filePath);
 
 public:
     QFileAcceptButton(QWidget* parent = NULL): QPushButton(parent) {

@@ -32,7 +32,7 @@ const static int __Dim = DIMENSIONS;
 
 namespace pi {
     // type definitions
-    typedef unsigned short LabelPixel;
+    typedef unsigned char LabelPixel;
     typedef float ImageReal;
     typedef double PointReal;
 

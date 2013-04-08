@@ -53,6 +53,7 @@ int main(int argc, char* argv[]) {
         { 11, "-test", SO_NONE },
         { 10, "--fitTest", SO_NONE },
         { 12, "--bsplineBasisTest", SO_NONE },
+        { 13, "--contourTest", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
