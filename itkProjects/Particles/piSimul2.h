@@ -21,7 +21,6 @@ namespace pi {
         Q_OBJECT
     public:
         Simul2(QWidget* parent = NULL);
-        void removeParticles();
         void centerToDesktop();
         
     public slots:
@@ -33,12 +32,12 @@ namespace pi {
         void on_showWarped01_clicked();
         void on_showWarped10_clicked();
         void on_printAsPDF_clicked();
-        void on_traceSteps_valueChanged(int n);
 
-        void on_loadImage1_clicked();
-        void on_loadImage2_clicked();
-        void on_loadLabel1_clicked();
-        void on_loadLabel2_clicked();
+        void on_zoom_sliderMoved(int);
+
+        void on_loadTrace_clicked();
+        void on_saveTrace_clicked();
+        void on_traceSteps_valueChanged(int n);
 
         void on_actionTest_triggered();
         void on_actionPrint_triggered();

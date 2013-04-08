@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Particle Registration for 2D Slices</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -50,7 +50,7 @@
          </brush>
         </property>
         <property name="renderHints">
-         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::SmoothPixmapTransform|QPainter::TextAntialiasing</set>
+         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
         </property>
        </widget>
        <widget class="myQGraphicsView" name="graphicsView2">
@@ -73,7 +73,7 @@
          </brush>
         </property>
         <property name="renderHints">
-         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::SmoothPixmapTransform|QPainter::TextAntialiasing</set>
+         <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
         </property>
        </widget>
       </widget>
@@ -141,8 +141,6 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionTest"/>
-   <addaction name="actionRun"/>
-   <addaction name="actionPrint"/>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
@@ -164,7 +162,7 @@
        <property name="currentIndex">
         <number>0</number>
        </property>
-       <widget class="QWidget" name="imageSettings">
+       <widget class="QWidget" name="runPage">
         <property name="geometry">
          <rect>
           <x>0</x>
@@ -176,7 +174,7 @@
         <attribute name="label">
          <string>Simulations</string>
         </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_6">
+        <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
           <widget class="QLabel" name="label_4">
            <property name="text">
@@ -192,9 +190,11 @@
             </font>
            </property>
            <property name="plainText">
-            <string>Options: +adaptive_sampling
+            <string>Options: +adaptive_sampling +ensemble +intensity
 NumberOfParticles: int 100
+ForceCoefficients: reals 0.1 0.2 1
 PreprocessingTimeRange: reals 0 0.05 30
+RunTrace: /tmp/trace.txt
 TimeRange: reals 0 0.05 30
 InitialIntersectionMaskCache: /tmpfs/mask.nii.gz
 Subjects: strings 2
@@ -212,14 +212,37 @@ LabelImages: strings 2
          </item>
          <item>
           <layout class="QGridLayout" name="gridLayout">
-           <item row="0" column="0">
+           <item row="0" column="0" colspan="3">
+            <widget class="QSlider" name="zoom">
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>1000</number>
+             </property>
+             <property name="value">
+              <number>100</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
             <widget class="QPushButton" name="applyButton">
              <property name="text">
               <string>Load</string>
              </property>
             </widget>
            </item>
-           <item row="0" column="1" rowspan="2">
+           <item row="1" column="1">
+            <widget class="QPushButton" name="runStepButton">
+             <property name="text">
+              <string>Step</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2" rowspan="3">
             <widget class="QDial" name="labelOpacity">
              <property name="maximum">
               <number>255</number>
@@ -229,10 +252,34 @@ LabelImages: strings 2
              </property>
             </widget>
            </item>
-           <item row="1" column="0">
-            <widget class="QPushButton" name="runStepButton">
+           <item row="2" column="0" colspan="2">
+            <widget class="QPushButton" name="loadTrace">
              <property name="text">
-              <string>Run Step</string>
+              <string>Load Trace</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="2">
+            <widget class="QPushButton" name="saveTrace">
+             <property name="text">
+              <string>Save Trace</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="3">
+            <widget class="QSlider" name="traceSteps">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0" colspan="3">
+            <widget class="QLCDNumber" name="lcdNumber">
+             <property name="styleSheet">
+              <string notr="true">QLCDNumber {
+    color: rgb(122, 255, 100);    
+    background-color: rgb(0, 0, 0);
+}</string>
              </property>
             </widget>
            </item>
@@ -263,7 +310,7 @@ LabelImages: strings 2
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="modelSettings">
+       <widget class="QWidget" name="tracePage">
         <property name="geometry">
          <rect>
           <x>0</x>
@@ -277,86 +324,7 @@ LabelImages: strings 2
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_4">
          <item>
-          <layout class="QVBoxLayout" name="verticalLayout_2">
-           <item>
-            <widget class="QFileAcceptButton" name="loadImage1">
-             <property name="acceptDrops">
-              <bool>true</bool>
-             </property>
-             <property name="text">
-              <string>Load Gray Image #1</string>
-             </property>
-             <property name="checkable">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QFileAcceptButton" name="loadLabel1">
-             <property name="acceptDrops">
-              <bool>true</bool>
-             </property>
-             <property name="text">
-              <string>Load Label Image #1</string>
-             </property>
-             <property name="checkable">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <layout class="QVBoxLayout" name="verticalLayout_3">
-           <item>
-            <widget class="QFileAcceptButton" name="loadImage2">
-             <property name="minimumSize">
-              <size>
-               <width>123</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="acceptDrops">
-              <bool>true</bool>
-             </property>
-             <property name="text">
-              <string>Load Gray Image #2</string>
-             </property>
-             <property name="checkable">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QFileAcceptButton" name="loadLabel2">
-             <property name="minimumSize">
-              <size>
-               <width>123</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="acceptDrops">
-              <bool>true</bool>
-             </property>
-             <property name="text">
-              <string>Load Label Image #2</string>
-             </property>
-             <property name="checkable">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
           <layout class="QVBoxLayout" name="verticalLayout">
-           <item>
-            <widget class="QPushButton" name="loadTrace">
-             <property name="text">
-              <string>Load Trace</string>
-             </property>
-            </widget>
-           </item>
            <item>
             <widget class="QPushButton" name="showWarped01">
              <property name="text">
@@ -375,23 +343,6 @@ LabelImages: strings 2
             <widget class="QPushButton" name="printAsPDF">
              <property name="text">
               <string>Print as PDF</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QSlider" name="traceSteps">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLCDNumber" name="lcdNumber">
-             <property name="styleSheet">
-              <string notr="true">QLCDNumber {
-    color: rgb(122, 255, 100);    
-    background-color: rgb(0, 0, 0);
-}</string>
              </property>
             </widget>
            </item>
@@ -462,11 +413,6 @@ LabelImages: strings 2
    <extends>QWidget</extends>
    <header>qcustomplot.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>QFileAcceptButton</class>
-   <extends>QPushButton</extends>
-   <header>qfileacceptbutton.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

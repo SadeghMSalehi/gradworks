@@ -112,9 +112,8 @@ IF (${BUILD_GUI})
 	ADD_EXECUTABLE(psim simul2main.cpp piSimul2.cpp piSimul2.h piImageSlice.h piImageSlice.cpp
         qutils.h qutils.cpp
         itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsImageItem.h QGraphicsImageItem.cpp
-
         ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
-	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")
+	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=3")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
 	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp

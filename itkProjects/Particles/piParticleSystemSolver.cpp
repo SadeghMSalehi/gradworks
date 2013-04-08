@@ -259,6 +259,7 @@ namespace pi {
 
         m_Options.GetStringTo("SystemSnapshot:", systemSnapshot);
 
+        trace.Clear();
         trace.Resize(nSubz);
 
         if (!m_Options.GetBool("use_previous_position")) {
@@ -511,10 +512,6 @@ namespace pi {
                     return 1;
                 }
             }
-
-            if (traceOn) {
-                trace.Add(t, sub);
-            }
         }
         
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -526,6 +523,17 @@ namespace pi {
         if (verbose) {
             cout << "; elapsed time: " << elapsedTime << " secs; estimated remaining time: about " << int((elapsedTime*(t1 - t)/dt)/60+1) << " mins                   \r" << flush;
         }
+
+
+        if (traceOn) {
+            for (int n = 0; n < nSubz; n++) {
+                ParticleSubject& sub = subs[n];
+                if (std::abs(int(t + dt * 0.1)-t) < dt * 0.1) {
+                    trace.Add(t, sub);
+                }
+            }
+        }
+
         return 0;
     }
 }

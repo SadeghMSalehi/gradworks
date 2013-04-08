@@ -15,6 +15,7 @@
 
 #include "ui_simul2d.h"
 #include "piImageDef.h"
+#include "piParticle.h"
 
 template <class T> class QGraphicsImageItem;
 class QGraphicsScene;
@@ -50,6 +51,7 @@ namespace piq {
 
         void labelOpacityChanged(int value);
         void updateParticles();
+        void updateParticles(int n, pi::ParticleVector& particles);
 
         void run();
 
@@ -66,22 +68,14 @@ namespace piq {
         Ui_Simul2D* _ui;
         QWidget* _parent;
 
-        pi::RealImage::Pointer _image1;
-        pi::RealImage::Pointer _image2;
-        pi::LabelImage::Pointer _label1;
-        pi::LabelImage::Pointer _label2;
+        pi::RealImage::Pointer _image[2];
+        pi::LabelImage::Pointer _label[2];
 
         QGraphicsScene* _scene[2];
         
-        QGraphicsImageItem<pi::RealImage>* _image1Item;
-        QGraphicsImageItem<pi::RealImage>* _image2Item;
-        QGraphicsPixmapItem* _label1item;
-        QGraphicsPixmapItem* _label2item;
-
+        QGraphicsImageItem<pi::RealImage>* _imageItem[2];
+        QGraphicsPixmapItem* _labelItem[2];
         QParticlesGraphicsItem* _particles[2];
-
-        bool _image1show;
-        bool _image2show;
 
         pi::ParticleSystemSolver* _solver;
     };

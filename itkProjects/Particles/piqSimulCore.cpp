@@ -24,14 +24,11 @@ namespace piq {
     SimulCore::SimulCore(QWidget* parent): QObject(parent) {
         _parent = parent;
         _ui = NULL;
-        
-        _image1Item = NULL;
-        _image2Item = NULL;
 
-        _image1show = true;
-        _image2show = false;
-
-        _label1item = _label2item = NULL;
+        for (int i = 0; i < 2; i++) {
+            _imageItem[i] = NULL;
+            _labelItem[i] = NULL;
+        }
         _solver = new ParticleSystemSolver();
     }
 
@@ -64,32 +61,28 @@ namespace piq {
 
         ImageContext& context = _solver->GetImageContext();
         if (context.Count() > 0) {
-            _image1Item = showImage(_scene[0], _image1Item, context.GetRealImage(0));
-            _label1 = context.GetLabel(0);
-            if (_label1.IsNotNull()) {
-                _label1item = showLabel(_scene[0], _label1item, _label1, _image1Item);
+            _imageItem[0] = showImage(_scene[0], _imageItem[0], context.GetRealImage(0));
+            _label[0] = context.GetLabel(0);
+            if (_label[0].IsNotNull()) {
+                _labelItem[0] = showLabel(_scene[0], _labelItem[0], _label[0], _imageItem[0]);
             }
-            _image2Item = showImage(_scene[1], _image2Item, context.GetRealImage(1));
-            _label2 = context.GetLabel(1);
-            if (_label2.IsNotNull()) {
-                _label2item = showLabel(_scene[1], _label2item, _label2, _image2Item);
+            _imageItem[1] = showImage(_scene[1], _imageItem[1], context.GetRealImage(1));
+            _label[1] = context.GetLabel(1);
+            if (_label[1].IsNotNull()) {
+                _labelItem[1] = showLabel(_scene[1], _labelItem[1], _label[1], _imageItem[1]);
             }
         }
     }
 
     void SimulCore::connectSignals() {
         if (_ui != NULL) {
-            connect(_ui->loadImage1, SIGNAL(fileDropped(QString)), SLOT(openImage1(QString)));
-            connect(_ui->loadImage2, SIGNAL(fileDropped(QString)), SLOT(openImage2(QString)));
-            connect(_ui->loadLabel1, SIGNAL(fileDropped(QString)), SLOT(openLabel1(QString)));
-            connect(_ui->loadLabel2, SIGNAL(fileDropped(QString)), SLOT(openLabel2(QString)));
             connect(_ui->labelOpacity, SIGNAL(sliderMoved(int)), SLOT(labelOpacityChanged(int)));
             connect(_ui->actionRun, SIGNAL(triggered()), SLOT(run()));
         }
     }
 
     QGraphicsItem* SimulCore::getImageItem(int n) {
-        return _image1Item;
+        return _imageItem[n];
     }
 
     QGraphicsScene* SimulCore::scene(int n) {
@@ -98,14 +91,17 @@ namespace piq {
 
 
     void SimulCore::updateParticles() {
-        _particles[0]->setParentItem(_image1Item);
-        _particles[0]->SetParticles(&_solver->m_System[0][0], _solver->m_System[0].GetNumberOfPoints());
-        _particles[1]->setParentItem(_image2Item);
-        _particles[1]->SetParticles(&_solver->m_System[1][0], _solver->m_System[1].GetNumberOfPoints());
-
         for (int i = 0; i < 2; i++) {
+            _particles[i]->setParentItem(_imageItem[i]);
+            _particles[i]->SetParticles(&_solver->m_System[i][0], _solver->m_System[i].GetNumberOfPoints());
             _particles[i]->update();
         }
+    }
+
+    void SimulCore::updateParticles(int n, pi::ParticleVector& particles) {
+        _particles[n]->setParentItem(_imageItem[n]);
+        _particles[n]->SetParticles(&particles[0], particles.size());
+        _particles[n]->update();
     }
 
     SimulCore::QRealImageItem* SimulCore::showImage(QGraphicsScene* scene, QRealImageItem* item, RealImage::Pointer image) {
@@ -126,6 +122,8 @@ namespace piq {
             _ui->graphicsView2->fitInView(item, Qt::KeepAspectRatio);
             _ui->graphicsView2->centerOn(item);
         }
+        QTransform transform = _ui->graphicsView->transform();
+        _ui->zoom->setValue(transform.m11() * 100);
         return item;
     }
 
@@ -155,37 +153,35 @@ namespace piq {
 
 
     void SimulCore::openImage1(QString filename) {
-        _image1 = __imageIO.ReadCastedImage(filename.toUtf8().data());
-        _image1Item = showImage(_scene[0], _image1Item, _image1);
+        _image[0] = __imageIO.ReadCastedImage(filename.toUtf8().data());
+        _imageItem[0] = showImage(_scene[0], _imageItem[0], _image[0]);
     }
 
     void SimulCore::openImage2(QString filename) {
-        if (_image2Item) {
-            _scene[1]->removeItem(_image2Item);
-        }
-        _image2 = __imageIO.ReadCastedImage(filename.toUtf8().data());
-        _image2Item = showImage(_scene[1], _image2Item, _image2);
+        _image[1] = __imageIO.ReadCastedImage(filename.toUtf8().data());
+        _imageItem[1] = showImage(_scene[1], _imageItem[1], _image[1]);
     }
 
     void SimulCore::openLabel1(QString filename) {
-        if (_image1Item == NULL) {
+        if (_imageItem[0] == NULL) {
             return;
         }
 
-        _label1 = __labelIO.ReadCastedImage(filename.toUtf8().data());
-        showLabel(_scene[0], _label1item, _label1, _image1Item);
+        _label[0] = __labelIO.ReadCastedImage(filename.toUtf8().data());
+        showLabel(_scene[0], _labelItem[0], _label[0], _imageItem[0]);
     }
 
     void SimulCore::openLabel2(QString filename) {
-        _label2 = __labelIO.ReadCastedImage(filename.toUtf8().data());
+        _label[1] = __labelIO.ReadCastedImage(filename.toUtf8().data());
+        showLabel(_scene[1], _labelItem[1], _label[1], _imageItem[1]);
+
     }
 
     void SimulCore::labelOpacityChanged(int value) {
-        if (_label1item) {
-            _label1item->setOpacity(value / 255.0);
-        }
-        if (_label2item) {
-            _label2item->setOpacity(value / 255.0);
+        for (int i = 0; i < 2; i++) {
+            if (_labelItem[i]) {
+                _labelItem[i]->setOpacity(value / 255.0);
+            }
         }
     }
     

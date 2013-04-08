@@ -26,17 +26,16 @@
 using namespace std;
 
 namespace pi {
-    itkcmds::itkImageIO<LabelImage> imageIO;
-
     ParticleSystemSolver main;
     ParticleSystem& system = main.m_System;
     ImageContext& images = main.m_ImageContext;
+
+    ParticleTrace trace;
 
     string configcache = "/tmp/psim.txt";
     
     Simul2::Simul2(QWidget* parent): core(this) {
         ui.setupUi(this);
-        centerToDesktop();
 
         // signal-slot connection
         QObject::connect(&m_timer, SIGNAL(timeout()), this, SLOT(tick()));
@@ -51,6 +50,9 @@ namespace pi {
 
         core.setUi(&ui);
         ui.costPlot->hide();
+        ui.toolBox->setCurrentWidget(ui.runPage);
+        
+        centerToDesktop();
     }
 
 
@@ -79,28 +81,11 @@ namespace pi {
 
 
     void Simul2::on_actionTest_triggered() {
-        core.openImage1("/NIRAL/work/joohwi/nadia/SliceImages/C31/C31_E04_slice_128.nii.gz");
-        core.openImage2("/NIRAL/work/joohwi/nadia/SliceImages/C33/C33_E04_slice_128.nii.gz");
-        core.openLabel1("/NIRAL/work/joohwi/nadia/SliceImages/C31/C31_E04_label_128.nii.gz");
-        core.openLabel2("/NIRAL/work/joohwi/nadia/SliceImages/C33/C33_E04_label_128.nii.gz");
     }
 
     void Simul2::on_actionPrint_triggered() {
         cout << main.m_Options << endl;
         main.m_System.GetInitialSubject().WriteParticlePositions(cout);
-    }
-
-    void Simul2::on_loadImage1_clicked() {
-        core.openImage1(__fileManager.openFile(QFileManager::Image, this, "Open Gray Image1"));
-    }
-    void Simul2::on_loadImage2_clicked() {
-        core.openImage2(__fileManager.openFile(QFileManager::Image, this, "Open Gray Image2"));
-    }
-    void Simul2::on_loadLabel1_clicked() {
-        core.openLabel1(__fileManager.openFile(QFileManager::Image, this, "Open Label1"));
-    }
-    void Simul2::on_loadLabel2_clicked() {
-        core.openLabel2(__fileManager.openFile(QFileManager::Image, this, "Open Label2"));
     }
 
 
@@ -110,6 +95,8 @@ namespace pi {
         stringstream configstream;
         string config = ui.config->toPlainText().toStdString();
         configstream.str(config);
+
+        cout << configstream.str() << endl;
 
         main.LoadConfig(configstream);
         main.Preprocessing();
@@ -128,9 +115,9 @@ namespace pi {
 
     void Simul2::on_runStepButton_clicked() {
         // prepare simultation
-        main.t0 = main.m_Options.GetRealVectorValue("TimeRange", 0);
-        main.t1 = main.m_Options.GetRealVectorValue("TimeRange", 2);
-        main.dt = main.m_Options.GetRealVectorValue("TimeRange", 1);
+        main.t0 = main.m_Options.GetRealVectorValue("TimeRange:", 0);
+        main.t1 = main.m_Options.GetRealVectorValue("TimeRange:", 2);
+        main.dt = main.m_Options.GetRealVectorValue("TimeRange:", 1);
         main.t = 0;
 
         main.verbose = ui.verboseOutput->isChecked();
@@ -167,23 +154,49 @@ namespace pi {
         }
     }
 
+    void Simul2::on_zoom_sliderMoved(int val) {
+        QTransform transform;
+        transform.scale(val / 100.0f,  val / 100.0f);
+        ui.graphicsView->setTransform(transform);
+        ui.graphicsView2->setTransform(transform);
+    }
+
+
+    void Simul2::on_loadTrace_clicked() {
+        string traceFile = main.m_Options.GetString("RunTrace:");
+        if (traceFile == "") {
+            QString file = __fileManager.openFile(QFileManager::Image, this, "Open Particle Trace File");
+            if (file.isEmpty()) {
+                return;
+            }
+            traceFile = file.toStdString();
+        }
+
+        trace.Clear();
+        ifstream fin(traceFile.c_str());
+        trace.Read(fin);
+
+        ui.traceSteps->setValue(0);
+        ui.traceSteps->setMaximum(trace.system[0].timeSeries.size());
+    }
+
+    void Simul2::on_saveTrace_clicked() {
+        string traceFile = main.m_Options.GetString("RunTrace:");
+        if (traceFile == "") {
+            return;
+        }
+        ofstream traceOut(traceFile.c_str());
+        main.trace.Write(traceOut);
+        traceOut.close();
+    }
+
     void Simul2::on_traceSteps_valueChanged(int n) {
-        /*
         if (n >= trace.system[0].timeSeries.size() || n < 0) {
             return;
         }
         ui.lcdNumber->display(n);
-        removeParticles();
-        for (int i = 0; i < trace.system.size(); i++) {
-            for (int j = 0; j < trace.system[i].timeSeries[n].size(); j++) {
-                Particle& p = trace.system[i].timeSeries[n][j];
-                QColor pointColor = getColor(i);
-                pointColor.setAlpha(60);
-                QGraphicsEllipseItem* item = m_scene.addEllipse(p.x[0]-.5, p.x[1]-.5, 1, 1, QPen(pointColor), QBrush(pointColor, Qt::SolidPattern));
-                ellipseItems.push_back(item);
-            }
-        }
-         */
+        core.updateParticles(0, trace.system[0].timeSeries[n]);
+        core.updateParticles(1, trace.system[1].timeSeries[n]);
     }
 
     void Simul2::on_showWarped01_clicked() {
