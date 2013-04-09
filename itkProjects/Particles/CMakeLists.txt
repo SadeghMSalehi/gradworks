@@ -45,6 +45,7 @@ SET (QT_PSIM2_HEADERS piSimul2.h myQGraphicsView.h qcustomplot.h qfileacceptbutt
 SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp qcustomplot.cpp qfileacceptbutton.cpp piqSimulCore.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
+QT4_ADD_RESOURCES(QT_PSIM2_RCC simul2d.qrc)
 
 SET (QT_PVIEW_HEADERS pviewAIRWindow.h airSuperZoom.h qcustomplot.h qdualslider.h qgraphicsguideview.h  qgraphicscompositeimageitem.h qgraphicsdrawingimageitem.h qfileacceptbutton.h qgraphicsvolumeview.h airAlgorithmManager.h qdrawingframe.h piqTestModule.h)
 SET (QT_PVIEW_SOURCES pviewAIRWindow.cpp airSuperZoom.cpp qcustomplot.cpp qdualslider.cpp qgraphicsguideview.cpp qgraphicscompositeimageitem.cpp qgraphicsdrawingimageitem.cpp qfileacceptbutton.cpp qgraphicsvolumeview.cpp airAlgorithmManager.cpp qdrawingframe.cpp piqTestModule.cpp)
@@ -112,7 +113,7 @@ IF (${BUILD_GUI})
 	ADD_EXECUTABLE(psim simul2main.cpp piSimul2.cpp piSimul2.h piImageSlice.h piImageSlice.cpp
         qutils.h qutils.cpp
         itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsImageItem.h QGraphicsImageItem.cpp
-        ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS})
+        ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS} ${QT_PSIM2_RCC})
 	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=3")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 

@@ -21,19 +21,19 @@ namespace pi {
     }
 
     void ParticleBSpline::EstimateTransform(const ParticleSubject& src, const ParticleSubject& dst) {
-        this->EstimateTransform<ParticleXCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
+        this->EstimateTransform<ParticleXCaster, LabelImage, ParticleSubject>(src, dst, src.GetNumberOfPoints(), m_RefImage);
     }
 
     void ParticleBSpline::EstimateTransformY(const ParticleSubject& src, const ParticleSubject& dst) {
-        this->EstimateTransform<ParticleYCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
+        this->EstimateTransform<ParticleYCaster, LabelImage, ParticleSubject>(src, dst, src.GetNumberOfPoints(), m_RefImage);
     }
 
     void ParticleBSpline::EstimateTransformYZ(const ParticleSubject& src, const ParticleSubject& dst) {
-        this->EstimateTransform<ParticleYZCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
+        this->EstimateTransform<ParticleYZCaster, LabelImage, ParticleSubject>(src, dst, src.GetNumberOfPoints(), m_RefImage);
     }
 
     void ParticleBSpline::EstimateTransformZ(const ParticleSubject& src, const ParticleSubject& dst) {
-        this->EstimateTransform<ParticleZCaster>(src, dst, src.GetNumberOfPoints(), m_RefImage);
+        this->EstimateTransform<ParticleZCaster, LabelImage, ParticleSubject>(src, dst, src.GetNumberOfPoints(), m_RefImage);
     }
 
     void ParticleBSpline::ApplyTransform(ParticleSubject& a) {

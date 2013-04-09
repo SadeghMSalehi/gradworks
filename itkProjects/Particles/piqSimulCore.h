@@ -12,14 +12,17 @@
 #include <iostream>
 
 #include <QObject>
+#include <QVector>
 
 #include "ui_simul2d.h"
 #include "piImageDef.h"
 #include "piParticle.h"
 
 template <class T> class QGraphicsImageItem;
+
 class QGraphicsScene;
 class QGraphicsPixmapItem;
+class QGraphicsEllipseItem;
 class QParticlesGraphicsItem;
 
 namespace pi {
@@ -41,13 +44,14 @@ namespace piq {
         SimulCore(QWidget* parent = NULL);
         virtual ~SimulCore();
         void setParticleSolver(pi::ParticleSystemSolver* solver);
+        void showAuxImage(int, pi::RealImage::Pointer image);
 
     public slots:
         void setUi(Ui_Simul2D* ui);
-        void openImage1(QString);
-        void openImage2(QString);
-        void openLabel1(QString);
-        void openLabel2(QString);
+        void openImage(int, QString);
+        void openLabel(int, QString);
+
+
 
         void labelOpacityChanged(int value);
         void updateParticles();
@@ -61,8 +65,9 @@ namespace piq {
 
     private:
         void connectSignals();
-        QRealImageItem* showImage(QGraphicsScene* scene, QRealImageItem* item, pi::RealImage::Pointer image);
-        QGraphicsPixmapItem* showLabel(QGraphicsScene* scene, QGraphicsPixmapItem* item, pi::LabelImage::Pointer image, QGraphicsItem* parent);
+        QRealImageItem* showImage(int n, pi::RealImage::Pointer image);
+        QGraphicsPixmapItem* showLabel(int n, pi::LabelImage::Pointer image);
+        void createParticleItems(int id, int n);
 
     private:
         Ui_Simul2D* _ui;
@@ -74,8 +79,10 @@ namespace piq {
         QGraphicsScene* _scene[2];
         
         QGraphicsImageItem<pi::RealImage>* _imageItem[2];
+        QGraphicsImageItem<pi::RealImage>* _auxImageItem[2];
+        
         QGraphicsPixmapItem* _labelItem[2];
-        QParticlesGraphicsItem* _particles[2];
+        QVector<QGraphicsEllipseItem*> _particleItem[2];
 
         pi::ParticleSystemSolver* _solver;
     };

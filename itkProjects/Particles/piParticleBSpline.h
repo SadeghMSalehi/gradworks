@@ -51,7 +51,7 @@ namespace pi {
         void EstimateTransformYZ(const ParticleSubject& a, const ParticleSubject& b);
 
 
-        template <class C, class R = LabelImage, class T = ParticleSubject> void EstimateTransform(const T& src, const T& dst, const int nPoints, typename R::Pointer refImage);
+        template <class C, class R, class T> void EstimateTransform(const T& src, const T& dst, const int nPoints, typename R::Pointer refImage);
         void ApplyTransform(ParticleSubject& a);
         RealImage::Pointer WarpImage(RealImage::Pointer image);
         LabelImage::Pointer WarpLabel(LabelImage::Pointer srcImage);

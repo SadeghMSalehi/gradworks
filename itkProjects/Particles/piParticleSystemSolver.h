@@ -26,9 +26,18 @@ namespace pi {
         bool LoadConfig(const char* name);
         bool SaveConfig(const char* name);
         void Preprocessing();
+
         void Run();
-        int RunStep();
         void Setup();
+        void RunStepBegin();
+        int  RunStep();
+        void RunStepEnd();
+
+        void PrintPoints();
+        
+        pi::RealImage::Pointer WarpImage(int i, int j = -1);
+        pi::LabelImage::Pointer WarpLabel(int i, int j = -1);
+
         
         ImageContext& GetImageContext() {
             return m_ImageContext;

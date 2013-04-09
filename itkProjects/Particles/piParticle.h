@@ -31,6 +31,9 @@ namespace pi {
         // the position x and the transformed point y
         DataReal x[4];
         DataReal y[4];
+        DataReal z[4];
+        DataReal w[4];
+
 
         // the current velocity v and the force f
         DataReal v[4];
@@ -39,10 +42,6 @@ namespace pi {
         // the density and pressure of a particle
         DataReal density;
         DataReal pressure;
-
-        // temporary status
-        DataReal w[4];
-        DataReal z[4];
 
         bool collisionEvent;
 

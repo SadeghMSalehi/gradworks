@@ -18,6 +18,7 @@
 #include "piImageProcessing.h"
 #include "piTimer.h"
 #include "piImageIO.h"
+#include "piParticleBSpline.h"
 
 namespace pi {
     using namespace std;
@@ -445,12 +446,7 @@ namespace pi {
         m_System.currentTime = t;
         m_System.currentIteration++;
 
-        if (verbose) {
-            cout << "t: " << t << " " << flush;
-        }
-        if (systemSnapshot != "") {
-            SaveConfig(systemSnapshot.c_str());
-        }
+        RunStepBegin();
 
         // compute internal force
         for (int n = 0; n < nSubz; n++) {
@@ -480,13 +476,22 @@ namespace pi {
                     m_System[n].TransformY2Z();
                 }
             }
+        } else {
+            for (int n = 0; n < nSubz; n++) {
+                m_System[n].TransformX2Y();
+            }
         }
+
+        // work on coordinate Y
         if (useEnsemble) {
             ensembleForce.ComputeEnsembleForce(m_System);
         }
+
+        // work on coordinate Z
         if (useIntensity) {
             intensityForce.ComputeIntensityForce(&m_System);
         }
+
         // system update
         for (int n = 0; n < nSubz; n++) {
             ParticleSubject& sub = subs[n];
@@ -519,11 +524,28 @@ namespace pi {
         t += dt;
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+        RunStepEnd();
+        return 0;
+    }
+
+    void ParticleSystemSolver::RunStepBegin() {
+        if (verbose) {
+            cout << "t: " << t << " " << flush;
+        }
+        if (systemSnapshot != "") {
+            SaveConfig(systemSnapshot.c_str());
+        }
+    }
+
+    
+    void ParticleSystemSolver::RunStepEnd() {
+        ParticleSubjectArray& subs = m_System.GetSubjects();
+        const int nSubz = subs.size();
+
         double elapsedTime = timer.getElapsedTimeInSec();
         if (verbose) {
             cout << "; elapsed time: " << elapsedTime << " secs; estimated remaining time: about " << int((elapsedTime*(t1 - t)/dt)/60+1) << " mins                   \r" << flush;
         }
-
 
         if (traceOn) {
             for (int n = 0; n < nSubz; n++) {
@@ -533,7 +555,39 @@ namespace pi {
                 }
             }
         }
+    }
 
-        return 0;
+    RealImage::Pointer ParticleSystemSolver::WarpImage(int i, int j) {
+        if (j < 0) {
+            // warp to the mean image
+            ParticleSubject& meanSubj = m_System.ComputeXMeanSubject();
+//            for (int i = 0; i < meanSubj.size(); i++) {
+//                fordim (k) {
+//                    cout << meanSubj[i].x[k] << " ";
+//                }
+//                cout << endl;
+//            }
+            ParticleBSpline bspline;
+            bspline.SetReferenceImage(m_ImageContext.GetLabel(i));
+            bspline.EstimateTransform(meanSubj, m_System[i]);
+            return bspline.WarpImage(m_ImageContext.GetRealImage(i));
+        }
+        return RealImage::Pointer();
+    }
+
+    LabelImage::Pointer ParticleSystemSolver::WarpLabel(int i, int j) {
+        return LabelImage::Pointer();
+    }
+
+    void ParticleSystemSolver::PrintPoints() {
+        for (int j = 0; j < m_System.GetNumberOfParticles(); j++) {
+            for (int i = 0; i < m_System.GetNumberOfSubjects(); i++) {
+                fordim (k) {
+                    cout << m_System[i][j].x[k] << ",";
+                }
+                cout << "\t";
+            }
+            cout << endl;
+        }
     }
 }

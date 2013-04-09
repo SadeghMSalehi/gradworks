@@ -28,6 +28,7 @@ namespace piq {
         for (int i = 0; i < 2; i++) {
             _imageItem[i] = NULL;
             _labelItem[i] = NULL;
+            _auxImageItem[i] = NULL;
         }
         _solver = new ParticleSystemSolver();
     }
@@ -36,6 +37,7 @@ namespace piq {
 
     }
 
+    // assume setup is called only once
     void SimulCore::setUi(Ui_Simul2D *ui) {
         this->_ui = ui;
         connectSignals();
@@ -46,13 +48,14 @@ namespace piq {
         _ui->graphicsView->setScene(_scene[0]);
         _ui->graphicsView2->setScene(_scene[1]);
 
-        _particles[0] = new QParticlesGraphicsItem();
-        _particles[1] = new QParticlesGraphicsItem();
-
         for (int i = 0; i < 2; i++) {
-            _particles[i]->SetPen(Qt::NoPen);
-            _particles[i]->SetBrush(QBrush(Qt::blue, Qt::SolidPattern));
-            _particles[i]->setZValue(10);
+            _imageItem[i] = new QGraphicsImageItem<RealImage>();
+            _labelItem[i] = new QGraphicsPixmapItem(_imageItem[i]);
+            _scene[i]->addItem(_imageItem[i]);
+
+            _auxImageItem[i] = new QGraphicsImageItem<RealImage>();
+            _auxImageItem[i]->hide();
+            _scene[i]->addItem(_auxImageItem[i]);
         }
     }
 
@@ -61,16 +64,21 @@ namespace piq {
 
         ImageContext& context = _solver->GetImageContext();
         if (context.Count() > 0) {
-            _imageItem[0] = showImage(_scene[0], _imageItem[0], context.GetRealImage(0));
+            _imageItem[0] = showImage(0, context.GetRealImage(0));
             _label[0] = context.GetLabel(0);
             if (_label[0].IsNotNull()) {
-                _labelItem[0] = showLabel(_scene[0], _labelItem[0], _label[0], _imageItem[0]);
+                _labelItem[0] = showLabel(0, _label[0]);
             }
-            _imageItem[1] = showImage(_scene[1], _imageItem[1], context.GetRealImage(1));
+            _imageItem[1] = showImage(1, context.GetRealImage(1));
             _label[1] = context.GetLabel(1);
             if (_label[1].IsNotNull()) {
-                _labelItem[1] = showLabel(_scene[1], _labelItem[1], _label[1], _imageItem[1]);
+                _labelItem[1] = showLabel(1, _label[1]);
             }
+        }
+
+        for (int i = 0; i < 2; i++) {
+            _auxImageItem[i]->hide();
+            _particleItem[i].clear();
         }
     }
 
@@ -90,52 +98,73 @@ namespace piq {
     }
 
 
+    void SimulCore::createParticleItems(int i, int n) {
+        if (_particleItem[i].size() != n) {
+            // check if need to create particle item
+            for (int j = 0; j < _particleItem[i].size(); j++) {
+                _scene[i]->removeItem(_particleItem[i][j]);
+            }
+            _particleItem[i].resize(n);
+            // create particle item
+            typedef itk::RGBAPixel<unsigned char> RGBA;
+            typedef itk::Function::HSVColormapFunction<float, RGBA> HSVFunction;
+
+            HSVFunction::Pointer hsvFunc = HSVFunction::New();
+            hsvFunc->SetMinimumInputValue(0);
+            hsvFunc->SetMaximumInputValue(n);
+
+            double r = 2;
+            for (int j = 0; j < n; j++) {
+                RGBA color = hsvFunc->operator()(j);
+                _particleItem[i][j] = new QGraphicsEllipseItem(_imageItem[i]);
+                _particleItem[i][j]->setRect(-r/2.0, -r/2.0, r, r);
+                _particleItem[i][j]->setZValue(10);
+                _particleItem[i][j]->setOpacity(1);
+                _particleItem[i][j]->setPen(Qt::NoPen);
+                _particleItem[i][j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));
+            }
+        }
+    }
+
     void SimulCore::updateParticles() {
         for (int i = 0; i < 2; i++) {
-            _particles[i]->setParentItem(_imageItem[i]);
-            _particles[i]->SetParticles(&_solver->m_System[i][0], _solver->m_System[i].GetNumberOfPoints());
-            _particles[i]->update();
+            const int n = _solver->m_System[i].size();
+            createParticleItems(i, n);
+            for (int j = 0; j < n; j++) {
+                Particle& p = _solver->m_System[i][j];
+                _particleItem[i][j]->setPos(p.x[0], p.x[1]);
+            }
         }
     }
 
-    void SimulCore::updateParticles(int n, pi::ParticleVector& particles) {
-        _particles[n]->setParentItem(_imageItem[n]);
-        _particles[n]->SetParticles(&particles[0], particles.size());
-        _particles[n]->update();
+    void SimulCore::updateParticles(int i, pi::ParticleVector& particles) {
+        const int n = particles.size();
+        createParticleItems(i, n);
+        for (int j = 0; j < n; j++) {
+            Particle& p = particles[j];
+            _particleItem[i][j]->setPos(p.x[0], p.x[1]);
+        }
     }
 
-    SimulCore::QRealImageItem* SimulCore::showImage(QGraphicsScene* scene, QRealImageItem* item, RealImage::Pointer image) {
-        if (item) {
-            scene->removeItem(item);
-        }
-        item = new QGraphicsImageItem<RealImage>();
-        item->setImage(image);
-        item->setFlip(QRealImageItem::UpDown);
-        item->refresh();
+    SimulCore::QRealImageItem* SimulCore::showImage(int id, RealImage::Pointer image) {
+        _imageItem[id]->setImage(image);
+        _imageItem[id]->setFlip(QRealImageItem::UpDown);
+        _imageItem[id]->refresh();
 
-        scene->addItem(item);
-
-        if (scene == _ui->graphicsView->scene()) {
-            _ui->graphicsView->fitInView(item, Qt::KeepAspectRatio);
-            _ui->graphicsView->centerOn(item);
-        } else if (scene == _ui->graphicsView2->scene()) {
-            _ui->graphicsView2->fitInView(item, Qt::KeepAspectRatio);
-            _ui->graphicsView2->centerOn(item);
+        if (_scene[id] == _ui->graphicsView->scene()) {
+            _ui->graphicsView->fitInView(_imageItem[id], Qt::KeepAspectRatio);
+            _ui->graphicsView->centerOn(_imageItem[id]);
+        } else if (_scene[id] == _ui->graphicsView2->scene()) {
+            _ui->graphicsView2->fitInView(_imageItem[id], Qt::KeepAspectRatio);
+            _ui->graphicsView2->centerOn(_imageItem[id]);
         }
         QTransform transform = _ui->graphicsView->transform();
         _ui->zoom->setValue(transform.m11() * 100);
-        return item;
+        return _imageItem[id];
     }
 
-    QGraphicsPixmapItem* SimulCore::showLabel(QGraphicsScene* scene, QGraphicsPixmapItem* item, LabelImage::Pointer labelImage, QGraphicsItem* parent) {
-        if (item) {
-            scene->removeItem(item);
-        }
-        if (parent == NULL) {
-            return NULL;
-        }
-
-        QRectF rect = parent->boundingRect();
+    QGraphicsPixmapItem* SimulCore::showLabel(int id, LabelImage::Pointer labelImage) {
+        QRectF rect = _imageItem[id]->boundingRect();
         QImage image((uchar*) labelImage->GetBufferPointer(),
                      rect.width(), rect.height(), QImage::Format_Indexed8);
         image.setColorCount(3);
@@ -143,38 +172,36 @@ namespace piq {
         image.setColor(1, qRgba(255,0,255,255));
         QPixmap pixmap = QPixmap::fromImage(image);
 
-        item = new QGraphicsPixmapItem();
-        item->setPixmap(pixmap);
-        item->setOpacity(_ui->labelOpacity->value() / 255.0);
-        item->setZValue(1);
-        item->setParentItem(parent);
-        return item;
+        _labelItem[id]->setPixmap(pixmap);
+        _labelItem[id]->setOpacity(_ui->labelOpacity->value() / 255.0);
+        _labelItem[id]->setZValue(1);
+        _labelItem[id]->setParentItem(_imageItem[id]);
+        return _labelItem[id];
     }
 
 
-    void SimulCore::openImage1(QString filename) {
-        _image[0] = __imageIO.ReadCastedImage(filename.toUtf8().data());
-        _imageItem[0] = showImage(_scene[0], _imageItem[0], _image[0]);
+    void SimulCore::showAuxImage(int id, RealImage::Pointer image) {
+        _auxImageItem[id]->setImage(image);
+        qreal xPos = _imageItem[id]->boundingRect().width();
+        qreal yPos = 0;
+        _auxImageItem[id]->setPos(xPos, yPos);
+        _auxImageItem[id]->setTransform(_imageItem[id]->transform());
+        _auxImageItem[id]->refresh();
+        _auxImageItem[id]->show();
     }
 
-    void SimulCore::openImage2(QString filename) {
-        _image[1] = __imageIO.ReadCastedImage(filename.toUtf8().data());
-        _imageItem[1] = showImage(_scene[1], _imageItem[1], _image[1]);
+    void SimulCore::openImage(int id, QString filename) {
+        _image[id] = __imageIO.ReadCastedImage(filename.toUtf8().data());
+        _imageItem[id] = showImage(id, _image[id]);
     }
 
-    void SimulCore::openLabel1(QString filename) {
-        if (_imageItem[0] == NULL) {
+    void SimulCore::openLabel(int id, QString filename) {
+        if (_imageItem[id] == NULL) {
             return;
         }
 
-        _label[0] = __labelIO.ReadCastedImage(filename.toUtf8().data());
-        showLabel(_scene[0], _labelItem[0], _label[0], _imageItem[0]);
-    }
-
-    void SimulCore::openLabel2(QString filename) {
-        _label[1] = __labelIO.ReadCastedImage(filename.toUtf8().data());
-        showLabel(_scene[1], _labelItem[1], _label[1], _imageItem[1]);
-
+        _label[id] = __labelIO.ReadCastedImage(filename.toUtf8().data());
+        showLabel(id, _label[id]);
     }
 
     void SimulCore::labelOpacityChanged(int value) {

@@ -80,18 +80,7 @@ namespace pi {
     }
 
 
-    void Simul2::on_actionTest_triggered() {
-    }
-
-    void Simul2::on_actionPrint_triggered() {
-        cout << main.m_Options << endl;
-        main.m_System.GetInitialSubject().WriteParticlePositions(cout);
-    }
-
-
     void Simul2::on_applyButton_clicked(bool value) {
-        ui.splitter->setOrientation(Qt::Vertical);
-
         stringstream configstream;
         string config = ui.config->toPlainText().toStdString();
         configstream.str(config);
@@ -199,15 +188,24 @@ namespace pi {
         core.updateParticles(1, trace.system[1].timeSeries[n]);
     }
 
-    void Simul2::on_showWarped01_clicked() {
 
+    void Simul2::on_actionViewOrientation_triggered() {
+        if (ui.viewSplitter->orientation() == Qt::Vertical) {
+            ui.viewSplitter->setOrientation(Qt::Horizontal);
+        } else {
+            ui.viewSplitter->setOrientation(Qt::Vertical);
+        }
     }
 
-    void Simul2::on_showWarped10_clicked() {
-
+    void Simul2::on_actionShowWarped_triggered() {
+//        main.m_System.WarpImage(0, 1);
+        RealImage::Pointer warpedImage1 = main.WarpImage(0);
+        core.showAuxImage(0, warpedImage1);
+        RealImage::Pointer warpedImage2 = main.WarpImage(1);
+        core.showAuxImage(1, warpedImage2);
     }
 
-    void Simul2::on_printAsPDF_clicked() {
-
+    void Simul2::on_actionPrint_triggered() {
+        main.PrintPoints();
     }
 }

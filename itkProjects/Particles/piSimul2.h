@@ -29,17 +29,14 @@ namespace pi {
 
         //////////////////////////////////////////////////
         // VISUALIZATIONS
-        void on_showWarped01_clicked();
-        void on_showWarped10_clicked();
-        void on_printAsPDF_clicked();
-
         void on_zoom_sliderMoved(int);
 
         void on_loadTrace_clicked();
         void on_saveTrace_clicked();
         void on_traceSteps_valueChanged(int n);
 
-        void on_actionTest_triggered();
+        void on_actionViewOrientation_triggered();
+        void on_actionShowWarped_triggered();
         void on_actionPrint_triggered();
         
         void tick();

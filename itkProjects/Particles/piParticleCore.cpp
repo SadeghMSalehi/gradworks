@@ -67,6 +67,11 @@ namespace pi {
     }
 
     void ParticleSubject::NewParticles(int n) {
+        // FIXME: be careful if something gets wrong
+        if (n == m_Particles.size()) {
+            Zero();
+            return;
+        }
         m_Particles.resize(n);
         if (pointscopy.GetPointer() == NULL) {
             pointscopy = vtkPointsType::New();

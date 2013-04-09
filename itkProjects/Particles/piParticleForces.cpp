@@ -344,9 +344,9 @@ namespace pi {
         const int nSubjects = system.GetNumberOfSubjects();
 
         // now working at y-space estimating b-spline transform from the subject to the mean
-        system.ComputeYMeanSubject();
-        ParticleSubject& meanSubj = system.GetMeanSubject();
+        ParticleSubject& meanSubj = system.ComputeYMeanSubject();
 
+        // compute forward transform
         for (int i = 0; i < nSubjects; i++) {
             ParticleBSpline bspline;
             bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
