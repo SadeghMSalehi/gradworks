@@ -17,6 +17,7 @@
 #include <QGraphicsPixmapItem>
 
 #include "QParticlesGraphicsItem.h"
+#include "QGraphicsRectWidget.h"
 #include "itkImageIO.h"
 #include "piTimer.h"
 #include "qutils.h"
@@ -50,8 +51,7 @@ namespace pi {
 
         core.setUi(&ui);
         ui.costPlot->hide();
-        ui.toolBox->setCurrentWidget(ui.runPage);
-        
+
         centerToDesktop();
     }
 

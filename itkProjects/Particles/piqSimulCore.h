@@ -23,7 +23,7 @@ template <class T> class QGraphicsImageItem;
 class QGraphicsScene;
 class QGraphicsPixmapItem;
 class QGraphicsEllipseItem;
-class QParticlesGraphicsItem;
+class QGraphicsRectWidget;
 
 namespace pi {
     class ParticleSystem;
@@ -50,9 +50,12 @@ namespace piq {
         void setUi(Ui_Simul2D* ui);
         void openImage(int, QString);
         void openLabel(int, QString);
-
-
-
+        void hideParticles(bool show);
+        
+        void startTrackingMode();
+        void alignTrackingTarget();
+        void trackingWidgetMoved(QPointF);
+        
         void labelOpacityChanged(int value);
         void updateParticles();
         void updateParticles(int n, pi::ParticleVector& particles);
@@ -77,12 +80,14 @@ namespace piq {
         pi::LabelImage::Pointer _label[2];
 
         QGraphicsScene* _scene[2];
+        QGraphicsScene* _miniScene;
         
         QGraphicsImageItem<pi::RealImage>* _imageItem[2];
         QGraphicsImageItem<pi::RealImage>* _auxImageItem[2];
         
         QGraphicsPixmapItem* _labelItem[2];
         QVector<QGraphicsEllipseItem*> _particleItem[2];
+        QGraphicsRectWidget* _rectItem[2];
 
         pi::ParticleSystemSolver* _solver;
     };

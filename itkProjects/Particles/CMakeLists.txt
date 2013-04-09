@@ -41,8 +41,8 @@ SET (QT_PI_SOURCES particleViewerWindow.cpp  particleAni.cpp myQGraphicsView.cpp
 qt4_wrap_cpp(QT_PI_MOC_HEADERS ${QT_PI_HEADERS})
 qt4_wrap_ui(QT_PI_UI_FILES particleViewerWindow.ui particleAni.ui)
 
-SET (QT_PSIM2_HEADERS piSimul2.h myQGraphicsView.h qcustomplot.h qfileacceptbutton.h piqSimulCore.h)
-SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp qcustomplot.cpp qfileacceptbutton.cpp piqSimulCore.cpp)
+SET (QT_PSIM2_HEADERS piSimul2.h myQGraphicsView.h QGraphicsRectWidget.h qcustomplot.h qfileacceptbutton.h piqSimulCore.h)
+SET (QT_PSIM2_SOURCES piSimul2.cpp myQGraphicsView.cpp QGraphicsRectWidget.cpp qcustomplot.cpp qfileacceptbutton.cpp piqSimulCore.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
 QT4_ADD_RESOURCES(QT_PSIM2_RCC simul2d.qrc)

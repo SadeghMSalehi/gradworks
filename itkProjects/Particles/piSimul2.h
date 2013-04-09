@@ -50,7 +50,6 @@ namespace pi {
         QGraphicsScene m_scene;
         QTimer m_timer;
 
-        QParticlesGraphicsItem* _particles;
     };
 
 }

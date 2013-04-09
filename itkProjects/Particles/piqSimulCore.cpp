@@ -9,6 +9,7 @@
 #include "piqSimulCore.h"
 #include "QGraphicsImageItem.h"
 #include "QParticlesGraphicsItem.h"
+#include "QGraphicsRectWidget.h"
 
 #include "qutils.h"
 #include "piImageIO.h"
@@ -31,6 +32,7 @@ namespace piq {
             _auxImageItem[i] = NULL;
         }
         _solver = new ParticleSystemSolver();
+        _miniScene = new QGraphicsScene();
     }
 
     SimulCore::~SimulCore() {
@@ -40,7 +42,6 @@ namespace piq {
     // assume setup is called only once
     void SimulCore::setUi(Ui_Simul2D *ui) {
         this->_ui = ui;
-        connectSignals();
 
         _scene[0] = new QGraphicsScene(this);
         _scene[1] = new QGraphicsScene(this);
@@ -56,7 +57,13 @@ namespace piq {
             _auxImageItem[i] = new QGraphicsImageItem<RealImage>();
             _auxImageItem[i]->hide();
             _scene[i]->addItem(_auxImageItem[i]);
+
+            _rectItem[i] = new QGraphicsRectWidget();
+            _rectItem[i]->hide();
+            _scene[i]->addItem(_rectItem[i]);
         }
+
+        _ui->miniView->setScene(_miniScene);
     }
 
     void SimulCore::setParticleSolver(ParticleSystemSolver* solver) {
@@ -80,12 +87,17 @@ namespace piq {
             _auxImageItem[i]->hide();
             _particleItem[i].clear();
         }
+
+        connectSignals();
     }
 
     void SimulCore::connectSignals() {
         if (_ui != NULL) {
             connect(_ui->labelOpacity, SIGNAL(sliderMoved(int)), SLOT(labelOpacityChanged(int)));
             connect(_ui->actionRun, SIGNAL(triggered()), SLOT(run()));
+            connect(_ui->actionShowParticles, SIGNAL(toggled(bool)), SLOT(hideParticles(bool)));
+            connect(_ui->placeButton, SIGNAL(clicked()), SLOT(startTrackingMode()));
+            connect(_rectItem[0], SIGNAL(widgetMoved(QPointF)), SLOT(trackingWidgetMoved(QPointF)));
         }
     }
 
@@ -97,6 +109,17 @@ namespace piq {
         return _scene[n];
     }
 
+    void SimulCore::hideParticles(bool show) {
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < _particleItem[i].size(); j++) {
+                if (!show) {
+                    _particleItem[i][j]->show();
+                } else {
+                    _particleItem[i][j]->hide();
+                }
+            }
+        }
+    }
 
     void SimulCore::createParticleItems(int i, int n) {
         if (_particleItem[i].size() != n) {
@@ -144,6 +167,11 @@ namespace piq {
             Particle& p = particles[j];
             _particleItem[i][j]->setPos(p.x[0], p.x[1]);
         }
+    }
+
+    void SimulCore::trackingWidgetMoved(QPointF pos) {
+        _rectItem[1]->setTransform(_rectItem[0]->transform());
+        _rectItem[1]->setPos(_rectItem[0]->pos());
     }
 
     SimulCore::QRealImageItem* SimulCore::showImage(int id, RealImage::Pointer image) {
@@ -211,7 +239,18 @@ namespace piq {
             }
         }
     }
-    
+
+    void SimulCore::startTrackingMode() {
+        for (int i = 0; i < 2; i++) {
+            _rectItem[i]->setSize(_ui->rectSize->value());
+            _rectItem[i]->show();
+        }
+    }
+
+    void SimulCore::alignTrackingTarget() {
+        _rectItem[1]->setPos(_rectItem[0]->pos());
+    }
+
     void SimulCore::run() {
     }
 }

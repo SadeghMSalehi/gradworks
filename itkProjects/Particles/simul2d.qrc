@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="Icons">
+    <file>Images/show_particles.png</file>
     <file>Images/social_chat.png</file>
     <file>Images/show_warped_image.png</file>
     <file>Images/screen_rotation-2.png</file>
