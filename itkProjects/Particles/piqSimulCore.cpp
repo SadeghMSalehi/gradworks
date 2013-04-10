@@ -60,14 +60,29 @@ namespace piq {
             _auxImageItem[i]->hide();
             _scene[i]->addItem(_auxImageItem[i]);
 
-            _rectItem[i] = new QGraphicsRectWidget();
-            _rectItem[i]->hide();
-            _scene[i]->addItem(_rectItem[i]);
+            if (i == 0) {
+                _trackingItem[i] = new QGraphicsRectWidget();
+                _trackingItem[i]->hide();
+                _scene[i]->addItem(_trackingItem[i]);
+                _trackingWidget = dynamic_cast<QGraphicsRectWidget*>(_trackingItem[i]);
+
+
+            } else {
+                _trackingItem[i] = new QGraphicsPolygonItem();
+
+                QPen pen(Qt::green, 1);
+                pen.setCosmetic(true);
+                dynamic_cast<QGraphicsPolygonItem*>(_trackingItem[i])->setPen(pen);
+
+                _scene[i]->addItem(_trackingItem[1]);
+                _trackingItem[i]->hide();
+            }
 
             _patchItem[i] = new QGraphicsRealImageItem();
             _patchItem[i]->hide();
             _miniScene->addItem(_patchItem[i]);
         }
+
 
         _ui->actionShowParticles->setChecked(true);
     }
@@ -106,7 +121,9 @@ namespace piq {
             connect(_ui->actionShowParticles, SIGNAL(toggled(bool)), SLOT(hideParticles(bool)));
             connect(_ui->placeButton, SIGNAL(clicked()), SLOT(startTrackingMode()));
             connect(_ui->trackButton, SIGNAL(clicked()), SLOT(trackPatch()));
-            connect(_rectItem[0], SIGNAL(widgetMoved(QPointF)), SLOT(trackingWidgetMoved(QPointF)));
+
+            QGraphicsRectWidget* trackingWidget = dynamic_cast<QGraphicsRectWidget*>(_trackingItem[0]);
+            connect(trackingWidget, SIGNAL(widgetMoved(QPointF)), SLOT(trackingWidgetMoved(QPointF)));
         }
     }
 
@@ -248,85 +265,62 @@ namespace piq {
     }
 
     void SimulCore::startTrackingMode() {
+        _trackingWidget->setSize(_ui->rectSize->value());
         for (int i = 0; i < 2; i++) {
-            _rectItem[i]->setSize(_ui->rectSize->value());
-            _rectItem[i]->show();
-
-            samplePixels(i);
+            _tracking.setImage(i, _image[i]);
+            _trackingItem[i]->show();
         }
-        _ui->miniView->fitInView(_miniScene->sceneRect(), Qt::KeepAspectRatio);
+
+        QRectF imageRect = _imageItem[0]->mapRectFromItem(_trackingWidget, _trackingWidget->boundingRect());
+        RealImage::RegionType region;
+        rectToRegion(imageRect, region);
+        
+        _tracking.setPatchRegion(region);
+        for (int i = 0; i < 2; i++) {
+            _patchItem[i]->setTransform(_imageItem[i]->transform());
+        }
+
+        trackingWidgetMoved(QPointF());
     }
 
-    void SimulCore::trackingWidgetMoved(QPointF pos) {
-        _rectItem[1]->setTransform(_rectItem[0]->transform());
-        _rectItem[1]->setPos(_rectItem[0]->pos());
+    void SimulCore::rectToRegion(QRectF& rect, RealImage::RegionType& region) {
+        region.SetIndex(0, rect.x());
+        region.SetIndex(1, rect.y());
+        region.SetSize(0, rect.width());
+        region.SetSize(1, rect.height());
+    }
 
-        samplePixels(0);
-        samplePixels(1);
+    
+    void SimulCore::trackingWidgetMoved(QPointF pos) {
+        QRectF imageRect = _imageItem[0]->mapRectFromItem(_trackingWidget, _trackingWidget->boundingRect());
+        RealImage::RegionType region;
+        rectToRegion(imageRect, region);
+
+        _tracking.translatePatchRegion(region);
+
+        int h = 0;
+        for (int i = 0; i < 2; i++) {
+            // update mini view
+            _patchItem[i]->setImage(_tracking.getPatch(i), _imageItem[i]->histogram().dataMin, _imageItem[i]->histogram().dataMax);
+            _patchItem[i]->refresh();
+            _patchItem[i]->setPos(QPointF(0, h));
+            _patchItem[i]->show();
+
+            h += (_patchItem[i]->boundingRect().height() + 1);
+        }
+        _ui->miniView->fitInView(_miniScene->sceneRect(), Qt::KeepAspectRatio);
+
+        QGraphicsPolygonItem* item = dynamic_cast<QGraphicsPolygonItem*>(_trackingItem[1]);
+        if (item != NULL) {
+            item->setTransform(_imageItem[1]->transform());
+            item->setPolygon(_tracking.getPatchPolygon(1));
+            item->show();
+        }
     }
 
     void SimulCore::trackPatch() {
-        PatchTracking tracking;
-        for (int i = 0; i < 2; i++) {
-            tracking.setImage(i, _image[i]);
-
-            // rectangle in the image coordinate
-            QRectF rect = _imageItem[i]->mapRectFromItem(_rectItem[i], _rectItem[i]->boundingRect());
-            RealImage::RegionType region;
-            region.SetIndex(0, rect.x());
-            region.SetIndex(1, rect.y());
-            region.SetSize(0, rect.width());
-            region.SetSize(1, rect.height());
-            tracking.setInitialRegion(i, region);
-        }
-
-        tracking.beginTracking();
-        QRectF imagePos;
-        imagePos.setCoords(tracking.getFinalIndex(0)[0], tracking.getFinalIndex(0)[1],
-                           tracking.getFinalIndex(1)[0], tracking.getFinalIndex(1)[1]);
-        QRectF scenePos = _imageItem[1]->mapRectToScene(imagePos);
-        _rectItem[1]->setPos(scenePos.topLeft());
-
-        _patchItem[1]->setImage(tracking.getPatch(1),
-                    _imageItem[1]->histogram().dataMin, _imageItem[1]->histogram().dataMax);
-        _patchItem[1]->refresh();
-    }
-
-    void SimulCore::samplePixels(int i) {
-        QRectF rect = _imageItem[i]->mapRectFromItem(_rectItem[i], _rectItem[i]->boundingRect());
-
-        RealImage::RegionType sampleRegion;
-        sampleRegion.SetSize(0, rect.width());
-        sampleRegion.SetSize(1, rect.height());
-        sampleRegion.SetIndex(0, rect.x());
-        sampleRegion.SetIndex(1, rect.y());
-
-        if (_patch[i].IsNull() || _patch[i]->GetBufferedRegion().GetSize() != sampleRegion.GetSize()) {
-            _patch[i] = __imageIO.NewImageT(sampleRegion.GetSize());
-        }
-        _patch[i]->SetBufferedRegion(sampleRegion);
-        _patch[i]->SetRequestedRegion(sampleRegion);
-
-        typedef itk::ResampleImageFilter<RealImage, RealImage> ResampleFilter;
-        static ResampleFilter::Pointer resample = ResampleFilter::New();
-        resample->SetOutputStartIndex(sampleRegion.GetIndex());
-        resample->SetSize(sampleRegion.GetSize());
-        resample->SetInput(_image[i]);
-        resample->GraftOutput(_patch[i]);
-        resample->Update();
-
-        int h = 0;
-        for (int j = 0; j < i; j++) {
-            h += _patchItem[j]->boundingRect().width();
-            h += 1;
-        }
-
-        _patchItem[i]->setImage(_patch[i],
-                                _imageItem[i]->histogram().dataMin, _imageItem[i]->histogram().dataMax);
-        _patchItem[i]->setTransform(_imageItem[i]->transform());
-        _patchItem[i]->refresh();
-        _patchItem[i]->show();
-        _patchItem[i]->setPos(0, h);
+        _tracking.beginTracking();
+        trackingWidgetMoved(QPointF());
     }
 
     void SimulCore::run() {

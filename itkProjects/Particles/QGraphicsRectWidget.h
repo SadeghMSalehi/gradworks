@@ -10,10 +10,10 @@
 #define __ParticleGuidedRegistration__QGraphicsRectWidget__
 
 #include <iostream>
-#include <QGraphicsItem>
+#include <QAbstractGraphicsShapeItem>
 #include <QPen>
 
-class QGraphicsRectWidget: public QObject, public QGraphicsItem {
+class QGraphicsRectWidget: public QObject, public QAbstractGraphicsShapeItem {
     Q_OBJECT
     Q_INTERFACES(QGraphicsItem)
     

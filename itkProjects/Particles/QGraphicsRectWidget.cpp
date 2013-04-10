@@ -13,7 +13,7 @@
 
 using namespace std;
 
-QGraphicsRectWidget::QGraphicsRectWidget(QGraphicsItem* parent): QGraphicsItem(parent) {
+QGraphicsRectWidget::QGraphicsRectWidget(QGraphicsItem* parent): QAbstractGraphicsShapeItem(parent) {
     _hovering = false;
     _hoverPen = QPen(Qt::red, 1, Qt::SolidLine);
     _hoverPen.setCosmetic(true);

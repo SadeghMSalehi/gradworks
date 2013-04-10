@@ -59,46 +59,68 @@ namespace pi {
         _images[i] = image;
     }
 
-    void PatchTracking::setInitialRegion(int i, RealImage::RegionType region) {
-        _initialRegion[i] = region;
-        itk::ContinuousIndex<double,2> idx;
-        for (int j = 0; j < 2; j++) {
-            idx[j] = (region.GetIndex(j) + region.GetSize(j) / 2.0);
-        }
-//        _images[i]->TransformContinuousIndexToPhysicalPoint(idx, _centerOfRegion[i]);
+    void PatchTracking::setPatchRegion(RealImage::RegionType region) {
+        _patchRegion[0] = region;
+        _patchRegion[1] = region;
+        extractPatch(0);
+        extractPatch(1);
+        transformPatchRegion();
+    }
 
-        extractPatch(i);
+    void PatchTracking::translatePatchRegion(RealImage::RegionType region) {
+        _patchRegion[0] = region;
+        transformPatchRegion();
+        extractPatch(0, false);
+        resamplePatch();
     }
 
     RealImage::Pointer PatchTracking::getPatch(int i) {
         return _patches[i];
     }
 
-    RealImage::IndexType& PatchTracking::getFinalIndex(int i) {
-        return _finalIndex[i];
+    QPolygonF& PatchTracking::getPatchPolygon(int i) {
+        return _patchPolygon[i];
     }
 
-    void PatchTracking::extractPatch(int i) {
+    void PatchTracking::resamplePatch() {
+        typedef itk::ResampleImageFilter<RealImage,RealImage> ResampleFilter;
+        ResampleFilter::Pointer resampler = ResampleFilter::New();
+        resampler->SetInput(_images[1]);
+        if (_transform.IsNotNull()) {
+            resampler->SetTransform(dynamic_cast<ResampleFilter::TransformType*>(_transform.GetPointer()));
+        }
+        resampler->SetReferenceImage(_patches[0]);
+        resampler->UseReferenceImageOn();
+//        resampler->GraftOutput(_patches[1]);
+        resampler->Update();
+        _patches[1] = resampler->GetOutput();
+    }
+
+    void PatchTracking::extractPatch(int i, bool newPatch) {
         typedef itk::ExtractImageFilter<RealImage, RealImage> ExtractFilter;
         ExtractFilter::Pointer filter = ExtractFilter::New();
         filter->SetInput(_images[i]);
-        filter->SetExtractionRegion(_initialRegion[i]);
-        filter->Update();
+        filter->SetExtractionRegion(_patchRegion[i]);
+        try {
+            filter->Update();
+        } catch (itk::ExceptionObject& ex) {
+            ex.Print(cout);
+        }
         _patches[i] = filter->GetOutput();
         _patches[i]->DisconnectPipeline();
     }
 
     // set up optimization routine
     void PatchTracking::beginTracking() {
-        ParametersType initialParams;
-        initialParams.SetSize(2);
-        initialParams.Fill(0);
-
         _transform = TransformType::New();
+
+        ParametersType initialParams;
+        initialParams.SetSize(_transform->GetNumberOfParameters());
+        initialParams.Fill(0);
 
         _costFunc = CostFunctionType::New();
         _costFunc->SetFixedImage(_patches[0]);
-        _costFunc->SetFixedImageRegion(_initialRegion[0]);
+        _costFunc->SetFixedImageRegion(_patchRegion[0]);
         _costFunc->SetMovingImage(_images[1]);
         _costFunc->UseAllPixelsOn();
 
@@ -108,21 +130,19 @@ namespace pi {
 
 
         OptimizerType::ScalesType scales;
-        scales.SetSize(2);
+        scales.SetSize(initialParams.Size());
         scales.Fill(1);
 
         OptimizerProgress<OptimizerType>::Pointer progress = OptimizerProgress<OptimizerType>::New();
 
-        RealImage::SpacingType spacing = _images[0]->GetSpacing();
         _optimizer = OptimizerType::New();
         _optimizer->SetCostFunction(_costFunc);
         _optimizer->SetInitialPosition(initialParams);
         _optimizer->SetScales(scales);
-        _optimizer->SetMinimumStepLength(spacing[0]*0.1);
-        _optimizer->SetMaximumStepLength(spacing[0]);
-        _optimizer->SetNumberOfIterations(100);
-        _optimizer->SetRelaxationFactor(0.5);
-        _optimizer->AddObserver(itk::IterationEvent(), progress);
+//        _optimizer->AddObserver(itk::IterationEvent(), progress);
+
+        setupOptimizer(_optimizer);
+        
         _optimizer->StartOptimization();
 
         cout << "Iterations: " << _optimizer->GetCurrentIteration() << endl;
@@ -130,29 +150,49 @@ namespace pi {
 
         const ParametersType& params = _optimizer->GetCurrentPosition();
         _transform->SetParameters(params);
-        
-        typedef itk::ResampleImageFilter<RealImage,RealImage> ResampleFilter;
-        ResampleFilter::Pointer resampler = ResampleFilter::New();
-        resampler->SetInput(_images[1]);
-        resampler->SetTransform(dynamic_cast<ResampleFilter::TransformType*>(_transform.GetPointer()));
-        resampler->SetReferenceImage(_patches[0]);
-        resampler->UseReferenceImageOn();
-        resampler->GraftOutput(_patches[1]);
-        resampler->Update();
 
-        TransformType::InputPointType point[2];
-        for (int j = 0; j < 2; j++) {
-            point[0][j] = _initialRegion[0].GetIndex(j);
-            point[1][j] = _initialRegion[0].GetIndex(j) + _initialRegion[0].GetSize(j);
+        resamplePatch();
+        transformPatchRegion();
+    }
+
+    void PatchTracking::transformPatchRegion() {
+        // index to physical point
+        RealImage::RegionType& r = _patchRegion[0];
+        RealImage::IndexType i[4];
+        i[3] = i[1] = i[0] = r.GetIndex();
+        i[2][1] = (i[1][1] += r.GetSize(1));
+        i[2][0] = (i[3][0] += r.GetSize(0));
+
+        QPolygonF transformedRegion;
+        RealImage::PointType p[4];
+        for (int j = 0; j < 4; j++) {
+            if (_transform.IsNotNull()) {
+                _images[0]->TransformIndexToPhysicalPoint(i[j], p[j]);
+                p[j] = _transform->TransformPoint(p[j]);
+                _images[0]->TransformPhysicalPointToIndex(p[j], i[j]);
+            }
+            transformedRegion << QPointF(i[j][0], i[j][1]);
         }
-        
-        for (int i = 0; i < 2; i++) {
-            _finalPoints[i] = _transform->TransformPoint(point[i]);
-            _images[0]->TransformPhysicalPointToIndex(_finalPoints[i], _finalIndex[i]);
-        }
+        transformedRegion << QPointF(i[0][0], i[0][1]);
+        _patchPolygon[1] = transformedRegion;
     }
 
     void PatchTracking::stepTracking() {
 
+    }
+
+    void PatchTracking::setupOptimizer(RegularStepGradientDescentOptimizer* opti) {
+        RealImage::SpacingType spacing = _images[0]->GetSpacing();
+
+        opti->SetMinimumStepLength(spacing[0]*0.1);
+        opti->SetMaximumStepLength(spacing[0]);
+        opti->SetNumberOfIterations(100);
+        opti->SetRelaxationFactor(0.5);
+    }
+
+    void PatchTracking::setupOptimizer(FRPROptimizer* opti) {
+        RealImage::SpacingType spacing = _images[0]->GetSpacing();
+
+        opti->SetStepLength(spacing[0]*0.1);
     }
 }

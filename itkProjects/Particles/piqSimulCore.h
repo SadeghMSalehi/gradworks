@@ -17,6 +17,7 @@
 #include "ui_simul2d.h"
 #include "piImageDef.h"
 #include "piParticle.h"
+#include "piPatchTracking.h"
 
 template <class T> class QGraphicsImageItem;
 typedef QGraphicsImageItem<pi::RealImage> QGraphicsRealImageItem;
@@ -25,6 +26,7 @@ class QGraphicsScene;
 class QGraphicsPixmapItem;
 class QGraphicsEllipseItem;
 class QGraphicsRectWidget;
+class QAbstractGraphicsShapeItem;
 
 namespace pi {
     class ParticleSystem;
@@ -72,9 +74,7 @@ namespace piq {
         QRealImageItem* showImage(int n, pi::RealImage::Pointer image);
         QGraphicsPixmapItem* showLabel(int n, pi::LabelImage::Pointer image);
         void createParticleItems(int id, int n);
-
-        // sample pixels for patch[i]
-        void samplePixels(int i);
+        void rectToRegion(QRectF&, pi::RealImage::RegionType&);
 
     private:
         Ui_Simul2D* _ui;
@@ -82,19 +82,21 @@ namespace piq {
 
         pi::RealImage::Pointer _image[2];
         pi::LabelImage::Pointer _label[2];
-        pi::RealImage::Pointer _patch[2];
 
+        pi::PatchTracking _tracking;
+        
         QGraphicsScene* _scene[2];
         QGraphicsScene* _miniScene;
         
         QGraphicsImageItem<pi::RealImage>* _imageItem[2];
         QGraphicsImageItem<pi::RealImage>* _auxImageItem[2];
         QGraphicsRealImageItem* _patchItem[2];
+
         
         QGraphicsPixmapItem* _labelItem[2];
         QVector<QGraphicsEllipseItem*> _particleItem[2];
-        QGraphicsRectWidget* _rectItem[2];
-
+        QAbstractGraphicsShapeItem* _trackingItem[2];
+        QGraphicsRectWidget* _trackingWidget;
 
         pi::ParticleSystemSolver* _solver;
     };
