@@ -468,7 +468,7 @@ namespace pi {
             caster->SetInput(img);
             caster->Update();
             typename S::Pointer output = caster->GetOutput();
-            output->DisconnectedPipeline();
+            output->DisconnectPipeline();
             return output;
         }
 

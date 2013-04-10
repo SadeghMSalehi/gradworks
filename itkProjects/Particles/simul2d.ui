@@ -320,7 +320,7 @@ LabelImages: strings 2
                <item row="0" column="3">
                 <widget class="QSpinBox" name="rectSize">
                  <property name="value">
-                  <number>7</number>
+                  <number>15</number>
                  </property>
                 </widget>
                </item>

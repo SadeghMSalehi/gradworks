@@ -19,6 +19,7 @@
 #include "piParticle.h"
 
 template <class T> class QGraphicsImageItem;
+typedef QGraphicsImageItem<pi::RealImage> QGraphicsRealImageItem;
 
 class QGraphicsScene;
 class QGraphicsPixmapItem;
@@ -53,8 +54,8 @@ namespace piq {
         void hideParticles(bool show);
         
         void startTrackingMode();
-        void alignTrackingTarget();
         void trackingWidgetMoved(QPointF);
+        void trackPatch();
         
         void labelOpacityChanged(int value);
         void updateParticles();
@@ -72,22 +73,28 @@ namespace piq {
         QGraphicsPixmapItem* showLabel(int n, pi::LabelImage::Pointer image);
         void createParticleItems(int id, int n);
 
+        // sample pixels for patch[i]
+        void samplePixels(int i);
+
     private:
         Ui_Simul2D* _ui;
         QWidget* _parent;
 
         pi::RealImage::Pointer _image[2];
         pi::LabelImage::Pointer _label[2];
+        pi::RealImage::Pointer _patch[2];
 
         QGraphicsScene* _scene[2];
         QGraphicsScene* _miniScene;
         
         QGraphicsImageItem<pi::RealImage>* _imageItem[2];
         QGraphicsImageItem<pi::RealImage>* _auxImageItem[2];
+        QGraphicsRealImageItem* _patchItem[2];
         
         QGraphicsPixmapItem* _labelItem[2];
         QVector<QGraphicsEllipseItem*> _particleItem[2];
         QGraphicsRectWidget* _rectItem[2];
+
 
         pi::ParticleSystemSolver* _solver;
     };

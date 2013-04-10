@@ -28,41 +28,64 @@ public:
     typedef itk::Image<ColorPixel, ImageDimension> ColorImage;
     typedef typename ColorImage::Pointer ColorImagePointer;
     typedef itk::ScalarToARGBColormapImageFilter<T, ColorImage> ColorFilter;
+    typedef pi::ImageHistogram<T> HistogramType;
 
     QGraphicsImageItem(QGraphicsItem* parent = NULL): QGraphicsPixmapItem(parent) {
     }
     virtual ~QGraphicsImageItem() {}
 
     void setImage(ImagePointer image);
+    void setImage(ImagePointer image, ImagePixel min, ImagePixel max);
     void setIntensityRange(ImagePixel min, ImagePixel max);
     void setFlip(Flags flags);
     void refresh();
+    HistogramType& histogram();
 
 private:
     ImagePointer _image;
     ColorImagePointer _colorImage;
-    pi::ImageHistogram<T> _histogram;
+    HistogramType _histogram;
     int _width;
     int _height;
+
+    void computeSize();
 };
 
+template <class T>
+typename QGraphicsImageItem<T>::HistogramType& QGraphicsImageItem<T>::histogram() {
+    return _histogram;
+}
 
 template <class T>
 void QGraphicsImageItem<T>::setImage(ImagePointer image) {
+    if (image.IsNull()) {
+        _image = image;
+        _width = 0;
+        _height = 0;
+        setPixmap(QPixmap());
+        return;
+    }
     _image = image;
     _histogram.SetImage(image);
-    typename T::RegionType region = _image->GetBufferedRegion();
-    if (region.GetSize(2) < 2 || ImageDimension == 2) {
-        _width = region.GetSize(0);
-        _height = region.GetSize(1);
-    } else if (region.GetSize(1) < 2) {
-        _width = region.GetSize(0);
-        _height = region.GetSize(2);
-    } else if (region.GetSize(0) < 2) {
-        _width = region.GetSize(1);
-        _height = region.GetSize(2);
-    }
+    computeSize();
 }
+
+template <class T>
+void QGraphicsImageItem<T>::setImage(ImagePointer image, ImagePixel min, ImagePixel max) {
+    if (image.IsNull()) {
+        _image = image;
+        _width = 0;
+        _height = 0;
+        setPixmap(QPixmap());
+        return;
+    }
+    _image = image;
+    _histogram.SetImage(image, false);
+    _histogram.dataMin = _histogram.rangeMin = min;
+    _histogram.dataMax = _histogram.rangeMax = max;
+    computeSize();
+}
+
 
 template <class T>
 void QGraphicsImageItem<T>::setIntensityRange(ImagePixel min, ImagePixel max) {
@@ -100,5 +123,20 @@ void QGraphicsImageItem<T>::refresh() {
 
     QPixmap pixmap = QPixmap::fromImage(QImage((unsigned char*) _colorImage->GetBufferPointer(), _width, _height, QImage::Format_ARGB32));
     setPixmap(pixmap);
+}
+
+template <class T>
+void QGraphicsImageItem<T>::computeSize() {
+    typename T::RegionType region = _image->GetBufferedRegion();
+    if (region.GetSize(2) < 2 || ImageDimension == 2) {
+        _width = region.GetSize(0);
+        _height = region.GetSize(1);
+    } else if (region.GetSize(1) < 2) {
+        _width = region.GetSize(0);
+        _height = region.GetSize(2);
+    } else if (region.GetSize(0) < 2) {
+        _width = region.GetSize(1);
+        _height = region.GetSize(2);
+    }
 }
 #endif /* defined(__ParticleGuidedRegistration__QGraphicsImageItem__) */

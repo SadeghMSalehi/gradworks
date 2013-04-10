@@ -65,18 +65,20 @@ namespace pi {
                 }
             }
         }
-        void SetImage(typename T::Pointer img) {
+        void SetImage(typename T::Pointer img, bool fitRange = true) {
             _img = img;
-            typedef itk::StatisticsImageFilter<T> StatFilter;
-            typename StatFilter::Pointer statFilter = StatFilter::New();
-            statFilter->SetInput(_img);
-            statFilter->Update();
-            dataMin = statFilter->GetMinimum();
-            dataMax = statFilter->GetMaximum();
-            pixelMean = statFilter->GetMean();
-            pixelVariance = statFilter->GetVariance();
-            pixelStdev = statFilter->GetSigma();
-            FitRange();
+            if (fitRange) {
+                typedef itk::StatisticsImageFilter<T> StatFilter;
+                typename StatFilter::Pointer statFilter = StatFilter::New();
+                statFilter->SetInput(_img);
+                statFilter->Update();
+                dataMin = statFilter->GetMinimum();
+                dataMax = statFilter->GetMaximum();
+                pixelMean = statFilter->GetMean();
+                pixelVariance = statFilter->GetVariance();
+                pixelStdev = statFilter->GetSigma();
+                FitRange();
+            }
         }
         void SetRange(PixelType min, PixelType max) {
             rangeMin = min;
