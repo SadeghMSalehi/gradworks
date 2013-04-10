@@ -6,7 +6,6 @@
 *.m~
 
 #image files
-*.png
 *.gif
 *.jpg
 *.nrrd
