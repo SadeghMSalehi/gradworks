@@ -11,14 +11,9 @@
 
 #include <iostream>
 #include <vector>
-#include <vnl/vnl_vector.h>
+#include "piMacros.h"
 
 namespace pi {
-    typedef float DataReal;
-
-    // VNL related types
-    typedef vnl_vector<DataReal> VNLVector;
-    typedef vnl_matrix<DataReal> VNLMatrix;
 
     class Particle {
     public:

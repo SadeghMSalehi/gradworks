@@ -13,14 +13,32 @@
 #include <itkGenerateImageSource.h>
 #include <itkPasteImageFilter.h>
 #include <itkImageRegionConstIteratorWithIndex.h>
+#include <itkCenteredRigid2DTransform.h>
+#include <itkTranslationTransform.h>
+#include <itkCorrelationImageToImageMetricv4.h>
+#include <itkBSplineTransform.h>
+#include <itkMeanSquaresImageToImageMetricv4.h>
+#include <itkMattesMutualInformationImageToImageMetricv4.h>
+#include "itkEntropyImageToImageMetricv4.h"
+#include <itkGradientDescentOptimizerv4.h>
+#include <itkQuasiNewtonOptimizerv4.h>
+#include <itkConjugateGradientLineSearchOptimizerv4.h>
+#include <itkRegistrationParameterScalesFromIndexShift.h>
+#include <itkVersorRigid3DTransform.h>
+#include <itkSimilarity3DTransform.h>
+#include <itkEuler3DTransform.h>
+#include <itkAffineTransform.h>
+#include <itkResampleImageFilter.h>
+#include <itkCommand.h>
 
-#include "piParticleCore.h"
-#include "piParticleTrace.h"
+//#include "piParticleCore.h"
+//#include "piParticleTrace.h"
 
 #include <QString>
 
 using namespace pi;
 using namespace std;
+using namespace itk;
 
 
 namespace air {
@@ -33,9 +51,46 @@ namespace air {
     typedef itk::ImageRegionIteratorWithIndex<ImageSlice> ImageSliceIterator;
     typedef itk::ImageRegionIteratorWithIndex<Label> LabelIterator;
     typedef itk::ImageRegionIteratorWithIndex<LabelSlice> LabelSliceIterator;
+    typedef itk::LinearInterpolateImageFunction<Image> ImageInterpolator;
 
     typedef air::ImageAlgorithm<Image,Label> ImageAlgo;
 
+    template <class T>
+    class OptimizerProgress: public itk::Command {
+    public:
+        /** Standard class typedefs. */
+        typedef OptimizerProgress Self;
+        typedef itk::Command Superclass;
+        typedef itk::SmartPointer<Self> Pointer;
+        typedef itk::SmartPointer<const Self> ConstPointer;
+
+        itkTypeMacro(OptimizerProgress, itk::Command);
+        itkNewMacro(OptimizerProgress);
+
+        virtual void Execute(Object *caller, const EventObject & event) {
+            T* realCaller = dynamic_cast<T*>(caller);
+            if (realCaller == NULL) {
+                return;
+            }
+            cout << realCaller->GetCurrentIteration() << ": " << realCaller->GetCurrentPosition() << endl;
+        }
+
+        virtual void Execute(const Object *caller, const EventObject & event) {
+
+        }
+
+
+    protected:
+        OptimizerProgress() {}
+
+        virtual ~OptimizerProgress() {}
+
+    private:
+        OptimizerProgress(const Self &);        //purposely not implemented
+        void operator=(const Self &); //purposely not implemented
+    };
+
+    
     void CommandLineTools::ExtractSlice(Image::Pointer img, pi::SliceDirectionEnum dir, pi::IntVector range, std::string outputPattern) {
 
         for (int i = range[0]; i <= range[1]; i++) {
@@ -115,6 +170,110 @@ namespace air {
         return;
     }
 
+    void CommandLineTools::RigidRegistration(pi::Options *opts, pi::StringVector args) {
+        Image::Pointer fixedImage  = __imageIO.ReadCastedImage(args[0]);
+        Image::Pointer movingImage = __imageIO.ReadCastedImage(args[1]);
+        
+//        typedef itk::TranslationTransform<double,3> TransformType;
+//        typedef itk::VersorRigid3DTransform<double> TransformType;
+//        typedef itk::Similarity3DTransform<double> TransformType;
+        //        typedef itk::BSplineTransform<double,2,4> TransformType;
+//        typedef itk::AffineTransform<double,3> TransformType;
+        typedef itk::Euler3DTransform<> TransformType;
+        TransformType::Pointer transform;
+
+        typedef itk::GradientDescentOptimizerv4 OptimizerType;
+        OptimizerType::Pointer optimizer;
+
+        typedef itk::MattesMutualInformationImageToImageMetricv4<Image, Image> CostFunctionType;
+        CostFunctionType::Pointer costFunc;
+
+        typedef OptimizerType::ParametersType ParametersType;
+
+        typedef itk::RegistrationParameterScalesFromIndexShift<CostFunctionType> ScaleEstimatorType;
+        ScaleEstimatorType::Pointer estimator;
+
+        transform = TransformType::New();
+
+        ParametersType initialParams;
+        initialParams.SetSize(transform->GetNumberOfParameters());
+        initialParams.Fill(0);
+
+        ParametersType fixedParams;
+        fixedParams.SetSize(fixedImage->GetImageDimension());
+
+        itk::ContinuousIndex<double,3> centerIdx;
+        Image::PointType centerPoint;
+
+        for (int i = 0; i < fixedParams.GetSize(); i++) {
+            centerIdx[i] = fixedImage->GetBufferedRegion().GetIndex(i) + fixedImage->GetBufferedRegion().GetSize(i) / 2.0;
+        }
+        fixedImage->TransformContinuousIndexToPhysicalPoint(centerIdx, centerPoint);
+        for (int i = 0; i < fixedParams.size(); i++) {
+            fixedParams[i] = centerPoint[i];
+        }
+        transform->SetFixedParameters(fixedParams);
+
+        costFunc = CostFunctionType::New();
+        costFunc->SetFixedImage(fixedImage);
+        costFunc->SetFixedInterpolator(ImageInterpolator::New());
+        costFunc->SetMovingImage(movingImage);
+        costFunc->SetMovingInterpolator(ImageInterpolator::New());
+        costFunc->SetMovingTransform(transform);
+        costFunc->SetParameters(initialParams);
+        if (dynamic_cast<MattesMutualInformationImageToImageMetricv4<Image, Image>*>(costFunc.GetPointer()) != NULL) {
+            costFunc->SetNumberOfHistogramBins(32);
+        }
+        costFunc->Initialize();
+
+        OptimizerProgress<OptimizerType>::Pointer progress = OptimizerProgress<OptimizerType>::New();
+
+        OptimizerType::ScalesType scales;
+        scales.SetSize(transform->GetNumberOfParameters());
+        scales.Fill(1);
+        
+        optimizer = OptimizerType::New();
+        optimizer->SetScales(scales);
+//        optimizer->SetScalesEstimator(estimator);
+        optimizer->SetMetric(costFunc);
+        optimizer->AddObserver(IterationEvent(), progress);
+
+        Image::SpacingType spacing = fixedImage->GetSpacing();
+        optimizer->SetMaximumStepSizeInPhysicalUnits(spacing[0]*3);
+
+        try {
+            ::itk::Object::GlobalWarningDisplayOn();
+            optimizer->SetDebug(true);
+            costFunc->SetDebug(true);
+            optimizer->Print(cout);
+            optimizer->StartOptimization();
+        } catch (ExceptionObject& ex) {
+            ex.Print(cout);
+        }
+
+        cout << "Iterations: " << optimizer->GetCurrentIteration() << endl;
+        cout << "Stop Reason: " << optimizer->GetStopConditionDescription() << endl;
+
+        const ParametersType& params = optimizer->GetCurrentPosition();
+        transform->SetParameters(params);
+        
+        typedef itk::ResampleImageFilter<Image,Image> ResampleFilter;
+        ResampleFilter::Pointer resampler = ResampleFilter::New();
+        resampler->SetInput(movingImage);
+        if (transform.IsNotNull()) {
+            cout << "Setting transform:" << endl;
+            transform->Print(cout);
+            resampler->SetTransform(dynamic_cast<ResampleFilter::TransformType*>(transform.GetPointer()));
+        }
+        resampler->SetReferenceImage(fixedImage);
+        resampler->UseReferenceImageOn();
+        resampler->Update();
+        
+        Image::Pointer resampled = resampler->GetOutput();
+        __imageIO.WriteImage(args[2], resampled);
+        __imageIO.WriteSingleTransform(args[3].c_str(), transform);
+    }
+
 
     int CommandLineTools::Run(Options* parser, StringVector args) {
         if (parser->GetBool("--isoRG")) {
@@ -167,7 +326,11 @@ namespace air {
                 return 0;
             }
             PasteLabel(args, args[0]);
+        } else if (parser->GetBool("--rigidRegister")) {
+            RigidRegistration(parser, args);
         }
         return 0;
     }
+
+
 }

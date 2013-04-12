@@ -9,6 +9,7 @@
 #ifndef ParticleGuidedRegistration_piMacros_h
 #define ParticleGuidedRegistration_piMacros_h
 
+#include <vnl/vnl_vector.h>
 
 #ifndef DIMENSIONS
 #define DIMENSIONS 3
@@ -36,5 +37,14 @@
 #define dimnorm2(x) (x[0]*x[0]+x[1]*x[1])
 #endif
 
+namespace pi {
+    typedef float DataReal;
+    typedef float DataReal;
+
+    // VNL related types
+    typedef vnl_vector<DataReal> VNLVector;
+    typedef vnl_matrix<DataReal> VNLMatrix;
+
+}
 
 #endif

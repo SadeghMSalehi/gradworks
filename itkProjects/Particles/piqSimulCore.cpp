@@ -16,6 +16,9 @@
 #include "piParticleCore.h"
 #include "piParticleSystemSolver.h"
 #include "piPatchTracking.h"
+#include "piImageSlice.h"
+
+#include "itkARGBColorFunction.h"
 
 namespace piq {
     using namespace pi;
@@ -52,11 +55,11 @@ namespace piq {
         _ui->miniView->setScene(_miniScene);
 
         for (int i = 0; i < 2; i++) {
-            _imageItem[i] = new QGraphicsImageItem<RealImage>();
+            _imageItem[i] = new QGraphicsRealImageItem();
             _labelItem[i] = new QGraphicsPixmapItem(_imageItem[i]);
             _scene[i]->addItem(_imageItem[i]);
 
-            _auxImageItem[i] = new QGraphicsImageItem<RealImage>();
+            _auxImageItem[i] = new QGraphicsRealImageItem();
             _auxImageItem[i]->hide();
             _scene[i]->addItem(_auxImageItem[i]);
 
@@ -65,7 +68,15 @@ namespace piq {
                 _trackingItem[i]->hide();
                 _scene[i]->addItem(_trackingItem[i]);
                 _trackingWidget = dynamic_cast<QGraphicsRectWidget*>(_trackingItem[i]);
+                _trackingRect = new QGraphicsRectItem();
+                _scene[1]->addItem(_trackingRect);
 
+                QPen pen(Qt::yellow, 1, Qt::DashLine);
+                pen.setCosmetic(true);
+                _trackingRect->setPen(pen);
+                _trackingRect->setZValue(11);
+                _trackingRect->setOpacity(0.8);
+                _trackingRect->hide();
 
             } else {
                 _trackingItem[i] = new QGraphicsPolygonItem();
@@ -198,9 +209,9 @@ namespace piq {
         }
     }
 
-    SimulCore::QRealImageItem* SimulCore::showImage(int id, RealImage::Pointer image) {
-        _imageItem[id]->setImage(image);
-        _imageItem[id]->setFlip(QRealImageItem::UpDown);
+    QGraphicsRealImageItem* SimulCore::showImage(int id, RealImage::Pointer image) {
+        _imageItem[id]->setImage<RealImage>(image, true);
+        _imageItem[id]->setFlip(QGraphicsRealImageItem::UpDown);
         _imageItem[id]->refresh();
 
         if (_scene[id] == _ui->graphicsView->scene()) {
@@ -233,7 +244,9 @@ namespace piq {
 
 
     void SimulCore::showAuxImage(int id, RealImage::Pointer image) {
-        _auxImageItem[id]->setImage(image);
+        _auxImageItem[id]->setRange(_imageItem[id]->getRange(0), _imageItem[id]->getRange(1));
+        _auxImageItem[id]->setImage<RealImage>(image);
+
         qreal xPos = _imageItem[id]->boundingRect().width();
         qreal yPos = 0;
         _auxImageItem[id]->setPos(xPos, yPos);
@@ -279,7 +292,6 @@ namespace piq {
         for (int i = 0; i < 2; i++) {
             _patchItem[i]->setTransform(_imageItem[i]->transform());
         }
-
         trackingWidgetMoved(QPointF());
     }
 
@@ -297,12 +309,17 @@ namespace piq {
         rectToRegion(imageRect, region);
 
         _tracking.translatePatchRegion(region);
+        _tracking.beginTracking();
+
+        _trackingRect->setRect(_trackingWidget->boundingRect());
+        _trackingRect->setPos(_trackingWidget->pos());
+        _trackingRect->show();
 
         int h = 0;
         for (int i = 0; i < 2; i++) {
             // update mini view
-            _patchItem[i]->setImage(_tracking.getPatch(i), _imageItem[i]->histogram().dataMin, _imageItem[i]->histogram().dataMax);
-            _patchItem[i]->refresh();
+            _patchItem[i]->setRange(_imageItem[i]->getRange(0), _imageItem[i]->getRange(1));
+            _patchItem[i]->setImage<RealImage>(_tracking.getPatch(i));
             _patchItem[i]->setPos(QPointF(0, h));
             _patchItem[i]->show();
 
@@ -319,7 +336,6 @@ namespace piq {
     }
 
     void SimulCore::trackPatch() {
-        _tracking.beginTracking();
         trackingWidgetMoved(QPointF());
     }
 

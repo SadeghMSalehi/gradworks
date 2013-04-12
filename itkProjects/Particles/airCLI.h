@@ -15,9 +15,9 @@
 #include "piImageIO.h"
 
 namespace air {
-    typedef itk::Image<double,3> Image;
+    typedef itk::Image<float,3> Image;
     typedef itk::Image<unsigned char,3> Label;
-    typedef itk::Image<double,2> ImageSlice;
+    typedef itk::Image<float,2> ImageSlice;
     typedef itk::Image<unsigned char,2> LabelSlice;
 
     extern pi::ImageIO<Image> __imageIO;
@@ -28,7 +28,8 @@ namespace air {
         void ExtractSlice(Image::Pointer img, pi::SliceDirectionEnum dir, pi::IntVector range, std::string outputPattern);
         void PasteSlice(pi::StringVector input, std::string output);
         void PasteLabel(pi::StringVector input, std::string output);
-        
+
+        void RigidRegistration(pi::Options* opts, pi::StringVector args);
         int Run(pi::Options* parser, pi::StringVector args);
     };
     

@@ -14,6 +14,7 @@
 
 
 namespace pi {
+
     template <class T>
     class DataIterator3 {
     public:

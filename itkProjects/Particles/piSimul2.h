@@ -38,6 +38,7 @@ namespace pi {
         void on_actionViewOrientation_triggered();
         void on_actionShowWarped_triggered();
         void on_actionPrint_triggered();
+        void on_actionTest_triggered();
         
         void tick();
 

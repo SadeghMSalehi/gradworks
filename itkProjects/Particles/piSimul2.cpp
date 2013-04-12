@@ -22,7 +22,8 @@
 #include "piTimer.h"
 #include "qutils.h"
 
-
+#include "piImagePatch.h"
+#include "piImageEntropyComputer.h"
 
 using namespace std;
 
@@ -207,5 +208,20 @@ namespace pi {
 
     void Simul2::on_actionPrint_triggered() {
         main.PrintPoints();
+    }
+
+    void Simul2::on_actionTest_triggered() {
+        /*
+        ImagePatch<RealImage> patch;
+        patch.setImage(main.m_ImageContext.GetRealImage(0));
+        patch.setRadiusInIndexUnit(10);
+        ImagePatch<RealImage>::PointVector& points = patch.getOffsetPoints();
+        for (int i = 0; i < points.size(); i++) {
+            cout << i << ":" << points[i][0] << "," << points[i][1] << endl;
+        }
+        */
+        ImageEntropyComputer comp;
+        comp.setSize(2, 5);
+        
     }
 }

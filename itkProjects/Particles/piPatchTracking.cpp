@@ -7,7 +7,6 @@
 //
 
 #include "piPatchTracking.h"
-#include <itkNormalizedCorrelationImageToImageMetric.h>
 #include <itkExtractImageFilter.h>
 #include <itkResampleImageFilter.h>
 
@@ -28,18 +27,18 @@ namespace pi {
         itkTypeMacro(OptimizerProgress, itk::Command);
         itkNewMacro(OptimizerProgress);
 
-        virtual void Execute(itk::Object *caller, const itk::EventObject & event) {
-            this->Execute((const itk::Object*) caller, event);
-        }
-
-        virtual void Execute(const itk::Object *caller,
-                             const itk::EventObject & event) {
-            const T* realCaller = dynamic_cast<const T*>(caller);
+        virtual void Execute(Object *caller, const EventObject & event) {
+            T* realCaller = dynamic_cast<T*>(caller);
             if (realCaller == NULL) {
                 return;
             }
             cout << realCaller->GetCurrentIteration() << ": " << realCaller->GetCurrentPosition() << endl;
         }
+
+        virtual void Execute(const Object *caller, const EventObject & event) {
+
+        }
+
 
     protected:
         OptimizerProgress() {}
@@ -50,6 +49,7 @@ namespace pi {
         OptimizerProgress(const Self &);        //purposely not implemented
         void operator=(const Self &); //purposely not implemented
     };
+
 
     PatchTracking::PatchTracking() {
         
@@ -120,25 +120,25 @@ namespace pi {
 
         _costFunc = CostFunctionType::New();
         _costFunc->SetFixedImage(_patches[0]);
-        _costFunc->SetFixedImageRegion(_patchRegion[0]);
+        _costFunc->SetFixedInterpolator(LinearImageInterpolatorType::New());
         _costFunc->SetMovingImage(_images[1]);
-        _costFunc->UseAllPixelsOn();
-
-        _costFunc->SetTransform(dynamic_cast<CostFunctionType::TransformType*>(_transform.GetPointer()));
-        _costFunc->SetInterpolator(LinearImageInterpolatorType::New());
+        _costFunc->SetMovingInterpolator(LinearImageInterpolatorType::New());
+        _costFunc->SetMovingTransform(_transform);
+        _costFunc->SetParameters(initialParams);
+        setupMetric(_costFunc);
         _costFunc->Initialize();
-
 
         OptimizerType::ScalesType scales;
         scales.SetSize(initialParams.Size());
         scales.Fill(1);
 
+
         OptimizerProgress<OptimizerType>::Pointer progress = OptimizerProgress<OptimizerType>::New();
 
         _optimizer = OptimizerType::New();
-        _optimizer->SetCostFunction(_costFunc);
-        _optimizer->SetInitialPosition(initialParams);
         _optimizer->SetScales(scales);
+        _optimizer->SetScalesEstimator(_estimator);
+        _optimizer->SetMetric(_costFunc);
 //        _optimizer->AddObserver(itk::IterationEvent(), progress);
 
         setupOptimizer(_optimizer);
@@ -181,18 +181,34 @@ namespace pi {
 
     }
 
-    void PatchTracking::setupOptimizer(RegularStepGradientDescentOptimizer* opti) {
-        RealImage::SpacingType spacing = _images[0]->GetSpacing();
+    void PatchTracking::setupMetric(itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage> *metric) {
+    }
+    
+    void PatchTracking::setupMetric(itk::EntropyImageToImageMetricv4<RealImage, RealImage> *metric) {
+    }
+    
+    void PatchTracking::setupMetric(itk::MattesMutualInformationImageToImageMetricv4<RealImage, RealImage> *metric) {
+        metric->SetNumberOfHistogramBins(32);
+    }
 
-        opti->SetMinimumStepLength(spacing[0]*0.1);
-        opti->SetMaximumStepLength(spacing[0]);
-        opti->SetNumberOfIterations(100);
-        opti->SetRelaxationFactor(0.5);
+    void PatchTracking::setupTransform(itk::BSplineTransform<double,2,4>* transform) {
+        
+    }
+
+    void PatchTracking::setupOptimizer(GradientDescentOptimizerv4* opti) {
+        RealImage::SpacingType spacing = _images[0]->GetSpacing();
+        opti->SetMaximumStepSizeInPhysicalUnits(spacing[0]*3);
     }
 
     void PatchTracking::setupOptimizer(FRPROptimizer* opti) {
         RealImage::SpacingType spacing = _images[0]->GetSpacing();
 
         opti->SetStepLength(spacing[0]*0.1);
+    }
+
+    void PatchTracking::setupOptimizer(itk::QuasiNewtonOptimizerv4* opti) {
+        _estimator = ScaleEstimatorType::New();
+        _estimator->SetMetric(_costFunc);
+        opti->SetScalesEstimator(_estimator);
     }
 }

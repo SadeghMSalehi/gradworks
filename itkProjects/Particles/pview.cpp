@@ -49,11 +49,13 @@ int main(int argc, char* argv[]) {
         { 7, "--range", SO_REQ_SEP },
         { 8, "--pasteSlice", SO_NONE },
         { 9, "--pasteLabel", SO_NONE },
+        { 14, "--rigidRegister", SO_NONE },
         // non-image command
         { 11, "-test", SO_NONE },
         { 10, "--fitTest", SO_NONE },
         { 12, "--bsplineBasisTest", SO_NONE },
         { 13, "--contourTest", SO_NONE },
+        { 15, "--threadTest", SO_NONE },
         SO_END_OF_OPTIONS
     };
 

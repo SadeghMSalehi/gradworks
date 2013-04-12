@@ -66,7 +66,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
-SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp piPatchTracking.h piPatchTracking.cpp)
+SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp )
 
 SET (PI_LIBS_SOURCE itkImageIO.h piTimer.h piTimer.cpp piImageProcessing.cpp piImageProcessing.h piImageDef.h piOptions.h piOptions.cpp piVTK.cpp piVTK.h)
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)
@@ -110,10 +110,11 @@ IF (${BUILD_PEVAL})
 ENDIF(${BUILD_PEVAL})
 
 IF (${BUILD_GUI})
-	ADD_EXECUTABLE(psim simul2main.cpp piSimul2.cpp piSimul2.h piImageSlice.h piImageSlice.cpp
-        qutils.h qutils.cpp
-        itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsImageItem.h QGraphicsImageItem.cpp
-        ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS} ${QT_PSIM2_RCC})
+	ADD_EXECUTABLE(psim simul2main.cpp piSimul2.cpp piSimul2.h piImageDef.h piImageIO.h piImageSlice.h piImageSlice.cpp piImagePatch.h piImagePatch.cpp piPatchTracking.h piPatchTracking.cpp piImageEntropyComputer.h piImageEntropyComputer.cpp ${MY_PARTICLE_WORKS_SOURCES} qutils.h qutils.cpp
+        itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsImageItem.h QGraphicsImageItem.cpp QGraphicsPatchItem.h QGraphicsPatchItem.cpp
+        ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES}  ${MY_Qt_EXTENSIONS}
+                itkEntropyImageToImageMetricv4.h itkEntropyImageToImageMetricv4.hxx itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.h itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.hxx itkEntropyImageToImageMetricv4HelperThreader.h itkEntropyImageToImageMetricv4HelperThreader.hxx 
+        ${QT_PSIM2_RCC})
 	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=3")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 

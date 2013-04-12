@@ -152,6 +152,12 @@ namespace pi {
             return NewImageT(size);
 		}
 
+        ImagePointer NewImage(ImagePointer ref) {
+            ImagePointer output = CopyImage(ref);
+            output->FillBuffer(0);
+            return output;
+        }
+
         ImagePointer WrapImage(typename T::PixelType* imagePointer, int *size) {
             int nElems = 1;
             typename T::PixelContainer::Pointer importer = T::PixelContainer::New();
@@ -499,14 +505,14 @@ namespace pi {
             return transformList->front();
         }
         
-        void WriteSingleTransform(char* fileName, typename TransformType::Pointer transform) {
+        void WriteSingleTransform(const char* fileName, TransformType* transform) {
             typename TransformFileWriter::Pointer writer = TransformFileWriter::New();
             writer->SetFileName(fileName);
             writer->AddTransform(transform);
             writer->Update();
         }
         
-        void WriteMultipleTransform(char* fileName, typename TransformFileWriter::ConstTransformListType transformList) {
+        void WriteMultipleTransform(const char* fileName, typename TransformFileWriter::ConstTransformListType transformList) {
             typename TransformFileWriter::Pointer writer = TransformFileWriter::New();
             writer->SetFileName(fileName);
             typename TransformFileWriter::ConstTransformListType::iterator transformIter = transformList.begin();

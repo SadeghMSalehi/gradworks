@@ -53,7 +53,7 @@
          </brush>
         </property>
         <property name="renderHints">
-         <set>QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
+         <set>QPainter::Antialiasing|QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
         </property>
        </widget>
        <widget class="myQGraphicsView" name="graphicsView2">
@@ -79,7 +79,7 @@
          </brush>
         </property>
         <property name="renderHints">
-         <set>QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
+         <set>QPainter::Antialiasing|QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
         </property>
        </widget>
       </widget>
@@ -156,6 +156,7 @@
    <addaction name="actionShowWarped"/>
    <addaction name="actionPrint"/>
    <addaction name="actionShowParticles"/>
+   <addaction name="actionTest"/>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">

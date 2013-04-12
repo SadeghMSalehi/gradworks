@@ -12,16 +12,21 @@
 #include <iostream>
 #include <itkCenteredRigid2DTransform.h>
 #include <itkTranslationTransform.h>
-#include <itkNormalizedCorrelationImageToImageMetric.h>
-#include <itkMeanSquaresImageToImageMetric.h>
-#include <itkRegularStepGradientDescentOptimizer.h>
-#include <itkLBFGSBOptimizer.h>
+#include <itkBSplineTransform.h>
+#include <itkMeanSquaresImageToImageMetricv4.h>
+#include <itkMattesMutualInformationImageToImageMetricv4.h>
+#include "itkEntropyImageToImageMetricv4.h"
+#include <itkGradientDescentOptimizerv4.h>
+#include <itkQuasiNewtonOptimizerv4.h>
+#include <itkRegistrationParameterScalesFromIndexShift.h>
 #include <itkFRPROptimizer.h>
 #include <QPolygonF>
 
 #include "piImageDef.h"
 
 namespace pi {
+
+
     class PatchTracking {
     public:
         PatchTracking();
@@ -45,8 +50,16 @@ namespace pi {
     private:
         void extractPatch(int i, bool newPatch = true);
         void transformPatchRegion();
-        void setupOptimizer(itk::RegularStepGradientDescentOptimizer* opti);
+        void setupOptimizer(itk::GradientDescentOptimizerv4* opti);
+        void setupOptimizer(itk::QuasiNewtonOptimizerv4* opti);
         void setupOptimizer(itk::FRPROptimizer* opti);
+
+        void setupMetric(itk::MattesMutualInformationImageToImageMetricv4<RealImage, RealImage>* metric);
+        void setupMetric(itk::EntropyImageToImageMetricv4<RealImage, RealImage>* metric);
+        void setupMetric(itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage>* metric);
+
+
+        void setupTransform(itk::BSplineTransform<double,2,4>* transform);
 
     private:
         RealImage::Pointer _images[2];
@@ -56,15 +69,19 @@ namespace pi {
 
         typedef itk::TranslationTransform<double,2> TransformType;
 //        typedef itk::Rigid2DTransform<double> TransformType;
+//        typedef itk::BSplineTransform<double,2,4> TransformType;
         TransformType::Pointer _transform;
 
-        typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
+        typedef itk::GradientDescentOptimizerv4 OptimizerType;
         OptimizerType::Pointer _optimizer;
 
-        typedef itk::NormalizedCorrelationImageToImageMetric<RealImage, RealImage> CostFunctionType;
+        typedef itk::MattesMutualInformationImageToImageMetricv4<RealImage, RealImage> CostFunctionType;
         CostFunctionType::Pointer _costFunc;
 
         typedef OptimizerType::ParametersType ParametersType;
+
+        typedef itk::RegistrationParameterScalesFromIndexShift<CostFunctionType> ScaleEstimatorType;
+        ScaleEstimatorType::Pointer _estimator;
     };
 }
 #endif /* defined(__ParticleGuidedRegistration__piPatchTracking__) */

@@ -10,98 +10,108 @@
 #define __ParticleGuidedRegistration__QGraphicsImageItem__
 
 #include <iostream>
-#include <itkRGBAPixel.h>
 #include <itkImage.h>
 #include <qgraphicsitem.h>
 
 #include "piImageHistogram.h"
-#include "itkScalarToARGBColormapImageFilter.h"
+
+
+extern unsigned int __grays[256];
 
 template <class T>
 class QGraphicsImageItem: public QGraphicsPixmapItem {
 public:
-    enum { ImageDimension = T::ImageDimension };
     enum Flags { NoFlip, LeftRight, UpDown };
-    typedef typename T::Pointer ImagePointer;
-    typedef typename T::PixelType ImagePixel;
-    typedef itk::RGBAPixel<unsigned char> ColorPixel;
-    typedef itk::Image<ColorPixel, ImageDimension> ColorImage;
-    typedef typename ColorImage::Pointer ColorImagePointer;
-    typedef itk::ScalarToARGBColormapImageFilter<T, ColorImage> ColorFilter;
-    typedef pi::ImageHistogram<T> HistogramType;
 
     QGraphicsImageItem(QGraphicsItem* parent = NULL): QGraphicsPixmapItem(parent) {
+        _range[0] = 0;
+        _range[1] = 255;
     }
     virtual ~QGraphicsImageItem() {}
 
-    void setImage(ImagePointer image);
-    void setImage(ImagePointer image, ImagePixel min, ImagePixel max);
-    void setIntensityRange(ImagePixel min, ImagePixel max);
+    T getRange(int i);
+    void setRange(T min, T max);
     void setFlip(Flags flags);
     void refresh();
-    HistogramType& histogram();
+
+    void setImage(T* inputBuffer, int w, int h);
+    template <class S> void setImage(typename S::Pointer image, bool computeRange = false);
+    static void convertToGrayscale(T*, double, double, QImage&);
 
 private:
-    ImagePointer _image;
-    ColorImagePointer _colorImage;
-    HistogramType _histogram;
-    int _width;
-    int _height;
-
-    void computeSize();
+    T* _inputBuffer;
+    T _range[2];
+    QImage _grayImage;
 };
 
 template <class T>
-typename QGraphicsImageItem<T>::HistogramType& QGraphicsImageItem<T>::histogram() {
-    return _histogram;
+void QGraphicsImageItem<T>::setImage(T* inputBuffer, int w, int h) {
+    _inputBuffer = inputBuffer;
+    if (w != _grayImage.width() || h != _grayImage.height()) {
+        _grayImage = QImage(w, h, QImage::Format_Indexed8);
+        _grayImage.setColorCount(256);
+        for (int i = 0; i < 256; i++) {
+            _grayImage.setColor(i, __grays[i]);
+        }
+    }
+    refresh();
 }
 
-template <class T>
-void QGraphicsImageItem<T>::setImage(ImagePointer image) {
-    if (image.IsNull()) {
-        _image = image;
-        _width = 0;
-        _height = 0;
-        setPixmap(QPixmap());
+
+template <class T> template <class S>
+void QGraphicsImageItem<T>::setImage(typename S::Pointer image, bool computeRange) {
+    typename S::SizeType sz = image->GetBufferedRegion().GetSize();
+    int w = 0;
+    int h = 0;
+    if (S::ImageDimension == 2) {
+        w = sz[0];
+        h = sz[1];
+    } else {
+        for (int i = 0; i < S::ImageDimension; i++) {
+            if (sz[i] > 1 && w == 0) {
+                w = sz[i];
+            } else {
+                h = sz[i];
+                break;
+            }
+        }
+    }
+    if (w == 0 && h == 0) {
         return;
     }
-    _image = image;
-    _histogram.SetImage(image);
-    computeSize();
-}
-
-template <class T>
-void QGraphicsImageItem<T>::setImage(ImagePointer image, ImagePixel min, ImagePixel max) {
-    if (image.IsNull()) {
-        _image = image;
-        _width = 0;
-        _height = 0;
-        setPixmap(QPixmap());
-        return;
+    if (computeRange) {
+        const int nelems = w * h;
+        T* buff = image->GetBufferPointer();
+        _range[0] = _range[1] = *buff;
+        for (int i = 1; i < nelems; i++, buff++) {
+            _range[0] = std::min(*buff, _range[0]);
+            _range[1] = std::max(*buff, _range[1]);
+        }
     }
-    _image = image;
-    _histogram.SetImage(image, false);
-    _histogram.dataMin = _histogram.rangeMin = min;
-    _histogram.dataMax = _histogram.rangeMax = max;
-    computeSize();
+    setImage(image->GetBufferPointer(), w, h);
+}
+
+template <class T>
+T QGraphicsImageItem<T>::getRange(int i) {
+    return _range[i];
 }
 
 
 template <class T>
-void QGraphicsImageItem<T>::setIntensityRange(ImagePixel min, ImagePixel max) {
-    _histogram.rangeMin = min;
-    _histogram.rangeMax = max;
+void QGraphicsImageItem<T>::setRange(T min, T max) {
+    _range[0] = min;
+    _range[1] = max;
 }
 
 template <class T>
 void QGraphicsImageItem<T>::setFlip(Flags flags) {
     if (flags == LeftRight) {
         QTransform transform;
-        transform.setMatrix(-1, 0, 0, 0, 1, 0, _width, 0, 1);
+        transform.setMatrix(-1, 0, 0, 0, 1, 0, _grayImage.width(), 0, 1);
         this->setTransform(transform);
     } else if (flags == UpDown) {
         QTransform transform;
-        transform.setMatrix(1, 0, 0, 0, -1, 0, 0, _height, 1);
+        transform.setMatrix(1, 0, 0, 0, -1, 0, 0, _grayImage.height(), 1);
         this->setTransform(transform);
     } else {
         QTransform transform;
@@ -112,31 +122,28 @@ void QGraphicsImageItem<T>::setFlip(Flags flags) {
 
 template <class T>
 void QGraphicsImageItem<T>::refresh() {
-    typename ColorFilter::Pointer filter = ColorFilter::New();
-    filter->SetInput(_image);
-    filter->UseManualScalingOn();
-    filter->SetMinimumValue(_histogram.dataMin);
-    filter->SetMaximumValue(_histogram.dataMax);
-    filter->Update();
-    _colorImage = filter->GetOutput();
-    _colorImage->DisconnectPipeline();
+    if (_inputBuffer == NULL) {
+        return;
+    }
 
-    QPixmap pixmap = QPixmap::fromImage(QImage((unsigned char*) _colorImage->GetBufferPointer(), _width, _height, QImage::Format_ARGB32));
+    const float pixelRange = _range[1] - _range[0];
+    const float pixelMin = _range[0];
+    convertToGrayscale(_inputBuffer, pixelMin, pixelRange, _grayImage);
+
+    QPixmap pixmap = QPixmap::fromImage(_grayImage);
     setPixmap(pixmap);
 }
 
 template <class T>
-void QGraphicsImageItem<T>::computeSize() {
-    typename T::RegionType region = _image->GetBufferedRegion();
-    if (region.GetSize(2) < 2 || ImageDimension == 2) {
-        _width = region.GetSize(0);
-        _height = region.GetSize(1);
-    } else if (region.GetSize(1) < 2) {
-        _width = region.GetSize(0);
-        _height = region.GetSize(2);
-    } else if (region.GetSize(0) < 2) {
-        _width = region.GetSize(1);
-        _height = region.GetSize(2);
+void QGraphicsImageItem<T>::convertToGrayscale(T* inputBuffer,
+                                               const double min, const double range, QImage& outputImage) {
+    const int width = outputImage.width();
+    for (int i = 0; i < outputImage.height(); i++) {
+        uchar* outputBuffer = outputImage.scanLine(i);
+        for (int j = 0; j < width; j++, outputBuffer++, inputBuffer++) {
+            *outputBuffer = uchar(256u * (*inputBuffer-min)/(range));
+        }
     }
 }
+
 #endif /* defined(__ParticleGuidedRegistration__QGraphicsImageItem__) */

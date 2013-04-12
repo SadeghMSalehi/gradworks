@@ -1,3 +1,4 @@
+#include "piImageIO.h"
 #include "piParticleCore.h"
 #include "piParticleBSpline.h"
 #include "piParticleSystemSolver.h"
@@ -17,8 +18,8 @@ int dstIdx = 0;
 #define PRINT_IDX() cout << "using src: " << srcIdx << ", dst: " << dstIdx << endl
 
 
-itkcmds::itkImageIO<RealImage> realIO;
-itkcmds::itkImageIO<LabelImage> labelIO;
+ImageIO<RealImage> realIO;
+ImageIO<LabelImage> labelIO;
 
 void zeroCrossing(Options& parser, StringVector& args) {
     if (args.size() < 2) {
@@ -30,9 +31,9 @@ void zeroCrossing(Options& parser, StringVector& args) {
 
 
     ImageProcessing proc;
-    LabelImage::Pointer label = labelIO.ReadImageT(args[0].c_str());
+    LabelImage::Pointer label = labelIO.ReadImage(args[0].c_str());
     LabelImage::Pointer zeroCross = proc.ZeroCrossing(label);
-    labelIO.WriteImageT(args[1].c_str(), zeroCross);
+    labelIO.WriteImage(args[1].c_str(), zeroCross);
     
     return;
 }
@@ -45,7 +46,7 @@ void computeHistogram(Options& parser, StringVector& args) {
     parser.GetIntTo("--nbin", nbin);
     parser.GetIntTo("--rmin", rmin);
     parser.GetIntTo("--rmax", rmax);
-    cout << proc.ComputeHistogramToString(realIO.ReadImageT(args[0].c_str()), nbin, rmin, rmax) << endl;
+    cout << proc.ComputeHistogramToString(realIO.ReadImage(args[0].c_str()), nbin, rmin, rmax) << endl;
     return;
 }
 
@@ -192,15 +193,15 @@ int main(int argc, char* argv[]) {
         bool doingSomething = false;
         if (label != "") {
 			// write image
-			itkcmds::itkImageIO<LabelImage> io;
-            LabelImage::Pointer outputImage = particleTransform.WarpLabel(io.ReadImageT(label.c_str()));
-			io.WriteImageT(output.c_str(), outputImage);
+			ImageIO<LabelImage> io;
+            LabelImage::Pointer outputImage = particleTransform.WarpLabel(io.ReadImage(label.c_str()));
+			io.WriteImage(output.c_str(), outputImage);
             doingSomething = true;
         }
         if (input != "") {
-			itkcmds::itkImageIO<RealImage> io;
-        	RealImage::Pointer outputImage = particleTransform.WarpImage(io.ReadImageT(input.c_str()));
-        	io.WriteImageT(output.c_str(), outputImage);
+			ImageIO<RealImage> io;
+        	RealImage::Pointer outputImage = particleTransform.WarpImage(io.ReadImage(input.c_str()));
+        	io.WriteImage(output.c_str(), outputImage);
             doingSomething = true;
         }
         if (!doingSomething) {
@@ -230,19 +231,19 @@ int main(int argc, char* argv[]) {
             RealImage::Pointer refImage;
             // warp from srcidx to dstidx
             if (refImageName != "") {
-                refImage = realIO.ReadImageT(refImageName.c_str());
+                refImage = realIO.ReadImage(refImageName.c_str());
             }
-            RealImage::Pointer output = warp_image<RealImage>(system[dstIdx], system[srcIdx], realIO.ReadImageT(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
-            realIO.WriteImageT(outputName.c_str(), output);
+            RealImage::Pointer output = warp_image<RealImage>(system[dstIdx], system[srcIdx], realIO.ReadImage(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
+            realIO.WriteImage(outputName.c_str(), output);
         }
         if (inputLabel != "") {
             LabelImage::Pointer refImage;
             // warp from srcidx to dstidx
             if (refImageName != "") {
-                refImage = labelIO.ReadImageT(refImageName.c_str());
+                refImage = labelIO.ReadImage(refImageName.c_str());
             }
-            LabelImage::Pointer output = warp_image<LabelImage>(system[dstIdx], system[srcIdx], labelIO.ReadImageT(inputLabel.c_str()), refImage, true, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
-            labelIO.WriteImageT(outputName.c_str(), output);
+            LabelImage::Pointer output = warp_image<LabelImage>(system[dstIdx], system[srcIdx], labelIO.ReadImage(inputLabel.c_str()), refImage, true, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
+            labelIO.WriteImage(outputName.c_str(), output);
         }
     } else if (parser.GetBool("--meanwarp")) {
         if (args.size() < 2) {
@@ -270,19 +271,19 @@ int main(int argc, char* argv[]) {
             RealImage::Pointer refImage;
             // warp from srcidx to dstidx
             if (refImageName != "") {
-                refImage = realIO.ReadImageT(refImageName.c_str());
+                refImage = realIO.ReadImage(refImageName.c_str());
             }
-            RealImage::Pointer output = warp_image<RealImage>(meanSubj, system[srcIdx], realIO.ReadImageT(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
-            realIO.WriteImageT(outputName.c_str(), output);
+            RealImage::Pointer output = warp_image<RealImage>(meanSubj, system[srcIdx], realIO.ReadImage(inputImage.c_str()), refImage, false, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
+            realIO.WriteImage(outputName.c_str(), output);
         }
         if (inputLabel != "") {
             LabelImage::Pointer refImage;
             // warp from srcidx to dstidx
             if (refImageName != "") {
-                refImage = labelIO.ReadImageT(refImageName.c_str());
+                refImage = labelIO.ReadImage(refImageName.c_str());
             }
-            LabelImage::Pointer output = warp_image<LabelImage>(meanSubj, system[srcIdx], labelIO.ReadImageT(inputLabel.c_str()), refImage, true, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
-            labelIO.WriteImageT(outputName.c_str(), output);
+            LabelImage::Pointer output = warp_image<LabelImage>(meanSubj, system[srcIdx], labelIO.ReadImage(inputLabel.c_str()), refImage, true, parser.GetBool("--norigidalign"), parser.GetBool("--onlyrigidalign"));
+            labelIO.WriteImage(outputName.c_str(), output);
         }
 
     } else if (parser.GetBool("--markTrace")) {
@@ -299,9 +300,9 @@ int main(int argc, char* argv[]) {
         int srcIdx = atoi(parser.GetString("--srcidx", "-1").c_str());
         int srcSubj = atoi(parser.GetString("--srcsubj", "-1").c_str());
         
-        itkcmds::itkImageIO<LabelImage> io;
-        LabelImage::Pointer ref = io.ReadImageT(args[1].c_str());
-        LabelImage::Pointer canvas = io.NewImageT(ref);
+        ImageIO<LabelImage> io;
+        LabelImage::Pointer ref = io.ReadImage(args[1].c_str());
+        LabelImage::Pointer canvas = io.NewImage(ref);
         for (int i = 0; i < trace.system.size(); i++) {
             if (srcSubj == -1 || srcSubj == i) {
                 for (int j = 0; j < trace.system[i].timeSeries.size(); j++) {
@@ -323,11 +324,11 @@ int main(int argc, char* argv[]) {
             cout << "--markOutput requires [output.txt] [output-image]" << endl;
         }
         solver.LoadConfig(args[0].c_str());
-        LabelImage::Pointer label = labelIO.NewImageT(solver.m_ImageContext.GetLabel(srcIdx));
+        LabelImage::Pointer label = labelIO.NewImage(solver.m_ImageContext.GetLabel(srcIdx));
         int nPoints = system[srcIdx].GetNumberOfPoints();
         cout << "Marking " << nPoints << " points ..." << endl;
         MarkAtImage(system[srcIdx], system[srcIdx].GetNumberOfPoints(), label, 1);
-        labelIO.WriteImageT(args[1].c_str(), label);
+        labelIO.WriteImage(args[1].c_str(), label);
     } else if (parser.GetBool("--showpoints")) {
         if (args.size() < 1) {
             cout << "--showpoints requires [output.txt]" << endl;
@@ -346,42 +347,42 @@ int main(int argc, char* argv[]) {
             cout << "--normalize requires [input-image] [mask-image] [output-image]" << endl;
             return 0;
         }
-        itkcmds::itkImageIO<RealImage> iod;
-        itkcmds::itkImageIO<LabelImage> iol;
+        ImageIO<RealImage> iod;
+        ImageIO<LabelImage> iol;
         
-        RealImage::Pointer input = iod.ReadImageT(args[0].c_str());
-        LabelImage::Pointer label = iol.ReadImageT(args[1].c_str());
+        RealImage::Pointer input = iod.ReadImage(args[0].c_str());
+        LabelImage::Pointer label = iol.ReadImage(args[1].c_str());
         
         ImageProcessing proc;
         RealImage::Pointer output = proc.NormalizeIntensity(input, label);
         
-        iod.WriteImageT(args[2].c_str(), output);
+        iod.WriteImage(args[2].c_str(), output);
     } else if (parser.GetBool("--magnitude")) {
         if (args.size() < 2) {
             cout << "--magnitude requires [input-vector-image] [output-float-image]" << endl;
             return 0;
         }
-        itkcmds::itkImageIO<VectorImage> vio;
-        itkcmds::itkImageIO<RealImage> rio;
+        ImageIO<VectorImage> vio;
+        ImageIO<RealImage> rio;
 
-        VectorImage::Pointer input = vio.ReadImageT(args[0].c_str());
+        VectorImage::Pointer input = vio.ReadImage(args[0].c_str());
         ImageProcessing proc;
         RealImage::Pointer output = proc.ComputeMagnitudeMap(input);
-        rio.WriteImageT(args[1].c_str(), output);
+        rio.WriteImage(args[1].c_str(), output);
     } else if (parser.GetBool("--rescaletoshort")) {
         if (args.size() < 2) {
             cout << "--rescaletoshort requires [input-real-image] [output-short-image] [output-min] [output-max] (--mask mask-input)" << endl;
             return 0;
         }
-        itkcmds::itkImageIO<RealImage> rio;
-        itkcmds::itkImageIO<LabelImage> lio;
+        ImageIO<RealImage> rio;
+        ImageIO<LabelImage> lio;
 
 
         string maskInput;
         parser.GetStringTo("--mask", maskInput);
         LabelImage::Pointer mask;
         if (maskInput != "") {
-            mask = lio.ReadImageT(maskInput.c_str());
+            mask = lio.ReadImage(maskInput.c_str());
         }
 
         LabelPixel outMax = 10000;
@@ -392,32 +393,32 @@ int main(int argc, char* argv[]) {
         if (args.size() > 3) {
             outMax = atoi(args[3].c_str());
         }
-        RealImage::Pointer input = rio.ReadImageT(args[0].c_str());
+        RealImage::Pointer input = rio.ReadImage(args[0].c_str());
         ImageProcessing proc;
         LabelImage::Pointer output = proc.NormalizeToIntegralType(input, outMin, outMax, mask);
-        lio.WriteImageT(args[1].c_str(), output);
+        lio.WriteImage(args[1].c_str(), output);
     } else if (parser.GetBool("--distancemap")) {
         if (args.size() < 2) {
             cout << "--distancemap requires [input-label-image] [output-vector-image]" << endl;
             return 0;
         }
-        itkcmds::itkImageIO<LabelImage> lio;
-        itkcmds::itkImageIO<VectorImage> vio;
+        ImageIO<LabelImage> lio;
+        ImageIO<VectorImage> vio;
 
-        LabelImage::Pointer input = lio.ReadImageT(args[0].c_str());
+        LabelImage::Pointer input = lio.ReadImage(args[0].c_str());
         ImageProcessing proc;
         VectorImage::Pointer output = proc.ComputeDistanceMap(input);
-        vio.WriteImageT(args[1].c_str(), output);
+        vio.WriteImage(args[1].c_str(), output);
     } else if (parser.GetBool("--createmask")) {
         if (args.size() < 2) {
             cout << "--createmask requires [input-label-image] [input-label-image]" << endl;
             return 0;
         }
-        itkcmds::itkImageIO<LabelImage> lio;
-        LabelImage::Pointer input = lio.ReadImageT(args[0].c_str());
+        ImageIO<LabelImage> lio;
+        LabelImage::Pointer input = lio.ReadImage(args[0].c_str());
         ImageProcessing proc;
         LabelImage::Pointer output = proc.ThresholdToBinary(input);
-        lio.WriteImageT(args[1].c_str(), output);
+        lio.WriteImage(args[1].c_str(), output);
     } else if (parser.GetBool("--transform")) {
 //        string realInput, labelInput;
 //        parser.GetStringTo("--inputimage", realInput);
@@ -425,14 +426,14 @@ int main(int argc, char* argv[]) {
 //        string transform;
 //        ImageProcessing proc;
 //        if (realInput != "") {
-//            itkcmds::itkImageIO<RealImage> io;
-//            RealImage::Pointer output = proc.TransformImage<RealImage>(io.ReadImageT(realInput.c_str()));
-//            io.WriteImageT(args[0].c_str(), output);
+//            ImageIO<RealImage> io;
+//            RealImage::Pointer output = proc.TransformImage<RealImage>(io.ReadImage(realInput.c_str()));
+//            io.WriteImage(args[0].c_str(), output);
 //        }
 //        if (labelInput != "") {
-//            itkcmds::itkImageIO<LabelImage> io;
-//            LabelImage::Pointer output = proc.TransformImage<LabelImage>(io.ReadImageT(labelInput.c_str()));
-//            io.WriteImageT(args[0].c_str(), output);
+//            ImageIO<LabelImage> io;
+//            LabelImage::Pointer output = proc.TransformImage<LabelImage>(io.ReadImage(labelInput.c_str()));
+//            io.WriteImage(args[0].c_str(), output);
 //        }
     } else if (parser.GetBool("--align")) {
         // we align #1 to #0
@@ -456,7 +457,7 @@ int main(int argc, char* argv[]) {
             return 0;
         }
         AtlasSimilarityScore score;
-        score.Compute(labelIO.ReadImageT(args[0].c_str()), labelIO.ReadImageT(args[1].c_str()));
+        score.Compute(labelIO.ReadImage(args[0].c_str()), labelIO.ReadImage(args[1].c_str()));
         cout << score << endl;
         return 0; 
     } else if (parser.GetBool("--histo")) {
@@ -471,9 +472,9 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        LabelImage::Pointer img = labelIO.ReadImageT(args[0].c_str());
+        LabelImage::Pointer img = labelIO.ReadImage(args[0].c_str());
         RemoveBoundary(img, parser.GetStringAsInt("--size", 0));
-        labelIO.WriteImageT(args[1].c_str(), img);
+        labelIO.WriteImage(args[1].c_str(), img);
 
     } else {
         if (args.size() < 2) {
@@ -508,29 +509,29 @@ int main(int argc, char* argv[]) {
         // final point location marking onto image
         StringVector& markingImages = solver.m_Options.GetStringVector("FinalMarking:");
         if (markingImages.size() > 0) {
-            itkcmds::itkImageIO<LabelImage> io;
+            ImageIO<LabelImage> io;
 
             for (int i = 0; i < markingImages.size(); i++) {
                 LabelImage::Pointer label = solver.m_ImageContext.GetLabel(i);
-                LabelImage::Pointer canvas = io.NewImageT(label);
+                LabelImage::Pointer canvas = io.NewImage(label);
                 ParticleArray& data = system[i].m_Particles;
                 MarkAtImage<ParticleArray>(data, data.size(), canvas, 1);
-                io.WriteImageT(markingImages[i].c_str(), canvas);
+                io.WriteImage(markingImages[i].c_str(), canvas);
             }
         }
 
         StringVector& warpedLabels = solver.m_Options.GetStringVector("OutputLabelToFirst:");
         if (warpedLabels.size() > 0) {
-            itkcmds::itkImageIO<LabelImage> io;
+            ImageIO<LabelImage> io;
             StringVector& labelImages = solver.m_Options.GetStringVector("LabelImages:");
             if (warpedLabels.size() != labelImages.size()) {
                 cout << "OutputLabelToFirst: and LabeImages: size are different" << endl;
             } else {
                 for (int i = 1; i < warpedLabels.size(); i++) {
-                    LabelImage::Pointer label = io.ReadImageT(labelImages[i].c_str());
+                    LabelImage::Pointer label = io.ReadImage(labelImages[i].c_str());
                     // bspline resampling
                     LabelImage::Pointer output = warp_image<LabelImage>(system[0], system[i], label, label, true, false, false);
-                    io.WriteImageT(warpedLabels[i].c_str(), output);
+                    io.WriteImage(warpedLabels[i].c_str(), output);
                 }
             }
         }

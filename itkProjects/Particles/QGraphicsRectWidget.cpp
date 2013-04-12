@@ -81,10 +81,13 @@ void QGraphicsRectWidget::mouseMoveEvent(QGraphicsSceneMouseEvent *e) {
     QPointF pos = mapToScene(e->pos());
     QPoint newPos(pos.x()-_startingPos.x()+.5, pos.y()-_startingPos.y()+.5);
     setPos(newPos);
-    emit widgetMoved(pos);
 }
 
 void QGraphicsRectWidget::mouseReleaseEvent(QGraphicsSceneMouseEvent *e) {
+    QPointF pos = mapToScene(e->pos());
+    QPoint newPos(pos.x()-_startingPos.x()+.5, pos.y()-_startingPos.y()+.5);
+    setPos(newPos);
+    emit widgetMoved(pos);
 //    QPointF pos = e->pos();
 //    cout << pos.x() << "," << pos.y() << endl;
 }

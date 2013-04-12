@@ -20,6 +20,7 @@ namespace piq {
         TestModule(QObject* parent = NULL);
         virtual ~TestModule();
 
+        void ThreadTest();
         void ContourTest();
         void BSplineTest();
         void BSplineBasisTest();

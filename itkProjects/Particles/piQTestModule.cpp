@@ -12,17 +12,75 @@
 #include "piBSplineBasis.h"
 #include "piContourSystem.h"
 #include "piImageIO.h"
+#include <itkDomainThreader.h>
+#include <itkThreadedImageRegionPartitioner.h>
+#include <itkImageRegionConstIterator.h>
 
 using namespace std;
 using namespace pi;
+using namespace itk;
 
 namespace piq {
+    class DomainCounter {
+    public:
+        
+    };
+
+    class DomainCounterThreader: public DomainThreader<ThreadedImageRegionPartitioner<3>, DomainCounter> {
+    public:
+        typedef DomainCounterThreader Self;
+        typedef DomainThreader Superclass;
+        typedef SmartPointer<Self> Pointer;
+        typedef SmartPointer<const Self> ConstPointer;
+        typedef Superclass::DomainType DomainType;
+
+        itkNewMacro(DomainCounterThreader);
+        itkTypeMacro(DomainCounterThreader, DomainThreader);
+
+    protected:
+        DomainCounterThreader() {}
+        virtual ~DomainCounterThreader() {}
+        void BeforeThreadedExecution() {
+            cout << "Before Execution" << endl;
+        }
+        void ThreadedExecution(const DomainType& subDomain, const ThreadIdType threadId) {
+            cout << threadId << endl;
+        }
+        void AfterThreadedExecution() {
+            cout << "After Execution" << endl;
+        }
+
+    private:
+        DomainCounterThreader(const DomainCounterThreader&);
+        void operator=(const DomainCounterThreader&);
+    };
+
     TestModule::TestModule(QObject* parent): QObject(parent) {
 
     }
 
     TestModule::~TestModule() {
         
+    }
+
+    void TestModule::ThreadTest() {
+        typedef ThreadedImageRegionPartitioner<3> PartitionType;
+        PartitionType::Pointer part = PartitionType::New();
+        PartitionType::DomainType region;
+        for (int i = 0; i < 3; i++) {
+            region.SetIndex(i, 0);
+            region.SetSize(i, 100);
+        }
+
+        PartitionType::DomainType subRegion;
+        for (int i = 0; i < 10; i++) {
+            part->PartitionDomain(i, 10, region, subRegion);
+//            cout << (i+1) << "/10:" << subRegion << endl;
+        }
+
+        DomainCounterThreader::Pointer domainCounter = DomainCounterThreader::New();
+        domainCounter->SetMaximumNumberOfThreads(2);
+        domainCounter->Execute(NULL, region);
     }
 
     void TestModule::ContourTest() {
@@ -111,6 +169,8 @@ namespace piq {
             BSplineTest();
         } else if (opts->GetBool("--contourTest")) {
             ContourTest();
+        } else if (opts->GetBool("--threadTest")) {
+            ThreadTest();
         }
     }
 }
