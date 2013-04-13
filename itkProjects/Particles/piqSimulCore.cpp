@@ -17,6 +17,7 @@
 #include "piParticleSystemSolver.h"
 #include "piPatchTracking.h"
 #include "piImageSlice.h"
+#include "piImageEntropyComputer.h"
 
 #include "itkARGBColorFunction.h"
 
@@ -333,6 +334,17 @@ namespace piq {
             item->setPolygon(_tracking.getPatchPolygon(1));
             item->show();
         }
+    }
+    
+    void SimulCore::showEntropyMeasurementImage() {
+        QRectF imageRect = _imageItem[0]->mapRectFromItem(_trackingWidget, _trackingWidget->boundingRect());
+        RealImage::RegionType region;
+        rectToRegion(imageRect, region);
+        
+        ImageEntropyComputer comp;
+        RealImage::Pointer image = comp.computeEntropy(_image[0], region, _image[1], _image[1]->GetBufferedRegion());
+        
+        showAuxImage(1, image);
     }
 
     void SimulCore::trackPatch() {

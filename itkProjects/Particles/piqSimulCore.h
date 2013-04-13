@@ -46,6 +46,8 @@ namespace piq {
         virtual ~SimulCore();
         void setParticleSolver(pi::ParticleSystemSolver* solver);
         void showAuxImage(int, pi::RealImage::Pointer image);
+        
+        void showEntropyMeasurementImage();
 
     public slots:
         void setUi(Ui_Simul2D* ui);

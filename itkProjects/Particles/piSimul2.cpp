@@ -211,25 +211,6 @@ namespace pi {
     }
 
     void Simul2::on_actionTest_triggered() {
-        /*
-        ImagePatch<RealImage> patch;
-        patch.setImage(main.m_ImageContext.GetRealImage(0));
-        patch.setRadiusInIndexUnit(10);
-        ImagePatch<RealImage>::PointVector& points = patch.getOffsetPoints();
-        for (int i = 0; i < points.size(); i++) {
-            cout << i << ":" << points[i][0] << "," << points[i][1] << endl;
-        }
-        */
-        RealImage::RegionType mask;
-        mask.SetIndex(0, 110);
-        mask.SetIndex(1, 70);
-        mask.SetSize(0, 10);
-        mask.SetSize(1, 10);
-
-        
-        RealImage::Pointer output = ImageEntropyComputer::computeEntropy(main.m_ImageContext.GetRealImage(0), mask, main.m_ImageContext.GetRealImage(1), main.m_ImageContext.GetRealImage(1)->GetBufferedRegion());
-        ImageIO<RealImage> io;
-        io.WriteImage("/tmpfs/entropy.nii.gz", output);
-        
+        core.showEntropyMeasurementImage();
     }
 }

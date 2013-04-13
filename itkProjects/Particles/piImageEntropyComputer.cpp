@@ -10,6 +10,7 @@
 #include <itkThreadedImageRegionPartitioner.h>
 #include <itkDomainThreader.h>
 #include <itkExtractImageFilter.h>
+#include <itkStatisticsImageFilter.h>
 #include "piImageIO.h"
 
 using namespace std;
@@ -130,6 +131,102 @@ namespace itk {
         ThreadedImageEntropyComputer(const ThreadedImageEntropyComputer&);
         void operator=(const ThreadedImageEntropyComputer&);
     };
+    
+    class ThreadedImageMeanSquaresComputer:
+        public DomainThreader<ImageNeighborhoodRegionPartitioner, pi::ImageHolder> {
+    public:
+        typedef ThreadedImageMeanSquaresComputer Self;
+        typedef SmartPointer<Self> Pointer;
+        itkNewMacro(Self);
+        itkTypeMacro(ThreadedImageMeanSquaresComputer, DomainThreader);
+        
+        void ThreadedExecution(const DomainType& sub, const ThreadIdType threadId) {
+            pi::RealImage::Pointer imagePatch;
+
+            for (int i = 0; i < sub.size(); i++) {
+                imagePatch = extractImage(m_Associate->sourceImage, sub[i], imagePatch);
+            
+                pi::DataReal* refBuff = m_Associate->referencePatch->GetBufferPointer();
+                pi::DataReal* imgBuff = imagePatch->GetBufferPointer();
+                
+                const int nelems = imagePatch->GetPixelContainer()->Size();
+                double value = 0;
+                for (int i = 0; i < nelems; i++, refBuff++, imgBuff++) {
+                    value += (*refBuff - *imgBuff)*(*refBuff - *imgBuff);
+                }
+                value /= nelems;
+                pi::RealImage::IndexType outputIndex = sub[i].GetIndex();
+                m_Associate->output->SetPixel(outputIndex, value);
+            }
+        }
+        
+    protected:
+        ThreadedImageMeanSquaresComputer() {}
+        virtual ~ThreadedImageMeanSquaresComputer() {}
+        
+    private:
+        ThreadedImageMeanSquaresComputer(const ThreadedImageMeanSquaresComputer&);
+        void operator=(const ThreadedImageMeanSquaresComputer&);
+    };
+    
+    class ThreadedImageCrossCorrelationComputer:
+    public DomainThreader<ImageNeighborhoodRegionPartitioner, pi::ImageHolder> {
+    public:
+        typedef ThreadedImageCrossCorrelationComputer Self;
+        typedef SmartPointer<Self> Pointer;
+        itkNewMacro(Self);
+        itkTypeMacro(ThreadedImageCrossCorrelationComputer, DomainThreader);
+        
+        void ThreadedExecution(const DomainType& sub, const ThreadIdType threadId) {
+            pi::RealImage::Pointer imagePatch;
+            
+            for (int i = 0; i < sub.size(); i++) {
+                imagePatch = extractImage(m_Associate->sourceImage, sub[i], imagePatch);
+                
+                try {
+                    typedef StatisticsImageFilter<pi::RealImage> StatFilter;
+                    StatFilter::Pointer statFilter = StatFilter::New();
+                    statFilter->SetInput(m_Associate->referencePatch);
+                    statFilter->Update();
+                    double fMean = statFilter->GetMean();
+                    double fStdv = statFilter->GetSigma();
+                    
+                    typedef StatisticsImageFilter<pi::RealImage> StatFilter;
+                    StatFilter::Pointer statFilter2 = StatFilter::New();
+                    statFilter2->SetInput(imagePatch);
+                    statFilter2->Update();
+                    double mMean = statFilter2->GetMean();
+                    double mStdv = statFilter2->GetSigma();
+                    
+                    pi::DataReal* refBuff = m_Associate->referencePatch->GetBufferPointer();
+                    pi::DataReal* imgBuff = imagePatch->GetBufferPointer();
+                    
+                    const int nelems = imagePatch->GetPixelContainer()->Size();
+                    double value = 0;
+                    for (int i = 0; i < nelems; i++, refBuff++, imgBuff++) {
+                        if (fStdv == 0 || mStdv == 0) {
+                            continue;
+                        }
+                        value += (*refBuff - fMean)*(*imgBuff - mMean)/(fStdv*mStdv);
+                    }
+                    value /= nelems;
+                    pi::RealImage::IndexType outputIndex = sub[i].GetIndex();
+                    m_Associate->output->SetPixel(outputIndex, value);
+                } catch (itk::ExceptionObject& ex) {
+                    ex.Print(cout);
+                }
+            }
+        }
+        
+    protected:
+        ThreadedImageCrossCorrelationComputer() {}
+        virtual ~ThreadedImageCrossCorrelationComputer() {}
+        
+    private:
+        ThreadedImageCrossCorrelationComputer(const ThreadedImageCrossCorrelationComputer&);
+        void operator=(const ThreadedImageCrossCorrelationComputer&);
+    };
+    
 }
 
 namespace pi {
@@ -168,36 +265,40 @@ namespace pi {
         for (int j = 0; j < m; j++) {
             DataReal* mean = _meanStore.data_block();
             DataReal* pixels = _data[j];
-            for (int i = 0; i < n; i++, mean++) {
+            for (int i = 0; i < n; i++, mean++, pixels++) {
                 *mean += *pixels;
             }
         }
         _meanStore /= m;
 
 
-        DataReal* data = _dataStore.data_block();
         for (int j = 0; j < m; j++) {
             DataReal* mean = _meanStore.data_block();
             DataReal* pixels = _data[j];
-            for (int i = 0; i < n; i++, data++, mean++) {
+            DataReal* data = _dataStore[j];
+            for (int i = 0; i < n; i++, data++, mean++, pixels++) {
                 *data = *pixels - *mean;
             }
         }
 
-        DataReal* cov = _covStore.data_block();
         // i-th row
+        _covStore.fill(0);
         for (int i = 0; i < _m; i++) {
             // k-th column
             for (int k = 0; k < _m; k++) {
                 // j-th element
                 for (int j = 0; j < _n; j++) {
-                    *cov = _dataStore[i][j] * _dataStore[k][j];
+                    _covStore[i][k] += (_dataStore[i][j] * _dataStore[k][j]);
                 }
-                ++cov;
+                _covStore[i][k] /= n;
             }
         }
 
         vnl_symmetric_eigensystem_compute(_covStore, _V, _D);
+        _value = 0;
+//        for (int i = 0; i < _D.size(); i++) {
+//            _value += std::abs(_D[i]);
+//        }
         _value = _D.sum();
     }
 
@@ -214,6 +315,24 @@ namespace pi {
 
         itk::ThreadedImageEntropyComputer::Pointer comp = itk::ThreadedImageEntropyComputer::New();
 //        comp->SetMaximumNumberOfThreads(2);
+        comp->Execute(&holder, regions);
+        
+        return holder.output;
+    }
+    
+    RealImage::Pointer ImageEntropyComputer::computeMeanSquares(RealImage::Pointer source, RealImage::RegionType mask, RealImage::Pointer target, RealImage::RegionType targetRegion) {
+        itk::ImageNeighborhoodRegionPartitioner::Pointer part = itk::ImageNeighborhoodRegionPartitioner::New();
+        itk::RegionStack regions;
+        
+        ImageHolder holder;
+        holder.sourceImage = target;
+        holder.output = io.CopyImage(target);
+        holder.output->FillBuffer(0);
+        holder.referencePatch = extractImage(source, mask, holder.referencePatch);
+        part->CreateCompleteRegion(mask, targetRegion, regions);
+        
+        itk::ThreadedImageCrossCorrelationComputer::Pointer comp = itk::ThreadedImageCrossCorrelationComputer::New();
+        //        comp->SetMaximumNumberOfThreads(2);
         comp->Execute(&holder, regions);
         
         return holder.output;

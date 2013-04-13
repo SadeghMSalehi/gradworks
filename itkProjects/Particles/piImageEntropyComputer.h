@@ -38,7 +38,7 @@ namespace pi {
         void computeEntropy();
 
         static RealImage::Pointer computeEntropy(RealImage::Pointer, RealImage::RegionType, RealImage::Pointer, RealImage::RegionType);
-
+        static RealImage::Pointer computeMeanSquares(RealImage::Pointer, RealImage::RegionType, RealImage::Pointer, RealImage::RegionType);
     private:
         std::vector<DataReal*> _data;
         double _value;

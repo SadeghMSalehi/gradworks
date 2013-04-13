@@ -17,6 +17,8 @@
 
 
 extern unsigned int __grays[256];
+extern unsigned int __red2blue[256];
+extern unsigned int __blue2red[256];
 
 template <class T>
 class QGraphicsImageItem: public QGraphicsPixmapItem {
@@ -36,7 +38,7 @@ public:
 
     void setImage(T* inputBuffer, int w, int h);
     template <class S> void setImage(typename S::Pointer image, bool computeRange = false);
-    static void convertToGrayscale(T*, double, double, QImage&);
+    static void convertToIndexed(T*, double, double, QImage&);
 
 private:
     T* _inputBuffer;
@@ -51,7 +53,7 @@ void QGraphicsImageItem<T>::setImage(T* inputBuffer, int w, int h) {
         _grayImage = QImage(w, h, QImage::Format_Indexed8);
         _grayImage.setColorCount(256);
         for (int i = 0; i < 256; i++) {
-            _grayImage.setColor(i, __grays[i]);
+            _grayImage.setColor(i, __blue2red[i]);
         }
     }
     refresh();
@@ -128,14 +130,14 @@ void QGraphicsImageItem<T>::refresh() {
 
     const float pixelRange = _range[1] - _range[0];
     const float pixelMin = _range[0];
-    convertToGrayscale(_inputBuffer, pixelMin, pixelRange, _grayImage);
+    convertToIndexed(_inputBuffer, pixelMin, pixelRange, _grayImage);
 
     QPixmap pixmap = QPixmap::fromImage(_grayImage);
     setPixmap(pixmap);
 }
 
 template <class T>
-void QGraphicsImageItem<T>::convertToGrayscale(T* inputBuffer,
+void QGraphicsImageItem<T>::convertToIndexed(T* inputBuffer,
                                                const double min, const double range, QImage& outputImage) {
     const int width = outputImage.width();
     for (int i = 0; i < outputImage.height(); i++) {
