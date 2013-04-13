@@ -81,6 +81,7 @@ namespace piq {
         pi::RealImage::Pointer _image[2];
         pi::LabelImage::Pointer _label[2];
 
+
         pi::PatchTracking _tracking;
         
         QGraphicsScene* _scene[2];

@@ -15,6 +15,13 @@
 #include "piEntropyComputer.h"
 
 namespace pi {
+    class ImageHolder {
+    public:
+        RealImage::Pointer referencePatch;
+        RealImage::Pointer sourceImage;
+        RealImage::Pointer output;
+    };
+
     class ImageEntropyComputer {
     public:
         ImageEntropyComputer();
@@ -30,6 +37,7 @@ namespace pi {
         double entropyValue();
         void computeEntropy();
 
+        static RealImage::Pointer computeEntropy(RealImage::Pointer, RealImage::RegionType, RealImage::Pointer, RealImage::RegionType);
 
     private:
         std::vector<DataReal*> _data;

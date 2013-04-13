@@ -220,8 +220,16 @@ namespace pi {
             cout << i << ":" << points[i][0] << "," << points[i][1] << endl;
         }
         */
-        ImageEntropyComputer comp;
-        comp.setSize(2, 5);
+        RealImage::RegionType mask;
+        mask.SetIndex(0, 110);
+        mask.SetIndex(1, 70);
+        mask.SetSize(0, 10);
+        mask.SetSize(1, 10);
+
+        
+        RealImage::Pointer output = ImageEntropyComputer::computeEntropy(main.m_ImageContext.GetRealImage(0), mask, main.m_ImageContext.GetRealImage(1), main.m_ImageContext.GetRealImage(1)->GetBufferedRegion());
+        ImageIO<RealImage> io;
+        io.WriteImage("/tmpfs/entropy.nii.gz", output);
         
     }
 }
