@@ -14,6 +14,7 @@
 #include <itkTranslationTransform.h>
 #include <itkBSplineTransform.h>
 #include <itkMeanSquaresImageToImageMetricv4.h>
+#include <itkCorrelationImageToImageMetricv4.h>
 #include <itkMattesMutualInformationImageToImageMetricv4.h>
 #include "itkEntropyImageToImageMetricv4.h"
 #include <itkGradientDescentOptimizerv4.h>
@@ -57,7 +58,7 @@ namespace pi {
         void setupMetric(itk::MattesMutualInformationImageToImageMetricv4<RealImage, RealImage>* metric);
         void setupMetric(itk::EntropyImageToImageMetricv4<RealImage, RealImage>* metric);
         void setupMetric(itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage>* metric);
-
+        void setupMetric(itk::CorrelationImageToImageMetricv4<RealImage, RealImage> *metric);
 
         void setupTransform(itk::BSplineTransform<double,2,4>* transform);
 
@@ -75,7 +76,7 @@ namespace pi {
         typedef itk::GradientDescentOptimizerv4 OptimizerType;
         OptimizerType::Pointer _optimizer;
 
-        typedef itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage> CostFunctionType;
+        typedef itk::CorrelationImageToImageMetricv4<RealImage, RealImage> CostFunctionType;
         CostFunctionType::Pointer _costFunc;
 
         typedef OptimizerType::ParametersType ParametersType;

@@ -186,7 +186,10 @@ namespace pi {
     
     void PatchTracking::setupMetric(itk::EntropyImageToImageMetricv4<RealImage, RealImage> *metric) {
     }
-    
+
+    void PatchTracking::setupMetric(itk::CorrelationImageToImageMetricv4<RealImage, RealImage> *metric) {
+    }
+
     void PatchTracking::setupMetric(itk::MattesMutualInformationImageToImageMetricv4<RealImage, RealImage> *metric) {
         metric->SetNumberOfHistogramBins(32);
     }
@@ -198,6 +201,7 @@ namespace pi {
     void PatchTracking::setupOptimizer(GradientDescentOptimizerv4* opti) {
         RealImage::SpacingType spacing = _images[0]->GetSpacing();
         opti->SetMaximumStepSizeInPhysicalUnits(spacing[0]*3);
+        opti->SetNumberOfIterations(500);
     }
 
     void PatchTracking::setupOptimizer(FRPROptimizer* opti) {
