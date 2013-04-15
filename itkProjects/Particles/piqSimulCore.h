@@ -26,6 +26,7 @@ class QGraphicsScene;
 class QGraphicsPixmapItem;
 class QGraphicsEllipseItem;
 class QGraphicsRectWidget;
+class QGraphicsGridItem;
 class QAbstractGraphicsShapeItem;
 
 namespace pi {
@@ -45,7 +46,7 @@ namespace piq {
         SimulCore(QWidget* parent = NULL);
         virtual ~SimulCore();
         void setParticleSolver(pi::ParticleSystemSolver* solver);
-        void showAuxImage(int, pi::RealImage::Pointer image);
+        void showAuxImage(int, pi::RealImage::Pointer image, bool autoRange = false);
         
         void showEntropyMeasurementImage();
 
@@ -63,6 +64,11 @@ namespace piq {
         void updateParticles();
         void updateParticles(int n, pi::ParticleVector& particles);
 
+        void showMeanSquares();
+        void showCrossCorrelation();
+        void showEntropy();
+        void showNormalizedEntropy();
+        
         void run();
 
 
@@ -80,7 +86,7 @@ namespace piq {
         Ui_Simul2D* _ui;
         QWidget* _parent;
 
-        pi::RealImage::Pointer _image[2];
+        pi::RealImage::Pointer _image[2], _auxImage[2];
         pi::LabelImage::Pointer _label[2];
 
 
@@ -91,6 +97,8 @@ namespace piq {
         
         QGraphicsRealImageItem* _imageItem[2];
         QGraphicsRealImageItem* _auxImageItem[2];
+        QGraphicsGridItem* _imageGrid[2];
+        QGraphicsGridItem* _auxImageGrid[2];
         QGraphicsRealImageItem* _patchItem[2];
 
         

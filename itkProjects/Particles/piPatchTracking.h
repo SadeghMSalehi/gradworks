@@ -75,7 +75,7 @@ namespace pi {
         typedef itk::GradientDescentOptimizerv4 OptimizerType;
         OptimizerType::Pointer _optimizer;
 
-        typedef itk::MattesMutualInformationImageToImageMetricv4<RealImage, RealImage> CostFunctionType;
+        typedef itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage> CostFunctionType;
         CostFunctionType::Pointer _costFunc;
 
         typedef OptimizerType::ParametersType ParametersType;

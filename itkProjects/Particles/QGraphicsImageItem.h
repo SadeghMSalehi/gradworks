@@ -11,7 +11,8 @@
 
 #include <iostream>
 #include <itkImage.h>
-#include <qgraphicsitem.h>
+#include <QGraphicsItem>
+#include <QGraphicsSceneMouseEvent>
 
 #include "piImageHistogram.h"
 
@@ -28,6 +29,7 @@ public:
     QGraphicsImageItem(QGraphicsItem* parent = NULL): QGraphicsPixmapItem(parent) {
         _range[0] = 0;
         _range[1] = 255;
+        setAcceptedMouseButtons(Qt::LeftButton);
     }
     virtual ~QGraphicsImageItem() {}
 
@@ -39,6 +41,10 @@ public:
     void setImage(T* inputBuffer, int w, int h);
     template <class S> void setImage(typename S::Pointer image, bool computeRange = false);
     static void convertToIndexed(T*, double, double, QImage&);
+
+protected:
+    void mousePressEvent(QGraphicsSceneMouseEvent* event);
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent* event);
 
 private:
     T* _inputBuffer;
@@ -84,11 +90,23 @@ void QGraphicsImageItem<T>::setImage(typename S::Pointer image, bool computeRang
     if (computeRange) {
         const int nelems = w * h;
         T* buff = image->GetBufferPointer();
-        _range[0] = _range[1] = *buff;
-        for (int i = 1; i < nelems; i++, buff++) {
+        int i = 0;
+        for (i = 0; i < nelems; i++, buff++) {
+            if (*buff != 0) {
+                _range[0] = _range[1] = *buff;
+                buff++;
+                break;
+            }
+        }
+        for (; i < nelems; i++, buff++) {
+            if (*buff == 0) {
+                continue;
+            }
             _range[0] = std::min(*buff, _range[0]);
             _range[1] = std::max(*buff, _range[1]);
         }
+
+        std::cout << "Range: " << _range[0] << "," << _range[1] << std::endl;
     }
     setImage(image->GetBufferPointer(), w, h);
 }
@@ -146,6 +164,19 @@ void QGraphicsImageItem<T>::convertToIndexed(T* inputBuffer,
             *outputBuffer = uchar(256u * (*inputBuffer-min)/(range));
         }
     }
+}
+
+template <class T>
+void QGraphicsImageItem<T>::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+}
+
+template <class T>
+void QGraphicsImageItem<T>::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    QPointF pos = mapFromItem(this, event->pos());
+    int y = pos.y() + 0.5;
+    int x = pos.x() + 0.5;
+    int n = y * _grayImage.width() + x;
+    std::cout << "Pressed at: " << pos.x() << "," << pos.y() << "," << _inputBuffer[n] << std::endl;
 }
 
 #endif /* defined(__ParticleGuidedRegistration__QGraphicsImageItem__) */

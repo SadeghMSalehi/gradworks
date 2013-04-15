@@ -6,12 +6,14 @@
 //
 //
 
-#include "piImageEntropyComputer.h"
+#include <vnl/algo/vnl_svd.h>
 #include <itkThreadedImageRegionPartitioner.h>
 #include <itkDomainThreader.h>
 #include <itkExtractImageFilter.h>
 #include <itkStatisticsImageFilter.h>
 #include "piImageIO.h"
+#include "piImageEntropyComputer.h"
+
 
 using namespace std;
 
@@ -112,14 +114,22 @@ namespace itk {
                 imagePatch = extractImage(m_Associate->sourceImage, sub[i], imagePatch);
 
                 comp.clear();
+                if (m_Associate->isNormalized) {
+                    comp.setNormalized(true);
+                } else {
+                    comp.setNormalized(false);
+                }
                 comp.setSize(2, imagePatch->GetPixelContainer()->Size());
                 comp.addSample(m_Associate->referencePatch->GetBufferPointer());
                 comp.addSample(imagePatch->GetBufferPointer());
                 comp.computeEntropy();
 
                 pi::DataReal value = comp.entropyValue();
-                pi::RealImage::IndexType outputIndex = sub[i].GetIndex();
-                m_Associate->output->SetPixel(outputIndex, value);
+                pi::RealImage::IndexType index;
+                for (int j = 0; j < index.Dimension; j++) {
+                    index[j] = sub[i].GetIndex(j) + sub[i].GetSize(j) / 2.0 + 0.5;
+                }
+                m_Associate->output->SetPixel(index, value);
             }
         }
 
@@ -155,8 +165,11 @@ namespace itk {
                     value += (*refBuff - *imgBuff)*(*refBuff - *imgBuff);
                 }
                 value /= nelems;
-                pi::RealImage::IndexType outputIndex = sub[i].GetIndex();
-                m_Associate->output->SetPixel(outputIndex, value);
+                pi::RealImage::IndexType index;
+                for (int j = 0; j < index.Dimension; j++) {
+                    index[j] = sub[i].GetIndex(j) + sub[i].GetSize(j) / 2.0 + 0.5;
+                }
+                m_Associate->output->SetPixel(index, value);
             }
         }
         
@@ -210,8 +223,11 @@ namespace itk {
                         value += (*refBuff - fMean)*(*imgBuff - mMean)/(fStdv*mStdv);
                     }
                     value /= nelems;
-                    pi::RealImage::IndexType outputIndex = sub[i].GetIndex();
-                    m_Associate->output->SetPixel(outputIndex, value);
+                    pi::RealImage::IndexType index;
+                    for (int j = 0; j < index.Dimension; j++) {
+                        index[j] = sub[i].GetIndex(j) + sub[i].GetSize(j) / 2.0 + 0.5;
+                    }
+                    m_Associate->output->SetPixel(index, value);
                 } catch (itk::ExceptionObject& ex) {
                     ex.Print(cout);
                 }
@@ -233,6 +249,7 @@ namespace pi {
     ImageEntropyComputer::ImageEntropyComputer() {
         _value = 0;
         _m = _n = 0;
+        _isNormalized = false;
     }
 
     void ImageEntropyComputer::setSize(int mData, int nSamples) {
@@ -262,20 +279,34 @@ namespace pi {
         const int m = _m;
 
         _meanStore.fill(0);
+        vnl_vector<double> subjMean(m);
+        subjMean.fill(0);
+
+        if (_isNormalized) {
+            for (int j = 0; j < m; j++) {
+                DataReal* pixels = _data[j];
+                for (int i = 0; i < n; i++, pixels++) {
+                    subjMean[j] += *pixels;
+                }
+                subjMean[j] /= n;
+            }
+        }
+
         for (int j = 0; j < m; j++) {
-            DataReal* mean = _meanStore.data_block();
+            double* mean = _meanStore.data_block();
             DataReal* pixels = _data[j];
             for (int i = 0; i < n; i++, mean++, pixels++) {
-                *mean += *pixels;
+                _dataStore[j][i] = *pixels - subjMean[j];
+                *mean += _dataStore[j][i];
             }
         }
         _meanStore /= m;
 
 
         for (int j = 0; j < m; j++) {
-            DataReal* mean = _meanStore.data_block();
+            double* mean = _meanStore.data_block();
             DataReal* pixels = _data[j];
-            DataReal* data = _dataStore[j];
+            double* data = _dataStore[j];
             for (int i = 0; i < n; i++, data++, mean++, pixels++) {
                 *data = *pixels - *mean;
             }
@@ -291,15 +322,25 @@ namespace pi {
                     _covStore[i][k] += (_dataStore[i][j] * _dataStore[k][j]);
                 }
                 _covStore[i][k] /= n;
+                if (i == k) {
+                    _covStore[i][k] += 1;
+                }
             }
         }
 
-        vnl_symmetric_eigensystem_compute(_covStore, _V, _D);
         _value = 0;
+        if (_covStore.has_nans()) {
+            cout << "nan in cov" << endl;
+            return;
+        }
+//        vnl_symmetric_eigensystem_compute(_covStore, _V, _D);
 //        for (int i = 0; i < _D.size(); i++) {
 //            _value += std::abs(_D[i]);
 //        }
-        _value = _D.sum();
+
+        _value = vnl_determinant(_covStore);
+
+//        _value = _D.sum();
     }
 
     RealImage::Pointer ImageEntropyComputer::computeEntropy(RealImage::Pointer source, RealImage::RegionType sourceMask, RealImage::Pointer target, RealImage::RegionType targetRegion) {
@@ -314,9 +355,28 @@ namespace pi {
         part->CreateCompleteRegion(sourceMask, targetRegion, regions);
 
         itk::ThreadedImageEntropyComputer::Pointer comp = itk::ThreadedImageEntropyComputer::New();
-//        comp->SetMaximumNumberOfThreads(2);
+        comp->SetMaximumNumberOfThreads(1);
         comp->Execute(&holder, regions);
         
+        return holder.output;
+    }
+
+    RealImage::Pointer ImageEntropyComputer::computeNormalizedEntropy(RealImage::Pointer source, RealImage::RegionType sourceMask, RealImage::Pointer target, RealImage::RegionType targetRegion) {
+        itk::ImageNeighborhoodRegionPartitioner::Pointer part = itk::ImageNeighborhoodRegionPartitioner::New();
+        itk::RegionStack regions;
+
+        ImageHolder holder;
+        holder.isNormalized = true;
+        holder.sourceImage = target;
+        holder.output = io.CopyImage(target);
+        holder.output->FillBuffer(0);
+        holder.referencePatch = extractImage(source, sourceMask, holder.referencePatch);
+        part->CreateCompleteRegion(sourceMask, targetRegion, regions);
+
+        itk::ThreadedImageEntropyComputer::Pointer comp = itk::ThreadedImageEntropyComputer::New();
+        comp->SetMaximumNumberOfThreads(1);
+        comp->Execute(&holder, regions);
+
         return holder.output;
     }
     
@@ -331,11 +391,28 @@ namespace pi {
         holder.referencePatch = extractImage(source, mask, holder.referencePatch);
         part->CreateCompleteRegion(mask, targetRegion, regions);
         
-        itk::ThreadedImageCrossCorrelationComputer::Pointer comp = itk::ThreadedImageCrossCorrelationComputer::New();
-        //        comp->SetMaximumNumberOfThreads(2);
+        itk::ThreadedImageMeanSquaresComputer::Pointer comp = itk::ThreadedImageMeanSquaresComputer::New();
+        comp->SetMaximumNumberOfThreads(1);
         comp->Execute(&holder, regions);
         
         return holder.output;
     }
 
+    RealImage::Pointer ImageEntropyComputer::computeCrossCorrelation(RealImage::Pointer source, RealImage::RegionType mask, RealImage::Pointer target, RealImage::RegionType targetRegion) {
+        itk::ImageNeighborhoodRegionPartitioner::Pointer part = itk::ImageNeighborhoodRegionPartitioner::New();
+        itk::RegionStack regions;
+
+        ImageHolder holder;
+        holder.sourceImage = target;
+        holder.output = io.CopyImage(target);
+        holder.output->FillBuffer(0);
+        holder.referencePatch = extractImage(source, mask, holder.referencePatch);
+        part->CreateCompleteRegion(mask, targetRegion, regions);
+
+        itk::ThreadedImageCrossCorrelationComputer::Pointer comp = itk::ThreadedImageCrossCorrelationComputer::New();
+        comp->SetMaximumNumberOfThreads(1);
+        comp->Execute(&holder, regions);
+
+        return holder.output;
+    }
 }

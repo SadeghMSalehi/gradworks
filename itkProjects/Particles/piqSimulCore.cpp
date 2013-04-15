@@ -10,6 +10,7 @@
 #include "QGraphicsImageItem.h"
 #include "QParticlesGraphicsItem.h"
 #include "QGraphicsRectWidget.h"
+#include "QGraphicsGridItem.h"
 
 #include "qutils.h"
 #include "piImageIO.h"
@@ -18,6 +19,7 @@
 #include "piPatchTracking.h"
 #include "piImageSlice.h"
 #include "piImageEntropyComputer.h"
+
 
 #include "itkARGBColorFunction.h"
 
@@ -58,9 +60,13 @@ namespace piq {
         for (int i = 0; i < 2; i++) {
             _imageItem[i] = new QGraphicsRealImageItem();
             _labelItem[i] = new QGraphicsPixmapItem(_imageItem[i]);
+            _imageGrid[i] = new QGraphicsGridItem();
+            _imageGrid[i]->setParentItem(_imageItem[i]);
             _scene[i]->addItem(_imageItem[i]);
 
             _auxImageItem[i] = new QGraphicsRealImageItem();
+            _auxImageGrid[i] = new QGraphicsGridItem();
+            _auxImageGrid[i] ->setParentItem(_auxImageItem[i]);
             _auxImageItem[i]->hide();
             _scene[i]->addItem(_auxImageItem[i]);
 
@@ -136,6 +142,11 @@ namespace piq {
 
             QGraphicsRectWidget* trackingWidget = dynamic_cast<QGraphicsRectWidget*>(_trackingItem[0]);
             connect(trackingWidget, SIGNAL(widgetMoved(QPointF)), SLOT(trackingWidgetMoved(QPointF)));
+
+            connect(_ui->actionMeanSquares, SIGNAL(triggered()), SLOT(showMeanSquares()));
+            connect(_ui->actionCrossCorrelation, SIGNAL(triggered()), SLOT(showCrossCorrelation()));
+            connect(_ui->actionEntropy, SIGNAL(triggered()), SLOT(showEntropy()));
+            connect(_ui->actionNormalizedEntropy, SIGNAL(triggered()), SLOT(showNormalizedEntropy()));
         }
     }
 
@@ -224,6 +235,9 @@ namespace piq {
         }
         QTransform transform = _ui->graphicsView->transform();
         _ui->zoom->setValue(transform.m11() * 100);
+
+        _imageGrid[id]->ComputeFromBoundingRect(_imageItem[id]->boundingRect());
+
         return _imageItem[id];
     }
 
@@ -244,15 +258,21 @@ namespace piq {
     }
 
 
-    void SimulCore::showAuxImage(int id, RealImage::Pointer image) {
+    void SimulCore::showAuxImage(int id, RealImage::Pointer image, bool autoRange) {
+        _auxImage[id] = image;
         _auxImageItem[id]->setRange(_imageItem[id]->getRange(0), _imageItem[id]->getRange(1));
-        _auxImageItem[id]->setImage<RealImage>(image);
+        if (autoRange) {
+            _auxImageItem[id]->setImage<RealImage>(image, true);
+        } else {
+            _auxImageItem[id]->setImage<RealImage>(image);
+        }
 
         qreal xPos = _imageItem[id]->boundingRect().width();
         qreal yPos = 0;
         _auxImageItem[id]->setPos(xPos, yPos);
         _auxImageItem[id]->setTransform(_imageItem[id]->transform());
         _auxImageItem[id]->refresh();
+        _auxImageGrid[id]->ComputeFromBoundingRect(_auxImageItem[id]->boundingRect());
         _auxImageItem[id]->show();
     }
 
@@ -344,9 +364,53 @@ namespace piq {
         ImageEntropyComputer comp;
         RealImage::Pointer image = comp.computeEntropy(_image[0], region, _image[1], _image[1]->GetBufferedRegion());
         
-        showAuxImage(1, image);
+        showAuxImage(1, image, true);
     }
 
+    void SimulCore::showMeanSquares() {
+        QRectF imageRect = _imageItem[0]->mapRectFromItem(_trackingWidget, _trackingWidget->boundingRect());
+        RealImage::RegionType region;
+        rectToRegion(imageRect, region);
+
+        ImageEntropyComputer comp;
+        RealImage::Pointer image = comp.computeMeanSquares(_image[0], region, _image[1], _image[1]->GetBufferedRegion());
+
+        showAuxImage(1, image, true);
+    }
+
+    void SimulCore::showCrossCorrelation() {
+        QRectF imageRect = _imageItem[0]->mapRectFromItem(_trackingWidget, _trackingWidget->boundingRect());
+        RealImage::RegionType region;
+        rectToRegion(imageRect, region);
+
+        ImageEntropyComputer comp;
+        RealImage::Pointer image = comp.computeCrossCorrelation(_image[0], region, _image[1], _image[1]->GetBufferedRegion());
+
+        showAuxImage(1, image, true);
+    }
+
+    void SimulCore::showEntropy() {
+        QRectF imageRect = _imageItem[0]->mapRectFromItem(_trackingWidget, _trackingWidget->boundingRect());
+        RealImage::RegionType region;
+        rectToRegion(imageRect, region);
+
+        ImageEntropyComputer comp;
+        RealImage::Pointer image = comp.computeEntropy(_image[0], region, _image[1], _image[1]->GetBufferedRegion());
+
+        showAuxImage(1, image, true);
+    }
+
+    void SimulCore::showNormalizedEntropy() {
+        QRectF imageRect = _imageItem[0]->mapRectFromItem(_trackingWidget, _trackingWidget->boundingRect());
+        RealImage::RegionType region;
+        rectToRegion(imageRect, region);
+
+        ImageEntropyComputer comp;
+        RealImage::Pointer image = comp.computeNormalizedEntropy(_image[0], region, _image[1], _image[1]->GetBufferedRegion());
+
+        showAuxImage(1, image, true);
+    }
+    
     void SimulCore::trackPatch() {
         trackingWidgetMoved(QPointF());
     }

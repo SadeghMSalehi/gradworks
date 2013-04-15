@@ -23,6 +23,7 @@ public:
     void SetPen(QPen pen);
     void SetResolution(int res);
     void SetGrid(VNLMatrix fx, VNLMatrix fy);
+    void ComputeFromBoundingRect(QRectF boundingRect);
     
     QRectF boundingRect() const;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);

@@ -13,7 +13,9 @@
 using namespace std;
 
 QGraphicsGridItem::QGraphicsGridItem() : QGraphicsItem() {
-    m_Pen = QPen(Qt::white);
+    m_Pen = QPen(Qt::black, 1);
+    m_Pen.setCosmetic(true);
+    m_Res = 10;
 }
 
 QGraphicsGridItem::~QGraphicsGridItem() {
@@ -27,6 +29,23 @@ void QGraphicsGridItem::SetResolution(int res) {
     m_Res = res;
 }
 
+void QGraphicsGridItem::ComputeFromBoundingRect(QRectF rect) {
+    VNLMatrix fx, fy;
+    fx.set_size(rect.width(), rect.height());
+    fy.set_size(rect.width(), rect.height());
+
+    // assume gX and gY are physical coordinate system
+    for (int i = 0; i < fx.rows(); i++) {
+        for (int j = 0; j < fy.cols(); j++) {
+            fx[i][j] = i + rect.x();
+            fy[i][j] = j + rect.y();
+        }
+    }
+
+    SetGrid(fx, fy);
+
+}
+
 void QGraphicsGridItem::SetGrid(VNLMatrix fx, VNLMatrix fy) {
     if (fy.rows() == 0 || fx.rows() == 0) {
         return;
@@ -38,6 +57,9 @@ void QGraphicsGridItem::SetGrid(VNLMatrix fx, VNLMatrix fy) {
     m_Bounds.setLeft(fx.min_value());
     m_Bounds.setBottom(fy.max_value());
     m_Bounds.setRight(fx.max_value());
+    
+    prepareGeometryChange();
+    update();
 }
 
 QRectF QGraphicsGridItem::boundingRect() const {
