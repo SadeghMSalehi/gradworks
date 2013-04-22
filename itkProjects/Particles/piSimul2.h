@@ -12,6 +12,8 @@
 #include <iostream>
 #include "QMainWindow"
 #include "QTimer"
+#include <QFuture>
+#include <QFutureWatcher>
 
 #include "ui_simul2d.h"
 #include "piqSimulCore.h"
@@ -21,11 +23,13 @@ namespace pi {
         Q_OBJECT
     public:
         Simul2(QWidget* parent = NULL);
+
         void centerToDesktop();
         
     public slots:
         void on_applyButton_clicked(bool value);
         void on_runStepButton_clicked();
+        void threadedRun();
 
         //////////////////////////////////////////////////
         // VISUALIZATIONS
@@ -39,8 +43,18 @@ namespace pi {
         void on_actionShowWarped_triggered();
         void on_actionPrint_triggered();
         void on_actionTest_triggered();
-        
+        void on_actionBsplineWarp_triggered();
+        void on_actionImageBsplineWarp_triggered();
+        void on_actionIntensityGradient_triggered();
+        void on_actionThreadTest_toggled(bool);
+        void on_actionShowCostPlot_toggled(bool);
+
+        void on_actionGenerateSIFTImage1_triggered();
+        void on_actionGenerateSIFTImage2_triggered();
+
         void tick();
+        void startLoadingAnimation();
+        void stopLoadingAnimation();
 
     private:
         QColor getColor(int i);
@@ -51,6 +65,8 @@ namespace pi {
         QGraphicsScene m_scene;
         QTimer m_timer;
 
+        QFuture<void> m_future;
+        QFutureWatcher<void> m_futureWatcher;
     };
 
 }

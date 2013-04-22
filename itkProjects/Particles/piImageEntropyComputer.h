@@ -23,7 +23,20 @@ namespace pi {
         bool isNormalized;
         RealImage::Pointer referencePatch;
         RealImage::Pointer sourceImage;
+        GradientImage::Pointer sourceGradient;
         RealImage::Pointer output;
+    };
+
+    class ImageGradientHistogram {
+    public:
+        ImageGradientHistogram();
+        void setRegion(RealImage::RegionType& region);
+        u_int8_t* histogram();
+        void computeHistogram(const GradientImage*, u_int8_t* output = NULL);
+
+    private:
+        RealImage::RegionType _region;
+        u_int8_t _data[128];
     };
 
     class ImageEntropyComputer {
@@ -40,6 +53,7 @@ namespace pi {
 
         void setSize(int mData, int nSamples);
         void addSample(DataReal* sample);
+        void addGradientSample(GradientPixel* sampleGradient);
         void clear();
 
         double entropyValue();
@@ -51,6 +65,8 @@ namespace pi {
         static RealImage::Pointer computeCrossCorrelation(RealImage::Pointer, RealImage::RegionType, RealImage::Pointer, RealImage::RegionType);
     private:
         std::vector<DataReal*> _data;
+        GradientPixel* _gradientData;
+
         double _value;
         int _m;
         int _n;
@@ -59,6 +75,7 @@ namespace pi {
         vnl_vector<double> _meanStore;
         vnl_matrix<double> _dataStore;
         vnl_matrix<double> _covStore;
+        vnl_matrix<double> _gradientStore;
         vnl_matrix<double> _V;
         vnl_vector<double> _D;
     };

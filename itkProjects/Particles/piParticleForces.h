@@ -76,39 +76,9 @@ namespace pi {
     };
 
 
-    template <int N>
-    class ParticleAttribute3D {
-    public:
-        const static int NATTRS = N*N*N;
-        DataReal o[__Dim];
-        DataReal f[__Dim];
-        DataReal F[__Dim];
-        DataReal x[NATTRS];
-        DataReal y[NATTRS];
-        DataReal g[NATTRS][__Dim];
-    };
-
-    template <int N>
-    class ParticleAttribute2D {
-    public:
-        const static int NATTRS = N*N;
-        DataReal o[__Dim];
-        DataReal f[__Dim];
-        DataReal F[__Dim];
-        DataReal x[NATTRS];
-        DataReal y[NATTRS];
-        DataReal g[NATTRS][__Dim];
-    };
-
-#if DIMENSIONS == 3
-    typedef ParticleAttribute3D<ATTR_SIZE> Attr;
-#else
-    typedef ParticleAttribute2D<ATTR_SIZE> Attr;
-#endif
-
     class IntensityForce {
     public:
-        typedef boost::numeric::ublas::matrix<Attr> AttrMatrix;
+        typedef boost::numeric::ublas::matrix<ParticleAttribute> AttrMatrix;
 
         DataReal coeff;
         bool useGaussianGradient;

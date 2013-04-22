@@ -62,6 +62,7 @@ namespace pi {
     }
 
     void Particle::AddForce(DataReal* ff, DataReal alpha) {
+#if 0
 #ifndef BATCH
 #if DIMENSIONS == 3
         if (std::abs(ff[0]) > 10 || std::abs(ff[1]) > 10 || std::abs(ff[2]) > 10) {
@@ -75,6 +76,7 @@ namespace pi {
             }
             cout << endl;
         }
+#endif
 #endif
 #endif
         fordim(i) {

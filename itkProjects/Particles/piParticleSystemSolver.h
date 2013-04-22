@@ -25,13 +25,19 @@ namespace pi {
         bool LoadConfig(std::istream& is);
         bool LoadConfig(const char* name);
         bool SaveConfig(const char* name);
+
+        // load parameters for execution parameters not for images or labels
+        bool LoadParameters(std::istream& is);
+
         void Preprocessing();
 
         void Run();
         void Setup();
+        void SetupParameters();
         void RunStepBegin();
         int  RunStep();
         void RunStepEnd();
+        void Stop();
 
         void PrintPoints();
         
@@ -68,6 +74,7 @@ namespace pi {
         bool verbose;
         bool useVelocity;
         bool useAlignment;
+        bool continueToRun;
 
         // time management
         DataReal t0;

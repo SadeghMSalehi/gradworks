@@ -13,6 +13,7 @@
 #include <itkStatisticsImageFilter.h>
 #include "piImageIO.h"
 #include "piImageEntropyComputer.h"
+#include "piImageProcessing.h"
 
 
 using namespace std;
@@ -161,7 +162,7 @@ namespace itk {
                 
                 const int nelems = imagePatch->GetPixelContainer()->Size();
                 double value = 0;
-                for (int i = 0; i < nelems; i++, refBuff++, imgBuff++) {
+                for (int j = 0; j < nelems; j++, refBuff++, imgBuff++) {
                     value += (*refBuff - *imgBuff)*(*refBuff - *imgBuff);
                 }
                 value /= nelems;
@@ -216,7 +217,7 @@ namespace itk {
                     
                     const int nelems = imagePatch->GetPixelContainer()->Size();
                     double value = 0;
-                    for (int i = 0; i < nelems; i++, refBuff++, imgBuff++) {
+                    for (int j = 0; j < nelems; j++, refBuff++, imgBuff++) {
                         if (fStdv == 0 || mStdv == 0) {
                             continue;
                         }
@@ -246,6 +247,77 @@ namespace itk {
 }
 
 namespace pi {
+    ImageGradientHistogram::ImageGradientHistogram() {
+
+    }
+
+    void ImageGradientHistogram::setRegion(RealImage::RegionType& region) {
+        _region = region;
+    }
+
+    u_int8_t* ImageGradientHistogram::histogram() {
+        return _data;
+    }
+
+    void ImageGradientHistogram::computeHistogram(const GradientImage* gradImage, u_int8_t* output) {
+        if (output == NULL) {
+            output = _data;
+        }
+
+        GradientImage::RegionType region = _region;
+        region.SetSize(0, 4);
+        region.SetSize(1, 4);
+
+        GradientImage::RegionType imageRegion = gradImage->GetBufferedRegion();
+
+        int k = 0;
+        memset(output, 0, sizeof(_data));
+        
+        for (int j = 0; j < 4; j++) {
+            for (int i = 0; i < 4; i++, k++) {
+                region.SetIndex(0, _region.GetIndex(0) + i * 4);
+                region.SetIndex(1, _region.GetIndex(1) + j * 4);
+
+                fordim (d) {
+                    region.SetSize(d, 4);
+                    if (region.GetIndex(d) < 0) {
+                        region.SetIndex(d, 0);
+                    }
+                    const int s = region.GetIndex(d) + region.GetSize(d);
+                    const int t = imageRegion.GetIndex(d) + imageRegion.GetSize(d);
+                    if (s > t) {
+                        int x = 4 - (s - t);
+                        if (x < 0) {
+                            cout << "ERROR!" << endl;
+                        }
+                        region.SetSize(d, 4-(s-t));
+                    }
+                }
+
+                GradientIteratorType iter(gradImage, region);
+                for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+                    if (!imageRegion.IsInside(iter.GetIndex())) {
+                        continue;
+                    }
+
+                    const GradientPixel gPixel = iter.Get();
+
+                    // atan2 returns between -pi to pi
+                    double ang = std::atan2(gPixel[1], gPixel[0]);
+
+                    //
+                    int idx1 = std::floor(8*(ang+7*M_PI/8.0)/(2*M_PI)) + 1;
+                    int binIdx = idx1 % 8;
+                    if (binIdx >= 0 && binIdx < 8) {
+                        output[8*k + binIdx]++;
+                    } else {
+                        cout << "Wrong bin index" << endl;
+                    }
+                }
+            }
+        }
+    }
+
     ImageEntropyComputer::ImageEntropyComputer() {
         _value = 0;
         _m = _n = 0;
@@ -259,10 +331,15 @@ namespace pi {
         _meanStore.set_size(_n);
         _dataStore.set_size(_m, _n);
         _covStore.set_size(_m, _m);
+        _gradientStore.set_size(_n, DIMENSIONS);
     }
 
     void ImageEntropyComputer::addSample(DataReal* sampleBuffer) {
         _data.push_back(sampleBuffer);
+    }
+
+    void ImageEntropyComputer::addGradientSample(GradientPixel* sampleGradient) {
+        _gradientData = sampleGradient;
     }
 
     void ImageEntropyComputer::clear() {
@@ -333,6 +410,18 @@ namespace pi {
             cout << "nan in cov" << endl;
             return;
         }
+
+//        _gradientStore.fill(0);
+//
+//        vnl_matrix<double> invCov = vnl_matrix_inverse<double>(_covStore);
+//        for (int i = 0; i < n; i++) {
+//            for (int j = 0; j < DIMENSIONS; j++) {
+//                for (int k = 0; k < DIMENSIONS; k++) {
+//                    _gradientStore[i][j] = invCov[j][k] * _dataStore[i][k];
+//                }
+//            }
+//        }
+
 //        vnl_symmetric_eigensystem_compute(_covStore, _V, _D);
 //        for (int i = 0; i < _D.size(); i++) {
 //            _value += std::abs(_D[i]);
@@ -347,8 +436,10 @@ namespace pi {
         itk::ImageNeighborhoodRegionPartitioner::Pointer part = itk::ImageNeighborhoodRegionPartitioner::New();
         itk::RegionStack regions;
 
+        ImageProcessing proc;
         ImageHolder holder;
         holder.sourceImage = target;
+        holder.sourceGradient = proc.ComputeGaussianGradient(target);
         holder.output = io.CopyImage(target);
         holder.output->FillBuffer(0);
         holder.referencePatch = extractImage(source, sourceMask, holder.referencePatch);

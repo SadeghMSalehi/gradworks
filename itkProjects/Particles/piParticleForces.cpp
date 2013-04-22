@@ -35,22 +35,22 @@
 #define __showcmd(x,m,n,cmd) for (int _=0;_<m;_++) { for (int __=0;__<n;__++) cmd; cout << endl; }; cout << endl
 
 namespace pi {
-    ostream& operator<<(ostream& os, Attr& attr) {
+    ostream& operator<<(ostream& os, ParticleAttribute& attr) {
         int p = os.precision();
         os.precision(8);
         fordim (k) {
             os << attr.o[k] << " ";
         }
         os << ";";
-        for (int i = 0; i < attr.NATTRS; i++) {
+        for (int i = 0; i < NATTRS; i++) {
             os << " " << attr.x[i];
         }
         os << ";";
-        for (int i = 0; i < attr.NATTRS; i++) {
+        for (int i = 0; i < NATTRS; i++) {
             os << " " << attr.y[i];
         }
         os << ";";
-        for (int i = 0; i < attr.NATTRS; i++) {
+        for (int i = 0; i < NATTRS; i++) {
             fordim (k) {
                 if (k > 0) {
                     os << ",";
@@ -474,7 +474,7 @@ namespace pi {
         ImageIO<RealImage> io;
 
         m_attrs.resize(nSubj, nPoints);
-        m_attrsMean.set_size(nPoints, Attr::NATTRS);
+        m_attrsMean.set_size(nPoints, NATTRS);
         warpedImages.resize(nSubj);
         gradImages.resize(nSubj);
 
@@ -545,7 +545,7 @@ namespace pi {
                     idx[k] = round(par.z[k]);
                 }
                 iiter.SetLocation(idx);
-                Attr& jAttr = m_attrs(i, j);
+                ParticleAttribute& jAttr = m_attrs(i, j);
                 fordim(k) {
                     jAttr.o[k] = idx[k];
                 }
@@ -553,7 +553,7 @@ namespace pi {
                 FieldTransformType::InputPointType inputPoint;
                 FieldTransformType::OutputPointType outputPoint;
                 RealIndex samplePointAtSubjectSpace;
-                for (int k = 0; k < Attr::NATTRS; k++) {
+                for (int k = 0; k < NATTRS; k++) {
                     IntIndex idx = iiter.GetIndex(k);
                     fordim (l) {
                         inputPoint[l] = idx[l];
@@ -597,7 +597,7 @@ namespace pi {
         const int nSubj = attrs.size1();
 
         for (int i = 0; i < nPoints; i++) {
-            for (int j = 0; j < Attr::NATTRS; j++) {
+            for (int j = 0; j < NATTRS; j++) {
                 double sum = 0;
                 for (int s = 0; s < nSubj; s++) {
                     sum += attrs(s, i).x[j];
@@ -611,7 +611,7 @@ namespace pi {
 
 
     bool IntensityForce::ComputeCovariance(AttrMatrix& attrs, int pointIdx, VNLDoubleMatrix& cov, double alpha) {
-        const int L = Attr::NATTRS;
+        const int L = NATTRS;
         const int S = attrs.size1();
         
         const bool useDualCOV = L > S;
@@ -626,9 +626,9 @@ namespace pi {
             // SxL LxS
             // loop in the order of S S L
             for (int j = 0; j < S; j++) {
-                Attr& jattr = attrs(j,pointIdx);
+                ParticleAttribute& jattr = attrs(j,pointIdx);
                 for (int k = j; k < S; k++) {
-                    Attr& kattr = attrs(k,pointIdx);
+                    ParticleAttribute& kattr = attrs(k,pointIdx);
                     for (int l = 0; l < L; l++) {
                         cov[j][k] += jattr.y[l] * kattr.y[l];
                     }
@@ -646,7 +646,7 @@ namespace pi {
             for (int j = 0; j < L; j++) {
                 for (int k = 0; k < L; k++) {
                     for (int l = 0; l < S; l++) {
-                        Attr& lattr = attrs(l,pointIdx);
+                        ParticleAttribute& lattr = attrs(l,pointIdx);
                         cov[j][k] += lattr.y[j] * lattr.y[k];
                     }
                 }
@@ -662,7 +662,7 @@ namespace pi {
     }
 
     void IntensityForce::ComputeGradient(AttrMatrix& attrs, VNLDoubleMatrix& invC, int pointIdx, bool useDual) {
-        const int L = Attr::NATTRS;
+        const int L = NATTRS;
         const int S = attrs.size1();
 
         if (useDual) {
@@ -671,14 +671,14 @@ namespace pi {
             // grad = Y x invC
             // multply inverse of covariance and compute gradient of entropy
             for (int j = 0; j < S; j++) {
-                Attr& jattr = attrs(j,pointIdx);
+                ParticleAttribute& jattr = attrs(j,pointIdx);
                 fordim (k) {
                     jattr.f[k] = 0;
                 }
-                for (int l = 0; l < Attr::NATTRS; l++) {
+                for (int l = 0; l < NATTRS; l++) {
                     jattr.x[l] = 0;
                     for (int k = 0; k < S; k++) {
-                        Attr& kattr = attrs(k,pointIdx);
+                        ParticleAttribute& kattr = attrs(k,pointIdx);
                         jattr.x[l] += kattr.y[l] * invC[k][j];
                     }
                     fordim (k) {
@@ -702,7 +702,7 @@ namespace pi {
             for (int j = 0; j < L; j++) {
                 for (int l = 0; l < S; l++) {
                     double o = 0;
-                    Attr& attr = attrs(l, pointIdx);
+                    ParticleAttribute& attr = attrs(l, pointIdx);
                     for (int k = 0; k < L; k++) {
                         o += invC[j][k] * attr.y[l];
                     }
@@ -738,7 +738,7 @@ namespace pi {
             } else {
                 cout << "Wrong Cov: " << cov << endl;
                 for (int j = 0; j < nSubj; j++) {
-                    Attr& attr = m_attrs(j, i);
+                    ParticleAttribute& attr = m_attrs(j, i);
                     cout << attr << endl;
                 }
                 invC.fill(0);
@@ -758,7 +758,7 @@ namespace pi {
                     FieldTransformType::JacobianType jac;
                     jac.set_size(__Dim, __Dim);
                     fieldTransform->ComputeInverseJacobianWithRespectToPosition(y, jac);
-                    Attr& attr = m_attrs(i,j);
+                    ParticleAttribute& attr = m_attrs(i,j);
                     fordim(k) {
                         DataReal ff = 0;
                         if (__Dim == 3) {
@@ -782,28 +782,33 @@ namespace pi {
             ParticleSubject& subj = shapes[i];
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subj[j];
+                ParticleAttribute& attr = m_attrs(i, j);
                 VNLVector ff(__Dim);
                 fordim (k) {
-                    ff[k] = m_attrs(i,j).F[k];
+                    ff[k] = attr.F[k];
                 }
 //                ff.normalize();
                 subj.inverseAlignment->TransformVector(ff.data_block(), m_attrs(i,j).F);
 #ifndef BATCH
-                bool forceCheck = false;
-                fordim (k) {
-                    forceCheck = forceCheck || (std::abs(m_attrs(i,j).F[k]) > 2);
-                }
-                if (forceCheck) {
-                    //cout << "too big intensity term! at " << i << " subj " << j << " points: x=" << par.x[0]<< "," << par.x[1] << "," << par.x[2] <<  ";f=" << m_attrs(i,j).F[0] << "," << m_attrs(i,j).F[1] << "," << m_attrs(i,j).F[2] << endl;
-                    cout << i << "." << j << " ";
-                    ff.copy_in(m_attrs(i,j).F);
-                    ff.normalize();
+                const bool normalForce = false;
+                if (normalForce) {
+                    bool forceCheck = false;
                     fordim (k) {
-                        m_attrs(i,j).F[k] = ff[k];
+                        forceCheck = forceCheck || (std::abs(m_attrs(i,j).F[k]) > 2);
+                    }
+                    if (forceCheck) {
+                        // normalize
+                        //cout << "too big intensity term! at " << i << " subj " << j << " points: x=" << par.x[0]<< "," << par.x[1] << "," << par.x[2] <<  ";f=" << m_attrs(i,j).F[0] << "," << m_attrs(i,j).F[1] << "," << m_attrs(i,j).F[2] << endl;
+                        cout << i << "." << j << " ";
+                        ff.copy_in(attr.F);
+                        ff.normalize();
+                        fordim (k) {
+                            attr.F[k] = ff[k];
+                        }
                     }
                 }
 #endif
-                par.AddForce(m_attrs(i,j).F, -coeff);
+                par.AddForce(attr.F, -coeff);
             }
         }
     }

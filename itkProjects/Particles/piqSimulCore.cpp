@@ -19,6 +19,7 @@
 #include "piPatchTracking.h"
 #include "piImageSlice.h"
 #include "piImageEntropyComputer.h"
+#include "piImageProcessing.h"
 
 
 #include "itkARGBColorFunction.h"
@@ -28,6 +29,12 @@ namespace piq {
 
     static ImageIO<RealImage> __imageIO;
     static ImageIO<LabelImage> __labelIO;
+
+    // create particle item
+    typedef itk::RGBAPixel<unsigned char> RGBA;
+    typedef itk::Function::HSVColormapFunction<float, RGBA> HSVFunction;
+
+    HSVFunction::Pointer _hsvFunc = HSVFunction::New();
 
     SimulCore::SimulCore(QWidget* parent): QObject(parent) {
         _parent = parent;
@@ -39,11 +46,20 @@ namespace piq {
             _auxImageItem[i] = NULL;
         }
         _solver = new ParticleSystemSolver();
+
         _miniScene = new QGraphicsScene();
+        _particleSelectionMode = None;
+        _particleSelectedId = -1;
+
+        _imageInteractionMode = SIFTMode;
     }
 
     SimulCore::~SimulCore() {
 
+    }
+
+    RealImage::Pointer SimulCore::getImage(int id) {
+        return _image[id];
     }
 
     // assume setup is called only once
@@ -59,16 +75,19 @@ namespace piq {
 
         for (int i = 0; i < 2; i++) {
             _imageItem[i] = new QGraphicsRealImageItem();
+            _imageItem[i]->setInteraction(this);
+            _imageItem[i]->setData(ImageId, QVariant(i));
+
             _labelItem[i] = new QGraphicsPixmapItem(_imageItem[i]);
-            _imageGrid[i] = new QGraphicsGridItem();
-            _imageGrid[i]->setParentItem(_imageItem[i]);
             _scene[i]->addItem(_imageItem[i]);
 
             _auxImageItem[i] = new QGraphicsRealImageItem();
-            _auxImageGrid[i] = new QGraphicsGridItem();
-            _auxImageGrid[i] ->setParentItem(_auxImageItem[i]);
             _auxImageItem[i]->hide();
             _scene[i]->addItem(_auxImageItem[i]);
+
+            _selectedRects[i] = new QGraphicsRectItem();
+            _selectedRects[i]->setParentItem(_imageItem[i]);
+            _selectedRects[i]->hide();
 
             if (i == 0) {
                 _trackingItem[i] = new QGraphicsRectWidget();
@@ -126,6 +145,9 @@ namespace piq {
 
         for (int i = 0; i < 2; i++) {
             _auxImageItem[i]->hide();
+            for (int j = 0; j < _particleItem[i].size(); j++) {
+                _scene[i]->removeItem(_particleItem[i][j]);
+            }
             _particleItem[i].clear();
         }
 
@@ -147,6 +169,8 @@ namespace piq {
             connect(_ui->actionCrossCorrelation, SIGNAL(triggered()), SLOT(showCrossCorrelation()));
             connect(_ui->actionEntropy, SIGNAL(triggered()), SLOT(showEntropy()));
             connect(_ui->actionNormalizedEntropy, SIGNAL(triggered()), SLOT(showNormalizedEntropy()));
+
+            connect(_ui->actionGrid, SIGNAL(toggled(bool)), SLOT(showGrid(bool)));
         }
     }
 
@@ -172,23 +196,20 @@ namespace piq {
 
     void SimulCore::createParticleItems(int i, int n) {
         if (_particleItem[i].size() != n) {
+            _hsvFunc->SetMinimumInputValue(0);
+            _hsvFunc->SetMaximumInputValue(n);
+
             // check if need to create particle item
             for (int j = 0; j < _particleItem[i].size(); j++) {
                 _scene[i]->removeItem(_particleItem[i][j]);
             }
             _particleItem[i].resize(n);
-            // create particle item
-            typedef itk::RGBAPixel<unsigned char> RGBA;
-            typedef itk::Function::HSVColormapFunction<float, RGBA> HSVFunction;
-
-            HSVFunction::Pointer hsvFunc = HSVFunction::New();
-            hsvFunc->SetMinimumInputValue(0);
-            hsvFunc->SetMaximumInputValue(n);
-
             double r = 2;
             for (int j = 0; j < n; j++) {
-                RGBA color = hsvFunc->operator()(j);
-                _particleItem[i][j] = new QGraphicsEllipseItem(_imageItem[i]);
+                RGBA color = _hsvFunc->operator()(j);
+                _particleItem[i][j] = new EllipseItem(_imageItem[i]);
+                _particleItem[i][j]->setListener(this);
+                _particleItem[i][j]->setData(ParticleId, QVariant(j));
                 _particleItem[i][j]->setRect(-r/2.0, -r/2.0, r, r);
                 _particleItem[i][j]->setZValue(10);
                 _particleItem[i][j]->setOpacity(1);
@@ -198,6 +219,46 @@ namespace piq {
                     _particleItem[i][j]->hide();
                 }
             }
+        }
+    }
+
+
+    void SimulCore::mousePressed(EllipseItem *sender, QGraphicsSceneMouseEvent *event) {
+        event->accept();
+    }
+
+    void SimulCore::mouseReleased(EllipseItem *sender, QGraphicsSceneMouseEvent *event) {
+        event->accept();
+        int particleId = sender->data(ParticleId).value<int>();
+
+        bool isSameParticle = particleId == _particleSelectedId;
+        if (_particleSelectionMode == None || !isSameParticle) {
+            _particleSelectionMode = Selected;
+            _particleSelectedId = particleId;
+
+            QBrush grayBrush(Qt::gray, Qt::SolidPattern);
+            for (int i = 0; i < 2; i++) {
+                for (int j = 0; j < _particleItem[i].size(); j++) {
+                    if (j != particleId) {
+                        _particleItem[i][j]->setBrush(grayBrush);
+                        _particleItem[i][j]->setOpacity(0.3);
+                    } else {
+                        RGBA color = _hsvFunc->operator()(j);
+                        _particleItem[i][j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));
+                        _particleItem[i][j]->setOpacity(1);
+                    }
+                }
+            }
+        } else if (isSameParticle) {
+            _particleSelectionMode = None;
+            for (int i = 0; i < 2; i++) {
+                for (int j = 0; j < _particleItem[i].size(); j++) {
+                    RGBA color = _hsvFunc->operator()(j);
+                    _particleItem[i][j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));
+                    _particleItem[i][j]->setOpacity(1);
+                }
+            }
+            _particleSelectedId = -1;
         }
     }
 
@@ -221,9 +282,21 @@ namespace piq {
         }
     }
 
+    void SimulCore::showGrid(bool onoff) {
+        for (int i = 0; i < 2; i++) {
+            if (_imageItem[i] != NULL) {
+                _imageItem[i]->showGrid(onoff);
+            }
+            if (_auxImageItem[i] != NULL) {
+                _auxImageItem[i]->showGrid(onoff);
+            }
+        }
+    }
+
     QGraphicsRealImageItem* SimulCore::showImage(int id, RealImage::Pointer image) {
-        _imageItem[id]->setImage<RealImage>(image, true);
+        _imageItem[id]->setImage<RealImage>(image, id == 0);
         _imageItem[id]->setFlip(QGraphicsRealImageItem::UpDown);
+        _imageItem[id]->setRange(_imageItem[0]->getRange(0), _imageItem[0]->getRange(1));
         _imageItem[id]->refresh();
 
         if (_scene[id] == _ui->graphicsView->scene()) {
@@ -235,8 +308,6 @@ namespace piq {
         }
         QTransform transform = _ui->graphicsView->transform();
         _ui->zoom->setValue(transform.m11() * 100);
-
-        _imageGrid[id]->ComputeFromBoundingRect(_imageItem[id]->boundingRect());
 
         return _imageItem[id];
     }
@@ -272,7 +343,6 @@ namespace piq {
         _auxImageItem[id]->setPos(xPos, yPos);
         _auxImageItem[id]->setTransform(_imageItem[id]->transform());
         _auxImageItem[id]->refresh();
-        _auxImageGrid[id]->ComputeFromBoundingRect(_auxImageItem[id]->boundingRect());
         _auxImageItem[id]->show();
     }
 
@@ -339,8 +409,9 @@ namespace piq {
         int h = 0;
         for (int i = 0; i < 2; i++) {
             // update mini view
-            _patchItem[i]->setRange(_imageItem[i]->getRange(0), _imageItem[i]->getRange(1));
+            _patchItem[i]->setRange(_imageItem[0]->getRange(0), _imageItem[0]->getRange(1));
             _patchItem[i]->setImage<RealImage>(_tracking.getPatch(i));
+            _patchItem[i]->refresh();
             _patchItem[i]->setPos(QPointF(0, h));
             _patchItem[i]->show();
 
@@ -416,5 +487,106 @@ namespace piq {
     }
 
     void SimulCore::run() {
+    }
+
+    void SimulCore::mousePressed(QGraphicsRealImageItem*, QGraphicsSceneMouseEvent* event) {
+        event->accept();
+    }
+
+    void SimulCore::mouseMoved(QGraphicsRealImageItem*, QGraphicsSceneMouseEvent*) {
+
+    }
+
+    void SimulCore::mouseReleased(QGraphicsRealImageItem* item, QGraphicsSceneMouseEvent* event) {
+        int imageId = item->data(ImageId).value<int>();
+
+        float radius = 8;
+        float width = 2*radius;
+        QPointF pos = event->pos();
+        pos.setX(pos.x() - radius);
+        pos.setY(pos.y() - radius);
+
+        if (_imageInteractionMode == SIFTMode) {
+            QRectF rect;
+            rect.setTopLeft(pos);
+            rect.setWidth(width);
+            rect.setHeight(width);
+
+            _selectedRects[imageId]->setPos(pos);
+            _selectedRects[imageId]->setRect(0, 0, width, width);
+            _selectedRects[imageId]->show();
+
+            RealImage::RegionType region;
+            rectToRegion(rect, region);
+
+            cout << "Region: " << region << endl;
+
+            ImageProcessing proc;
+            GradientImage::Pointer gradImage = proc.ComputeGaussianGradient(_image[imageId], 1);
+            ImageGradientHistogram hog;
+            hog.setRegion(region);
+
+            GradientImage::ConstPointer gradImageInput(gradImage);
+            hog.computeHistogram(gradImageInput);
+
+            QVector<double> x(128), y(128);
+            for (int i = 0; i < x.size(); i++) {
+                x[i] = 2*i+imageId;
+                y[i] = hog.histogram()[i];
+            }
+            while (_ui->costPlot->plottableCount() <= imageId) {
+                QCPBars *myBars = new QCPBars(_ui->costPlot->xAxis, _ui->costPlot->yAxis);
+                _ui->costPlot->addPlottable(myBars);
+                
+            }
+
+            QCPBars* bars = (QCPBars*) _ui->costPlot->plottable(imageId);
+            bars->setPen(Qt::NoPen);
+            if (imageId == 0) {
+                bars->setBrush(QBrush(Qt::magenta, Qt::SolidPattern));
+            } else {
+                bars->setBrush(QBrush(Qt::cyan, Qt::SolidPattern));
+            }
+            bars->setData(x,y);
+            bars->rescaleAxes(true);
+            _ui->costPlot->replot();
+        }
+    }
+
+    void SimulCore::hoverEntered(QGraphicsRealImageItem* item, QGraphicsSceneHoverEvent* event) {
+        if (_imageInteractionMode == SIFTMode) {
+            float radius = 5;
+            int imageId = item->data(ImageId).value<int>();
+            static QPen pen(Qt::magenta, 1);
+            pen.setCosmetic(true);
+            _rects[imageId] = new QGraphicsRectItem(item);
+
+            QPointF pos = event->pos();
+            pos.setX(pos.x() - radius);
+            pos.setY(pos.y() - radius);
+            _rects[imageId]->setPos(pos);
+
+            _rects[imageId]->setRect(0, 0, 2*radius+1, 2*radius+1);
+            _rects[imageId]->setPen(pen);
+        }
+    }
+
+    void SimulCore::hoverMoved(QGraphicsRealImageItem* item, QGraphicsSceneHoverEvent* event) {
+        if (_imageInteractionMode == SIFTMode) {
+            int imageId = item->data(ImageId).value<int>();
+
+            float radius = 5;
+            QPointF pos = event->pos();
+            pos.setX(pos.x() - radius);
+            pos.setY(pos.y() - radius);
+            _rects[imageId]->setPos(pos);
+        }
+    }
+
+    void SimulCore::hoverLeft(QGraphicsRealImageItem* item, QGraphicsSceneHoverEvent* event) {
+        if (_imageInteractionMode == SIFTMode) {
+            int imageId = item->data(ImageId).value<int>();
+            _scene[imageId]->removeItem(_rects[imageId]);
+        }
     }
 }

@@ -23,6 +23,7 @@ QGraphicsGridItem::~QGraphicsGridItem() {
 
 void QGraphicsGridItem::SetPen(QPen pen) {
     m_Pen = pen;
+    m_Pen.setCosmetic(true);
 }
 
 void QGraphicsGridItem::SetResolution(int res) {
@@ -41,6 +42,8 @@ void QGraphicsGridItem::ComputeFromBoundingRect(QRectF rect) {
             fy[i][j] = j + rect.y();
         }
     }
+
+    m_Res = rect.height() / 15.0;
 
     SetGrid(fx, fy);
 
@@ -73,11 +76,19 @@ void QGraphicsGridItem::paint(QPainter *painter, const QStyleOptionGraphicsItem 
     const int nX = (nRows - 1) / m_Res + 1;
     const int nY = (nCols - 1) / m_Res + 1;
 
+    QPen dashPen(m_Pen.color(), 1, Qt::DotLine);
+    dashPen.setCosmetic(true);
+
     painter->setPen(m_Pen);
     QPointF* px = new QPointF[nX];
     QPointF* py = new QPointF[nY];
     for (int i = 0; i < nRows; i += m_Res) {
         int jj = 0;
+        if (i % 5 == 0) {
+            painter->setPen(m_Pen);
+        } else {
+            painter->setPen(dashPen);
+        }
         for (int j = 0; j < nCols; j += m_Res, jj++) {
             py[jj].setX(m_GridX[i][j]);
             py[jj].setY(m_GridY[i][j]);
@@ -89,6 +100,12 @@ void QGraphicsGridItem::paint(QPainter *painter, const QStyleOptionGraphicsItem 
     }
     for (int j = 0; j < nCols; j += m_Res) {
         int ii = 0;
+        if (j % 5 == 0) {
+            painter->setPen(m_Pen);
+        } else {
+            painter->setPen(dashPen);
+        }
+
         for (int i = 0; i < nRows; i += m_Res, ii++) {
             px[ii].setX(m_GridX[i][j]);
             px[ii].setY(m_GridY[i][j]);

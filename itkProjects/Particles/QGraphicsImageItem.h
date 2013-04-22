@@ -13,6 +13,8 @@
 #include <itkImage.h>
 #include <QGraphicsItem>
 #include <QGraphicsSceneMouseEvent>
+#include <QGraphicsSceneHoverEvent>
+#include <QPainter>
 
 #include "piImageHistogram.h"
 
@@ -24,33 +26,106 @@ extern unsigned int __blue2red[256];
 template <class T>
 class QGraphicsImageItem: public QGraphicsPixmapItem {
 public:
+    typedef T PixelType;
+
+    class InteractionType {
+    public:
+        virtual void mousePressed(QGraphicsImageItem<T>*,QGraphicsSceneMouseEvent*) = 0;
+        virtual void mouseMoved(QGraphicsImageItem<T>*,QGraphicsSceneMouseEvent*) = 0;
+        virtual void mouseReleased(QGraphicsImageItem<T>*,QGraphicsSceneMouseEvent*) = 0;
+        virtual void hoverEntered(QGraphicsImageItem<T>*,QGraphicsSceneHoverEvent*) = 0;
+        virtual void hoverMoved(QGraphicsImageItem<T>*,QGraphicsSceneHoverEvent*) = 0;
+        virtual void hoverLeft(QGraphicsImageItem<T>*,QGraphicsSceneHoverEvent*) = 0;
+    };
+
     enum Flags { NoFlip, LeftRight, UpDown };
 
     QGraphicsImageItem(QGraphicsItem* parent = NULL): QGraphicsPixmapItem(parent) {
         _range[0] = 0;
-        _range[1] = 255;
+        _range[1] = 0;
+        _showGrid = true;
+        _interaction = NULL;
         setAcceptedMouseButtons(Qt::LeftButton);
     }
     virtual ~QGraphicsImageItem() {}
+    virtual void paint (QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * widget = 0);
 
     T getRange(int i);
     void setRange(T min, T max);
     void setFlip(Flags flags);
     void refresh();
+    void showGrid(bool);
+    void setInteraction(InteractionType* interaction);
 
     void setImage(T* inputBuffer, int w, int h);
     template <class S> void setImage(typename S::Pointer image, bool computeRange = false);
     static void convertToIndexed(T*, double, double, QImage&);
 
+
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent* event);
     void mouseReleaseEvent(QGraphicsSceneMouseEvent* event);
+    void mouseMoveEvent(QGraphicsSceneMouseEvent* event);
+    void hoverEnterEvent(QGraphicsSceneHoverEvent* event);
+    void hoverMoveEvent(QGraphicsSceneHoverEvent* event);
+    void hoverLeaveEvent(QGraphicsSceneHoverEvent* event);
 
 private:
     T* _inputBuffer;
     T _range[2];
+    bool _showGrid;
     QImage _grayImage;
+    InteractionType* _interaction;
 };
+
+
+template <class T>
+void QGraphicsImageItem<T>::showGrid(bool onoff) {
+    _showGrid = onoff;
+    update();
+}
+
+template <class T>
+void QGraphicsImageItem<T>::setInteraction(InteractionType *interaction) {
+    _interaction = interaction;
+    setAcceptHoverEvents(true);
+}
+
+template <class T>
+void QGraphicsImageItem<T>::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget* widget) {
+    QGraphicsPixmapItem::paint(painter, option, widget);
+    if (_showGrid) {
+        QRectF rect = boundingRect();
+        QPen pen = painter->pen();
+        static QPen blackPen(Qt::black, 1), dashPen(Qt::black, 1, Qt::DotLine);
+        blackPen.setCosmetic(true);
+        dashPen.setCosmetic(true);
+        painter->setPen(blackPen);
+
+        float hSpacing = rect.height() / 20.0;
+        int n = 0;
+        for (float i = 0; i < rect.height(); i += hSpacing, n++) {
+            if (n % 5 == 0) {
+                painter->setPen(blackPen);
+            } else {
+                painter->setPen(dashPen);
+            }
+            painter->drawLine(0, i, rect.width(), i);
+        }
+
+        n = 0;
+        for (float i = 0; i < rect.width(); i += hSpacing, n++) {
+            if (n % 5 == 0) {
+                painter->setPen(blackPen);
+            } else {
+                painter->setPen(dashPen);
+            }
+            painter->drawLine(i, 0, i, rect.height());
+        }
+
+        painter->setPen(pen);
+    }
+}
 
 template <class T>
 void QGraphicsImageItem<T>::setImage(T* inputBuffer, int w, int h) {
@@ -62,12 +137,15 @@ void QGraphicsImageItem<T>::setImage(T* inputBuffer, int w, int h) {
             _grayImage.setColor(i, __blue2red[i]);
         }
     }
-    refresh();
 }
 
 
 template <class T> template <class S>
 void QGraphicsImageItem<T>::setImage(typename S::Pointer image, bool computeRange) {
+    if (image.IsNull()) {
+        std::cout << __FILE__ << ": image is null!" << std::endl;
+        return;
+    }
     typename S::SizeType sz = image->GetBufferedRegion().GetSize();
     int w = 0;
     int h = 0;
@@ -148,6 +226,8 @@ void QGraphicsImageItem<T>::refresh() {
 
     const float pixelRange = _range[1] - _range[0];
     const float pixelMin = _range[0];
+
+    std::cout << pixelMin << ", " << pixelRange << std::endl;
     convertToIndexed(_inputBuffer, pixelMin, pixelRange, _grayImage);
 
     QPixmap pixmap = QPixmap::fromImage(_grayImage);
@@ -168,15 +248,58 @@ void QGraphicsImageItem<T>::convertToIndexed(T* inputBuffer,
 
 template <class T>
 void QGraphicsImageItem<T>::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    if (_interaction) {
+        _interaction->mousePressed(this, event);
+        return;
+    }
+    return QGraphicsPixmapItem::mousePressEvent(event);
+}
+
+template <class T>
+void QGraphicsImageItem<T>::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+    if (_interaction) {
+        _interaction->mouseMoved(this, event);
+        return;
+    }
+    return QGraphicsPixmapItem::mouseMoveEvent(event);
 }
 
 template <class T>
 void QGraphicsImageItem<T>::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-    QPointF pos = mapFromItem(this, event->pos());
-    int y = pos.y() + 0.5;
-    int x = pos.x() + 0.5;
-    int n = y * _grayImage.width() + x;
-    std::cout << "Pressed at: " << pos.x() << "," << pos.y() << "," << _inputBuffer[n] << std::endl;
+    if (_interaction) {
+        _interaction->mouseReleased(this, event);
+        return;
+    }
+    return QGraphicsPixmapItem::mouseReleaseEvent(event);
 }
+
+
+template <class T>
+void QGraphicsImageItem<T>::hoverEnterEvent(QGraphicsSceneHoverEvent *event) {
+    if (_interaction) {
+        _interaction->hoverEntered(this, event);
+        return;
+    }
+    return QGraphicsPixmapItem::hoverEnterEvent(event);
+}
+
+template <class T>
+void QGraphicsImageItem<T>::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
+    if (_interaction) {
+        _interaction->hoverMoved(this, event);
+        return;
+    }
+    return QGraphicsPixmapItem::hoverMoveEvent(event);
+}
+
+template <class T>
+void QGraphicsImageItem<T>::hoverLeaveEvent(QGraphicsSceneHoverEvent *event) {
+    if (_interaction) {
+        _interaction->hoverLeft(this, event);
+        return;
+    }
+    return QGraphicsPixmapItem::hoverLeaveEvent(event);
+}
+
 
 #endif /* defined(__ParticleGuidedRegistration__QGraphicsImageItem__) */

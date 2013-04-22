@@ -63,6 +63,7 @@ namespace pi {
     typedef itk::GradientImageFilter<RealImage> GradientFilterType;
     typedef GradientFilterType::OutputImageType GradientImage;
     typedef GradientFilterType::OutputPixelType GradientPixel;
+    typedef itk::ImageRegionConstIteratorWithIndex<GradientImage> GradientIteratorType;
     typedef itk::ConstNeighborhoodIterator<GradientImage> VectorImageNeighborhoodIteratorType;
     typedef itk::GradientRecursiveGaussianImageFilter<RealImage, GradientImage> GaussianGradientFilterType;
     typedef itk::VectorLinearInterpolateImageFunction<GradientImage> GradientInterpolatorType;

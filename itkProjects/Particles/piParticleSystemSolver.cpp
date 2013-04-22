@@ -25,6 +25,20 @@ namespace pi {
 
     ParticleSystemSolver::ParticleSystemSolver() : verbose(true) {
         useAlignment = false;
+        continueToRun = true;
+    }
+
+    void ParticleSystemSolver::Stop() {
+        continueToRun = false;
+    }
+
+    bool ParticleSystemSolver::LoadParameters(std::istream& in) {
+        Options opts;
+        in >> opts;
+
+        // FIXME: check if it causes other undefined effects
+        m_Options = opts;
+        return true;
     }
 
     bool ParticleSystemSolver::LoadConfig(const char* name) {
@@ -282,35 +296,22 @@ namespace pi {
             }
         }
         m_System.InitializeMean();
+        ensembleForce.SetImageContext(&m_ImageContext);
 
+        intensityForce.SetImageContext(&m_ImageContext);
+        intensityForce.useAttributesAtWarpedSpace = true;
 
-        useEnsemble = m_Options.GetBool("ensemble");
-        useIntensity = m_Options.GetBool("intensity");
-        noInternal = m_Options.GetBool("no_internal");
-        noBoundary = m_Options.GetBool("no_boundary");
-        useVelocity = m_Options.GetBool("use_velocity");
-        useAlignment = m_Options.GetBool("use_alignment");
+        internalForce.coeff = 0.3;
+        ensembleForce.coeff = 0.3;
+        intensityForce.coeff = 0.3;
 
-        m_Options.SetBool("use_velocity", useVelocity);
-        m_Options.SetBool("intensity", useIntensity);
-        m_Options.SetBool("no_internal", noInternal);
-        m_Options.SetBool("no_boundary", noBoundary);
-        m_Options.SetBool("ensemble", useEnsemble);
-        m_Options.SetBool("use_alignment", useAlignment);
+        SetupParameters();
         
         // check label images are loaded
         if (!noBoundary && nSubz != m_ImageContext.GetLabelVector().size()) {
             cout << "the same number of boundary mask files are required" << endl;
             return;
         }
-
-        m_Options.GetRealTo("InternalForceSigma:", internalForce.repulsionSigma);
-        m_Options.GetRealTo("InternalForceCutoff:", internalForce.repulsionCutoff);
-        m_Options.GetRealTo("InternalForceFriendSigma:", internalForce.friendSigma);
-        m_Options.GetRealTo("InternalForceFriendCutoff:", internalForce.friendCutoff);
-        m_Options.GetBoolTo("adaptive_sampling", internalForce.useAdaptiveSampling);
-        m_Options.GetBoolTo("multiphase_force", internalForce.useMultiPhaseForce);
-
 
         if (internalForce.useAdaptiveSampling) {
             m_System.LoadKappaImages(m_Options, &m_ImageContext);
@@ -322,19 +323,6 @@ namespace pi {
         }
 
 
-
-        ensembleForce.SetImageContext(&m_ImageContext);
-
-        intensityForce.SetImageContext(&m_ImageContext);
-        intensityForce.useAttributesAtWarpedSpace = true;
-
-        internalForce.coeff = 0.3;
-        ensembleForce.coeff = 0.3;
-        intensityForce.coeff = 0.3;
-
-        m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, internalForce.coeff);
-        m_Options.GetRealVectorValueTo("ForceCoefficients:", 1, ensembleForce.coeff);
-        m_Options.GetRealVectorValueTo("ForceCoefficients:", 2, intensityForce.coeff);
 
         RealVector forceCoefficients = m_Options.GetRealVector("ForceCoefficients:");
         forceCoefficients.clear();
@@ -386,14 +374,42 @@ namespace pi {
 
         cout << "ForceCoefficients: " << internalForce.coeff << ", " << ensembleForce.coeff << ", " << intensityForce.coeff << endl;
         
-        cout << Attr::NATTRS << " attributes per particle" << endl;
+        cout << NATTRS << " attributes per particle" << endl;
 
         m_System.currentIteration = -1;
         //        ofstream err("error.txt");
 
 
     }
-    
+
+    void ParticleSystemSolver::SetupParameters() {
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 0, internalForce.coeff);
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 1, ensembleForce.coeff);
+        m_Options.GetRealVectorValueTo("ForceCoefficients:", 2, intensityForce.coeff);
+        
+        useEnsemble = m_Options.GetBool("ensemble");
+        useIntensity = m_Options.GetBool("intensity");
+        noInternal = m_Options.GetBool("no_internal");
+        noBoundary = m_Options.GetBool("no_boundary");
+        useVelocity = m_Options.GetBool("use_velocity");
+        useAlignment = m_Options.GetBool("use_alignment");
+
+        m_Options.SetBool("use_velocity", useVelocity);
+        m_Options.SetBool("intensity", useIntensity);
+        m_Options.SetBool("no_internal", noInternal);
+        m_Options.SetBool("no_boundary", noBoundary);
+        m_Options.SetBool("ensemble", useEnsemble);
+        m_Options.SetBool("use_alignment", useAlignment);
+
+
+        m_Options.GetRealTo("InternalForceSigma:", internalForce.repulsionSigma);
+        m_Options.GetRealTo("InternalForceCutoff:", internalForce.repulsionCutoff);
+        m_Options.GetRealTo("InternalForceFriendSigma:", internalForce.friendSigma);
+        m_Options.GetRealTo("InternalForceFriendCutoff:", internalForce.friendCutoff);
+        m_Options.GetBoolTo("adaptive_sampling", internalForce.useAdaptiveSampling);
+        m_Options.GetBoolTo("multiphase_force", internalForce.useMultiPhaseForce);
+    }
+
     void ParticleSystemSolver::Run() {
         ParticleSystem& system = m_System;
         const int nSubz = system.GetNumberOfSubjects();
@@ -485,6 +501,10 @@ namespace pi {
         // work on coordinate Y
         if (useEnsemble) {
             ensembleForce.ComputeEnsembleForce(m_System);
+        } else {
+            for (int n = 0; n < nSubz; n++) {
+                m_System[n].TransformY2Z();
+            }
         }
 
         // work on coordinate Z

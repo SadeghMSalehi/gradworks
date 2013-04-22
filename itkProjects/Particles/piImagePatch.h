@@ -21,48 +21,52 @@ namespace pi {
     class ImagePatch {
     public:
         typedef T* ImagePointer;
-        typedef typename T::PixelType ImagePixel;
-        typedef typename T::PointType ImagePoint;
+        typedef typename T::PixelType PixelType;
+        typedef typename T::PointType PointType;
+        typedef typename T::IndexType IndexType;
+        typedef typename T::RegionType RegionType;
+
         typedef struct {
-            ImagePoint p;
-            ImagePoint q;
-        } ImagePointPair;
-        typedef typename T::IndexType ImageIndex;
-        typedef typename T::RegionType ImageRegion;
+            IndexType i;
+            PointType q;
+        } IndexPointType;
+
         typedef itk::Transform<double,T::ImageDimension,T::ImageDimension> TransformType;
         typedef TransformType* TransformPointer;
-        typedef std::vector<ImagePoint> PointVector;
+        typedef std::vector<PointType> PointVector;
+        typedef std::vector<IndexPointType> IndexPointVector;
         typedef itk::LinearInterpolateImageFunction<T> ImageInterpolator;
 
         ImagePatch();
         ~ImagePatch();
 
         PointVector& getOffsetPoints();
-        PointVector& getSamplingPoints();
+        IndexPointVector& getSamplingPoints();
         
         void setImage(ImagePointer image);
         void setRadiusInIndexUnit(int radius);
         void setTransform(TransformPointer transform);
 
-        void addSamplingIndex(ImageIndex& idx);
-        void addSamplingPoint(ImagePoint& point);
-        void samplePoints(int i, ImagePixel*);
+        
+        void addSamplingIndex(IndexType& idx);
+        void addSamplingPoint(PointType& point);
+        void samplePoints(int i, PixelType*);
         bool samplePoints(int i, ImagePointer outputImage);
         
     private:
         void updatePhysicalPoints(unsigned int, int&);
-        bool evaluateAtPhysicalPoint(ImagePoint& p, ImagePixel& pixelOut);
-        bool evaluateAtIndex(ImageIndex& x, ImagePixel& pixelOut);
-        bool transformAndEvaluatePoint(ImagePoint& p, ImagePoint& q, ImagePixel& pixelOut);
+        bool evaluateAtPhysicalPoint(PointType& p, PixelType& pixelOut);
+        bool evaluateAtIndex(IndexType& x, PixelType& pixelOut);
+        bool transformAndEvaluatePoint(PointType& p, PointType& q, PixelType& pixelOut);
 
     private:
         int _radius;
         int _width;
         ImagePointer _image;
-        ImageIndex _indexLoop;
+        IndexType _indexLoop;
         TransformPointer _transform;
         PointVector _offsetPoints;
-        PointVector _samplingPoints;
+        IndexPointVector _samplingPoints;
         typename ImageInterpolator::Pointer _interpolator;
     };
 
@@ -89,7 +93,7 @@ namespace pi {
     }
 
     template <class T>
-    typename ImagePatch<T>::PointVector& ImagePatch<T>::getSamplingPoints() {
+    typename ImagePatch<T>::IndexPointVector& ImagePatch<T>::getSamplingPoints() {
         return _samplingPoints;
     }
 
@@ -120,7 +124,7 @@ namespace pi {
     }
 
     template <class T>
-    inline bool ImagePatch<T>::evaluateAtPhysicalPoint(ImagePoint& p, ImagePixel& pixelOut) {
+    inline bool ImagePatch<T>::evaluateAtPhysicalPoint(PointType& p, PixelType& pixelOut) {
         if (!_interpolator->IsInsideBuffer(p)) {
             return false;
         }
@@ -128,7 +132,7 @@ namespace pi {
     }
     
     template <class T>
-    inline bool ImagePatch<T>::evaluateAtIndex(ImageIndex& x, ImagePixel& pixelOut) {
+    inline bool ImagePatch<T>::evaluateAtIndex(IndexType& x, PixelType& pixelOut) {
         if (!_interpolator->IsInsideBuffer(x)) {
             return false;
         }
@@ -136,22 +140,22 @@ namespace pi {
     }
 
     template <class T>
-    inline bool ImagePatch<T>::transformAndEvaluatePoint(ImagePoint& p, ImagePoint& q, ImagePixel& v) {
+    inline bool ImagePatch<T>::transformAndEvaluatePoint(PointType& p, PointType& q, PixelType& v) {
         // do not check transform
         _transform->TransformPoint(p, q);
         return evaluateAtPhysicalPoint(q, v);
     }
 
     template <class T>
-    void ImagePatch<T>::samplePoints(int n, ImagePixel* pixelBuffer) {
+    void ImagePatch<T>::samplePoints(int n, PixelType* pixelBuffer) {
         if (n >= _samplingPoints.size()) {
             return;
         }
-        ImagePoint& center = _samplingPoints[n];
+        PointType& center = _samplingPoints[n];
         typename PointVector::iterator iter = _offsetPoints.begin();
         for (; iter != _offsetPoints.end(); iter++) {
-            ImagePoint p;
-            ImagePoint q;
+            PointType p;
+            PointType q;
             for (int j = 0; j < T::ImageDimension; j++) {
                 p[j] = *iter[j] + center[j];
             }
@@ -171,15 +175,19 @@ namespace pi {
     }
 
     template <class T>
-    void ImagePatch<T>::addSamplingPoint(ImagePoint& p) {
+    void ImagePatch<T>::addSamplingPoint(PointType& p) {
+        IndexType ip;
+        ip.p = p;
+        _image->TransformPhysicalPointToIndex(p, ip.i);
         _samplingPoints.push_back(p);
     }
 
     template <class T>
-    void ImagePatch<T>::addSamplingIndex(ImageIndex& x) {
-        ImagePoint p;
-        _image->TransformIndexToPhysicalPoint(x, p);
-        _samplingPoints.push_back(p);
+    void ImagePatch<T>::addSamplingIndex(IndexType& x) {
+        IndexPointType ip;
+        ip.i = x;
+        _image->TransformIndexToPhysicalPoint(ip.x, ip.p);
+        _samplingPoints.push_back(ip);
     }
 
 }

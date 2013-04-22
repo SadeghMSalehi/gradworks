@@ -523,7 +523,7 @@ namespace pi {
             return;
         }
 
-        DataReal sigma = options.GetReal("AdaptiveSamplingBlurSigma:", 1);
+        DataReal sigma = options.GetReal("AdaptiveSamplingBlurSigma:", 3);
         DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 2);
 
         ImageIO<RealImage> io;

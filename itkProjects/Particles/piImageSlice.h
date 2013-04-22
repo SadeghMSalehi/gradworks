@@ -328,7 +328,7 @@ namespace pi {
         typedef typename T::Pointer ImagePointer;
         typedef typename T::PointType ImagePoint;
         typedef typename T::SpacingType ImageSpacing;
-        typedef ImageHistogram<T> ImageHistogram;
+        typedef ImageHistogram<T> HistogramType;
 
         itkGetMacro(SourceImage, ImagePointer);
         itkGetMacro(Origin, ImagePoint);
@@ -367,11 +367,11 @@ namespace pi {
         // (grid x transform)
         std::vector<SliceType> _sliceDisplayCache;
 
-        ImageHistogram histogram;
+        HistogramType histogram;
         ImageDisplayProperty displayProperty;
 
     public:
-        ImageHistogram& GetHistogram() {
+        HistogramType& GetHistogram() {
             return histogram;
         }
 

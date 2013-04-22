@@ -13,7 +13,27 @@
 #include <vector>
 #include "piMacros.h"
 
+#ifndef ATTR_SIZE
+#define ATTR_SIZE 3
+#endif
+
+#if DIMENSIONS == 3
+#define NATTRS ATTR_SIZE*ATTR_SIZE*ATTR_SIZE
+#else
+#define NATTRS ATTR_SIZE*ATTR_SIZE
+#endif
+
 namespace pi {
+
+    class ParticleAttribute {
+    public:
+        DataReal o[DIMENSIONS];
+        DataReal f[DIMENSIONS];
+        DataReal F[DIMENSIONS];
+        DataReal x[NATTRS];
+        DataReal y[NATTRS];
+        DataReal g[NATTRS][DIMENSIONS];
+    };
 
     class Particle {
     public:
