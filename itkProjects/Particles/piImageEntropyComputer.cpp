@@ -278,6 +278,9 @@ namespace pi {
                 region.SetIndex(0, _region.GetIndex(0) + i * 4);
                 region.SetIndex(1, _region.GetIndex(1) + j * 4);
 
+                if (!imageRegion.IsInside(region.GetIndex())) {
+                    continue;
+                }
                 fordim (d) {
                     region.SetSize(d, 4);
                     if (region.GetIndex(d) < 0) {
@@ -296,10 +299,6 @@ namespace pi {
 
                 GradientIteratorType iter(gradImage, region);
                 for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
-                    if (!imageRegion.IsInside(iter.GetIndex())) {
-                        continue;
-                    }
-
                     const GradientPixel gPixel = iter.Get();
 
                     // atan2 returns between -pi to pi

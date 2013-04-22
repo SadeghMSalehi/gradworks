@@ -15,6 +15,8 @@
 #include <itkVectorLinearInterpolateImageFunction.h>
 #include "piImageDef.h"
 #include "piImageEntropyComputer.h"
+#include <vnl/vnl_vector.h>
+#include <vnl/vnl_matrix.h>
 
 using namespace pi;
 
@@ -78,6 +80,16 @@ namespace itk {
     private:
         SIFTImageFilter(const SIFTImageFilter&);
         void operator=(const SIFTImageFilter&);
+    };
+    
+    class SIFTImagePCAComputer {
+    public:
+        void computePCA(SIFTImage* image);
+        
+    private:
+        vnl_vector<double> _mean;
+        vnl_matrix<double> _siftImage;
+        vnl_matrix<double> _siftImageCov;
     };
 }
 #endif /* defined(__ParticleGuidedRegistration__itkSIFTImageFilter__) */

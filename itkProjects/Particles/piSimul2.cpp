@@ -308,7 +308,11 @@ namespace pi {
         }
         itk::SIFTImage::Pointer siftImage = filter->GetOutput();
         ImageIO<itk::SIFTImage> io;
-        io.WriteImage("/tmpfs/sift1.nii.gz", siftImage);
+        io.WriteImage("/tmpfs/sift1.nrrd", siftImage);
+        
+        itk::SIFTImagePCAComputer pcaComp;
+        pcaComp.computePCA(siftImage);
+        
     }
 
     void Simul2::on_actionGenerateSIFTImage2_triggered() {
