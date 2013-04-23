@@ -59,6 +59,7 @@ namespace piq {
         virtual ~SimulCore();
         void setParticleSolver(pi::ParticleSystemSolver* solver);
         void showAuxImage(int, pi::RealImage::Pointer image, bool autoRange = false);
+        void showCompositeImage(pi::RealImage::Pointer, pi::RealImage::Pointer, pi::RealImage::Pointer);
         void showEntropyMeasurementImage();
 
         pi::RealImage::Pointer getImage(int i);

@@ -589,4 +589,44 @@ namespace piq {
             _scene[imageId]->removeItem(_rects[imageId]);
         }
     }
+
+    void SimulCore::showCompositeImage(pi::RealImage::Pointer pc1, pi::RealImage::Pointer pc2, pi::RealImage::Pointer pc3) {
+        RealImage::SizeType imageSize = pc1->GetBufferedRegion().GetSize();
+        const int nPixels = pc1->GetPixelContainer()->Size();
+        const int w = imageSize[0];
+        const int h = imageSize[1];
+
+
+        RealImage::Pointer pcImg[3];
+        pcImg[0] = pc1;
+        pcImg[1] = pc2;
+        pcImg[2] = pc3;
+
+        QImage img(imageSize[0], imageSize[1], QImage::Format_ARGB32);
+        img.fill(0xFF000000);
+
+        const int shift[3] = { 16, 8, 0 };
+
+        ImageHistogram<RealImage> histo[3];
+
+        for (int i = 0; i < 3; i++) {
+            histo[i].SetImage(pcImg[i]);
+            DataReal* buff = pcImg[i]->GetBufferPointer();
+            for (int j = 0; j < h; j++) {
+                uint32_t* imgPtr = (uint32_t*) img.scanLine(j);
+                for (int k = 0; k < w; k++) {
+                    uint32_t pixel = (*buff - histo[i].dataMin)/(histo[i].dataMax - histo[i].dataMin) * 255;
+                    *imgPtr = *imgPtr | (pixel << shift[i]);
+                    buff++;
+                    imgPtr++;
+                }
+            }
+        }
+        qreal xPos = _imageItem[0]->boundingRect().width();
+        qreal yPos = 0;
+        _auxImageItem[0]->setPos(xPos, yPos);
+        _auxImageItem[0]->setTransform(_imageItem[0]->transform());
+        _auxImageItem[0]->setPixmap(QPixmap::fromImage(img));
+        _auxImageItem[0]->show();
+    }
 }

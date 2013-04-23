@@ -84,8 +84,11 @@ namespace itk {
     
     class SIFTImagePCAComputer {
     public:
+        vnl_matrix<double> V;
+        vnl_matrix<double> D;
+
         void computePCA(SIFTImage* image);
-        
+        RealImage::Pointer computePCImage(SIFTImage* image, int k = 0);
     private:
         vnl_vector<double> _mean;
         vnl_matrix<double> _siftImage;

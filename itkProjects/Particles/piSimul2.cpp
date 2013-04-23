@@ -36,6 +36,7 @@ namespace pi {
     ParticleSystemSolver main;
     ParticleSystem& system = main.m_System;
     ImageContext& images = main.m_ImageContext;
+    ImageIO<RealImage> __imageIO;
 
     ParticleTrace trace;
 
@@ -312,7 +313,11 @@ namespace pi {
         
         itk::SIFTImagePCAComputer pcaComp;
         pcaComp.computePCA(siftImage);
-        
+        RealImage::Pointer pc1 = pcaComp.computePCImage(siftImage, 0);
+        RealImage::Pointer pc2 = pcaComp.computePCImage(siftImage, 1);
+        RealImage::Pointer pc3 = pcaComp.computePCImage(siftImage, 2);
+
+        core.showCompositeImage(pc1, pc2, pc3);
     }
 
     void Simul2::on_actionGenerateSIFTImage2_triggered() {
