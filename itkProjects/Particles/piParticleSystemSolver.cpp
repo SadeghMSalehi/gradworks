@@ -158,10 +158,15 @@ namespace pi {
         boundary.applyMaskSmoothing = true;
         m_Options.GetStringTo("InitialIntersectionMaskCache:", boundary.binaryMaskCache);
         m_Options.GetStringTo("InitialIntersectionDistanceMapCache:", boundary.distanceMapCache);
-        
+
+
         ParticleSubject& initial = m_System.GetInitialSubject();
-        if (initial.GetNumberOfPoints() == 0) {
-            
+
+        bool mustRun = false;
+        m_Options.GetBool("force_preprocessing", mustRun);
+        mustRun = mustRun || (initial.GetNumberOfPoints() == 0);
+
+        if (initial.GetNumberOfPoints() == 0 || mustRun) {
             // compute intersection in combination with particle boundary
             ImageIO<LabelImage> io;
             if (io.FileExists(boundary.binaryMaskCache.c_str())) {
@@ -253,7 +258,8 @@ namespace pi {
                 timer.start();
             }
         }
-        
+
+        // Next step to run particles inside each of subjects
         if (traceOn) {
             ofstream out(traceFile.c_str());
             trace.Write(out);
@@ -262,6 +268,58 @@ namespace pi {
     quit:
         cout << "Preprocessing done ..." << endl;
         return;
+    }
+
+    /**
+     * This method spread initial particles inside of the each subject
+     *
+     */
+    void ParticleSystemSolver::SpreadParticles() {
+        cout << "Spread initial particles" << endl;
+
+        // Copy particles from initial subjects
+        const int nSubz = m_System.GetNumberOfSubjects();
+        const int nPoints = m_System[0].GetNumberOfPoints();
+
+        // check collision handlers are set up
+        SetupCollisionHandlers();
+
+        // run again with preprocessing interval
+        // give enough time range
+        DataReal t0 = 0;
+        DataReal dt = 1;
+        DataReal t1 = 100;
+
+        // iterate over
+        for (DataReal t = t0; t < t1; t += dt) {
+            cout << "processing time: " << t << endl;
+            // compute internal force
+            for (int n = 0; n < nSubz; n++) {
+                for (int i = 0; i < nPoints; i++) {
+                    Particle& pi = m_System[n][i];
+                    forfill(pi.f, 0);
+                }
+                collisionHandlers[n].ConstrainPoint(m_System[n]);
+            }
+
+            for (int n = 0; n < nSubz; n++) {
+                ParticleSubject& subj = m_System[n];
+                internalForce.ComputeForce(subj);
+                collisionHandlers[n].ProjectForceAndVelocity(subj);
+                for (int i = 0; i < nPoints; i++) {
+                    Particle& p = subj[i];
+                    p.UpdateStatus(dt);
+                    IntIndex pIdx;
+                    fordim (k) {
+                        pIdx[k] = p.x[k] + 0.5;
+                    }
+                    if (!collisionHandlers[n].IsBufferInside(pIdx)) {
+                        cout << "\nStop system: out of region" << endl;
+                        return;
+                    }
+                }
+            }
+        }
     }
     
 
@@ -336,21 +394,9 @@ namespace pi {
 #endif
 
 
-        ///////////////////////////////////////////////
-        // Collison Handler Setup
-        //
-        collisionHandlers.resize(nSubz);
 
-        for (int n = 0; n < nSubz; n++) {
-            collisionHandlers[n].subject = &m_System[n];
-            collisionHandlers[n].applyMaskSmoothing = true;
-            m_Options.GetStringVectorValueTo("BinaryMaskCache:", n, collisionHandlers[n].binaryMaskCache);
-            m_Options.GetStringVectorValueTo("BinaryMaskDistanceMapCache:", n, collisionHandlers[n].distanceMapCache);
-            collisionHandlers[n].SetLabelImage(m_ImageContext.GetLabel(n));
-            collisionHandlers[n].UpdateImages();
-        }
-
-
+        SetupCollisionHandlers();
+        
         ////////////////////////////////////////////////
         // Time Range Setup
         //
@@ -408,6 +454,26 @@ namespace pi {
         m_Options.GetRealTo("InternalForceFriendCutoff:", internalForce.friendCutoff);
         m_Options.GetBoolTo("adaptive_sampling", internalForce.useAdaptiveSampling);
         m_Options.GetBoolTo("multiphase_force", internalForce.useMultiPhaseForce);
+    }
+
+    /**
+     * setup collision handlers
+     */
+    void ParticleSystemSolver::SetupCollisionHandlers() {
+        ///////////////////////////////////////////////
+        // Collison Handler Setup
+        //
+        const int nSubz = m_System.GetNumberOfSubjects();
+        collisionHandlers.resize(nSubz);
+
+        for (int n = 0; n < nSubz; n++) {
+            collisionHandlers[n].subject = &m_System[n];
+            collisionHandlers[n].applyMaskSmoothing = true;
+            m_Options.GetStringVectorValueTo("BinaryMaskCache:", n, collisionHandlers[n].binaryMaskCache);
+            m_Options.GetStringVectorValueTo("BinaryMaskDistanceMapCache:", n, collisionHandlers[n].distanceMapCache);
+            collisionHandlers[n].SetLabelImage(m_ImageContext.GetLabel(n));
+            collisionHandlers[n].UpdateImages();
+        }
     }
 
     void ParticleSystemSolver::Run() {

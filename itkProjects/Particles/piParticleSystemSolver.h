@@ -31,6 +31,11 @@ namespace pi {
 
         void Preprocessing();
 
+        // convenient function with only internal forces
+        void SpreadParticles();
+
+        void SetupCollisionHandlers();
+        
         void Run();
         void Setup();
         void SetupParameters();
@@ -49,6 +54,8 @@ namespace pi {
             return m_ImageContext;
         }
 
+
+    public:
         Options m_Options;
         ParticleSystem m_System;
         ImageContext m_ImageContext;

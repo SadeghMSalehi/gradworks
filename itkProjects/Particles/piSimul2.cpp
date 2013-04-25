@@ -63,6 +63,7 @@ namespace pi {
         ui.costPlot->hide();
 
         centerToDesktop();
+        splitViewEvenly();
     }
 
 
@@ -89,6 +90,14 @@ namespace pi {
         resize(windowSize.width(), windowSize.height());
     }
 
+    void Simul2::splitViewEvenly() {
+        // as well as center the splitter
+        int viewHeight = ui.graphicsView->height() + ui.graphicsView2->height();
+        QList<int> sizes;
+        sizes << viewHeight/2.0 << viewHeight/2.0;
+        ui.viewSplitter->setSizes(sizes);
+    }
+
 
     void Simul2::on_applyButton_clicked(bool value) {
         stringstream configstream;
@@ -110,6 +119,15 @@ namespace pi {
         ui.config->setPlainText(QString::fromStdString(cachestream.str()));
         
         ui.statusbar->showMessage(QString("%1 particles loaded!").arg(system.GetNumberOfParticles()));
+
+//        ui.graphicsView->resize(ui.graphicsView->width(), viewHeight / 2);
+//        ui.graphicsView2->resize(ui.graphicsView2->width(), viewHeight / 2);
+    }
+
+
+    void Simul2::on_spreadButton_clicked() {
+        main.SpreadParticles();
+        core.updateParticles();
     }
 
     void Simul2::threadedRun() {
@@ -258,6 +276,23 @@ namespace pi {
         bspline.EstimateTransform(main.m_System[0], main.m_System[1]);
         RealImage::Pointer warpedImage = bspline.WarpImage(core.getImage(1));
         core.showAuxImage(0, warpedImage);
+
+        FieldTransformType::Pointer transform = bspline.GetTransform();
+        const int h = core.getImage(0)->GetBufferedRegion().GetSize(1);
+        const int w = core.getImage(0)->GetBufferedRegion().GetSize(0);
+
+        QGraphicsRealImageItem::GridCoord& grids = core.getImageItem(1)->userGrids();
+        grids.clear();
+        for (int j = 0; j < h; j++) {
+            FieldTransformType::InputPointType pin;
+            pin[1] = j;
+            for (int i = 0; i < w; i++) {
+                pin[0] = i;
+                FieldTransformType::OutputPointType pout = transform->TransformPoint(pin);
+                grids.append(QPointF(pout[0], pout[1]));
+            }
+        }
+        core.getImageItem(1)->update();
     }
 
     void Simul2::on_actionImageBsplineWarp_triggered() {

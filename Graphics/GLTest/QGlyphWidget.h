@@ -28,19 +28,24 @@ typedef std::vector<TexQuad> TexQuadArray;
 class QGlyphWidget: public QGLWidget {
     Q_OBJECT
 public:
-    QGlyphWidget( QWidget * parent = 0, const QGLWidget * shareWidget = 0, Qt::WindowFlags f = 0 );
+    QGlyphWidget(QWidget * parent = 0, const QGLWidget * shareWidget = 0, Qt::WindowFlags f = 0);
     virtual ~QGlyphWidget();
 
 protected:
     void initializeGL();
     void resizeGL(int w, int h);
     void paintGL();
+
     void keyReleaseEvent(QKeyEvent*);
+    void mousePressEvent(QMouseEvent*);
+    void mouseMoveEvent(QMouseEvent*);
+    void mouseReleaseEvent(QMouseEvent*);
     
     void loadTextures();
     
 private:
     GLuint _texture[1];
+    QPointF _startingPoint;
 };
 
 #endif /* defined(__gltest__QGlyphWidget__) */

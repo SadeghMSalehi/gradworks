@@ -67,12 +67,13 @@ namespace pi {
     }
 
     void ParticleSubject::NewParticles(int n) {
-        // FIXME: be careful if something gets wrong
-        if (n == m_Particles.size()) {
-            Zero();
-            return;
-        }
+        // TODO: check me later
+//        if (n == m_Particles.size()) {
+//            Zero();
+//            return;
+//        }
         m_Particles.resize(n);
+
         if (pointscopy.GetPointer() == NULL) {
             pointscopy = vtkPointsType::New();
             pointscopy->SetNumberOfPoints(n);
@@ -497,21 +498,24 @@ namespace pi {
         return 0;
     }
 
-    void ParticleSystem::InitializeSystem(int nsubj, int nparticles) {
+    void ParticleSystem::InitializeSystem(int nSubj, int nParticles) {
         m_Subjects.clear();
-        m_Subjects.resize(nsubj);
+        m_Subjects.resize(nSubj);
         for (int i = 0; i < m_Subjects.size(); i++) {
-            m_Subjects[i].Initialize(nsubj, "", nparticles);
+            m_Subjects[i].Initialize(nSubj, "", nParticles);
         }
+        ImageEnergy.set_size(nParticles);
     }
     
     void ParticleSystem::InitializeSystem(Options& options) {
         m_Options = &options;
         m_Subjects.clear();
         m_Subjects.resize(options.GetStringVector("Subjects:").size());
+        const int nParticles = options.GetInt("NumberOfParticles", 0);
         for (int i = 0; i < m_Subjects.size(); i++) {
-            m_Subjects[i].Initialize(i, options.GetStringVectorValue("Subjects:", i), options.GetInt("NumberOfParticles:", 0));
+            m_Subjects[i].Initialize(i, options.GetStringVectorValue("Subjects:", i), nParticles);
         }
+        ImageEnergy.set_size(nParticles);
     }
 
     // load images for adaptive sampling, or create them

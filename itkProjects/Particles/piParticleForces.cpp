@@ -743,6 +743,10 @@ namespace pi {
                 }
                 invC.fill(0);
             }
+            if (cov.size() == 2) {
+                float det = vnl_det(cov[0], cov[1]);
+                system->ImageEnergy[i] = det;
+            }
             ComputeGradient(m_attrs, invC, i, useDual);
         }
 
@@ -783,6 +787,7 @@ namespace pi {
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subj[j];
                 ParticleAttribute& attr = m_attrs(i, j);
+
                 VNLVector ff(__Dim);
                 fordim (k) {
                     ff[k] = attr.F[k];

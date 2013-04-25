@@ -84,6 +84,12 @@ namespace pi {
         }
     }
 
+    void Particle::UpdateStatus(DataReal dt) {
+        fordim (k) {
+            x[k] += dt * f[k];
+        }
+    }
+
 
     DataReal Particle::Dist2(const Particle& p) {
         DataReal d[DIMENSIONS];

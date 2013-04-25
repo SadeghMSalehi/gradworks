@@ -16,7 +16,7 @@
 #include <QFutureWatcher>
 
 #include "ui_simul2d.h"
-#include "piqSimulCore.h"
+#include "piSimulCore.h"
 
 namespace pi {
     class Simul2: public QMainWindow {
@@ -25,9 +25,11 @@ namespace pi {
         Simul2(QWidget* parent = NULL);
 
         void centerToDesktop();
+        void splitViewEvenly();
         
     public slots:
         void on_applyButton_clicked(bool value);
+        void on_spreadButton_clicked();
         void on_runStepButton_clicked();
         void threadedRun();
 

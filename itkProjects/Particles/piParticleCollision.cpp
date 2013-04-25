@@ -9,7 +9,7 @@
 #include "piParticleCollision.h"
 #include "itkZeroCrossingImageFilter.h"
 #include "itkInvertIntensityImageFilter.h"
-#include "itkImageIO.h"
+#include "piImageIO.h"
 #include "piImageProcessing.h"
 #include "boost/algorithm/string/predicate.hpp"
 
@@ -153,8 +153,14 @@ namespace pi {
     }
 
     void ParticleCollision::UpdateImages() {
+        // check if binary mask should be updated
+        if (m_BinaryMask.IsNotNull() && m_LabelImage.IsNotNull()
+                && (m_BinaryMask->GetMTime() > m_LabelImage->GetMTime())) {
+            return;
+        }
+
         ImageProcessing proc;
-        itkcmds::itkImageIO<LabelImage> io;
+        ImageIO<LabelImage> io;
 
         if (!LoadBinaryMask(binaryMaskCache)) {
             cout << "binary mask creation error!!" << endl;
@@ -201,10 +207,10 @@ namespace pi {
         if (m_BinaryMask.IsNotNull()) {
             return true;
         }
-        itkcmds::itkImageIO<LabelImage> io;
+        ImageIO<LabelImage> io;
         if (io.FileExists(maskCache.c_str())) {
             // use cache regardless of using mask smoothing
-            m_BinaryMask = io.ReadImageT(maskCache.c_str());
+            m_BinaryMask = io.ReadImage(maskCache.c_str());
             return true;
         }
         // to create binary mask, the label image is mandatory
@@ -219,24 +225,24 @@ namespace pi {
         
         // store cache
         if (maskCache != "") {
-            io.WriteImageT(maskCache.c_str(), m_BinaryMask);
+            io.WriteImage(maskCache.c_str(), m_BinaryMask);
         }
         return m_BinaryMask.IsNotNull();
     }
 
     bool ParticleCollision::LoadDistanceMap(string filename) {
-        itkcmds::itkImageIO<VectorImage> io;
+        ImageIO<VectorImage> io;
         if (m_DistanceMap.IsNotNull()) {
             // if already exist, then do nothing
             return false;
         }
         if (io.FileExists(filename.c_str())) {
-            m_DistanceMap = io.ReadImageT(filename.c_str());
+            m_DistanceMap = io.ReadImage(filename.c_str());
         } else {
             ImageProcessing proc;
             m_DistanceMap = proc.ComputeDistanceMap(m_BinaryMask);
             if (filename != "") {
-                io.WriteImageT(filename.c_str(), m_DistanceMap, !boost::algorithm::ends_with(filename, ".nrrd"));
+                io.WriteImage(filename.c_str(), m_DistanceMap, !boost::algorithm::ends_with(filename, ".nrrd"));
             }
         }
         return true;

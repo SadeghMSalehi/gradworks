@@ -72,6 +72,7 @@ namespace pi {
         int m_SubjId;
         std::string m_Name;
         ParticleArray m_Particles;
+
         RealImage::Pointer kappaImage;
         LinearImageInterpolatorType::Pointer kappaSampler;
 
@@ -181,7 +182,10 @@ namespace pi {
     public:
         DataReal currentTime;
         int currentIteration;
-        
+
+        // FIXME: image energy added
+        VNLVector ImageEnergy;
+
         ParticleSystem();
         ~ParticleSystem() {
         }

@@ -17,7 +17,7 @@
 #include "itkWarpImageFilter.h"
 
 #ifndef NCONTROL
-#define NCONTROL 8
+#define NCONTROL 16
 #endif
 
 #ifndef NORDER

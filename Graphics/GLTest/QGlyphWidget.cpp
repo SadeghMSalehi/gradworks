@@ -10,6 +10,8 @@
 
 #include <GLUT/GLUT.h>
 
+using namespace std;
+
 QGlyphWidget::QGlyphWidget(QWidget* parent, const QGLWidget* shareWidget, Qt::WindowFlags f): QGLWidget(QGLFormat(QGL::DoubleBuffer|QGL::DepthBuffer|QGL::Rgba|QGL::SampleBuffers|QGL::AlphaChannel), parent, shareWidget, f) {
 }
 
@@ -19,7 +21,12 @@ QGlyphWidget::~QGlyphWidget() {
 void QGlyphWidget::initializeGL() {
     glClearColor(0.2f, 0.2f, 0.2f, 0);
     glClearDepth(1.0f);
+
     glEnable(GL_DEPTH_TEST);
+//    glDisable(GL_DEPTH_TEST);
+//    glEnable(GL_BLEND);
+//    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
+
     glEnable(GL_TEXTURE_2D);                        // Enable Texture Mapping ( NEW )
     glDisable(GL_CULL_FACE);
     glDepthFunc(GL_LEQUAL);
@@ -33,6 +40,16 @@ void QGlyphWidget::initializeGL() {
 //        glEnable(GL_BLEND);
     //    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glShadeModel(GL_SMOOTH);
+
+    GLfloat diffusionLight[4] = { 1, 1, 1, 1 };
+    GLfloat ambientLight[4] = { 0.5, 0.5, 0.5, 1};
+    GLfloat positionLight[4] = { 0, 0, 2, 1};
+
+    glLightfv(GL_LIGHT1, GL_AMBIENT, ambientLight);
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, diffusionLight);
+    glLightfv(GL_LIGHT1, GL_POSITION, positionLight);
+    glEnable(GL_LIGHT1);
+
 }
 
 void QGlyphWidget::resizeGL(int w, int h) {
@@ -49,7 +66,7 @@ void QGlyphWidget::resizeGL(int w, int h) {
 
 void QGlyphWidget::loadTextures() {
     QImage image;
-    image.load("/Users/joohwi/Downloads/Clown-Fish-05.jpg");
+    image.load("/Users/joohwi/Downloads/Star.bmp");
     QImage glImage = convertToGLFormat(image);
     
     glGenTextures(1, _texture);
@@ -92,7 +109,7 @@ void QGlyphWidget::paintGL() {
     glRotatef(rz,0,0,1);
     
     glBindTexture(GL_TEXTURE_2D, _texture[0]);
-    glColor3f(1, 1, 1);
+    glColor4f(1.0f,1.0f,1.0f,0.5f);
     glBegin(GL_QUADS);
     for (int i = 0; i < 6; i++) {
         for (int j = 0; j < 4; j++) {
@@ -108,7 +125,31 @@ void QGlyphWidget::paintGL() {
 }
 
 void QGlyphWidget::keyReleaseEvent(QKeyEvent *key) {
-    if (key->key() == ' ') {
-        update();
+    int value = key->key();
+    switch (value) {
+        case Qt::Key_L:
+            glEnable(GL_LIGHTING);
+            cout << "Lighting On" << endl;
+            break;
+        case Qt::Key_K:
+            glDisable(GL_LIGHTING);
+            cout << "Lighting Off" << endl;
+            break;
     }
+    update();
+}
+
+void QGlyphWidget::mousePressEvent(QMouseEvent *event) {
+    event->accept();
+    _startingPoint = event->pos();
+    _startingPoint.setX(_startingPoint.x()/((width()-1.)/2.) - 1);
+    _startingPoint.setY(_startingPoint.y()/((height()-1.)/2.) - 1);
+}
+
+void QGlyphWidget::mouseMoveEvent(QMouseEvent *event) {
+
+}
+
+void QGlyphWidget::mouseReleaseEvent(QMouseEvent *event) {
+
 }

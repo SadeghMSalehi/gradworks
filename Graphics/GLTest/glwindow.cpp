@@ -6,6 +6,7 @@
 //
 
 #include "glwindow.h"
+#include "Nehe9.h"
 
 GLWindow::GLWindow(QWidget* parent): QMainWindow(parent) {
     ui.setupUi(this);
@@ -16,7 +17,10 @@ GLWindow::GLWindow(QWidget* parent): QMainWindow(parent) {
     connect(ui.actionStart, SIGNAL(triggered()), SLOT(startTimer()));
     connect(ui.actionStop, SIGNAL(triggered()), SLOT(stopTimer()));
 
-    ui.widget->setFocus();
+    ui.glWidget->setFocus();
+
+    static ShaderModule module;
+    ui.glWidget->setModule(&module);
 }
 
 GLWindow::~GLWindow() {
@@ -28,7 +32,7 @@ void GLWindow::startTimer() {
 }
 
 void GLWindow::tickTimer() {
-    ui.widget->update();
+    ui.glWidget->update();
 }
 
 void GLWindow::stopTimer() {

@@ -66,6 +66,8 @@ namespace pi {
         void Zero();
         void Sub(const Particle& p, DataReal* nx);
         void AddForce(DataReal* ff, DataReal alpha = 1);
+        void UpdateStatus(DataReal dt);
+
         DataReal Dist2(const Particle& p);
 
         Particle& operator=(const Particle& other);

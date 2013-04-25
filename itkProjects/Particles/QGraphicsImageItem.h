@@ -15,6 +15,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsSceneHoverEvent>
 #include <QPainter>
+#include <QWidget>
 
 #include "piImageHistogram.h"
 
@@ -27,6 +28,7 @@ template <class T>
 class QGraphicsImageItem: public QGraphicsPixmapItem {
 public:
     typedef T PixelType;
+    typedef QVector<QPointF> GridCoord;
 
     class InteractionType {
     public:
@@ -39,6 +41,7 @@ public:
     };
 
     enum Flags { NoFlip, LeftRight, UpDown };
+    enum Mode { NoMode, GridMode };
 
     QGraphicsImageItem(QGraphicsItem* parent = NULL): QGraphicsPixmapItem(parent) {
         _range[0] = 0;
@@ -48,15 +51,18 @@ public:
         setAcceptedMouseButtons(Qt::LeftButton);
     }
     virtual ~QGraphicsImageItem() {}
-    virtual void paint (QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * widget = 0);
+    virtual void paint(QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * widget = 0);
 
     T getRange(int i);
     void setRange(T min, T max);
     void setFlip(Flags flags);
-    void refresh();
     void showGrid(bool);
     void setInteraction(InteractionType* interaction);
 
+    inline GridCoord& userGrids() { return _userGrids; }
+
+    void refresh();
+    
     void setImage(T* inputBuffer, int w, int h);
     template <class S> void setImage(typename S::Pointer image, bool computeRange = false);
     static void convertToIndexed(T*, double, double, QImage&);
@@ -70,12 +76,16 @@ protected:
     void hoverMoveEvent(QGraphicsSceneHoverEvent* event);
     void hoverLeaveEvent(QGraphicsSceneHoverEvent* event);
 
+    void drawRegularGrid(QPainter*);
+    void drawUserGrid(QPainter*);
+
 private:
     T* _inputBuffer;
     T _range[2];
     bool _showGrid;
     QImage _grayImage;
     InteractionType* _interaction;
+    GridCoord _userGrids;
 };
 
 
@@ -91,39 +101,87 @@ void QGraphicsImageItem<T>::setInteraction(InteractionType *interaction) {
     setAcceptHoverEvents(true);
 }
 
+
+template <class T>
+void QGraphicsImageItem<T>::drawRegularGrid(QPainter* painter) {
+    QRectF rect = boundingRect();
+    QPen pen = painter->pen();
+    static QPen blackPen(Qt::black, 1), dashPen(Qt::black, 1, Qt::DotLine);
+    blackPen.setCosmetic(true);
+    dashPen.setCosmetic(true);
+    painter->setPen(blackPen);
+
+    float hSpacing = rect.height() / 20.0;
+    int n = 0;
+    for (float i = 0; i < rect.height(); i += hSpacing, n++) {
+        if (n % 5 == 0) {
+            painter->setPen(blackPen);
+        } else {
+            painter->setPen(dashPen);
+        }
+        painter->drawLine(0, i, rect.width(), i);
+    }
+
+    n = 0;
+    for (float i = 0; i < rect.width(); i += hSpacing, n++) {
+        if (n % 5 == 0) {
+            painter->setPen(blackPen);
+        } else {
+            painter->setPen(dashPen);
+        }
+        painter->drawLine(i, 0, i, rect.height());
+    }
+
+    painter->setPen(pen);
+}
+
+template <class T>
+void QGraphicsImageItem<T>::drawUserGrid(QPainter *painter) {
+    const int w = _grayImage.width();
+    const int h = _grayImage.height();
+
+    if (_userGrids.size() != w * h) {
+        std::cout << __FILE__ << ": the size of user grid doesn't match with the image" << std::endl;
+        return;
+    }
+
+    QPen pen(Qt::black, 1);
+    pen.setCosmetic(true);
+
+    const int spacing = h / 20;
+    painter->setPen(pen);
+    for (int i = 0; i < w - spacing; i+= spacing) {
+        for (int j = 0; j < h - spacing; j+=spacing) {
+            QPointF& top = _userGrids[j * w + i];
+            QPointF& right = _userGrids[j * w + i + spacing];
+            QPointF& bottom = _userGrids[(j + spacing) * w + i];
+            painter->drawLine(top, right);
+            painter->drawLine(top, bottom);
+        }
+    }
+
+    for (int i = 0; i < w - 1; i++) {
+        QPointF& top = _userGrids[(h - 1) * w + i];
+        QPointF& right = _userGrids[(h - 1) * w + i + 1];
+        painter->drawLine(top, right);
+    }
+
+    for (int j = 0; j < h - 1; j++) {
+        QPointF& top = _userGrids[j * w + w - 1];
+        QPointF& bottom = _userGrids[j * w + w - 1];
+        painter->drawLine(top, bottom);
+    }
+}
+
 template <class T>
 void QGraphicsImageItem<T>::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget* widget) {
     QGraphicsPixmapItem::paint(painter, option, widget);
     if (_showGrid) {
-        QRectF rect = boundingRect();
-        QPen pen = painter->pen();
-        static QPen blackPen(Qt::black, 1), dashPen(Qt::black, 1, Qt::DotLine);
-        blackPen.setCosmetic(true);
-        dashPen.setCosmetic(true);
-        painter->setPen(blackPen);
-
-        float hSpacing = rect.height() / 20.0;
-        int n = 0;
-        for (float i = 0; i < rect.height(); i += hSpacing, n++) {
-            if (n % 5 == 0) {
-                painter->setPen(blackPen);
-            } else {
-                painter->setPen(dashPen);
-            }
-            painter->drawLine(0, i, rect.width(), i);
+        if (_userGrids.size() == 0) {
+            drawRegularGrid(painter);
+        } else {
+            drawUserGrid(painter);
         }
-
-        n = 0;
-        for (float i = 0; i < rect.width(); i += hSpacing, n++) {
-            if (n % 5 == 0) {
-                painter->setPen(blackPen);
-            } else {
-                painter->setPen(dashPen);
-            }
-            painter->drawLine(i, 0, i, rect.height());
-        }
-
-        painter->setPen(pen);
     }
 }
 
@@ -134,7 +192,7 @@ void QGraphicsImageItem<T>::setImage(T* inputBuffer, int w, int h) {
         _grayImage = QImage(w, h, QImage::Format_Indexed8);
         _grayImage.setColorCount(256);
         for (int i = 0; i < 256; i++) {
-            _grayImage.setColor(i, __blue2red[i]);
+            _grayImage.setColor(i, __grays[i]);
         }
     }
 }

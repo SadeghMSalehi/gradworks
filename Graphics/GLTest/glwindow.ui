@@ -23,7 +23,7 @@
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <widget class="QGlyphWidget" name="widget" native="true"/>
+      <widget class="QGLProxyWidget" name="glWidget" native="true"/>
       <widget class="QGraphicsView" name="graphicsView"/>
      </widget>
     </item>
@@ -66,9 +66,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QGlyphWidget</class>
+   <class>QGLProxyWidget</class>
    <extends>QWidget</extends>
-   <header location="global">QGlyphWidget.h</header>
+   <header location="global">QGLProxyWidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

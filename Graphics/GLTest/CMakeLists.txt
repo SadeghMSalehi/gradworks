@@ -9,8 +9,8 @@ FIND_PACKAGE(GLUT REQUIRED)
 INCLUDE_DIRECTORIES(${OPENGL_INCLUDE_DIR}  ${GLUT_INCLUDE_DIRS})
 
 
-SET(QT_gltest_HEADERS glwindow.h QGlyphWidget.h)
-SET(QT_gltest_SOURCES glwindow.cpp QGlyphWidget.cpp)
+SET(QT_gltest_HEADERS glwindow.h QGlyphWidget.h QGLProxyWidget.h)
+SET(QT_gltest_SOURCES glwindow.cpp QGlyphWidget.cpp QGLProxyWidget.cpp)
 QT4_WRAP_CPP(QT_gltest_MOC_HEADERS ${QT_gltest_HEADERS})
 QT4_WRAP_UI(QT_gltest_UI_FILES glwindow.ui)
 #QT4_ADD_RESOURCES(QT_gltest_RCC glwindow.qrc)
@@ -20,5 +20,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE(${QT_USE_FILE})
 ADD_DEFINITIONS(${QT_DEFINITIONS})
 
-ADD_EXECUTABLE(gltest gltest.cpp ${QT_gltest_HEADERS} ${QT_gltest_SOURCES} ${QT_gltest_MOC_HEADERS} ${QT_gltest_UI_FILES})
+SET(NEHE_SOURCES Nehe9.h Nehe9.cpp)
+
+ADD_EXECUTABLE(gltest gltest.cpp ${NEHE_SOURCES} ${QT_gltest_HEADERS} ${QT_gltest_SOURCES} ${QT_gltest_MOC_HEADERS} ${QT_gltest_UI_FILES})
 TARGET_LINK_LIBRARIES(gltest ${QT_LIBRARIES} ${OPENGL_LIBRARIES} ${GLUT_LIBRARY})
