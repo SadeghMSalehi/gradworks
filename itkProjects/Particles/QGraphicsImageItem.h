@@ -104,35 +104,38 @@ void QGraphicsImageItem<T>::setInteraction(InteractionType *interaction) {
 
 template <class T>
 void QGraphicsImageItem<T>::drawRegularGrid(QPainter* painter) {
-    QRectF rect = boundingRect();
+    const int w = _grayImage.width();
+    const int h = _grayImage.height();
     QPen pen = painter->pen();
-    static QPen blackPen(Qt::black, 1), dashPen(Qt::black, 1, Qt::DotLine);
+    static QPen blackPen(Qt::yellow, 1), dashPen(Qt::yellow, 1, Qt::DotLine);
     blackPen.setCosmetic(true);
     dashPen.setCosmetic(true);
     painter->setPen(blackPen);
 
-    float hSpacing = rect.height() / 20.0;
+    const int hSpacing = h / 20.0;
     int n = 0;
-    for (float i = 0; i < rect.height(); i += hSpacing, n++) {
+    for (int i = 0; i < h; i += hSpacing, n++) {
         if (n % 5 == 0) {
             painter->setPen(blackPen);
         } else {
             painter->setPen(dashPen);
         }
-        painter->drawLine(0, i, rect.width(), i);
+        painter->drawLine(0, i, w-1, i);
     }
+    painter->setPen(blackPen);
+    painter->drawLine(0, h-1, w, h-1);
 
     n = 0;
-    for (float i = 0; i < rect.width(); i += hSpacing, n++) {
+    for (int i = 0; i < w; i += hSpacing, n++) {
         if (n % 5 == 0) {
             painter->setPen(blackPen);
         } else {
             painter->setPen(dashPen);
         }
-        painter->drawLine(i, 0, i, rect.height());
+        painter->drawLine(i, 0, i, h-1);
     }
-
-    painter->setPen(pen);
+    painter->setPen(blackPen);
+    painter->drawLine(w-1, 0, w-1, h);
 }
 
 template <class T>
@@ -145,29 +148,54 @@ void QGraphicsImageItem<T>::drawUserGrid(QPainter *painter) {
         return;
     }
 
-    QPen pen(Qt::black, 1);
-    pen.setCosmetic(true);
+    static QPen blackPen(Qt::yellow, 1), dashPen(Qt::yellow, 1, Qt::DotLine);
+    blackPen.setCosmetic(true);
+    dashPen.setCosmetic(true);
 
     const int spacing = h / 20;
-    painter->setPen(pen);
-    for (int i = 0; i < w - spacing; i+= spacing) {
-        for (int j = 0; j < h - spacing; j+=spacing) {
+    int wcnt = 0;
+    for (int i = 0; i < w; i+= spacing, wcnt++) {
+        int hcnt = 0;
+        for (int j = 0; j < h; j+=spacing, hcnt++) {
             QPointF& top = _userGrids[j * w + i];
-            QPointF& right = _userGrids[j * w + i + spacing];
-            QPointF& bottom = _userGrids[(j + spacing) * w + i];
+
+            int rightIdx = i + spacing;
+            if (rightIdx >= w) {
+                rightIdx = w - 1;
+            }
+            QPointF& right = _userGrids[j * w + rightIdx];
+
+            int bottomIdx = (j + spacing);
+            if (bottomIdx >= h) {
+                bottomIdx = h - 1;
+            }
+            QPointF& bottom = _userGrids[w * bottomIdx + i];
+
+            if (hcnt % 5 == 0) {
+                painter->setPen(blackPen);
+            } else {
+                painter->setPen(dashPen);
+            }
             painter->drawLine(top, right);
+
+            if (wcnt % 5 == 0) {
+                painter->setPen(blackPen);
+            } else {
+                painter->setPen(dashPen);
+            }
             painter->drawLine(top, bottom);
         }
     }
 
+    painter->setPen(blackPen);
     for (int i = 0; i < w - 1; i++) {
         QPointF& top = _userGrids[(h - 1) * w + i];
         QPointF& right = _userGrids[(h - 1) * w + i + 1];
         painter->drawLine(top, right);
     }
 
-    for (int j = 0; j < h - 1; j++) {
-        QPointF& top = _userGrids[j * w + w - 1];
+    for (int j = 1; j < h - 1; j++) {
+        QPointF& top = _userGrids[(j - 1) * w + w - 1];
         QPointF& bottom = _userGrids[j * w + w - 1];
         painter->drawLine(top, bottom);
     }

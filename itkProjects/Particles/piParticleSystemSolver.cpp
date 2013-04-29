@@ -287,8 +287,8 @@ namespace pi {
         // run again with preprocessing interval
         // give enough time range
         DataReal t0 = 0;
-        DataReal dt = 1;
-        DataReal t1 = 100;
+        DataReal dt = 0.1;
+        DataReal t1 = 50;
 
         // iterate over
         for (DataReal t = t0; t < t1; t += dt) {

@@ -102,6 +102,7 @@ namespace pi {
         int numOfLevels = m_SplineLevel;
         int nSize = m_ControlPoints;
 
+
         BSplineFilterType::Pointer bspliner = BSplineFilterType::New();
         BSplineFilterType::ArrayType numControlPoints;
         numControlPoints.Fill(nSize + splineOrder);
@@ -109,6 +110,13 @@ namespace pi {
         typename R::SizeType imageSize = refImage->GetBufferedRegion().GetSize();
         typename R::SpacingType imageSpacing = refImage->GetSpacing();
         typename R::PointType imageOrigin = refImage->GetOrigin();
+
+
+        for (int i = 0; i < imageSize.GetSizeDimension(); i++) {
+            numControlPoints[i] = imageSize[i] / 16 + splineOrder;
+        }
+
+        cout << "# control points: " << numControlPoints << endl;
 
         try {
             // debug: reparameterized point component is outside

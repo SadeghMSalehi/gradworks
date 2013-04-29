@@ -187,6 +187,7 @@
    <addaction name="actionShowWarped"/>
    <addaction name="actionPrint"/>
    <addaction name="actionShowParticles"/>
+   <addaction name="actionGrid"/>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
@@ -538,6 +539,10 @@ LabelImages: strings 2
    </property>
    <property name="checked">
     <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="simul2d.qrc">
+     <normaloff>:/Icons/Images/GridIcon.png</normaloff>:/Icons/Images/GridIcon.png</iconset>
    </property>
    <property name="text">
     <string>Grid</string>
