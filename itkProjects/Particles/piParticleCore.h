@@ -229,8 +229,10 @@ namespace pi {
     };
 
 
+    /*
     void export2vtk(ParticleSubject& sub, const char* vtkname, int field);
     vtkPolyData* convert2vtk(ParticleArray& parray);
+     */
 }
 
 #endif

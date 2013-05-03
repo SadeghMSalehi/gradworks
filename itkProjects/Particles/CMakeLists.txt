@@ -40,6 +40,11 @@ SET (QT_PI_SOURCES particleViewerWindow.cpp  particleAni.cpp myQGraphicsView.cpp
 qt4_wrap_cpp(QT_PI_MOC_HEADERS ${QT_PI_HEADERS})
 qt4_wrap_ui(QT_PI_UI_FILES particleViewerWindow.ui particleAni.ui)
 
+SET (QT_PLUTO_HEADERS piPlutoWindow.h)
+SET (QT_PLUTO_SOURCES piPlutoWindow.cpp)
+qt4_wrap_cpp(QT_PLUTO_MOC_HEADERS ${QT_PLUTO_HEADERS})
+qt4_wrap_ui(QT_PLUTO_UI_FILES plutowindow.ui)
+
 SET (QT_PSIM2_HEADERS piSimul2.h piSimulCore.h piGroupSimul.h myQGraphicsView.h QGraphicsRectWidget.h qcustomplot.h qfileacceptbutton.h)
 SET (QT_PSIM2_SOURCES piSimul2.cpp piSimulCore.cpp piGroupSimul.cpp myQGraphicsView.cpp QGraphicsRectWidget.cpp qcustomplot.cpp qfileacceptbutton.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
@@ -65,7 +70,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
-SET (MY_PARTICLE_WORKS_SOURCES itkImageIO.h piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piVTK.cpp piVTK.h piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp )
+SET (MY_PARTICLE_WORKS_SOURCES piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piImageDef.cpp piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp )
 
 SET (PI_LIBS_SOURCE itkImageIO.h piTimer.h piTimer.cpp piImageProcessing.cpp piImageProcessing.h piImageDef.h piOptions.h piOptions.cpp piVTK.cpp piVTK.h)
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)
@@ -96,6 +101,10 @@ IF (${BUILD_GUI})
         ${QT_PSIM2_RCC})
 	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=17")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+    
+    ADD_EXECUTABLE(pluto plutomain.cpp piPlutoCore.h piPlutoCore.cpp ${QT_PLUTO_HEADERS} ${QT_PLUTO_SOURCES} ${MY_PARTICLE_WORKS_SOURCES} piImageIO.h piOptions.cpp piOptions.h  ${QT_PLUTO_MOC_HEADERS} ${QT_PLUTO_UI_FILES})
+	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")    
+    TARGET_LINK_LIBRARIES(pluto ${ITK_LIBRARIES} ${QT_LIBRARIES})
 
 	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp
         piImageDef.h piImageIO.h piMacros.h piParticle.h piParticle.cpp

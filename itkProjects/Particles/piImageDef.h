@@ -36,6 +36,9 @@ namespace pi {
     typedef float ImageReal;
     typedef double PointReal;
 
+    typedef itk::Image<ImageReal,3> RealImage3;
+    typedef itk::Image<ImageReal,2> RealImage2;
+    
     typedef itk::Image<ImageReal,__Dim> RealImage;
     typedef itk::Image<LabelPixel,__Dim> LabelImage;
     typedef itk::Vector<ImageReal,__Dim> VectorType;
@@ -87,6 +90,17 @@ namespace pi {
 
     typedef vnl_vector<double> VNLDoubleVector;
     typedef vnl_matrix<double> VNLDoubleMatrix;
+    
+
+    typedef std::vector<RealImage2::Pointer> RealImage2Vector;
+    typedef std::vector<RealImage3::Pointer> RealImage3Vector;
+    
+    class RealImageTools {
+    public:
+        RealImage2Vector sliceVolume(RealImage3::Pointer image, int dir);
+    };
+    
+    extern RealImageTools __realImageTools;
 }
 
 #endif

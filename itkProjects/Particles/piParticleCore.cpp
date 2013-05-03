@@ -636,6 +636,7 @@ namespace pi {
         return m_Subjects;
     }
 
+    /*
     void export2vtk(ParticleSubject& sub, const char* vtkname, int field) {
         int np = sub.m_Particles.size();
         vtkPolyData* vtk = vtkPolyData::New();
@@ -705,4 +706,5 @@ namespace pi {
         out->SetPoints(points);
         return out;
     }
+     */
 }

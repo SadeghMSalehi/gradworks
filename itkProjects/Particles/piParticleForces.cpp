@@ -735,6 +735,10 @@ namespace pi {
             VNLDoubleMatrix invC(cov);
             if (cov.is_finite() && !cov.has_nans()) {
                 invC = vnl_matrix_inverse<double>(cov);
+                if (cov.size() == 2) {
+                    float det = vnl_det(cov[0], cov[1]);
+                    system->ImageEnergy[i] = det;
+                }
             } else {
                 cout << "Wrong Cov: " << cov << endl;
                 for (int j = 0; j < nSubj; j++) {
@@ -742,10 +746,6 @@ namespace pi {
                     cout << attr << endl;
                 }
                 invC.fill(0);
-            }
-            if (cov.size() == 2) {
-                float det = vnl_det(cov[0], cov[1]);
-                system->ImageEnergy[i] = det;
             }
             ComputeGradient(m_attrs, invC, i, useDual);
         }
