@@ -74,6 +74,28 @@ namespace pi {
     };
     typedef std::vector<Particle> ParticleVector;
 
+
+    class ParticlePatch {
+    public:
+        VNLVector values;
+        VNLMatrix gradients;
+
+        ParticlePatch();
+        ~ParticlePatch();
+
+        void setSize(int size, int dim);
+
+    private:
+        ParticlePatch(const ParticlePatch&);
+        void operator=(const ParticlePatch&);
+
+    private:
+        int _size;
+        int _dims;
+    };
+    typedef std::vector<ParticlePatch> PatchVector;
+    
+
     // utility operator overloading
     std::ostream& operator<<(std::ostream& os, const Particle& par);
     std::istream& operator>>(std::istream& is, Particle& par);

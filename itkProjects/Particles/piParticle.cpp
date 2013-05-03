@@ -123,4 +123,27 @@ namespace pi {
         }
     }
 
+
+    ParticlePatch::ParticlePatch() {
+
+    }
+
+    ParticlePatch::~ParticlePatch() {
+
+    }
+
+    void ParticlePatch::setSize(int size, int dim) {
+        int nElems = 1;
+        for (int i = 0; i < dim; i++) {
+            nElems *= (2*size+1);
+        }
+
+        // resize
+        values.set_size(nElems);
+        gradients.set_size(nElems, dim);
+
+        // initialize
+        values.fill(0);
+        gradients.fill(0);
+    }
 }

@@ -114,7 +114,7 @@ namespace pi {
     typedef itk::Image<RGBAPixel, 2> RGBAImageType;
     typedef itk::Image<RGBAPixel, 3> RGBAVolumeType;
     
-    typedef pi::LabelImage AIRImage;
+    typedef pi::RealImage AIRImage;
     typedef itk::Image<uchar,3> AIRLabel;
     typedef AIRImage::PixelType AIRPixel;
     typedef AIRLabel::PixelType AIRClass;

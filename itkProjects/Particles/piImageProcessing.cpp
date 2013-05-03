@@ -32,6 +32,8 @@
 #include "itkMesh.h"
 #include "itkBinaryMask3DMeshSource.h"
 #include <itkStatisticsImageFilter.h>
+#include <itkDiscreteGaussianImageFilter.h>
+#include <itkSmoothingRecursiveGaussianImageFilter.h>
 
 #include "piImageIO.h"
 #include "piImageHistogram.h"
@@ -315,6 +317,17 @@ namespace pi {
         magFilter->SetInput(img);
         magFilter->Update();
         return magFilter->GetOutput();
+    }
+
+    RealImage::Pointer ImageProcessing::ComputeGaussianSmoothing(RealImage::Pointer img, double sigma) {
+        typedef itk::SmoothingRecursiveGaussianImageFilter<RealImage,RealImage> GaussianFilterType;
+        GaussianFilterType::Pointer filter = GaussianFilterType::New();
+        filter->SetInput(img);
+        filter->SetSigma(sigma);
+        filter->Update();
+        RealImage::Pointer output = filter->GetOutput();
+        output->DisconnectPipeline();
+        return output;
     }
 
     vtkPolyData* ImageProcessing::ConvertToMesh(LabelImage::Pointer image) {

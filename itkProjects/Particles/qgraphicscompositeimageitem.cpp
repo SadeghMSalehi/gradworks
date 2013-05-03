@@ -11,6 +11,7 @@
 #include "piImageIO.h"
 #include "QGraphicsSceneMouseEvent"
 #include "QGraphicsScene"
+#include "QTransform"
 
 using namespace pi;
 
@@ -189,6 +190,8 @@ void QGraphicsCompositeImageItem::Refresh(int id1, int id2) {
     // assume that the composite image ranges from 0 to 65535 (in short range)
     typedef itk::ScalarToARGBColormapImageFilter<RealImage, RGBAVolumeType> ColorFilterType;
 
+    cout << "ViewRange: " << _viewMin << ", " << _viewMax << endl;
+
     ColorFilterType::Pointer colorFilter = ColorFilterType::New();
     colorFilter->SetInput(_compositeImage);
     colorFilter->UseManualScalingOn();
@@ -288,4 +291,21 @@ void QGraphicsCompositeImageItem::drawingMoveEvent(QGraphicsSceneMouseEvent *eve
 
 void QGraphicsCompositeImageItem::drawingFinishEvent(QGraphicsSceneMouseEvent *event) {
 
+}
+
+
+void QGraphicsCompositeImageItem::setFlipLR(bool flip) {
+    const int w = boundingRect().width();
+    QTransform xform;
+    xform.reset();
+    xform.setMatrix(-1, 0, 0, 0, 1, 0, w, 0, 1);
+    setTransform(xform, true);
+}
+
+void QGraphicsCompositeImageItem::setFlipUD(bool flip) {
+    const int h = boundingRect().height();
+    QTransform xform;
+    xform.reset();
+    xform.setMatrix(1, 0, 0, 0, -1, 0, 0, h, 1);
+    setTransform(xform, true);
 }

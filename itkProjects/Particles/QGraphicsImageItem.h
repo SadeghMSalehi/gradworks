@@ -64,7 +64,12 @@ public:
     void refresh();
     
     void setImage(T* inputBuffer, int w, int h);
+
+    // templated member function
     template <class S> void setImage(typename S::Pointer image, bool computeRange = false);
+    template <class S> void generateUserGrids(typename S::Pointer transform);
+
+    // static function
     static void convertToIndexed(T*, double, double, QImage&);
 
 
@@ -273,6 +278,24 @@ void QGraphicsImageItem<T>::setImage(typename S::Pointer image, bool computeRang
         std::cout << "Range: " << _range[0] << "," << _range[1] << std::endl;
     }
     setImage(image->GetBufferPointer(), w, h);
+}
+
+template <class T> template <class S>
+void QGraphicsImageItem<T>::generateUserGrids(typename S::Pointer transform) {
+    _userGrids.clear();
+
+    const int w = _grayImage.width();
+    const int h = _grayImage.height();
+
+    for (int j = 0; j < h; j++) {
+        for (int i = 0; i < w; i++) {
+            typename S::InputPointType pIn;
+            pIn[0] = i;
+            pIn[1] = j;
+            typename S::OutputPointType pOut = transform->TransformPoint(pIn);
+            _userGrids.append(QPointF(pOut[0], pOut[1]));
+        }
+    }
 }
 
 template <class T>

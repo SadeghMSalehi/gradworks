@@ -214,6 +214,7 @@ namespace pi {
         
         const int nPoints = initial.GetNumberOfPoints();
 
+        cout << "Start Preprocessing ..." << endl;
         int count = 0;
         Timer timer;
         timer.start();
@@ -252,7 +253,7 @@ namespace pi {
             
             double elapsedTime = timer.getElapsedTimeInSec();
 
-            if (count % 1000 == 0) {
+            if (count % 10 == 0) {
                 cout << "t: " << t << " " << flush;
                 cout << "; elapsed time: " << elapsedTime << " sec" << endl;
                 timer.start();

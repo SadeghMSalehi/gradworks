@@ -10,6 +10,7 @@
 #define ParticleGuidedRegistration_piMacros_h
 
 #include <vnl/vnl_vector.h>
+#include <vnl/vnl_matrix.h>
 
 #ifndef DIMENSIONS
 #define DIMENSIONS 3

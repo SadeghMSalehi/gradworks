@@ -16,7 +16,120 @@
 #include <itkLinearInterpolateImageFunction.h>
 #include <itkTransform.h>
 
+#include "piMacros.h"
+#include "piParticle.h"
+
 namespace pi {
+
+    /**
+     * Sample s intensity values for n points from m images
+     *
+     */
+    template <class T>
+    class ImageSamples {
+    public:
+        typedef T* ImagePointer;
+        typedef typename T::PixelType PixelType;
+        typedef typename T::PointType PointType;
+        typedef typename T::IndexType IndexType;
+        typedef typename T::RegionType RegionType;
+        typedef typename T::SizeType SizeType;
+
+        typedef Particle* ParticlePointer;
+        typedef itk::LinearInterpolateImageFunction<T> InterpolatorType;
+        typedef typename InterpolatorType::Pointer InterpolatorPointer;
+
+        ImageSamples(int images, int points, int samples): m(images), n(points), s(samples), _values(NULL), _gradients(NULL) {};
+
+        ~ImageSamples() {
+            delete[] _values;
+            delete[] _gradients;
+        }
+
+        const int m;
+        const int n;
+        const int s;
+
+        PixelType* _values;
+        PixelType* _gradients;
+
+        void allocateValues() {
+            if (_values) {
+                delete[] _values;
+            }
+            _values = new PixelType[m*n*s];
+        }
+
+        void allocateGradients() {
+            if (_gradients) {
+                delete[] _gradients;
+            }
+            _gradients = new PixelType[m*n*s*DIMENSIONS];
+        }
+
+        // should have n particles
+        void addParticles(ParticlePointer particles) {
+            _particles.push_back(particles);
+        }
+
+        // should have m subjects
+        void addInterpolator(InterpolatorPointer interp) {
+            _images.push_back(interp);
+        }
+
+        // should have s sample index
+        void setSampleRegion(RegionType region) {
+            _regionSize = region;
+            addIndexHelper(region.GetIndex(), RegionType::GetImageDimensions() - 1);
+        }
+
+        // sample intensity values from images
+        void sampleValues() {
+            assert(_images.size() == m);
+            assert(_particles.size() == n);
+            assert(_indexes.size() == s);
+
+            PixelType* valuesIter = _values;
+            IndexType idx;
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < n; j++) {
+                    for (int k = 0; k < s; k++) {
+                        idx = _indexes[k];
+                        fordim (l) {
+                            // translate to particles
+                            idx[l] += _particles[i*n+j].x[l];
+                        }
+                        *valuesIter = _images[i]->evaluateAtIndex(_indexes[k]);
+                        ++valuesIter;
+                    }
+                }
+            }
+        }
+
+        void sampleGradients() {}
+
+    private:
+        void addIndexHelper(IndexType idx, int dim) {
+            for (int i = 0; i < _regionSize[dim]; i++) {
+                if (dim > 0) {
+                    addIndexHelper(idx, dim-1);
+                } else {
+                    _indexes.push_back(idx);
+                }
+                idx[dim] ++;
+            }
+        }
+
+        ImageSamples(const ImageSamples&);
+        void operator=(const ImageSamples&);
+
+        SizeType _regionSize;
+        std::vector<InterpolatorPointer> _images;
+        std::vector<ParticlePointer> _particles;
+        std::vector<IndexType> _indexes;
+    };
+
+
     template <class T>
     class ImagePatch {
     public:

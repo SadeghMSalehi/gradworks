@@ -407,6 +407,7 @@ namespace pi {
 
         ImageProcessing proc;
         image = proc.NormalizeIntensity(image, LabelImage::Pointer(), 0.01);
+        image = proc.ComputeGaussianSmoothing(image, 0.5);
 
         // set default spacing to 1 to match index and physical coordinate space
         RealImage::SpacingType defaultSpacing;

@@ -245,6 +245,10 @@ AIRWindow::AIRWindow(QWidget* parent): m_sliceDirectionActions(this) {
     connect(ui.sliceSlider, SIGNAL(valueChanged(int)), ui.multipleSliceView, SLOT(currentSliceChanged(int)));
     connect(ui.multipleSliceView, SIGNAL(sliceDoubleClicked(int)), ui.sliceSlider, SLOT(setValue(int)));
 
+    // image flip
+    connect(ui.actionFlipLR, SIGNAL(toggled(bool)), m_compositeDisplay, SLOT(setFlipLR(bool)));
+    connect(ui.actionFlipUD, SIGNAL(toggled(bool)), m_compositeDisplay, SLOT(setFlipUD(bool)));
+
     ui.multipleSliceView->addAction(ui.actionNewWorkingSet);
     ui.multipleSliceView->addAction(ui.actionPropagateLabel);
     ui.multipleSliceView->addAction(ui.actionClearWorkingSet);

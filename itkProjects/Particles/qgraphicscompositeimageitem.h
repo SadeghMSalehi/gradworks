@@ -142,6 +142,10 @@ public:
     void drawingBeginEvent(QGraphicsSceneMouseEvent* event);
     void drawingMoveEvent(QGraphicsSceneMouseEvent* event);
     void drawingFinishEvent(QGraphicsSceneMouseEvent *event);
+
+public slots:
+    void setFlipUD(bool flip);
+    void setFlipLR(bool flip);
 };
 
 #endif /* defined(__ParticleGuidedRegistration__qgraphicscompositeimageitem__) */

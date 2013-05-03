@@ -64,10 +64,15 @@ namespace pi {
         
         GradientImage::Pointer ComputeGaussianGradient(LabelImage::Pointer img, double sigma = -1);
         GradientImage::Pointer ComputeGradient(LabelImage::Pointer img);
+
         GradientImage::Pointer ComputeGaussianGradient(RealImage::Pointer img, double sigma = -1);
         GradientImage::Pointer ComputeGradient(RealImage::Pointer img);
+
         RealImage::Pointer ComputeMagnitudeMap(VectorImage::Pointer img);
         RealImage::Pointer ComputeMagnitudeMap(GradientImage::Pointer img);
+
+        RealImage::Pointer ComputeGaussianSmoothing(RealImage::Pointer img, double sigma = -1);
+
         VectorImage::Pointer ComputeDistanceMap(LabelImage::Pointer img);
 
         LabelImage::Pointer ThresholdToBinary(LabelImage::Pointer img);

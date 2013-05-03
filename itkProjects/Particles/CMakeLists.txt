@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 2.8)
 
 SET (BUILD_2D False CACHE BOOL "Compile 2d version")
 SET (BUILD_PEVAL False CACHE BOOL "Compile peval for label evaluation")
-SET (BUILD_BIG False CACHE BOOL "Compile for distribution")
 SET (BUILD_GUI False CACHE BOOL "Compile GUI tools")
 SET (BUILD_MBRAINS False CACHE BOOL "Compile mbrains tools")
 
@@ -41,8 +40,8 @@ SET (QT_PI_SOURCES particleViewerWindow.cpp  particleAni.cpp myQGraphicsView.cpp
 qt4_wrap_cpp(QT_PI_MOC_HEADERS ${QT_PI_HEADERS})
 qt4_wrap_ui(QT_PI_UI_FILES particleViewerWindow.ui particleAni.ui)
 
-SET (QT_PSIM2_HEADERS piSimul2.h piSimulCore.h myQGraphicsView.h QGraphicsRectWidget.h qcustomplot.h qfileacceptbutton.h)
-SET (QT_PSIM2_SOURCES piSimul2.cpp piSimulCore.cpp myQGraphicsView.cpp QGraphicsRectWidget.cpp qcustomplot.cpp qfileacceptbutton.cpp)
+SET (QT_PSIM2_HEADERS piSimul2.h piSimulCore.h piGroupSimul.h myQGraphicsView.h QGraphicsRectWidget.h qcustomplot.h qfileacceptbutton.h)
+SET (QT_PSIM2_SOURCES piSimul2.cpp piSimulCore.cpp piGroupSimul.cpp myQGraphicsView.cpp QGraphicsRectWidget.cpp qcustomplot.cpp qfileacceptbutton.cpp)
 qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
 QT4_ADD_RESOURCES(QT_PSIM2_RCC simul2d.qrc)
@@ -80,26 +79,9 @@ TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRAR
 ENDIF (${BUILD_2D})
 
 ADD_EXECUTABLE(prun3 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
-SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_FLAGS "-DBATCH")
+SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_FLAGS "-DBATCH -DATTR_SIZE=17")
 SET_TARGET_PROPERTIES(prun3 PROPERTIES DEBUG_POSTFIX "d")
 TARGET_LINK_LIBRARIES(prun3 ${ITK_LIBRARIES} ${VTK_LIBRARIES})
-
-ADD_EXECUTABLE(prun3a5 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
-SET_TARGET_PROPERTIES(prun3a5 PROPERTIES COMPILE_FLAGS "-DATTR_SIZE=5")
-SET_TARGET_PROPERTIES(prun3a5 PROPERTIES DEBUG_POSTFIX "d")
-TARGET_LINK_LIBRARIES(prun3a5 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
-
-ADD_EXECUTABLE(prun3a5q particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
-SET_TARGET_PROPERTIES(prun3a5q PROPERTIES COMPILE_FLAGS "-DATTR_SIZE=5 -DBATCH")
-SET_TARGET_PROPERTIES(prun3a5q PROPERTIES DEBUG_POSTFIX "d")
-TARGET_LINK_LIBRARIES(prun3a5q ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
-
-IF (${BUILD_BIG})
-ADD_EXECUTABLE(prun3a17q particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
-SET_TARGET_PROPERTIES(prun3a17q PROPERTIES COMPILE_FLAGS "-DATTR_SIZE=17 -DBATCH")
-SET_TARGET_PROPERTIES(prun3a17q PROPERTIES DEBUG_POSTFIX "d")
-TARGET_LINK_LIBRARIES(prun3a17q ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
-ENDIF(${BUILD_BIG})
 
 ADD_EXECUTABLE(ptest ptest.cpp ${MY_PARTICLE_WORKS_SOURCES})
 TARGET_LINK_LIBRARIES(ptest ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
@@ -110,14 +92,14 @@ IF (${BUILD_PEVAL})
 ENDIF(${BUILD_PEVAL})
 
 IF (${BUILD_GUI})
-	ADD_EXECUTABLE(psim simul2main.cpp ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} piImageDef.h piImageIO.h piImageSlice.h piImageSlice.cpp piImagePatch.h piImagePatch.cpp piPatchTracking.h piPatchTracking.cpp piImageEntropyComputer.h piImageEntropyComputer.cpp piImageRegistration.h piImageRegistration.cpp ${MY_PARTICLE_WORKS_SOURCES} qutils.h qutils.cpp itkSIFTImageFilter.h itkSIFTImageFilter.cpp itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsImageItem.h QGraphicsImageItem.cpp QGraphicsPatchItem.h QGraphicsPatchItem.cpp QGraphicsEventItem.h QGraphicsEventItem.cpp ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES}  ${MY_Qt_EXTENSIONS} itkEntropyImageToImageMetricv4.h itkEntropyImageToImageMetricv4.hxx itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.h itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.hxx itkEntropyImageToImageMetricv4HelperThreader.h itkEntropyImageToImageMetricv4HelperThreader.hxx 
+	ADD_EXECUTABLE(psim simul2main.cpp ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} piImageDef.h piImageIO.h piImageSlice.h piImageSlice.cpp piImagePatch.h piImagePatch.cpp piPatchTracking.h piPatchTracking.cpp piImageEntropyComputer.h piImageEntropyComputer.cpp piImageRegistration.h piImageRegistration.cpp ${MY_PARTICLE_WORKS_SOURCES} qutils.h qutils.cpp itkSIFTImageFilter.h itkSIFTImageFilter.cpp itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsImageItem.h QGraphicsImageItem.cpp QGraphicsParticleItems.h QGraphicsParticleItems.cpp QGraphicsPatchItem.h QGraphicsPatchItem.cpp QGraphicsEventItem.h QGraphicsEventItem.cpp ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES}  ${MY_Qt_EXTENSIONS} itkEntropyImageToImageMetricv4.h itkEntropyImageToImageMetricv4.hxx itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.h itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.hxx itkEntropyImageToImageMetricv4HelperThreader.h itkEntropyImageToImageMetricv4HelperThreader.hxx 
         ${QT_PSIM2_RCC})
 	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=17")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
 	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp
         piImageDef.h piImageIO.h piMacros.h piParticle.h piParticle.cpp
-		piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h
+		piImagePatch.h piParticleTracker.h piParticleTracker.cpp piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h
         piFitCurve.h piFitCurve.cpp piParticleCore.h piParticleCore.cpp piParticleTrace.h piParticleTrace.cpp
         piParticleForces.h piParticleForces.cpp piParticleSystemSolver.h piParticleSystemSolver.cpp 
         piEntropyComputer.h piEntropyComputer.cpp piParticleCollision.h piParticleCollision.cpp 

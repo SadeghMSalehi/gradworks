@@ -17,6 +17,7 @@
 
 #include "ui_simul2d.h"
 #include "piSimulCore.h"
+#include "piGroupSimul.h"
 
 namespace pi {
     class Simul2: public QMainWindow {
@@ -63,6 +64,7 @@ namespace pi {
         
         Ui_Simul2D ui;
         piq::SimulCore core;
+        pi::GroupSimul groupSimul;
         
         QGraphicsScene m_scene;
         QTimer m_timer;

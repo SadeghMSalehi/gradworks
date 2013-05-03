@@ -1187,7 +1187,7 @@ p, li { white-space: pre-wrap; }
    <addaction name="actionUnload"/>
    <addaction name="separator"/>
    <addaction name="actionFlipLR"/>
-   <addaction name="actioFlipUD"/>
+   <addaction name="actionFlipUD"/>
   </widget>
   <action name="actionSliceIJ">
    <property name="checkable">
@@ -1407,7 +1407,7 @@ p, li { white-space: pre-wrap; }
     <string>Flip Left and Right</string>
    </property>
   </action>
-  <action name="actioFlipUD">
+  <action name="actionFlipUD">
    <property name="checkable">
     <bool>true</bool>
    </property>

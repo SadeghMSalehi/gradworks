@@ -502,7 +502,10 @@ int main(int argc, char* argv[]) {
             }
             cout << "continue optimization;" << endl;
         }
-        
+
+        cout << "Spreading Particles ..." << endl;
+        solver.SpreadParticles();
+        cout << "Start Running... " << endl;
         solver.Run();
         solver.SaveConfig(args[1].c_str());
 

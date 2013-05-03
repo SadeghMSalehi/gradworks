@@ -27,7 +27,7 @@ namespace pi {
         ParticleVector controls;
         BSplineBasis::CubicContourFitting(particles, 25, controls);
 
-        std::vector<float> params(100);
+        std::vector<float> params(50);
         for (int i = 0; i < params.size(); i++) {
             params[i] = i / float(params.size());
         }

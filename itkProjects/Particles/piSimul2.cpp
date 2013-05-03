@@ -59,8 +59,11 @@ namespace pi {
             ui.config->setPlainText(buffer.str().c_str());
         }
 
-        core.setUi(&ui);
+//        core.setUi(&ui);
         ui.costPlot->hide();
+
+        groupSimul.setupUi(&ui);
+        groupSimul.setupParticles(&main);
 
         centerToDesktop();
         splitViewEvenly();
@@ -100,34 +103,15 @@ namespace pi {
 
 
     void Simul2::on_applyButton_clicked(bool value) {
-        stringstream configstream;
-        string config = ui.config->toPlainText().toStdString();
-        configstream.str(config);
-
-        cout << configstream.str() << endl;
-
-        main.LoadConfig(configstream);
-        main.Preprocessing();
-        main.Setup();
-
-        core.setParticleSolver(&main);
-        core.updateParticles();
-
-        stringstream cachestream;
-        main.SaveConfig("/tmp/psim.txt");
-        cachestream << main.m_Options << endl;
-        ui.config->setPlainText(QString::fromStdString(cachestream.str()));
-        
-        ui.statusbar->showMessage(QString("%1 particles loaded!").arg(system.GetNumberOfParticles()));
-
 //        ui.graphicsView->resize(ui.graphicsView->width(), viewHeight / 2);
 //        ui.graphicsView2->resize(ui.graphicsView2->width(), viewHeight / 2);
+        
+        groupSimul.loadConfig();
     }
 
 
     void Simul2::on_spreadButton_clicked() {
-        main.SpreadParticles();
-        core.updateParticles();
+        groupSimul.spreadParticles();
     }
 
     void Simul2::threadedRun() {
@@ -138,9 +122,11 @@ namespace pi {
 
     void Simul2::on_runStepButton_clicked() {
         if (!ui.runStepButton->isChecked()) {
-            stopLoadingAnimation();
+            groupSimul.stopRun();
+//            stopLoadingAnimation();
         } else {
-            startLoadingAnimation();
+            groupSimul.startRun();
+//            startLoadingAnimation();
         }
     }
 
@@ -269,30 +255,7 @@ namespace pi {
     }
 
     void Simul2::on_actionBsplineWarp_triggered() {
-        ParticleBSpline bspline;
-        ImageIO<LabelImage> io;
-        LabelImage::Pointer labelImg = io.CastImageFromS<RealImage>(core.getImage(0));
-        bspline.SetReferenceImage(labelImg);
-        bspline.EstimateTransform(main.m_System[0], main.m_System[1]);
-        RealImage::Pointer warpedImage = bspline.WarpImage(core.getImage(1));
-        core.showAuxImage(0, warpedImage);
-
-        FieldTransformType::Pointer transform = bspline.GetTransform();
-        const int h = core.getImage(0)->GetBufferedRegion().GetSize(1);
-        const int w = core.getImage(0)->GetBufferedRegion().GetSize(0);
-
-        QGraphicsRealImageItem::GridCoord& grids = core.getImageItem(1)->userGrids();
-        grids.clear();
-        for (int j = 0; j < h; j++) {
-            FieldTransformType::InputPointType pin;
-            pin[1] = j;
-            for (int i = 0; i < w; i++) {
-                pin[0] = i;
-                FieldTransformType::OutputPointType pout = transform->TransformPoint(pin);
-                grids.append(QPointF(pout[0], pout[1]));
-            }
-        }
-        core.getImageItem(1)->update();
+        groupSimul.computeWarpedImages();
     }
 
     void Simul2::on_actionImageBsplineWarp_triggered() {
