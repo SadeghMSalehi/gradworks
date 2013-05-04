@@ -26,7 +26,7 @@ namespace pi {
      * Sample s intensity values for n points from m images
      *
      */
-    template <class T>
+    template <class T, class S>
     class ImageSamples {
     public:
         typedef T* ImagePointer;
@@ -36,9 +36,16 @@ namespace pi {
         typedef typename T::RegionType RegionType;
         typedef typename T::SizeType SizeType;
 
+        typedef typename S::PixelType GradientType;
+
+        enum { ImageDimension = T::ImageDimension };
+
         typedef Particle* ParticlePointer;
         typedef itk::LinearInterpolateImageFunction<T> InterpolatorType;
         typedef typename InterpolatorType::Pointer InterpolatorPointer;
+
+        typedef itk::VectorLinearInterpolateImageFunction<S> GradientInterpolatorType;
+        typedef typename GradientInterpolatorType::Pointer GradientInterpolatorPointer;
 
         ImageSamples(int images, int points, int samples): m(images), n(points), s(samples), _values(NULL), _gradients(NULL) {
             allocateValues();
@@ -88,6 +95,10 @@ namespace pi {
             _images.push_back(interp);
         }
 
+        void addGradientInterpolator(GradientInterpolatorPointer interp) {
+            _gradientImages.push_back(interp);
+        }
+
         // should have s sample index
         void setSampleRegion(RegionType region) {
             _regionSize = region.GetSize();
@@ -117,7 +128,30 @@ namespace pi {
             }
         }
 
-        void sampleGradients() {}
+        void sampleGradients() {
+            assert(_images.size() == m);
+            assert(_particles.size() == m);
+            assert(_indexes.size() == s);
+
+            PixelType* gradientsIter = _gradients;
+            IndexType idx;
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < n; j++) {
+                    for (int k = 0; k < s * ImageDimension; k++) {
+                        idx = _indexes[k];
+                        for (int l = 0; l < ImageDimension; l++) {
+                            // translate to the particle (i-th subject & j-th particle)
+                            idx[l] += _particles[i][j].x[l];
+                        }
+                        GradientType gradient = _images[i]->EvaluateAtIndex(idx);
+                        for (int l = 0; l < ImageDimension; l++) {
+                            *gradientsIter = gradient[l];
+                            ++gradientsIter;
+                        }
+                    }
+                }
+            }
+        }
 
         // return values as an image with sample number to be (w*h)
         typename T::Pointer getValuesAsImage(int w, int h) {
@@ -161,6 +195,7 @@ namespace pi {
 
         SizeType _regionSize;
         std::vector<InterpolatorPointer> _images;
+        std::vector<GradientInterpolatorPointer> _gradientImages;
         std::vector<ParticlePointer> _particles;
         std::vector<IndexType> _indexes;
     };

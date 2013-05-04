@@ -41,4 +41,29 @@ namespace pi {
 
         return slices;
     }
+
+    RealImage2Vector RealImageTools::computeGaussianSmoothing(RealImage2Vector images, double sigma) {
+        RealImage2Vector outputImages;
+        typedef itk::RecursiveGaussianImageFilter<RealImage2> FilterType;
+        for (int i = 0; i < images.size(); i++) {
+            FilterType::Pointer filter = FilterType::New();
+            filter->SetInput(images[i]);
+            filter->SetSigma(sigma);
+            filter->Update();
+            outputImages.push_back(filter->GetOutput());
+        }
+        return outputImages;
+    }
+
+    GradientImage2Vector RealImageTools::computeGaussianGradient(RealImage2Vector images, double sigma) {
+        GradientImage2Vector outputImages;
+        for (int i = 0; i < images.size(); i++) {
+            Gradient2FilterType::Pointer filter = Gradient2FilterType::New();
+            filter->SetInput(images[i]);
+            filter->SetSigma(sigma);
+            filter->Update();
+            outputImages.push_back(filter->GetOutput());
+        }
+        return outputImages;
+    }
 }

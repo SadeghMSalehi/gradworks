@@ -12,6 +12,7 @@
 #include <QDesktopWidget>
 
 #include "piImagePatch.h"
+#include "piImageProcessing.h"
 
 const char __contourFile[] = "/NIRAL/work/joohwi/nadia/contour.txt";
 
@@ -78,7 +79,10 @@ namespace pi {
         imageHisto.SetImage(volume);
 
         _images = __realImageTools.sliceVolume(volume, 1);
+        _gradientImages = __realImageTools.computeGaussianGradient(_images, 0.5);
+
         _imageItems.resize(_images.size());
+
 
         int wPos = 0;
         for (int i = 0; i < _images.size(); i++) {
@@ -129,14 +133,22 @@ namespace pi {
         region.SetSize(0, size);
         region.SetSize(1, size);
 
+        const int currentImage = _images.size() / 2;
+
         typedef itk::LinearInterpolateImageFunction<RealImage2> InterpolatorType;
         InterpolatorType::Pointer interp = InterpolatorType::New();
-        interp->SetInputImage(_images[_images.size() / 2]);
-        ImageSamples<RealImage2> samples(1, particles.size(), size*size);
+        interp->SetInputImage(_images[currentImage]);
+
+        Gradient2InterpolatorType::Pointer gradientInterp = Gradient2InterpolatorType::New();
+        gradientInterp->SetInputImage(_gradientImages[currentImage]);
+
+        ImageSamples<RealImage2, GradientImage2> samples(1, particles.size(), size*size);
         samples.setSampleRegion(region);
         samples.addInterpolator(interp);
+        samples.addGradientInterpolator(gradientInterp);
         samples.addParticles(&particles[0]);
         samples.sampleValues();
+
         RealImage2::Pointer image = samples.getValuesAsImage(size, size);
 
 

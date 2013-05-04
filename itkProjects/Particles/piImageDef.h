@@ -72,6 +72,11 @@ namespace pi {
     typedef itk::VectorLinearInterpolateImageFunction<GradientImage> GradientInterpolatorType;
     typedef itk::ConstNeighborhoodIterator<RealImage> RealImageNeighborhoodIteratorType;
     typedef itk::ConstNeighborhoodIterator<GradientImage> GradientImageNeighborhoodIteratorType;
+
+    typedef itk::GradientRecursiveGaussianImageFilter<RealImage2> Gradient2FilterType;
+    typedef Gradient2FilterType::OutputImageType GradientImage2;
+    typedef Gradient2FilterType::OutputPixelType GradientPixel2;
+    typedef itk::VectorLinearInterpolateImageFunction<GradientImage2> Gradient2InterpolatorType;
     
     // definition for transforms
     typedef itk::Transform<PointReal,__Dim,__Dim> TransformType;
@@ -94,10 +99,13 @@ namespace pi {
 
     typedef std::vector<RealImage2::Pointer> RealImage2Vector;
     typedef std::vector<RealImage3::Pointer> RealImage3Vector;
+    typedef std::vector<GradientImage2::Pointer> GradientImage2Vector;
     
     class RealImageTools {
     public:
         RealImage2Vector sliceVolume(RealImage3::Pointer image, int dir);
+        RealImage2Vector computeGaussianSmoothing(RealImage2Vector images, double sigma = 1);
+        GradientImage2Vector computeGaussianGradient(RealImage2Vector images, double sigma = 1);
     };
     
     extern RealImageTools __realImageTools;

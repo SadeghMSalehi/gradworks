@@ -49,6 +49,7 @@ namespace pi {
         QGraphicsScene _miniScene;
 
         RealImage2Vector _images;
+        GradientImage2Vector _gradientImages;
 
         QGraphicsPolygonDrawingInteraction<QGraphicsRealImageItem> _interaction;
         QGraphicsItemGroup* _imageGroup;
