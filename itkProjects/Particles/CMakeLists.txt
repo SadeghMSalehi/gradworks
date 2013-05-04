@@ -40,8 +40,8 @@ SET (QT_PI_SOURCES particleViewerWindow.cpp  particleAni.cpp myQGraphicsView.cpp
 qt4_wrap_cpp(QT_PI_MOC_HEADERS ${QT_PI_HEADERS})
 qt4_wrap_ui(QT_PI_UI_FILES particleViewerWindow.ui particleAni.ui)
 
-SET (QT_PLUTO_HEADERS piPlutoWindow.h piPlutoCore.h)
-SET (QT_PLUTO_SOURCES piPlutoWindow.cpp piPlutoCore.cpp)
+SET (QT_PLUTO_HEADERS piPlutoWindow.h piPlutoCore.h QGraphicsZoomView.h)
+SET (QT_PLUTO_SOURCES piPlutoWindow.cpp piPlutoCore.cpp QGraphicsZoomView.cpp)
 qt4_wrap_cpp(QT_PLUTO_MOC_HEADERS ${QT_PLUTO_HEADERS})
 qt4_wrap_ui(QT_PLUTO_UI_FILES plutowindow.ui)
 

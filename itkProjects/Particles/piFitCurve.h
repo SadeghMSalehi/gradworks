@@ -11,7 +11,7 @@
 
 #include <iostream>
 #include "piImageDef.h"
-#include "piParticleCore.h"
+#include "piParticle.h"
 #include <itkBSplineScatteredDataPointSetToImageFilter.h>
 #include <itkVectorLinearInterpolateImageFunction.h>
 

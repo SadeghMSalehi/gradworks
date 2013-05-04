@@ -37,17 +37,24 @@ namespace pi {
         void on_actionOpen_triggered();
         void on_actionReset_triggered();
         void on_actionStart_triggered();
+
+        void on_actionLoad_triggered();
+        void on_actionSave_triggered();
         
         void flipImages();
 
     private:
         Ui_PlutoMain _ui;
         QGraphicsScene _scene;
+        QGraphicsScene _miniScene;
+
         RealImage2Vector _images;
 
         QGraphicsPolygonDrawingInteraction<QGraphicsRealImageItem> _interaction;
         QGraphicsItemGroup* _imageGroup;
+
         std::vector<QGraphicsRealImageItem*> _imageItems;
+        QGraphicsRealImageItem* _patchItem;
     };
 }
 

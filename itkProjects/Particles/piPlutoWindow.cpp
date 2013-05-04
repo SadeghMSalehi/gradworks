@@ -8,17 +8,22 @@
 
 #include "piPlutoWindow.h"
 
-
+#include <fstream>
 #include <QDesktopWidget>
 
 #include "piImagePatch.h"
+
+const char __contourFile[] = "/NIRAL/work/joohwi/nadia/contour.txt";
 
 namespace pi {
     PlutoWindow::PlutoWindow(QWidget* parent): QMainWindow(parent) {
         _ui.setupUi(this);
         _ui.graphicsView->setScene(&_scene);
+        _ui.graphicsMiniView->setScene(&_miniScene);
+        _ui.graphicsMiniView->hide();
 
         _imageGroup = NULL;
+        _patchItem = NULL;
     }
     
     PlutoWindow::~PlutoWindow() {
@@ -116,22 +121,66 @@ namespace pi {
             return;
         }
 
-
+        const int radius = 3;
+        const int size = 7;
         RealImage2::RegionType region;
-        region.SetIndex(0, -3);
-        region.SetIndex(1, -3);
-        region.SetSize(0, 7);
-        region.SetSize(1, 7);
+        region.SetIndex(0, -radius);
+        region.SetIndex(1, -radius);
+        region.SetSize(0, size);
+        region.SetSize(1, size);
 
         typedef itk::LinearInterpolateImageFunction<RealImage2> InterpolatorType;
         InterpolatorType::Pointer interp = InterpolatorType::New();
         interp->SetInputImage(_images[_images.size() / 2]);
-        ImageSamples<RealImage2> samples(1, particles.size(), 49);
+        ImageSamples<RealImage2> samples(1, particles.size(), size*size);
         samples.setSampleRegion(region);
         samples.addInterpolator(interp);
         samples.addParticles(&particles[0]);
         samples.sampleValues();
+        RealImage2::Pointer image = samples.getValuesAsImage(size, size);
 
 
+        if (_patchItem == NULL) {
+            _patchItem = new QGraphicsRealImageItem();
+            _miniScene.addItem(_patchItem);
+            _ui.graphicsMiniView->show();
+        }
+
+        _patchItem->setImage<RealImage2>(image);
+        _patchItem->setRange(_imageItems[0]->getRange(0), _imageItems[0]->getRange(1));
+        _patchItem->refresh();
+
+        _ui.graphicsMiniView->fitInView(0, 0, radius, radius, Qt::KeepAspectRatio);
     }
+
+    void PlutoWindow::on_actionLoad_triggered() {
+        ParticleVector contour;
+        ifstream is(__contourFile);
+        while (is.good()) {
+            Particle p;
+            is >> p;
+            if (is.good()) {
+                contour.push_back(p);
+            }
+        }
+
+        cout << "Contour Length: " << contour.size() << endl;
+        const int centerItem = _images.size() / 2.0;
+        _interaction.setParticles(_imageItems[centerItem], contour);
+    }
+
+    void PlutoWindow::on_actionSave_triggered() {
+        ParticleVector& particles = _interaction.getParticles();
+        if (particles.size() == 0) {
+            return;
+        }
+
+        ofstream os(__contourFile);
+        for (int i = 0; i < particles.size(); i++) {
+            os << particles[i] << endl;
+        }
+        os.close();
+    }
+
+    
 }

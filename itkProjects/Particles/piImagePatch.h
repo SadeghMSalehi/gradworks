@@ -18,6 +18,7 @@
 
 #include "piMacros.h"
 #include "piParticle.h"
+#include "piImageIO.h"
 
 namespace pi {
 
@@ -39,7 +40,9 @@ namespace pi {
         typedef itk::LinearInterpolateImageFunction<T> InterpolatorType;
         typedef typename InterpolatorType::Pointer InterpolatorPointer;
 
-        ImageSamples(int images, int points, int samples): m(images), n(points), s(samples), _values(NULL), _gradients(NULL) {};
+        ImageSamples(int images, int points, int samples): m(images), n(points), s(samples), _values(NULL), _gradients(NULL) {
+            allocateValues();
+        };
 
         ~ImageSamples() {
             delete[] _values;
@@ -53,6 +56,14 @@ namespace pi {
         PixelType* _values;
         PixelType* _gradients;
 
+        PixelType* getValues() {
+            return _values;
+        }
+
+        PixelType* getGradients() {
+            return _gradients;
+        }
+        
         void allocateValues() {
             if (_values) {
                 delete[] _values;
@@ -67,7 +78,7 @@ namespace pi {
             _gradients = new PixelType[m*n*s*DIMENSIONS];
         }
 
-        // should have n particles
+        // each particle array should have n particles
         void addParticles(ParticlePointer particles) {
             _particles.push_back(particles);
         }
@@ -86,7 +97,7 @@ namespace pi {
         // sample intensity values from images
         void sampleValues() {
             assert(_images.size() == m);
-            assert(_particles.size() == n);
+            assert(_particles.size() == m);
             assert(_indexes.size() == s);
 
             PixelType* valuesIter = _values;
@@ -96,10 +107,10 @@ namespace pi {
                     for (int k = 0; k < s; k++) {
                         idx = _indexes[k];
                         fordim (l) {
-                            // translate to particles
-                            idx[l] += _particles[i*n+j]->x[l];
+                            // translate to the particle (i-th subject & j-th particle)
+                            idx[l] += _particles[i][j].x[l];
                         }
-                        *valuesIter = _images[i]->EvaluateAtIndex(_indexes[k]);
+                        *valuesIter = _images[i]->EvaluateAtIndex(idx);
                         ++valuesIter;
                     }
                 }
@@ -107,6 +118,31 @@ namespace pi {
         }
 
         void sampleGradients() {}
+
+        // return values as an image with sample number to be (w*h)
+        typename T::Pointer getValuesAsImage(int w, int h) {
+            if (s != w * h) {
+                return typename T::Pointer();
+            }
+
+            ImageIO<T> io;
+            typename T::Pointer image = io.NewImageT(w * n, h * m, 0);
+
+            PixelType* bufferPointer = image->GetBufferPointer();
+
+            // m images
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < n; j++) {
+                    for (int l = 0; l < h; l++) {
+                        for (int k = 0; k < w; k++) {
+                            bufferPointer[i*n*w*h+l*(w*n)+(j*w+k)] = _values[i*n*w*h+j*w*h+l*w+k];
+                        }
+                    }
+                }
+            }
+
+            return image;
+        }
 
     private:
         void addIndexHelper(IndexType idx, int dim) {

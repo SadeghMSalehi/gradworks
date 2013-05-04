@@ -8,9 +8,10 @@
 
 #ifndef __myParticlesCore__
 #define __myParticlesCore__
-
+#ifndef Q_MOC_RUN
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
+#endif
 #include <vector>
 #include <string>
 #include <iostream>

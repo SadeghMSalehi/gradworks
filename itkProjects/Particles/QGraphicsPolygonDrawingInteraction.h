@@ -15,7 +15,7 @@
 #include <QPolygonF>
 #include "QGraphicsImageItem.h"
 
-#include "piParticle.h"
+
 #include "piFitCurve.h"
 
 
@@ -38,7 +38,6 @@ public:
         _polygonItem->setPen(pen);
         _polygonItem->setBrush(Qt::NoBrush);
         _polygonItem->setOpacity(0.5);
-
     }
 
     void reset() {
@@ -55,6 +54,20 @@ public:
     pi::ParticleVector& getParticles() {
         return _particles;
     }
+
+
+    void setParticles(T* item, pi::ParticleVector& particles) {
+        _particles = particles;
+        _points.clear();
+
+        for (int i = 0; i < _particles.size(); i++) {
+            _points.append(QPointF(_particles[i].x[0], _particles[i].x[1]));
+        }
+        _polygonItem->setPolygon(_points);
+        _polygonItem->setParentItem(item);
+        _polygonItem->show();
+    }
+
 
     virtual void mousePressed(T *item, QGraphicsSceneMouseEvent *event) {
         if (event->buttons() & Qt::LeftButton) {
