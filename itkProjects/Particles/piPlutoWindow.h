@@ -12,9 +12,18 @@
 #include <iostream>
 
 #include <QMainWindow>
+#include <QGraphicsScene>
+#include <QGraphicsItemGroup>
+
+#include "QGraphicsImageItem.h"
+#include "QGraphicsPolygonDrawingInteraction.h"
+
 #include "ui_plutowindow.h"
+#include "piPlutoCore.h"
 
 namespace pi {
+    typedef QGraphicsImageItem<DataReal> QGraphicsRealImageItem;
+
     class PlutoWindow: public QMainWindow {
         Q_OBJECT
     public:
@@ -26,9 +35,19 @@ namespace pi {
         
     public slots:
         void on_actionOpen_triggered();
+        void on_actionReset_triggered();
+        void on_actionStart_triggered();
         
+        void flipImages();
+
     private:
         Ui_PlutoMain _ui;
+        QGraphicsScene _scene;
+        RealImage2Vector _images;
+
+        QGraphicsPolygonDrawingInteraction<QGraphicsRealImageItem> _interaction;
+        QGraphicsItemGroup* _imageGroup;
+        std::vector<QGraphicsRealImageItem*> _imageItems;
     };
 }
 

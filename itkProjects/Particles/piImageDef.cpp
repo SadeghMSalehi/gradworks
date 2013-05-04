@@ -12,7 +12,10 @@
 
 namespace pi {
     typedef itk::ExtractImageFilter<RealImage3, RealImage2> FilterType;
-    
+
+    // external variable for easy access
+    RealImageTools __realImageTools;
+
     // split a volume image into slices
     RealImage2Vector RealImageTools::sliceVolume(RealImage3::Pointer volume, int dim) {
         RealImage2Vector slices;

@@ -40,8 +40,8 @@ SET (QT_PI_SOURCES particleViewerWindow.cpp  particleAni.cpp myQGraphicsView.cpp
 qt4_wrap_cpp(QT_PI_MOC_HEADERS ${QT_PI_HEADERS})
 qt4_wrap_ui(QT_PI_UI_FILES particleViewerWindow.ui particleAni.ui)
 
-SET (QT_PLUTO_HEADERS piPlutoWindow.h)
-SET (QT_PLUTO_SOURCES piPlutoWindow.cpp)
+SET (QT_PLUTO_HEADERS piPlutoWindow.h piPlutoCore.h)
+SET (QT_PLUTO_SOURCES piPlutoWindow.cpp piPlutoCore.cpp)
 qt4_wrap_cpp(QT_PLUTO_MOC_HEADERS ${QT_PLUTO_HEADERS})
 qt4_wrap_ui(QT_PLUTO_UI_FILES plutowindow.ui)
 
@@ -102,9 +102,9 @@ IF (${BUILD_GUI})
 	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=17")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
     
-    ADD_EXECUTABLE(pluto plutomain.cpp piPlutoCore.h piPlutoCore.cpp ${QT_PLUTO_HEADERS} ${QT_PLUTO_SOURCES} ${MY_PARTICLE_WORKS_SOURCES} piImageIO.h piOptions.cpp piOptions.h  ${QT_PLUTO_MOC_HEADERS} ${QT_PLUTO_UI_FILES})
-	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")    
-    TARGET_LINK_LIBRARIES(pluto ${ITK_LIBRARIES} ${QT_LIBRARIES})
+    ADD_EXECUTABLE(pluto plutomain.cpp piPlutoCore.h piPlutoCore.cpp ${QT_PLUTO_HEADERS} ${QT_PLUTO_SOURCES} ${MY_PARTICLE_WORKS_SOURCES} piFitCurve.h piFitCurve.cpp piImagePatch.h piBSplineBasis.h piBSplineBasis.cpp piImageIO.h piOptions.cpp piOptions.h QGraphicsImageItem.h QGraphicsImageItem.cpp QGraphicsPolygonDrawingInteraction.h QGraphicsPolygonDrawingInteraction.cpp qutils.h qutils.cpp ${QT_PLUTO_MOC_HEADERS} ${QT_PLUTO_UI_FILES})
+	SET_TARGET_PROPERTIES(pluto PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")
+    TARGET_LINK_LIBRARIES(pluto ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES})
 
 	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp
         piImageDef.h piImageIO.h piMacros.h piParticle.h piParticle.cpp

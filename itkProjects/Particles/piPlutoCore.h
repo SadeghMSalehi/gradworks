@@ -11,10 +11,16 @@
 
 #include <iostream>
 #include <vector>
+#include <QObject>
+
 #include "piParticle.h"
 #include "piImageDef.h"
+#include "piImageIO.h"
 
 namespace pi {
+    extern ImageIO<RealImage2> __real2IO;
+    extern ImageIO<RealImage3> __real3IO;
+
     class PlutoCore: public QObject {
         Q_OBJECT
         
@@ -23,7 +29,7 @@ namespace pi {
         virtual ~PlutoCore();
         
         void addImage(RealImage::Pointer images);
-        void initParticles(Particles*);
+        void initParticles(Particle*);
         void run();
         
     private:

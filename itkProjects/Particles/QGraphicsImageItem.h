@@ -24,21 +24,24 @@ extern unsigned int __grays[256];
 extern unsigned int __red2blue[256];
 extern unsigned int __blue2red[256];
 
+
+template <class T>
+class QGraphicsItemInteraction {
+public:
+    virtual void mousePressed(T*,QGraphicsSceneMouseEvent*) = 0;
+    virtual void mouseMoved(T*,QGraphicsSceneMouseEvent*) = 0;
+    virtual void mouseReleased(T*,QGraphicsSceneMouseEvent*) = 0;
+    virtual void hoverEntered(T*,QGraphicsSceneHoverEvent*) = 0;
+    virtual void hoverMoved(T*,QGraphicsSceneHoverEvent*) = 0;
+    virtual void hoverLeft(T*,QGraphicsSceneHoverEvent*) = 0;
+};
+
 template <class T>
 class QGraphicsImageItem: public QGraphicsPixmapItem {
 public:
     typedef T PixelType;
     typedef QVector<QPointF> GridCoord;
-
-    class InteractionType {
-    public:
-        virtual void mousePressed(QGraphicsImageItem<T>*,QGraphicsSceneMouseEvent*) = 0;
-        virtual void mouseMoved(QGraphicsImageItem<T>*,QGraphicsSceneMouseEvent*) = 0;
-        virtual void mouseReleased(QGraphicsImageItem<T>*,QGraphicsSceneMouseEvent*) = 0;
-        virtual void hoverEntered(QGraphicsImageItem<T>*,QGraphicsSceneHoverEvent*) = 0;
-        virtual void hoverMoved(QGraphicsImageItem<T>*,QGraphicsSceneHoverEvent*) = 0;
-        virtual void hoverLeft(QGraphicsImageItem<T>*,QGraphicsSceneHoverEvent*) = 0;
-    };
+    typedef QGraphicsItemInteraction< QGraphicsImageItem<T> > InteractionType;
 
     enum Flags { NoFlip, LeftRight, UpDown };
     enum Mode { NoMode, GridMode };
@@ -46,7 +49,7 @@ public:
     QGraphicsImageItem(QGraphicsItem* parent = NULL): QGraphicsPixmapItem(parent) {
         _range[0] = 0;
         _range[1] = 0;
-        _showGrid = true;
+        _showGrid = false;
         _interaction = NULL;
         setAcceptedMouseButtons(Qt::LeftButton);
     }
@@ -333,10 +336,9 @@ void QGraphicsImageItem<T>::refresh() {
         return;
     }
 
-    const float pixelRange = _range[1] - _range[0];
-    const float pixelMin = _range[0];
+    const T pixelRange = _range[1] - _range[0];
+    const T pixelMin = _range[0];
 
-    std::cout << pixelMin << ", " << pixelRange << std::endl;
     convertToIndexed(_inputBuffer, pixelMin, pixelRange, _grayImage);
 
     QPixmap pixmap = QPixmap::fromImage(_grayImage);
@@ -350,7 +352,11 @@ void QGraphicsImageItem<T>::convertToIndexed(T* inputBuffer,
     for (int i = 0; i < outputImage.height(); i++) {
         uchar* outputBuffer = outputImage.scanLine(i);
         for (int j = 0; j < width; j++, outputBuffer++, inputBuffer++) {
-            *outputBuffer = uchar(256u * (*inputBuffer-min)/(range));
+            if (*inputBuffer > min + range) {
+                *outputBuffer = 255u;
+            } else {
+                *outputBuffer = uchar(256u * (*inputBuffer-min)/(range));
+            }
         }
     }
 }

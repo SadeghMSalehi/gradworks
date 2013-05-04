@@ -79,8 +79,8 @@ namespace pi {
 
         // should have s sample index
         void setSampleRegion(RegionType region) {
-            _regionSize = region;
-            addIndexHelper(region.GetIndex(), RegionType::GetImageDimensions() - 1);
+            _regionSize = region.GetSize();
+            addIndexHelper(region.GetIndex(), RegionType::ImageDimension - 1);
         }
 
         // sample intensity values from images
@@ -97,9 +97,9 @@ namespace pi {
                         idx = _indexes[k];
                         fordim (l) {
                             // translate to particles
-                            idx[l] += _particles[i*n+j].x[l];
+                            idx[l] += _particles[i*n+j]->x[l];
                         }
-                        *valuesIter = _images[i]->evaluateAtIndex(_indexes[k]);
+                        *valuesIter = _images[i]->EvaluateAtIndex(_indexes[k]);
                         ++valuesIter;
                     }
                 }
