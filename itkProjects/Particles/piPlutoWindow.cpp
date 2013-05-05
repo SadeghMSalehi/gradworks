@@ -14,10 +14,17 @@
 #include "piImagePatch.h"
 #include "piImageProcessing.h"
 
+
 const char __contourFile[] = "/tmpfs/contour.txt";
 const char __volumeFile[] = "/tmpfs/C33_E04_T1.nii.gz";
 
 namespace pi {
+    typedef ImageSamples<RealImage2, GradientImage2> RealSamples2;
+    typedef std::vector<RealSamples2> RealSamples2Vector;
+    
+    RealSamples2Vector _particleSamples;
+    std::vector<ParticleVector> _particleGroup;
+    
     PlutoWindow::PlutoWindow(QWidget* parent): QMainWindow(parent) {
         _ui.setupUi(this);
         _ui.graphicsView->setScene(&_scene);
@@ -80,8 +87,6 @@ namespace pi {
         imageHisto.SetImage(volume);
 
         _images = __realImageTools.sliceVolume(volume, 1);
-        _gradientImages = __realImageTools.computeGaussianGradient(_images, 0.5);
-
         _imageItems.resize(_images.size());
 
 
@@ -121,52 +126,11 @@ namespace pi {
     }
 
     void PlutoWindow::on_actionStart_triggered() {
-        ParticleVector& particles = _interaction.getParticles();
-        if (particles.size() == 0) {
-            return;
-        }
-
-        const int radius = 3;
-        const int size = 7;
-        RealImage2::RegionType region;
-        region.SetIndex(0, -radius);
-        region.SetIndex(1, -radius);
-        region.SetSize(0, size);
-        region.SetSize(1, size);
-
-        const int currentImage = _images.size() / 2;
-
-        typedef itk::LinearInterpolateImageFunction<RealImage2> InterpolatorType;
-        InterpolatorType::Pointer interp = InterpolatorType::New();
-        interp->SetInputImage(_images[currentImage]);
-
-        Gradient2InterpolatorType::Pointer gradientInterp = Gradient2InterpolatorType::New();
-        gradientInterp->SetInputImage(_gradientImages[currentImage]);
-
-        ImageSamples<RealImage2, GradientImage2>::Pointer samples = ImageSamples<RealImage2, GradientImage2>::New();
-        samples->setSampleRegion(region);
-        samples->addInterpolator(interp);
-        samples->addGradientInterpolator(gradientInterp);
-        samples->addParticles(&particles[0], particles.size());
-        samples->allocateValues();
-        samples->allocateGradients();
-        samples->sampleValues();
-
-        RealImage2::Pointer image = samples->getValuesAsImage(size, size);
-
-
-        if (_patchItem == NULL) {
-            _patchItem = new QGraphicsRealImageItem();
-            _miniScene.addItem(_patchItem);
-            _ui.graphicsMiniView->show();
-        }
-
-        _patchItem->setImage<RealImage2>(image);
-        _patchItem->setRange(_imageItems[0]->getRange(0), _imageItems[0]->getRange(1));
-        _patchItem->refresh();
-
-        _ui.graphicsMiniView->fitInView(0, 0, radius, radius, Qt::KeepAspectRatio);
+        _core.setImages(_images);
+        _core.setInitialParticles(_interaction.getParticles());
+        _core.initialize();
     }
+    
 
     void PlutoWindow::on_actionLoad_triggered() {
         if (_images.size() == 0) {

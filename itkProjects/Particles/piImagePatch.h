@@ -28,17 +28,8 @@ namespace pi {
      *
      */
     template <class T, class S>
-    class ImageSamples: public itk::LightObject {
+    class ImageSamples {
     public:
-        typedef ImageSamples<T,S> Self;
-        typedef itk::LightObject Superclass;
-        
-        typedef itk::SmartPointer<Self> Pointer;
-        typedef itk::SmartPointer<const Self> ConstPointer;
-        
-        itkTypeMacro(Self, itk::LightObject);
-        itkNewMacro(ImageSamples);
-        
         typedef T* ImagePointer;
         typedef typename T::PixelType PixelType;
         typedef typename T::PointType PointType;
@@ -58,6 +49,7 @@ namespace pi {
         typedef typename GradientInterpolatorType::Pointer GradientInterpolatorPointer;
 
         ImageSamples(): m(0), n(0), s(0), _values(NULL), _gradients(NULL) {
+            cout << m << "," << n << "," << s << "," << _values << "," << _gradients << endl;
         }
         
         virtual ~ImageSamples() {
@@ -67,6 +59,10 @@ namespace pi {
             if (_gradients) {
                 delete[] _gradients;
             }
+        }
+        
+        unsigned int getSize(int dim) {
+            return _regionSize[dim];
         }
         
         PixelType* getValues() {
@@ -110,12 +106,13 @@ namespace pi {
         // should have s sample index
         void setSampleRegion(RegionType region) {
             _regionSize = region.GetSize();
-            addIndexHelper(region.GetIndex(), RegionType::ImageDimension - 1);
-            
-            s = 1;
-            for (int i = 0; i < RegionType::ImageDimension; i++) {
-                s *= _regionSize[i];
+            IndexType startIdx = region.GetIndex();
+            if (RegionType::ImageDimension == 2) {
+                createSampleIndexes2(startIdx);
+            } else if (RegionType::ImageDimension == 3){
+                createSampleIndexes3(startIdx);
             }
+            s = _indexes.size();
         }
 
         // sample intensity values from images
@@ -154,13 +151,13 @@ namespace pi {
             IndexType idx;
             for (int i = 0; i < m; i++) {
                 for (int j = 0; j < n; j++) {
-                    for (int k = 0; k < s * ImageDimension; k++) {
+                    for (int k = 0; k < s; k++) {
                         idx = _indexes[k];
                         for (int l = 0; l < ImageDimension; l++) {
                             // translate to the particle (i-th subject & j-th particle)
                             idx[l] += _particles[i][j].x[l];
                         }
-                        GradientType gradient = _images[i]->EvaluateAtIndex(idx);
+                        GradientType gradient = _gradientImages[i]->EvaluateAtIndex(idx);
                         for (int l = 0; l < ImageDimension; l++) {
                             *gradientsIter = gradient[l];
                             ++gradientsIter;
@@ -196,16 +193,47 @@ namespace pi {
         }
 
     private:
-        void addIndexHelper(IndexType idx, int dim) {
-            for (int i = 0; i < _regionSize[dim]; i++) {
-                if (dim > 0) {
-                    addIndexHelper(idx, dim-1);
-                } else {
+        void createSampleIndexes2(IndexType& startIdx) {
+            IndexType idx = startIdx;
+            _indexes.reserve(_regionSize[1]*_regionSize[0]);
+            for (int j = 0; j < _regionSize[1]; j++) {
+                idx[0] = startIdx[0];
+                for (int i = 0; i < _regionSize[0]; i++) {
                     _indexes.push_back(idx);
+                    idx[0] ++;
                 }
-                idx[dim] ++;
+                idx[1] ++;
             }
         }
+        
+        void createSampleIndexes3(IndexType& startIdx) {
+            IndexType idx = startIdx;
+            for (int k = 0; k < _regionSize[2]; k++) {
+                idx[1] = startIdx[1];
+                for (int j = 0; j < _regionSize[1]; j++) {
+                    idx[0] = startIdx[0];
+                    for (int i = 0; i < _regionSize[0]; i++) {
+                        _indexes.push_back(idx);
+                        idx[0] ++;
+                    }
+                    idx[1] ++;
+                }
+                idx[2] ++;
+            }
+        }
+//        void addIndexHelper(IndexType& startIdx, int dim) {
+//            IndexType idx = startIdx;
+//            cout << _regionSize << endl;
+//            for (int i = 0; i < _regionSize[dim]; i++) {
+//                if (dim > 0) {
+//                    addIndexHelper(idx, dim-1);
+//                } else {
+////                    cout << long(this) << ": " << idx << endl;
+//                    this->_indexes.push_back(idx);
+//                }
+//                idx[dim] ++;
+//            }
+//        }
 
         ImageSamples(const ImageSamples&);
         void operator=(const ImageSamples&);
