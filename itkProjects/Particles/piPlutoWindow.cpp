@@ -14,7 +14,8 @@
 #include "piImagePatch.h"
 #include "piImageProcessing.h"
 
-const char __contourFile[] = "/NIRAL/work/joohwi/nadia/contour.txt";
+const char __contourFile[] = "/tmpfs/contour.txt";
+const char __volumeFile[] = "/tmpfs/C33_E04_T1.nii.gz";
 
 namespace pi {
     PlutoWindow::PlutoWindow(QWidget* parent): QMainWindow(parent) {
@@ -73,7 +74,7 @@ namespace pi {
         _imageGroup = new QGraphicsItemGroup();
         _scene.addItem(_imageGroup);
 
-        RealImage3::Pointer volume = __real3IO.ReadCastedImage("/NIRAL/work/joohwi/nadia/E04Aligned2/C31_E04_T1.nii.gz");
+        RealImage3::Pointer volume = __real3IO.ReadCastedImage(__volumeFile);
 
         ImageHistogram<RealImage3> imageHisto;
         imageHisto.SetImage(volume);
@@ -142,14 +143,16 @@ namespace pi {
         Gradient2InterpolatorType::Pointer gradientInterp = Gradient2InterpolatorType::New();
         gradientInterp->SetInputImage(_gradientImages[currentImage]);
 
-        ImageSamples<RealImage2, GradientImage2> samples(1, particles.size(), size*size);
-        samples.setSampleRegion(region);
-        samples.addInterpolator(interp);
-        samples.addGradientInterpolator(gradientInterp);
-        samples.addParticles(&particles[0]);
-        samples.sampleValues();
+        ImageSamples<RealImage2, GradientImage2>::Pointer samples = ImageSamples<RealImage2, GradientImage2>::New();
+        samples->setSampleRegion(region);
+        samples->addInterpolator(interp);
+        samples->addGradientInterpolator(gradientInterp);
+        samples->addParticles(&particles[0], particles.size());
+        samples->allocateValues();
+        samples->allocateGradients();
+        samples->sampleValues();
 
-        RealImage2::Pointer image = samples.getValuesAsImage(size, size);
+        RealImage2::Pointer image = samples->getValuesAsImage(size, size);
 
 
         if (_patchItem == NULL) {
@@ -166,6 +169,10 @@ namespace pi {
     }
 
     void PlutoWindow::on_actionLoad_triggered() {
+        if (_images.size() == 0) {
+            cout << "Open a volume image first" << endl;
+            return;
+        }
         ParticleVector contour;
         ifstream is(__contourFile);
         while (is.good()) {

@@ -15,6 +15,7 @@
 
 #include <itkLinearInterpolateImageFunction.h>
 #include <itkTransform.h>
+#include <itkLightObject.h>
 
 #include "piMacros.h"
 #include "piParticle.h"
@@ -27,8 +28,17 @@ namespace pi {
      *
      */
     template <class T, class S>
-    class ImageSamples {
+    class ImageSamples: public itk::LightObject {
     public:
+        typedef ImageSamples<T,S> Self;
+        typedef itk::LightObject Superclass;
+        
+        typedef itk::SmartPointer<Self> Pointer;
+        typedef itk::SmartPointer<const Self> ConstPointer;
+        
+        itkTypeMacro(Self, itk::LightObject);
+        itkNewMacro(ImageSamples);
+        
         typedef T* ImagePointer;
         typedef typename T::PixelType PixelType;
         typedef typename T::PointType PointType;
@@ -47,22 +57,18 @@ namespace pi {
         typedef itk::VectorLinearInterpolateImageFunction<S> GradientInterpolatorType;
         typedef typename GradientInterpolatorType::Pointer GradientInterpolatorPointer;
 
-        ImageSamples(int images, int points, int samples): m(images), n(points), s(samples), _values(NULL), _gradients(NULL) {
-            allocateValues();
-        };
-
-        ~ImageSamples() {
-            delete[] _values;
-            delete[] _gradients;
+        ImageSamples(): m(0), n(0), s(0), _values(NULL), _gradients(NULL) {
         }
-
-        const int m;
-        const int n;
-        const int s;
-
-        PixelType* _values;
-        PixelType* _gradients;
-
+        
+        virtual ~ImageSamples() {
+            if (_values) {
+                delete[] _values;
+            }
+            if (_gradients) {
+                delete[] _gradients;
+            }
+        }
+        
         PixelType* getValues() {
             return _values;
         }
@@ -86,13 +92,15 @@ namespace pi {
         }
 
         // each particle array should have n particles
-        void addParticles(ParticlePointer particles) {
+        void addParticles(ParticlePointer particles, int n) {
             _particles.push_back(particles);
+            this->n = n;
         }
 
         // should have m subjects
         void addInterpolator(InterpolatorPointer interp) {
             _images.push_back(interp);
+            this->m = _images.size();
         }
 
         void addGradientInterpolator(GradientInterpolatorPointer interp) {
@@ -103,6 +111,11 @@ namespace pi {
         void setSampleRegion(RegionType region) {
             _regionSize = region.GetSize();
             addIndexHelper(region.GetIndex(), RegionType::ImageDimension - 1);
+            
+            s = 1;
+            for (int i = 0; i < RegionType::ImageDimension; i++) {
+                s *= _regionSize[i];
+            }
         }
 
         // sample intensity values from images
@@ -111,6 +124,10 @@ namespace pi {
             assert(_particles.size() == m);
             assert(_indexes.size() == s);
 
+            if (m == 0 || n == 0 || s == 0) {
+                return;
+            }
+            
             PixelType* valuesIter = _values;
             IndexType idx;
             for (int i = 0; i < m; i++) {
@@ -198,6 +215,13 @@ namespace pi {
         std::vector<GradientInterpolatorPointer> _gradientImages;
         std::vector<ParticlePointer> _particles;
         std::vector<IndexType> _indexes;
+        
+        int m;
+        int n;
+        int s;
+        
+        PixelType* _values;
+        PixelType* _gradients;
     };
 
 
