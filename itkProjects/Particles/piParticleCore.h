@@ -73,7 +73,19 @@ namespace pi {
         int m_SubjId;
         std::string m_Name;
         ParticleArray m_Particles;
+        DataReal m_Spacing[DIMENSIONS];
 
+
+    public:
+        // Image related member variables
+        std::string m_ImageFile;
+        RealImageVector m_Images;
+
+        std::string m_LabelFile;
+        LabelImage::Pointer m_Label;
+
+        OffsetImage::Pointer m_DistanceMap;
+        
         RealImage::Pointer kappaImage;
         LinearImageInterpolatorType::Pointer kappaSampler;
 
@@ -87,18 +99,23 @@ namespace pi {
         GradientImage::Pointer gradImage;
         GradientInterpolatorType::Pointer gradSampler;
 
-        // vtk related variables
+        StringVector m_RealImageFileNames;
+        StringVector m_FileNames;
+
+    public:
+        // traansform-related members
         vtkTransformType alignment;
         vtkTransformType inverseAlignment;
         vtkPointsType pointscopy;
 //        AffineTransformType::Pointer m_AffineTransform;
 
+    public:
         // deformable transforms
         FieldTransformType::Pointer m_DeformableTransform;
         FieldTransformType::Pointer m_InverseDeformableTransform;
 
-
-
+    public:
+        // public methods
         ParticleSubject();
         ParticleSubject(int subjid, int npoints);
         ~ParticleSubject();
@@ -110,16 +127,22 @@ namespace pi {
         void Clear();
         void Zero();
         void NewParticles(int nPoints);
+        void SetSpacing(RealImage::SpacingType spacing);
+
+        // initialize points
         void InitializeRandomPoints(LabelImage::Pointer labelImage);
         void Initialize(int subj, std::string name, int nPoints);
         void Initialize(int subj, std::string name, const ParticleSubject& shape);
         void Initialize(const ParticleArray& array);
         void SyncPointsCopy();
 
+        // alignment
         void ComputeAlignment(ParticleSubject& subj, bool useSimilarity = false);
         void ComputeDensity();
 
         void AlignmentTransformX2Y();
+
+        // apply transform to particles
         void TransformX2Y(TransformType* transform = NULL);
         void TransformY2X(TransformType* transform = NULL);
         void TransformX2X(TransformType* transform);
@@ -127,7 +150,17 @@ namespace pi {
         void TransformY2Z(TransformType* transform = NULL);
         void TransformZ2Y(TransformType* transform = NULL);
 
+        // conversion to index
+        void ComputeIndexX(Particle& p, IntIndex& x);
+        void ComputeIndexY(Particle& p, IntIndex& x);
+        void ComputeIndexZ(Particle& p, IntIndex& x);
+        void ComputeIndexX(Particle& p, RealIndex& x);
+        void ComputeIndexY(Particle& p, RealIndex& x);
+        void ComputeIndexZ(Particle& p, RealIndex& x);
+        void SetFromIndex(IntIndex &x, Particle& p);
 
+
+        // particle IO
         void ReadParticlePositions(std::istream& is, int nPoints);
         void WriteParticlePositions(std::ostream& os);
         void ReadParticles(std::istream& is, int nPoints);
@@ -135,6 +168,16 @@ namespace pi {
         void ReadAlignment(std::istream& is);
         void WriteAlignment(std::ostream& os);
 
+        // image related functions
+        void LoadLabel(std::string filename);
+        void LoadImage(std::string filename);
+
+        LabelImage::Pointer& GetLabel();
+        void SetLabel(LabelImage::Pointer label);
+        
+        RealImage::Pointer& GetImage(int level = 0);
+//
+        // particle access
         inline Particle& operator[](int i) {
             return m_Particles[i];
         }
@@ -142,42 +185,11 @@ namespace pi {
         inline const Particle& operator[](int i) const {
             return m_Particles[i];
         }
+
     };
     typedef boost::numeric::ublas::vector<ParticleSubject> ParticleSubjectArray;
 
-
-    class ImageContext {
-        friend class ParticleSystem;
-    public:
-        LabelVector m_LabelImages;
-
-        void LoadLabel(std::string filename);
-        void LoadRealImage(std::string filename);
-
-        int ComputeIntersection();
-        void ComputeDistanceMaps();
-        LabelImage::Pointer GetLabel(int j);
-        RealImage::Pointer GetRealImage(int j);
-        LabelImage::Pointer GetIntersection();
-        void SetIntersection(LabelImage::Pointer intersection);
-        OffsetImage GetDistanceMap(int j);
-        StringVector& GetRealImageFileNames();
-        StringVector& GetFileNames();
-        LabelVector& GetLabelVector();
-        RealImageVector& GetRealImageVector();
-        RealImageVector& GetKappaImages();
-
-        void Clear();
-        int Count();
-
-    private:
-        StringVector m_RealImageFileNames;
-        StringVector m_FileNames;
-        LabelImage::Pointer m_Intersection;
-        RealImageVector m_Images;
-        OffsetImageVector m_DistanceMaps;
-        std::string m_IntersectionOutput;
-    };
+ 
 
     class ParticleSystem {
     public:
@@ -208,7 +220,18 @@ namespace pi {
 
         ParticleSubject& GetMeanSubject();
         ParticleSubjectArray& GetSubjects();
-        
+
+
+        // initial intersection related function
+        int ComputeIntersection();
+        LabelImage::Pointer GetIntersection() {
+            return m_Intersection;
+        }
+
+        void SetIntersection(LabelImage::Pointer intersection) {
+            m_Intersection = intersection;
+        }
+
         Options& GetSystemOptions() {
             return (*m_Options);
         }
@@ -225,7 +248,13 @@ namespace pi {
         ParticleSubject m_MeanSubject;
         ParticleSubject m_InitialSubject;
         ParticleSubjectArray m_Subjects;
-        
+
+        LabelImage::Pointer m_Intersection;
+        std::string m_IntersectionOutput;
+
+        int m_MaxLevel;
+        bool m_UseOriginalSpacing;
+
         Options* m_Options;
     };
 

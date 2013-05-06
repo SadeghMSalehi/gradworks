@@ -80,6 +80,12 @@ namespace pi {
 #endif
 #endif
         fordim(i) {
+            if (ff[i] != ff[i]) {
+                cout << "NaN detected in force" << endl;
+            }
+            if (std::abs(ff[i]) > 10) {
+                cout << "Potentially invalid force" << endl;
+            }
             f[i] += (alpha * ff[i]);
         }
     }

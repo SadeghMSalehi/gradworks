@@ -15,16 +15,18 @@
 #include "piImageProcessing.h"
 
 
-const char __contourFile[] = "/tmpfs/contour.txt";
-const char __volumeFile[] = "/tmpfs/C33_E04_T1.nii.gz";
+//const char __contourFile[] = "/tmpfs/contour.txt";
+//const char __volumeFile[] = "/tmpfs/C33_E04_T1.nii.gz";
+
+const char __contourFile[] = "/NIRAL/work/joohwi/nadia/contour.txt";
+const char __volumeFile[] = "/NIRAL/work/joohwi/nadia/E04Aligned2/C31_E04_T1.nii.gz";
 
 namespace pi {
     typedef ImageSamples<RealImage2, GradientImage2> RealSamples2;
     typedef std::vector<RealSamples2> RealSamples2Vector;
     
     RealSamples2Vector _particleSamples;
-    std::vector<ParticleVector> _particleGroup;
-    
+
     PlutoWindow::PlutoWindow(QWidget* parent): QMainWindow(parent) {
         _ui.setupUi(this);
         _ui.graphicsView->setScene(&_scene);
@@ -33,6 +35,8 @@ namespace pi {
 
         _imageGroup = NULL;
         _patchItem = NULL;
+
+        _test = new QGraphicsPolygonItem();
     }
     
     PlutoWindow::~PlutoWindow() {
@@ -83,6 +87,9 @@ namespace pi {
 
         RealImage3::Pointer volume = __real3IO.ReadCastedImage(__volumeFile);
 
+        // convert intensity to range -1,1
+        volume = __realImageTools.normalizeIntensity(volume);
+
         ImageHistogram<RealImage3> imageHisto;
         imageHisto.SetImage(volume);
 
@@ -129,6 +136,20 @@ namespace pi {
         _core.setImages(_images);
         _core.setInitialParticles(_interaction.getParticles());
         _core.initialize();
+    }
+
+    void PlutoWindow::on_actionStep_triggered() {
+        _core.track(128, 129);
+
+        QPolygonF poly;
+        std::vector<ParticleVector> particleGroup = _core.getParticles();
+        ParticleVector& particles = particleGroup[129];
+        for (int i = 0; i < particles.size(); i++) {
+            poly.append(QPointF(particles[i].x[0], particles[i].x[1]));
+        }
+        _test->setPolygon(poly);
+        _test->setParentItem(_imageItems[129]);
+        _test->setPen(QPen(Qt::yellow, 1));
     }
     
 

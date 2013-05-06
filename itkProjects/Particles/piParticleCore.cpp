@@ -1,5 +1,6 @@
-#include "iostream"
-#include "sstream"
+#include <iostream>
+#include <sstream>
+#include <string>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/timer.hpp>
@@ -42,9 +43,15 @@ namespace pi {
     }
  
     ParticleSubject::ParticleSubject(): m_SubjId(-1) {
+        fordim (i) {
+            m_Spacing[i] = 1;
+        }
     }
 
     ParticleSubject::ParticleSubject(int subjid, int npoints) : m_SubjId(subjid) {
+        fordim (i) {
+            m_Spacing[i] = 1;
+        }
         NewParticles(npoints);
     }
 
@@ -63,6 +70,12 @@ namespace pi {
         for (int i = 0; i < nPoints; i++) {
             m_Particles[i].idx = i;
             m_Particles[i].Zero();
+        }
+    }
+
+    void ParticleSubject::SetSpacing(RealImage::SpacingType spacing) {
+        fordim (i) {
+            m_Spacing[i] = spacing[i];
         }
     }
 
@@ -111,11 +124,8 @@ namespace pi {
         }
 
         for (int i = 0; i < nPoints; i++) {
-            LabelImage::IndexType idx = indexes[i];
             m_Particles[i].idx = i;
-            fordim (k) {
-                m_Particles[i].x[k] = idx[k];
-            }
+            SetFromIndex(indexes[i], m_Particles[i]);
         }
     }
 
@@ -324,6 +334,63 @@ namespace pi {
         }
     }
 
+
+    void ParticleSubject::SetFromIndex(IntIndex &x, Particle& p) {
+        RealImage::PointType point;
+        m_Label->TransformIndexToPhysicalPoint(x, point);
+        fordim (i) {
+            p.x[i] = point[i];
+        }
+    }
+
+    void ParticleSubject::ComputeIndexX(pi::Particle &p, IntIndex& x) {
+        RealImage::PointType point;
+        fordim (i) {
+            point[i] = p.x[i];
+        }
+        m_Label->TransformPhysicalPointToIndex(point, x);
+    }
+
+    void ParticleSubject::ComputeIndexY(pi::Particle &p, IntIndex& x) {
+        RealImage::PointType point;
+        fordim (i) {
+            point[i] = p.y[i];
+        }
+        m_Label->TransformPhysicalPointToIndex(point, x);
+    }
+
+    void ParticleSubject::ComputeIndexZ(pi::Particle &p, IntIndex& x) {
+        RealImage::PointType point;
+        fordim (i) {
+            point[i] = p.z[i];
+        }
+        m_Label->TransformPhysicalPointToIndex(point, x);
+    }
+
+    void ParticleSubject::ComputeIndexX(pi::Particle &p, RealIndex& x) {
+        RealImage::PointType point;
+        fordim (i) {
+            point[i] = p.x[i];
+        }
+        m_Label->TransformPhysicalPointToContinuousIndex(point, x);
+    }
+
+    void ParticleSubject::ComputeIndexY(pi::Particle &p, RealIndex& x) {
+        RealImage::PointType point;
+        fordim (i) {
+            point[i] = p.y[i];
+        }
+        m_Label->TransformPhysicalPointToContinuousIndex(point, x);
+    }
+
+    void ParticleSubject::ComputeIndexZ(pi::Particle &p, RealIndex& x) {
+        RealImage::PointType point;
+        fordim (i) {
+            point[i] = p.z[i];
+        }
+        m_Label->TransformPhysicalPointToContinuousIndex(point, x);
+    }
+
     void ParticleSubject::ReadParticlePositions(std::istream& is, int nPoints) {
         if (m_Particles.size() != nPoints) {
             m_Particles.resize(nPoints);
@@ -374,115 +441,61 @@ namespace pi {
 
     }
 
-    int ImageContext::Count() {
-        return m_Images.size();
-    }
 
-    void ImageContext::Clear() {
-        m_FileNames.clear();
-        m_LabelImages.clear();
-        m_DistanceMaps.clear();
-    }
-
-
-    void ImageContext::LoadLabel(std::string filename) {
+    // Image related functions
+    void ParticleSubject::LoadLabel(std::string filename) {
         ImageIO<LabelImage> io;
-        LabelImage::Pointer image = io.ReadCastedImage(filename.c_str());
-        if (image.IsNull()) {
+        m_LabelFile = filename;
+        m_Label = io.ReadCastedImage(filename.c_str());
+        if (m_Label.IsNull()) {
             return;
         }
-        m_LabelImages.push_back(image);
 
-        // set default spacing to 1 to match index and physical coordinate space
-        LabelImage::SpacingType defaultSpacing;
-        defaultSpacing.Fill(1);
-        m_LabelImages.back()->SetSpacing(defaultSpacing);
-
-        m_FileNames.push_back(filename);
+        // FIXME: move to ParticleSystem
+        bool m_UseOriginalSpacing = true;
+        if (!m_UseOriginalSpacing) {
+            // set default spacing to 1 to match index and physical coordinate space
+            LabelImage::SpacingType defaultSpacing;
+            defaultSpacing.Fill(1);
+            m_Label->SetSpacing(defaultSpacing);
+        }
     }
 
-    void ImageContext::LoadRealImage(std::string filename) {
+    void ParticleSubject::LoadImage(std::string filename) {
+        m_ImageFile = filename;
+        
+        // load and cast an image to float
         ImageIO<RealImage> io;
         RealImage::Pointer image = io.ReadCastedImage(filename.c_str());
 
         ImageProcessing proc;
         image = proc.NormalizeIntensity(image, LabelImage::Pointer(), 0.01);
-        image = proc.ComputeGaussianSmoothing(image, 0.5);
 
-        // set default spacing to 1 to match index and physical coordinate space
-        RealImage::SpacingType defaultSpacing;
-        defaultSpacing.Fill(1);
-        image->SetSpacing(defaultSpacing);
-        
-        m_RealImageFileNames.push_back(filename);
-        m_Images.push_back(image);
-    }
-
-    LabelImage::Pointer ImageContext::GetLabel(int j) {
-        return m_LabelImages[j];
-    }
-
-    RealImage::Pointer ImageContext::GetRealImage(int j) {
-        return m_Images[j];
-    }
-
-    LabelImage::Pointer ImageContext::GetIntersection() {
-        return m_Intersection;
-    }
-    
-    void ImageContext::SetIntersection(LabelImage::Pointer intersection) {
-        m_Intersection = intersection;
-    }
-
-    int ImageContext::ComputeIntersection() {
-        ImageIO<LabelImage> io;
-        LabelImage::Pointer intersection = io.CopyImage(m_LabelImages[0]);
-        intersection->FillBuffer(0);
-
-        LabelImage::RegionType region = intersection->GetBufferedRegion();
-
-        // set as member variable to reuse
-        m_Intersection = intersection;
-
-        // compute intersection by looping over region
-        std::vector<LabelImage::IndexType> indexes;
-        LabelImageIteratorType iter(intersection, region);
-        int nIntersectionPixels = 0;
-        for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
-            LabelImage::IndexType idx = iter.GetIndex();
-            LabelImage::PixelType pixel = 1;
-            const int pixelThreshold = 1;
-            for (int i = 0; i < m_LabelImages.size(); i++) {
-                if (m_LabelImages[i]->GetPixel(idx) < pixelThreshold) {
-                    pixel = 0;
-                    break;
-                }
-            }
-            if (pixel > 0) {
-                nIntersectionPixels++;
-                intersection->SetPixel(idx, 255);
+        // create a multi-resolution image pyramid
+        m_Images = proc.ComputeImagePyramid(image, 2);
+        for (int i = 0; i < m_Images.size(); i++) {
+            // set default spacing to 1 to match index and physical coordinate space
+            // FIXME: move to ParticleSystem
+            bool m_UseOriginalSpacing = true;
+            if (!m_UseOriginalSpacing) {
+                RealImage::SpacingType defaultSpacing;
+                defaultSpacing.Fill(1);
+                m_Images[i]->SetSpacing(defaultSpacing);
             }
         }
-        if (m_IntersectionOutput != "") {
-            io.WriteImage(m_IntersectionOutput.c_str(), intersection);
-        }
-        return nIntersectionPixels;
+
+    }
+
+    LabelImage::Pointer& ParticleSubject::GetLabel() {
+        return m_Label;
+    }
+
+    void ParticleSubject::SetLabel(LabelImage::Pointer label) {
+        m_Label = label;
     }
     
-    StringVector& ImageContext::GetRealImageFileNames() {
-        return m_RealImageFileNames;
-    }
-    
-    StringVector& ImageContext::GetFileNames() {
-        return m_FileNames;
-    }
-    
-    LabelVector& ImageContext::GetLabelVector() {
-        return m_LabelImages;
-    }
-    
-    RealImageVector& ImageContext::GetRealImageVector() {
-        return m_Images;
+    RealImage::Pointer& ParticleSubject::GetImage(int level) {
+        return m_Images[level];
     }
 
     ParticleSystem::ParticleSystem()  {
@@ -536,7 +549,7 @@ namespace pi {
             if (io.FileExists(kappaNames[i].c_str())) {
                 m_Subjects[i].kappaImage = io.ReadCastedImage(kappaNames[i].c_str());
             } else {
-                RealImage::Pointer realImg = context->GetRealImage(i);
+                RealImage::Pointer realImg = m_Subjects[i].GetImage();
                 if (realImg.IsNotNull()) {
                     ImageProcessing proc;
                     RealImage::Pointer gradImg = proc.ComputeGaussianGradientMagnitude(realImg, sigma);
@@ -635,6 +648,43 @@ namespace pi {
     ParticleSubjectArray& ParticleSystem::GetSubjects() {
         return m_Subjects;
     }
+
+    int ParticleSystem::ComputeIntersection() {
+        ImageIO<LabelImage> io;
+        LabelImage::Pointer intersection = io.CopyImage(m_Subjects[0].m_Label);
+        intersection->FillBuffer(0);
+
+        LabelImage::RegionType region = intersection->GetBufferedRegion();
+
+        // set as member variable to reuse
+        m_Intersection = intersection;
+
+        // compute intersection by looping over region
+        std::vector<LabelImage::IndexType> indexes;
+        LabelImageIteratorType iter(intersection, region);
+        int nIntersectionPixels = 0;
+        for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+            LabelImage::IndexType idx = iter.GetIndex();
+            LabelImage::PixelType pixel = 1;
+            const int pixelThreshold = 1;
+            for (int i = 0; i < m_Subjects.size(); i++) {
+                LabelImage::Pointer& label = m_Subjects[i].GetLabel();
+                if (label->GetPixel(idx) < pixelThreshold) {
+                    pixel = 0;
+                    break;
+                }
+            }
+            if (pixel > 0) {
+                nIntersectionPixels++;
+                intersection->SetPixel(idx, 255);
+            }
+        }
+        if (m_IntersectionOutput != "") {
+            io.WriteImage(m_IntersectionOutput.c_str(), intersection);
+        }
+        return nIntersectionPixels;
+    }
+    
 
     /*
     void export2vtk(ParticleSubject& sub, const char* vtkname, int field) {

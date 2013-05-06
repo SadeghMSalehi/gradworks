@@ -35,12 +35,11 @@ using namespace std;
 namespace pi {
     ParticleSystemSolver main;
     ParticleSystem& system = main.m_System;
-    ImageContext& images = main.m_ImageContext;
     ImageIO<RealImage> __imageIO;
 
     ParticleTrace trace;
 
-    string configcache = "/tmp/psim.txt";
+    string configcache = "/tmp/psim_2.txt";
     
     Simul2::Simul2(QWidget* parent): core(this) {
         ui.setupUi(this);

@@ -161,6 +161,8 @@
     <addaction name="actionThreadTest"/>
     <addaction name="actionGenerateSIFTImage1"/>
     <addaction name="actionGenerateSIFTImage2"/>
+    <addaction name="separator"/>
+    <addaction name="actionDistanceMap"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -572,6 +574,11 @@ LabelImages: strings 2
   <action name="actionGenerateSIFTImage2">
    <property name="text">
     <string>Generate SIFT Image (2)</string>
+   </property>
+  </action>
+  <action name="actionDistanceMap">
+   <property name="text">
+    <string>Create Distance Map</string>
    </property>
   </action>
  </widget>

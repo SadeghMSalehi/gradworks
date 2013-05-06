@@ -63,15 +63,14 @@ namespace pi {
         m_System = ParticleSystem();
         m_System.InitializeSystem(m_Options);
         
-        m_ImageContext.Clear();
         StringVector& labelImages = m_Options.GetStringVector("LabelImages:");
         for (int i = 0; i < labelImages.size(); i++) {
-            m_ImageContext.LoadLabel(labelImages[i]);
+            m_System[i].LoadLabel(labelImages[i]);
         }
         
         StringVector& realImages = m_Options.GetStringVector("RealImages:");
         for (int i = 0; i < realImages.size(); i++) {
-            m_ImageContext.LoadRealImage(realImages[i]);
+            m_System[i].LoadImage(realImages[i]);
         }
         
         while (in.good()) {
@@ -172,21 +171,22 @@ namespace pi {
             if (io.FileExists(boundary.binaryMaskCache.c_str())) {
                 boundary.SetBinaryMask(io.ReadCastedImage(boundary.binaryMaskCache.c_str()));
             } else {
-                int npixels = m_ImageContext.ComputeIntersection();
+                int npixels = m_System.ComputeIntersection();
                 if (npixels == 0) {
                     cout << "invalid intersection.. halt" << endl;
                     exit(0);
                     return;
                 }
-                boundary.SetLabelImage(m_ImageContext.GetIntersection());
+                boundary.SetLabelImage(m_System.GetIntersection());
             }
             
             boundary.UpdateImages();
-            m_ImageContext.SetIntersection(boundary.GetBinaryMask());
+            m_System.SetIntersection(boundary.GetBinaryMask());
             
             initial.m_Name = "Intersection";
+            initial.SetLabel(boundary.GetBinaryMask());
             initial.NewParticles(m_Options.GetInt("NumberOfParticles:", 0));
-            initial.InitializeRandomPoints(m_ImageContext.GetIntersection());
+            initial.InitializeRandomPoints(m_System.GetIntersection());
             string initialConfigOutput = m_Options.GetString("InitialConfigOutput:", "");
             if (initialConfigOutput != "") {
                 SaveConfig(initialConfigOutput.c_str());
@@ -342,22 +342,19 @@ namespace pi {
                 for (int n = 0; n < nSubz; n++) {
                     ParticleSubject& s = m_System[n];
                     s.Initialize(system.GetInitialSubject().m_Particles);
-                    s.friendImage = m_ImageContext.GetLabel(n);
+                    s.friendImage = s.GetLabel();
                     s.friendSampler = NNLabelInterpolatorType::New();
                     s.friendSampler->SetInputImage(s.friendImage);
-                    s.realImage = m_ImageContext.GetRealImage(n);
+                    s.realImage = s.GetImage();
                     s.realSampler = LinearImageInterpolatorType::New();
                     s.realSampler->SetInputImage(s.realImage);
-                    s.gradImage = proc.ComputeGaussianGradient(m_System[n].realImage, 1);
+                    s.gradImage = proc.ComputeGaussianGradient(s.realImage, 1);
                     s.gradSampler = GradientInterpolatorType::New();
                     s.gradSampler->SetInputImage(s.gradImage);
                 }
             }
         }
         m_System.InitializeMean();
-        ensembleForce.SetImageContext(&m_ImageContext);
-
-        intensityForce.SetImageContext(&m_ImageContext);
         intensityForce.useAttributesAtWarpedSpace = true;
 
         internalForce.coeff = 0.3;
@@ -366,15 +363,6 @@ namespace pi {
 
         SetupParameters();
         
-        // check label images are loaded
-        if (!noBoundary && nSubz != m_ImageContext.GetLabelVector().size()) {
-            cout << "the same number of boundary mask files are required" << endl;
-            return;
-        }
-
-        if (internalForce.useAdaptiveSampling) {
-            m_System.LoadKappaImages(m_Options, &m_ImageContext);
-        }
         if (internalForce.repulsionCutoff < internalForce.repulsionSigma) {
             internalForce.repulsionCutoff = internalForce.repulsionSigma * 5;
             cout << "repulsion sigma: " << internalForce.repulsionSigma << endl;
@@ -472,7 +460,7 @@ namespace pi {
             collisionHandlers[n].applyMaskSmoothing = true;
             m_Options.GetStringVectorValueTo("BinaryMaskCache:", n, collisionHandlers[n].binaryMaskCache);
             m_Options.GetStringVectorValueTo("BinaryMaskDistanceMapCache:", n, collisionHandlers[n].distanceMapCache);
-            collisionHandlers[n].SetLabelImage(m_ImageContext.GetLabel(n));
+            collisionHandlers[n].SetLabelImage(m_System[n].GetLabel());
             collisionHandlers[n].UpdateImages();
         }
     }
@@ -537,7 +525,9 @@ namespace pi {
                 Particle& pi = m_System[n][i];
                 forfill(pi.f, 0);
             }
-            collisionHandlers[n].ConstrainPoint(m_System[n]);
+            if (!noBoundary) {
+                collisionHandlers[n].ConstrainPoint(m_System[n]);
+            }
             m_System[n].ComputeDensity();
         }
 
@@ -582,7 +572,9 @@ namespace pi {
         // system update
         for (int n = 0; n < nSubz; n++) {
             ParticleSubject& sub = subs[n];
-            collisionHandlers[n].ProjectForceAndVelocity(sub);
+            if (!noBoundary) {
+                collisionHandlers[n].ProjectForceAndVelocity(sub);
+            }
             for (int i = 0; i < nPoints; i++) {
                 Particle& p = sub[i];
                 LabelImage::IndexType pIdx;
@@ -595,6 +587,9 @@ namespace pi {
                     }
                 } else {
                     fordim (k) {
+                        if (p.f[k] != p.f[k]) {
+                            cout << "NaN:" << n << "," << i << endl;
+                        }
                         p.x[k] += dt*p.f[k];
                         pIdx[k] = p.x[k] + 0.5;
                     }
@@ -655,9 +650,9 @@ namespace pi {
 //                cout << endl;
 //            }
             ParticleBSpline bspline;
-            bspline.SetReferenceImage(m_ImageContext.GetLabel(i));
+            bspline.SetReferenceImage(m_System[i].GetLabel());
             bspline.EstimateTransform(meanSubj, m_System[i]);
-            return bspline.WarpImage(m_ImageContext.GetRealImage(i));
+            return bspline.WarpImage(m_System[i].GetImage());
         }
         return RealImage::Pointer();
     }

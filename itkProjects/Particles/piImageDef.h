@@ -45,9 +45,11 @@ namespace pi {
     typedef itk::Image<VectorType,__Dim> VectorImage;
     typedef itk::Offset<__Dim> OffsetType;
     typedef itk::Image<OffsetType,__Dim> OffsetImage;
-    typedef std::vector<LabelImage::Pointer> LabelVector;
+
     typedef std::vector<OffsetImage::Pointer> OffsetImageVector;
     typedef std::vector<RealImage::Pointer> RealImageVector;
+    typedef std::vector<LabelImage::Pointer> LabelImageVector;
+
     typedef std::vector<VectorImage::Pointer> VectorImageVector;
 
     typedef itk::LinearInterpolateImageFunction<RealImage> LinearImageInterpolatorType;
@@ -103,6 +105,7 @@ namespace pi {
     
     class RealImageTools {
     public:
+        RealImage3::Pointer normalizeIntensity(RealImage3::Pointer image, double percentile = 0.01);
         RealImage2Vector sliceVolume(RealImage3::Pointer image, int dir);
         RealImage2Vector computeGaussianSmoothing(RealImage2Vector images, double sigma = 1);
         GradientImage2Vector computeGaussianGradient(RealImage2Vector images, double sigma = 1);

@@ -8,7 +8,8 @@
 
 #include <itkExtractImageFilter.h>
 #include "piImageDef.h"
-
+#include "piImageIO.h"
+#include "piImageHistogram.h"
 
 namespace pi {
     typedef itk::ExtractImageFilter<RealImage3, RealImage2> FilterType;
@@ -16,6 +17,30 @@ namespace pi {
     // external variable for easy access
     RealImageTools __realImageTools;
 
+    RealImage3::Pointer RealImageTools::normalizeIntensity(RealImage3::Pointer image, double percentile) {
+        ImageIO<RealImage3> io;
+        RealImage3::Pointer output = io.CopyImage(image);
+
+        ImageHistogram<RealImage3> histo;
+        histo.fitPercentile = percentile;
+        histo.SetImage(image);
+
+        DataReal* inBuf = image->GetBufferPointer();
+        DataReal* outBuf = output->GetBufferPointer();
+        const int nPixels = image->GetPixelContainer()->Size();
+
+        for (int i = 0; i < nPixels; i++) {
+            outBuf[i] = (histo.rangeMax - histo.rangeMin) * inBuf[i] / (histo.dataMax - histo.dataMin) + histo.rangeMin;
+        }
+
+        ImageHistogram<RealImage3> histo2;
+        histo2.SetImage(output);
+        for (int i = 0; i < nPixels; i++) {
+            outBuf[i] = histo2.NormalizePixel(outBuf[i]);
+        }
+        return output;
+    }
+    
     // split a volume image into slices
     RealImage2Vector RealImageTools::sliceVolume(RealImage3::Pointer volume, int dim) {
         RealImage2Vector slices;

@@ -49,16 +49,11 @@ namespace pi {
         pi::RealImage::Pointer WarpImage(int i, int j = -1);
         pi::LabelImage::Pointer WarpLabel(int i, int j = -1);
 
-        
-        ImageContext& GetImageContext() {
-            return m_ImageContext;
-        }
 
 
     public:
         Options m_Options;
         ParticleSystem m_System;
-        ImageContext m_ImageContext;
 
         EntropyInternalForce internalForce;
         EnsembleForce ensembleForce;

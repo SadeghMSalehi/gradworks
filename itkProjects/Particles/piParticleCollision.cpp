@@ -94,14 +94,14 @@ namespace pi {
         return true;
     }
 
-    bool ParticleCollision::ComputeNormal(DataReal *cp, DataReal* ret) {
-        RealIndex idx;
+    bool ParticleCollision::ComputeNormal(DataReal *contactPoint, DataReal* normalOutput) {
+        RealImage::PointType point;
         fordim (k) {
-            idx[k] = cp[k];
+            point[k] = contactPoint[k];
         }
-        GradientPixel normal = m_NormalPicker->EvaluateAtContinuousIndex(idx);
+        GradientPixel normal = m_NormalPicker->Evaluate(point);
         fordim (k) {
-            ret[k] = -normal[k];
+            normalOutput[k] = -normal[k];
         }
 
         return true;
@@ -115,30 +115,31 @@ namespace pi {
         return sqrt(dist);
     }
 
-    void ParticleCollision::ComputeClosestBoundary(Particle& pi, DataReal *x1, DataReal * cp) {
-        RealIndex idx;
+    void ParticleCollision::ComputeClosestBoundary(Particle& pi, DataReal *x1, DataReal *contactPoint) {
+        RealImage::PointType point;
         fordim (k) {
-            idx[k] = x1[k];
+            point[k] = x1[k];
         }
+
         // compute offset as interpolated value
         // wondering if this is not going to cause any problem
-        VectorType offset = m_DistOffsetPicker->EvaluateAtContinuousIndex(idx);
+        VectorType offset = m_DistOffsetPicker->Evaluate(point);
         fordim (k) {
-            cp[k] = x1[k] + offset[k];
+            contactPoint[k] = x1[k] + offset[k] * m_ImageSpacing[k];
         }
 
 #ifndef BATCH
         if (::abs(offset[0]) > 10 || ::abs(offset[1]) > 10 || ::abs(offset[2]) > 10)  {
-                cout << "too large projection offset = [" << offset[0] << "," << offset[1] << "," << offset[2] << "] at [" << x1[0] << "," << x1[1] << "," << x1[2] << "]" << "; particle subj = " << pi.subj << " id = " << pi.idx << endl;
-            }
-        fordim(k) {
-            idx[k] = cp[k];
+            cout << "too large projection offset = [" << offset[0] << "," << offset[1] << "," << offset[2] << "] at [" << x1[0] << "," << x1[1] << "," << x1[2] << "]" << "; particle subj = " << pi.subj << " id = " << pi.idx << endl;
         }
-        if (!m_DistOffsetPicker->IsInsideBuffer(idx)) {
+        fordim(k) {
+            point[k] = contactPoint[k];
+        }
+        if (!m_DistOffsetPicker->IsInsideBuffer(point)) {
             cout << "fail to find closest boundary" << endl;
             // rollback
             fordim (k) {
-                cp[k] = x1[k];
+                contactPoint[k] = x1[k];
             }
         };
 #endif
@@ -249,14 +250,15 @@ namespace pi {
     }
 
     void ParticleCollision::ConstrainPoint(ParticleSubject& subj) {
+        m_ImageSpacing = subj.GetLabel()->GetSpacing();
+
         const int nPoints = subj.GetNumberOfPoints();
         for (int i = 0; i < nPoints; i++) {
             Particle &p = subj.m_Particles[i];
             VNLVector normal(__Dim, 0);
+
             LabelImage::IndexType idx;
-            fordim (k) {
-                idx[k] = p.x[k];
-            }
+            subj.ComputeIndexX(p, idx);
 
             const bool isValidRegion = IsRegionInside(idx);
             const bool isContacting = IsCrossing(idx);
@@ -266,16 +268,17 @@ namespace pi {
                 continue;
             }
 
-            DataReal cp[__Dim];
+            DataReal contactPoint[__Dim];
 
             // initialize contact point as current point
-            forset (p.x, cp);
+            forset (p.x, contactPoint);
             if (!isValidRegion) {
                 // important!!
-                // this function will move current out-of-region point into the closest boundary
-                ComputeClosestBoundary(p, p.x, cp);
+                // this function will move current out-of-region point into the just closest boundary
+                // Point compuation is done in physical point
+                ComputeClosestBoundary(p, p.x, contactPoint);
             }
-            forset (cp, p.x);
+            forset (contactPoint, p.x);
             p.collisionEvent = true;
         }
     }
@@ -305,11 +308,12 @@ namespace pi {
         for (int i = 0; i < nPoints; i++) {
             Particle &p = subj.m_Particles[i];
             VNLVector normal(__Dim, 0);
+
+
+            // compute the index of the particle
             LabelImage::IndexType idx;
-            fordim (k) {
-                idx[k] = p.x[k];
-            }
-            
+            subj.ComputeIndexX(p, idx);
+
             const bool isValidRegion = IsRegionInside(idx);
             const bool isContacting = IsCrossing(idx);
             
@@ -317,18 +321,19 @@ namespace pi {
                 continue;
             }
 
-            DataReal cp[__Dim];
+            DataReal contactPoint[__Dim];
             
             // initialize contact point as current point
-            forset (p.x, cp);
+            forset (p.x, contactPoint);
+            
             if (!isValidRegion) {
                 // important!!
                 // this function will move current out-of-region point into the closest boundary
-                ComputeClosestBoundary(p, p.x, cp);
+                ComputeClosestBoundary(p, p.x, contactPoint);
             }
 
             // project velocity and forces
-            ComputeNormal(cp, normal.data_block());
+            ComputeNormal(contactPoint, normal.data_block());
             normal.normalize();
             DataReal nv = dimdot(p.v, normal);
             DataReal nf = dimdot(p.f, normal);

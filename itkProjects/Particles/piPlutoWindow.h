@@ -37,7 +37,8 @@ namespace pi {
         void on_actionOpen_triggered();
         void on_actionReset_triggered();
         void on_actionStart_triggered();
-
+        void on_actionStep_triggered();
+        
         void on_actionLoad_triggered();
         void on_actionSave_triggered();
         
@@ -55,7 +56,7 @@ namespace pi {
 
         std::vector<QGraphicsRealImageItem*> _imageItems;
         QGraphicsRealImageItem* _patchItem;
-        
+        QGraphicsPolygonItem* _test;
         PlutoCore _core;
     };
 }

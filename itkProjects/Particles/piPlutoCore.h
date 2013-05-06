@@ -35,11 +35,11 @@ namespace pi {
         void setInitialParticles(ParticleVector initialParticles);
         
         void track(int model, int test);
-        void computeGradient(int model, int test);
-        void updateParticles(int test);
         
         void run();
         void initialize();
+
+        std::vector<ParticleVector>& getParticles();
         
     private:
         RealImage2Vector _images;

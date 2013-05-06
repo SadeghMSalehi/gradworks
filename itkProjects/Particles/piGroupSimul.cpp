@@ -12,6 +12,7 @@
 #include "piParticleSystemSolver.h"
 #include "piParticleBSpline.h"
 #include "piImageIO.h"
+#include "piImageProcessing.h"
 #include <QMovie>
 
 using namespace std;
@@ -40,6 +41,7 @@ namespace pi {
     void GroupSimul::connectSignals() {
         connect(_ui->actionGrid, SIGNAL(toggled(bool)), SLOT(showGrid(bool)));
         connect(_ui->actionShowParticles, SIGNAL(toggled(bool)), SLOT(showParticles(bool)));
+        connect(_ui->actionDistanceMap, SIGNAL(triggered()), SLOT(createDistanceMap()));
 
     }
 
@@ -62,7 +64,7 @@ namespace pi {
         _nParticles = _solver->m_System.GetNumberOfParticles();
 
         stringstream cachestream;
-        _solver->SaveConfig("/tmp/psim.txt");
+        _solver->SaveConfig("/tmp/psim_group.txt");
         cachestream << _solver->m_Options;
         _ui->config->setPlainText(QString::fromStdString(cachestream.str()));
         _ui->statusbar->showMessage(QString("%1 particles loaded!").arg(_solver->m_System.GetNumberOfParticles()));
@@ -82,12 +84,10 @@ namespace pi {
         int hPos = 0;
         int wPos = 0;
         for (int i = 0; i < _nSubjs; i++) {
+            ParticleSubject& subj = _solver->m_System[i];
             // source images
-            _images[i] = _solver->m_ImageContext.GetRealImage(i);
-            if (i < _solver->m_ImageContext.GetLabelVector().size()) {
-                _labels[i] = _solver->m_ImageContext.GetLabel(i);
-            }
-
+            _images[i] = subj.GetImage(0);
+            _labels[i] = subj.GetLabel();
 
             // image items
             _imageItems[i] = new QGraphicsRealImageItem();
@@ -245,5 +245,15 @@ namespace pi {
         for (int i = 0; i < _particleGroups.size(); i++) {
             _particleGroups[i].selectParticle(particleId);
         }
+    }
+
+    void GroupSimul::createDistanceMap() {
+        LabelImage::Pointer image = _solver->m_System[0].GetLabel();
+        ImageProcessing proc;
+        VectorImage::Pointer dmap = proc.ComputeDistanceMap(image);
+        RealImage::Pointer dmapMag = proc.ComputeMagnitudeMap(dmap);
+        __realIO.WriteImage("/tmpfs/dmap.nii.gz", dmapMag);
+
+
     }
 }

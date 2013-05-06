@@ -49,6 +49,7 @@ namespace pi {
         
         void showGrid(bool);
         void showParticles(bool);
+        void createDistanceMap();
 
     protected:
         virtual void timerEvent(QTimerEvent* event);

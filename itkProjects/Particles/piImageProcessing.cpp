@@ -34,6 +34,7 @@
 #include <itkStatisticsImageFilter.h>
 #include <itkDiscreteGaussianImageFilter.h>
 #include <itkSmoothingRecursiveGaussianImageFilter.h>
+#include "itkMultiResolutionPyramidImageFilter.h"
 
 #include "piImageIO.h"
 #include "piImageHistogram.h"
@@ -86,6 +87,40 @@ namespace pi {
         }
     };
 
+
+    RealImageVector ImageProcessing::ComputeImagePyramid(RealImage::Pointer img, int level) {
+        RealImageVector outputs;
+
+        typedef itk::MultiResolutionPyramidImageFilter<RealImage, RealImage> FilterType;
+        FilterType::Pointer filter = FilterType::New();
+        filter->SetInput(img);
+        filter->SetNumberOfLevels(level);
+        filter->UseNearestNeighborInterpolatorOn();
+        filter->Update();
+        for (int i = level - 1; i >= 0; i--) {
+            outputs.push_back(filter->GetOutput(i));
+        }
+        return outputs;
+    }
+
+    LabelImageVector ImageProcessing::ComputeImagePyramid(LabelImage::Pointer label, int level) {
+        LabelImageVector outputs;
+
+        typedef itk::MultiResolutionPyramidImageFilter<LabelImage, LabelImage> FilterType;
+        FilterType::Pointer filter = FilterType::New();
+        filter->SetInput(label);
+        filter->SetNumberOfLevels(level);
+        filter->UseNearestNeighborInterpolatorOff();
+        filter->Update();
+        for (int i = level - 1; i >= 0; i--) {
+            outputs.push_back(filter->GetOutput(i));
+        }
+        return outputs;
+    }
+
+
+
+    
     LabelImage::Pointer ImageProcessing::SmoothLabelMap(LabelImage::Pointer img) {
         cout << "Computing label map smoothing ..." << flush;
 

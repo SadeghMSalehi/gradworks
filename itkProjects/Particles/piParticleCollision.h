@@ -76,6 +76,7 @@ namespace pi {
         LabelImage::Pointer m_LabelImage;
         LabelImage::Pointer m_BinaryMask;
         LabelImage::Pointer m_ZeroCrossing;
+        LabelImage::SpacingType m_ImageSpacing;
         VectorImage::Pointer m_DistanceMap;
         GradientImage::Pointer m_Gradient;
         NNLabelInterpolatorType::Pointer m_CrossingPicker;

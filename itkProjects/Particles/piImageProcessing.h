@@ -58,6 +58,10 @@ namespace pi {
 
     class ImageProcessing {
     public:
+
+        RealImageVector ComputeImagePyramid(RealImage::Pointer img, int level = 1);
+        LabelImageVector ComputeImagePyramid(LabelImage::Pointer label, int level = 1);
+
         // anti-aliasing, connected component, and closing morphology
         LabelImage::Pointer SmoothLabelMap(LabelImage::Pointer img);
         LabelImage::Pointer ErodedBorder(LabelImage::Pointer img);
@@ -77,6 +81,11 @@ namespace pi {
 
         LabelImage::Pointer ThresholdToBinary(LabelImage::Pointer img);
         RealImage::Pointer ComputeGaussianGradientMagnitude(RealImage::Pointer img, double sigma = -1);
+
+
+
+
+
         LabelImage::Pointer Ellipse(int* outputSize, double* center, double* radius);
         vtkPolyData* ConvertToMesh(LabelImage::Pointer image);
         RealImage::Pointer NormalizeIntensity(RealImage::Pointer image, LabelImage::Pointer label, double percentile = 0);

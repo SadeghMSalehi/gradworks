@@ -36,7 +36,7 @@ namespace pi {
 
     class EntropyInternalForce {
     public:
-        EntropyInternalForce(): useMultiPhaseForce(false),repulsionSigma(5), repulsionCutoff(repulsionSigma*5),friendSigma(3), friendCutoff(friendSigma*5),  useAdaptiveSampling(false), maxKappa(3), coeff(1) {}
+        EntropyInternalForce(): useMultiPhaseForce(false),repulsionSigma(5), repulsionCutoff(repulsionSigma*5),friendSigma(0.45), friendCutoff(friendSigma*5),  useAdaptiveSampling(false), maxKappa(3*0.15), coeff(1) {}
         ~EntropyInternalForce() {}
 
         void ComputeForce(ParticleSubject& subj);
@@ -92,13 +92,15 @@ namespace pi {
         void SetImageContext(ImageContext* context);
         void ComputeIntensityForce(ParticleSystem* system);
 
+        void ComputeAttributes(ParticleSystem* system);
+        
         // attrmatrix has S subject rows and N point columns
         void NormalizeAttributes(AttrMatrix& attrs);
         bool ComputeCovariance(AttrMatrix& attrs, int pointIdx, VNLDoubleMatrix& cov, double alpha = 1);
         void ComputeGradient(AttrMatrix& attrs, VNLDoubleMatrix& invC, int pointIdx, bool useDual);
 
     private:
-        void ComputeAttributes(ParticleSystem* system);
+
         RealImageVector warpedImages;
         std::vector<GradientImage::Pointer> gradImages;
         AttrMatrix m_attrs;

@@ -138,9 +138,10 @@ namespace pi {
 #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             Particle& pi = subj.m_Particles[i];
-            const DataReal sigma = repulsionSigma;
+            const DataReal spacing = subj.GetLabel()->GetSpacing()[0];
+            const DataReal sigma = repulsionSigma * spacing;
             const DataReal sigma2 = sigma * sigma;
-            const DataReal cutoff = repulsionCutoff;
+            const DataReal cutoff = repulsionCutoff * spacing;
 
             // iteration over particles
             // may reduce use symmetric properties
@@ -349,7 +350,7 @@ namespace pi {
         // compute forward transform
         for (int i = 0; i < nSubjects; i++) {
             ParticleBSpline bspline;
-            bspline.SetReferenceImage(m_ImageContext->GetLabel(i));
+            bspline.SetReferenceImage(system[i].GetLabel());
             bspline.EstimateTransformY(system[i], meanSubj);
             FieldTransformType::Pointer deformableTransform = bspline.GetTransform();
             system[i].TransformY2Z(deformableTransform.GetPointer());
@@ -485,10 +486,10 @@ namespace pi {
         if (useAttributesAtWarpedSpace) {
             for (int i = 0; i < nSubj; i++) {
                 ParticleSubject& subject = shapes[i];
-                LabelImage::Pointer refImage = m_ImageContext->GetLabel(i);
+                LabelImage::Pointer& refImage = subject.GetLabel();
 
                 if (useResampling) {
-                    warpedImages[i] = WarpToMean(meanSubject, subject, m_ImageContext->GetRealImage(i));
+                    warpedImages[i] = WarpToMean(meanSubject, subject, subject.GetImage());
                     if (useGaussianGradient) {
                         gradImages[i] = proc.ComputeGaussianGradient(warpedImages[i], gaussianSigma);
                     } else {
@@ -513,8 +514,8 @@ namespace pi {
             }
         } else {
             for (int i = 0; i < nSubj; i++) {
-                warpedImages[i] = m_ImageContext->GetRealImage(i);
                 ParticleSubject& subject = shapes[i];
+                warpedImages[i] = subject.GetImage();
                 for (int j = 0; j < nPoints; j++) {
                     forcopy (subject.m_Particles[j].y, subject.m_Particles[j].z);
                 }
@@ -536,55 +537,69 @@ namespace pi {
             RealImage::SizeType radius;
             radius.Fill(nRadius);
             RealImageNeighborhoodIteratorType iiter(radius, subject.realImage, subject.realImage->GetBufferedRegion());
-            RealImage::IndexType idx;
+
+
+            LinearImageInterpolatorType::Pointer warpedSampler = LinearImageInterpolatorType::New();
+            warpedSampler->SetInputImage(&warpedImage);
+
+            GradientInterpolatorType::Pointer warpedGradientSampler = GradientInterpolatorType::New();
+            warpedGradientSampler->SetInputImage(&gradImage);
+            
+            // attribute sampling point
+            RealImage::IndexType cIdx;
 #pragma omp parallel for
             // sample attributes for each pixel
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subject.m_Particles[j];
-                fordim(k) {
-                    idx[k] = round(par.z[k]);
-                }
-                iiter.SetLocation(idx);
+                LabelImage::Pointer labelImage = subject.GetLabel();
+                subject.ComputeIndexZ(par, cIdx);
+                iiter.SetLocation(cIdx);
+
                 ParticleAttribute& jAttr = m_attrs(i, j);
                 fordim(k) {
-                    jAttr.o[k] = idx[k];
+                    jAttr.o[k] = cIdx[k];
                 }
 
                 FieldTransformType::InputPointType inputPoint;
                 FieldTransformType::OutputPointType outputPoint;
-                RealIndex samplePointAtSubjectSpace;
+                LabelImage::PointType samplePointAtSubjectSpace;
                 for (int k = 0; k < NATTRS; k++) {
-                    IntIndex idx = iiter.GetIndex(k);
-                    fordim (l) {
-                        inputPoint[l] = idx[l];
-                    }
-
-                    // mean to shape
-                    outputPoint = subject.m_InverseDeformableTransform->TransformPoint(inputPoint);
-                    DataReal y[__Dim], x[__Dim];
-                    fordim (l) {
-                        y[l] = outputPoint[l];
-                    }
-                    subject.inverseAlignment->TransformPoint(y, x);
-                    fordim (l) {
-                        samplePointAtSubjectSpace[l] = x[l];
-                    }
+                    IntIndex nIdx = iiter.GetIndex(k);
 
                     if (!useResampling) {
-                        jAttr.x[k] = subject.realSampler->EvaluateAtContinuousIndex(samplePointAtSubjectSpace);
-                        GradientPixel grad = subject.gradSampler->EvaluateAtContinuousIndex(samplePointAtSubjectSpace);
+                        labelImage->TransformIndexToPhysicalPoint(nIdx, inputPoint);
+
+                        // mean to shape
+                        outputPoint = subject.m_InverseDeformableTransform->TransformPoint(inputPoint);
+                        DataReal y[__Dim], x[__Dim];
+                        fordim (l) {
+                            y[l] = outputPoint[l];
+                        }
+                        subject.inverseAlignment->TransformPoint(y, x);
+                        fordim (l) {
+                            samplePointAtSubjectSpace[l] = x[l];
+                        }
+                        
+                        jAttr.x[k] = subject.realSampler->Evaluate(samplePointAtSubjectSpace);
+                        GradientPixel grad = subject.gradSampler->Evaluate(samplePointAtSubjectSpace);
                         fordim (u) {
                             jAttr.g[k][u] = grad[u];
                         }
                     } else {
-                    // sample intensity at the mean space
-                        jAttr.x[k] = warpedImage[idx];
-                        fordim (u) {
-                            jAttr.g[k][u] = gradImage[idx][u];
+                        // sample intensity at the mean space
+                        if (warpedSampler->IsInsideBuffer(nIdx)) {
+                            jAttr.x[k] = warpedSampler->EvaluateAtIndex(nIdx);
+                            GradientPixel gradPixel = warpedGradientSampler->EvaluateAtIndex(nIdx);
+                            fordim (u) {
+                                jAttr.g[k][u] = gradPixel[u];
+                            }
+                        } else {
+                            jAttr.x[k] = 0;
+                            fordim(u) {
+                                jAttr.g[k][u] = 0;
+                            }
                         }
                     }
-
-
                 }
             }
         }
@@ -784,6 +799,7 @@ namespace pi {
 
         for (int i = 0; i < nSubj; i++) {
             ParticleSubject& subj = shapes[i];
+            LabelImage::SpacingType spacing = subj.GetLabel()->GetSpacing();
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subj[j];
                 ParticleAttribute& attr = m_attrs(i, j);
@@ -813,6 +829,10 @@ namespace pi {
                     }
                 }
 #endif
+
+                fordim (k) {
+                    attr.F[k] *= (spacing[k] * spacing[k]);
+                }
                 par.AddForce(attr.F, -coeff);
             }
         }

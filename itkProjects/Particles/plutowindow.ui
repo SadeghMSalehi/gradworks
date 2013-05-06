@@ -80,9 +80,10 @@
    </attribute>
    <addaction name="actionOpen"/>
    <addaction name="actionReset"/>
-   <addaction name="actionStart"/>
    <addaction name="actionLoad"/>
    <addaction name="actionSave"/>
+   <addaction name="actionStart"/>
+   <addaction name="actionStep"/>
   </widget>
   <action name="actionOpen">
    <property name="text">
@@ -112,6 +113,11 @@
   <action name="actionLoad">
    <property name="text">
     <string>Load</string>
+   </property>
+  </action>
+  <action name="actionStep">
+   <property name="text">
+    <string>Step</string>
    </property>
   </action>
  </widget>

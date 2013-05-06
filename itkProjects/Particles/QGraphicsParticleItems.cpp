@@ -25,6 +25,7 @@ QGraphicsParticleItems::QGraphicsParticleItems() {
     _scene = NULL;
     _parentItem = NULL;
     _subject = NULL;
+    _isParticleSelected = false;
     _particleSelectedId = -1;
     _listener = NULL;
 }
@@ -67,7 +68,7 @@ void QGraphicsParticleItems::createParticles(pi::ParticleSubject *subject) {
     _particleItems.resize(n);
 
     for (int j = 0; j < n; j++) {
-        const double r = 1;
+        const double r = 2;
         RGBA color = _hsvFunc->operator()(j);
         _particleItems[j] = new QGraphicsEllipseEventItem(_parentItem);
         _particleItems[j]->setListener(_listener);
@@ -88,18 +89,26 @@ void QGraphicsParticleItems::updateParticles() {
         return;
     }
 
-    const int n = _particleItems.size();
-    assert(n == _subject->GetNumberOfPoints());
+    const int numberOfParticleItems = _particleItems.size();
+    const int numberOfSubjectPoints = _subject->GetNumberOfPoints();
+    
+    if (numberOfParticleItems != numberOfSubjectPoints) {
+        createParticles(_subject);
+    }
 
+    assert(_particleItems.size() == _subject->GetNumberOfPoints());
+    
     QBrush grayBrush(Qt::gray, Qt::SolidPattern);
-    for (int j = 0; j < n; j++) {
+    for (int j = 0; j < numberOfParticleItems; j++) {
         Particle& p = _subject->operator[](j);
         if (_isHide) {
             _particleItems[j]->hide();
         } else {
             _particleItems[j]->show();
         }
-        _particleItems[j]->setPos(p.x[0], p.x[1]);
+        IntIndex x;
+        _subject->ComputeIndexX(p, x);
+        _particleItems[j]->setPos(x[0], x[1]);
 
         if (_isParticleSelected) {
             if (j != _particleSelectedId) {

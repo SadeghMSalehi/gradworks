@@ -14,6 +14,7 @@
 #include <cmath>
 
 #include <itkLinearInterpolateImageFunction.h>
+#include <itkVectorLinearInterpolateImageFunction.h>
 #include <itkTransform.h>
 #include <itkLightObject.h>
 
@@ -23,6 +24,8 @@
 
 namespace pi {
 
+    template<class T, class S> class ImageSamplesMSE;
+
     /**
      * Sample s intensity values for n points from m images
      *
@@ -30,6 +33,8 @@ namespace pi {
     template <class T, class S>
     class ImageSamples {
     public:
+        friend class ImageSamplesMSE<T,S>;
+
         typedef T* ImagePointer;
         typedef typename T::PixelType PixelType;
         typedef typename T::PointType PointType;
@@ -253,6 +258,69 @@ namespace pi {
     };
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
     template <class T>
     class ImagePatch {
     public:

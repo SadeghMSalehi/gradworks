@@ -127,17 +127,20 @@ namespace piq {
     void SimulCore::setParticleSolver(ParticleSystemSolver* solver) {
         _solver = solver;
 
-        ImageContext& context = _solver->GetImageContext();
-        if (context.Count() > 0) {
-            _image[0] = context.GetRealImage(0);
+        const int nSubj = _solver->m_System.GetNumberOfSubjects();
+        if (nSubj > 0) {
+            ParticleSubject& subj0 = _solver->m_System[0];
+            ParticleSubject& subj1 = _solver->m_System[1];
+
+            _image[0] = subj0.GetImage();
             _imageItem[0] = showImage(0, _image[0]);
-            _label[0] = context.GetLabel(0);
+            _label[0] = subj0.GetLabel();
             if (_label[0].IsNotNull()) {
                 _labelItem[0] = showLabel(0, _label[0]);
             }
-            _image[1] = context.GetRealImage(1);
+            _image[1] = subj1.GetImage();
             _imageItem[1] = showImage(1, _image[1]);
-            _label[1] = context.GetLabel(1);
+            _label[1] = subj1.GetLabel();
             if (_label[1].IsNotNull()) {
                 _labelItem[1] = showLabel(1, _label[1]);
             }
