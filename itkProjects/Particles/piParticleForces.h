@@ -99,6 +99,9 @@ namespace pi {
         bool ComputeCovariance(AttrMatrix& attrs, int pointIdx, VNLDoubleMatrix& cov, double alpha = 1);
         void ComputeGradient(AttrMatrix& attrs, VNLDoubleMatrix& invC, int pointIdx, bool useDual);
 
+        // access to particle attribute
+        ParticleAttribute& GetAttribute(int imageId, int particleId);
+
     private:
 
         RealImageVector warpedImages;

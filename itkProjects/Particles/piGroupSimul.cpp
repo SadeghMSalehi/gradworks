@@ -245,6 +245,11 @@ namespace pi {
         for (int i = 0; i < _particleGroups.size(); i++) {
             _particleGroups[i].selectParticle(particleId);
         }
+        
+        IntensityForce& force = _solver->intensityForce;
+        ParticleAttribute& attr = force.GetAttribute(0, particleId);
+
+        cout << attr.F[0] << "," << attr.F[1] << endl;
     }
 
     void GroupSimul::createDistanceMap() {

@@ -248,6 +248,7 @@ namespace pi {
         std::vector<GradientInterpolatorPointer> _gradientImages;
         std::vector<ParticlePointer> _particles;
         std::vector<IndexType> _indexes;
+        std::vector<PointType> _points;
         
         int m;
         int n;

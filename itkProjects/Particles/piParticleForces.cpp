@@ -462,7 +462,11 @@ namespace pi {
         return resampleFilter->GetOutput();
     }
 
-    
+
+    ParticleAttribute& IntensityForce::GetAttribute(int imageId, int particleId) {
+        return m_attrs(imageId, particleId);
+    }
+
     void IntensityForce::ComputeAttributes(ParticleSystem* system) {
         const bool useResampling = true;
 
