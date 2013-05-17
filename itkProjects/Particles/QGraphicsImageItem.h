@@ -58,6 +58,7 @@ public:
 
     T getRange(int i);
     void setRange(T min, T max);
+    void computeRange();
     void setFlip(Flags flags);
     void showGrid(bool);
     void setInteraction(InteractionType* interaction);
@@ -314,6 +315,22 @@ void QGraphicsImageItem<T>::setRange(T min, T max) {
 }
 
 template <class T>
+void QGraphicsImageItem<T>::computeRange() {
+    const int w = _grayImage.width();
+    const int h = _grayImage.height();
+    T* buff = _inputBuffer;
+    _range[0] = *buff;
+    _range[1] = *buff;
+    for (int i = 0; i < h; i++) {
+        for (int j = 0; j < w; j++) {
+            _range[0] = std::min(_range[0], *buff);
+            _range[1] = std::max(_range[1], *buff);
+            buff++;
+        }
+    }
+}
+
+template <class T>
 void QGraphicsImageItem<T>::setFlip(Flags flags) {
     if (flags == LeftRight) {
         QTransform transform;
@@ -355,7 +372,7 @@ void QGraphicsImageItem<T>::convertToIndexed(T* inputBuffer,
             if (*inputBuffer > min + range) {
                 *outputBuffer = 255u;
             } else {
-                *outputBuffer = uchar(256u * (*inputBuffer-min)/(range));
+                *outputBuffer = uchar(255u * (*inputBuffer-min)/(range));
             }
         }
     }
@@ -363,10 +380,15 @@ void QGraphicsImageItem<T>::convertToIndexed(T* inputBuffer,
 
 template <class T>
 void QGraphicsImageItem<T>::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    QPoint pos = event->pos().toPoint();
+    int idx = pos.y() * _grayImage.width() + pos.x();
+    std::cout << pos.x() << ", " << pos.y() << "[" << idx << "]: " << _inputBuffer[idx] << std::endl;
+
     if (_interaction) {
         _interaction->mousePressed(this, event);
         return;
     }
+
     return QGraphicsPixmapItem::mousePressEvent(event);
 }
 
@@ -385,6 +407,7 @@ void QGraphicsImageItem<T>::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
         _interaction->mouseReleased(this, event);
         return;
     }
+
     return QGraphicsPixmapItem::mouseReleaseEvent(event);
 }
 

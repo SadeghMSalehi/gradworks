@@ -35,6 +35,7 @@ public:
 
     // be careful about this behavior
     void selectParticle(int);
+    int getSelectedParticleId();
 
 protected:
 private:

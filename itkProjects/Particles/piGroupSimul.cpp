@@ -7,13 +7,14 @@
 //
 
 #include <sstream>
+#include <QMovie>
 
 #include "piGroupSimul.h"
 #include "piParticleSystemSolver.h"
 #include "piParticleBSpline.h"
 #include "piImageIO.h"
 #include "piImageProcessing.h"
-#include <QMovie>
+#include "QGraphicsDirectionItem.h"
 
 using namespace std;
 
@@ -32,17 +33,24 @@ namespace pi {
 
     void GroupSimul::setupUi(Ui_Simul2D *ui) {
         this->_ui = ui;
-        this->_ui->graphicsView2->hide();
+        //this->_ui->graphicsView2->hide();
         this->_ui->graphicsView->setScene(&_scene);
+        this->_ui->graphicsView2->setScene(&_scene2);
 
         connectSignals();
+
+        _particleWindow = new QGraphicsRealImageItem();
     }
 
     void GroupSimul::connectSignals() {
         connect(_ui->actionGrid, SIGNAL(toggled(bool)), SLOT(showGrid(bool)));
         connect(_ui->actionShowParticles, SIGNAL(toggled(bool)), SLOT(showParticles(bool)));
         connect(_ui->actionDistanceMap, SIGNAL(triggered()), SLOT(createDistanceMap()));
+        connect(_ui->actionShowAttributes, SIGNAL(triggered()), SLOT(showAttributes()));
 
+        connect(_ui->actionLevel0, SIGNAL(triggered()), SLOT(setResolutionLevel()));
+        connect(_ui->actionLevel1, SIGNAL(triggered()), SLOT(setResolutionLevel()));
+        connect(_ui->actionLevel2, SIGNAL(triggered()), SLOT(setResolutionLevel()));
     }
 
     void GroupSimul::setupParticles(pi::ParticleSystemSolver *solver) {
@@ -71,6 +79,16 @@ namespace pi {
 
         initImages();
         initParticles();
+    }
+
+    void GroupSimul::setResolutionLevel() {
+        if (_ui->actionLevel0->isChecked()) {
+            _solver->m_System.SetCurrentResolutionLevel(0);
+        } else if (_ui->actionLevel1->isChecked()) {
+            _solver->m_System.SetCurrentResolutionLevel(1);
+        } else if (_ui->actionLevel2->isChecked()) {
+            _solver->m_System.SetCurrentResolutionLevel(2);
+        }
     }
 
     void GroupSimul::initImages() {
@@ -152,6 +170,8 @@ namespace pi {
             _particleGroups[i].hideParticles(!on);
             _particleGroups[i].updateParticles();
         }
+        showAttribute(_particleGroups[0].getSelectedParticleId());
+//        cout << "Image Energy: " << _solver->m_System.ImageEnergy.sum() << endl;
     }
 
     void GroupSimul::computeWarpedImages() {
@@ -189,7 +209,7 @@ namespace pi {
         _solver->LoadParameters(configstream);
         _solver->SetupParameters();
         _solver->continueToRun = true;
-        _solver->verbose = _ui->verboseOutput->isChecked();
+        _solver->verbose = true;//_ui->verboseOutput->isChecked();
 
 
         // prepare simultation
@@ -203,34 +223,35 @@ namespace pi {
         _ui->runStepButton->setChecked(true);
         _ui->loadingAnimation->movie()->start();
 
+        setResolutionLevel();
+
         m_timer.start(500, this);
         m_future = QtConcurrent::run(this, &GroupSimul::threadedRun);
         m_futureWatcher.setFuture(m_future);
-
-        // Connect signals
-        connect(&m_futureWatcher, SIGNAL(finished()), SLOT(stopLoadingAnimation()));
-        connect(&m_futureWatcher, SIGNAL(canceled()), SLOT(stopLoadingAnimation()));
     }
 
 
     void GroupSimul::threadedRun() {
+        _solver->RunLoopBegin();
         while (_solver->t < _solver->t1 && _solver->continueToRun) {
             _solver->RunStep();
         }
+        _solver->RunLoopEnd();
+        stopRun();
     }
 
     void GroupSimul::timerEvent(QTimerEvent* event) {
         showParticles(_ui->actionShowParticles->isChecked());
+        if (!_solver->continueToRun) {
+            m_timer.stop();
+        }
     }
 
     void GroupSimul::stopRun() {
         _ui->loadingAnimation->movie()->stop();
         _ui->runStepButton->setText("Step");
         _ui->runStepButton->setChecked(false);
-        m_timer.stop();
-        if (m_future.isRunning()) {
-            _solver->continueToRun = false;
-        }
+        _solver->continueToRun = false;
         disconnect(&m_futureWatcher, SIGNAL(finished()), this, SLOT(stopRun()));
         disconnect(&m_futureWatcher, SIGNAL(canceled()), this, SLOT(stopRun()));
         m_future = QFuture<void>();
@@ -245,11 +266,11 @@ namespace pi {
         for (int i = 0; i < _particleGroups.size(); i++) {
             _particleGroups[i].selectParticle(particleId);
         }
-        
-        IntensityForce& force = _solver->intensityForce;
-        ParticleAttribute& attr = force.GetAttribute(0, particleId);
 
-        cout << attr.F[0] << "," << attr.F[1] << endl;
+//        int selectedParticleId = _particleGroups[0].getSelectedParticleId();
+//        _solver->m_System.UseSingleParticle(selectedParticleId);
+
+        showAttribute(particleId);
     }
 
     void GroupSimul::createDistanceMap() {
@@ -260,5 +281,60 @@ namespace pi {
         __realIO.WriteImage("/tmpfs/dmap.nii.gz", dmapMag);
 
 
+    }
+
+    void GroupSimul::showAttribute(int particleId) {
+        if (particleId < 0) {
+            return;
+        }
+        _scene2.clear();
+        const int w = ATTR_SIZE;
+        int j = 0;
+        cout << "F: ";
+        for (int i = 0; i < _solver->m_System.GetNumberOfSubjects(); i++) {
+            QGraphicsRealImageItem* item = new QGraphicsRealImageItem();
+            ParticleAttribute* attr = _solver->intensityForce.GetAttribute(i, particleId);
+            if (attr) {
+                item->setImage(attr->x, w, w);
+//                item->setRange(_imageItems[0]->getRange(0), _imageItems[0]->getRange(1));
+                item->computeRange();
+                item->setFlip(QGraphicsRealImageItem::UpDown);
+                item->refresh();
+                item->setPos((w+3)*i, (w+3)*j);
+
+                _scene2.addItem(item);
+//                _ui->graphicsView2->fitInView(0, 0, (w+3)*(i+1), (w+3)*(j+1), Qt::KeepAspectRatio);
+                _ui->graphicsView2->fitInView(0, 0, (w+3), w, Qt::KeepAspectRatio);
+                cout << attr->F[0] << "," << attr->F[1] << "; ";
+            }
+        }
+        cout << endl;
+    }
+
+    void GroupSimul::showAttributes() {
+        _scene2.clear();
+        const int w = ATTR_SIZE;
+        for (int j = 0; j < _solver->m_System.GetNumberOfParticles(); j++) {
+            for (int i = 0; i < _solver->m_System.GetNumberOfSubjects(); i++) {
+                QGraphicsRealImageItem* item = new QGraphicsRealImageItem();
+                ParticleAttribute* attr = _solver->intensityForce.GetAttribute(i, j);
+                if (attr) {
+                    item->setImage(attr->x, w, w);
+                    item->setRange(_imageItems[0]->getRange(0), _imageItems[0]->getRange(1));
+                    item->setFlip(QGraphicsRealImageItem::UpDown);
+                    item->refresh();
+                    item->setPos((w+3)*j, (w+3)*i);
+
+                    QGraphicsDirectionItem* dirItem = new QGraphicsDirectionItem(item);
+                    dirItem->setPen(QPen(Qt::yellow));
+                    dirItem->setDirection(QPointF(attr->F[0], attr->F[1]));
+
+                    _scene2.addItem(item);
+                    _ui->graphicsView2->fitInView(0, 0, (w+3)*(j+1), (w+3)*(i+1), Qt::KeepAspectRatio);
+
+                    cout << "F = [" << attr->F[0] << "," << attr->F[1] << "]" << endl;
+                }
+            }
+        }
     }
 }

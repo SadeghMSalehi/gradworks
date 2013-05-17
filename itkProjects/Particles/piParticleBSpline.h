@@ -116,7 +116,7 @@ namespace pi {
             numControlPoints[i] = imageSize[i] / 16 + splineOrder;
         }
 
-        cout << "# control points: " << numControlPoints << endl;
+//        cout << "# control points: " << numControlPoints << endl;
 
         try {
             // debug: reparameterized point component is outside

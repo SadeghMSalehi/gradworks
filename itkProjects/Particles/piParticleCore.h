@@ -221,12 +221,17 @@ namespace pi {
         ParticleSubject& GetMeanSubject();
         ParticleSubjectArray& GetSubjects();
 
+        void UseSingleParticle(int particleId);
 
         // initial intersection related function
         int ComputeIntersection();
         LabelImage::Pointer GetIntersection() {
             return m_Intersection;
         }
+
+        int GetCurrentResolutionLevel();
+        int GetMaximumResolutionLevel();
+        void SetCurrentResolutionLevel(int level);
 
         void SetIntersection(LabelImage::Pointer intersection) {
             m_Intersection = intersection;
@@ -252,7 +257,7 @@ namespace pi {
         LabelImage::Pointer m_Intersection;
         std::string m_IntersectionOutput;
 
-        int m_MaxLevel;
+        int m_CurrentResolutionLevel;
         bool m_UseOriginalSpacing;
 
         Options* m_Options;

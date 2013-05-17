@@ -16,7 +16,9 @@
 #include <QGraphicsItem>
 #include <QGraphicsPixmapItem>
 #include <QMovie>
+#include <QActionGroup>
 #include <QtConcurrentRun>
+
 
 #include "QParticlesGraphicsItem.h"
 #include "QGraphicsRectWidget.h"
@@ -57,6 +59,13 @@ namespace pi {
             buffer << in.rdbuf();
             ui.config->setPlainText(buffer.str().c_str());
         }
+
+        QActionGroup* levelGroup = new QActionGroup(this);
+        levelGroup->addAction(ui.actionLevel0);
+        levelGroup->addAction(ui.actionLevel1);
+        levelGroup->addAction(ui.actionLevel2);
+
+        ui.actionLevel1->setChecked(true);
 
 //        core.setUi(&ui);
         ui.costPlot->hide();

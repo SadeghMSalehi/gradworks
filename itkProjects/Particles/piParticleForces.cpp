@@ -413,7 +413,96 @@ namespace pi {
     }
 
 
-    
+
+
+
+
+
+    NeighborSampler::NeighborSampler(RegionType region, RealImage::Pointer image) {
+        setSampleRegion(region, image);
+    }
+
+    NeighborSampler::~NeighborSampler() {
+
+    }
+
+    void NeighborSampler::sampleValues(LinearImageInterpolatorType* interp, Particle& particle, ParticleAttribute& attr) {
+        // sample intensity values from images
+        for (int k = 0; k < _numberOfSamples; k++) {
+            PointType samplePoint = _points[k];
+            fordim (l) {
+                // translate to the particle
+                samplePoint[l] += particle.z[l];
+            }
+            attr.x[k] = interp->Evaluate(samplePoint);
+        }
+    }
+
+    void NeighborSampler::sampleGradients(GradientInterpolatorType* interp, Particle& particle, ParticleAttribute& attr) {
+        // sample intensity values from images
+        for (int k = 0; k < _numberOfSamples; k++) {
+            PointType samplePoint = _points[k];
+            fordim (l) {
+                // translate to the particle
+                samplePoint[l] += particle.z[l];
+            }
+            GradientPixel pix = interp->Evaluate(samplePoint);
+            fordim (l) {
+                attr.g[k][l] = pix[l];
+            }
+        }
+    }
+
+    // should have s sample index
+    void NeighborSampler::setSampleRegion(RegionType& region, RealImage* reference) {
+        _regionSize = region.GetSize();
+
+        _indexes.clear();
+        _points.clear();
+
+        IndexType startIdx = region.GetIndex();
+        if (RegionType::ImageDimension == 2) {
+            createSampleIndexes2(startIdx);
+        } else if (RegionType::ImageDimension == 3){
+            createSampleIndexes3(startIdx);
+        }
+        _numberOfSamples = _indexes.size();
+
+        _points.resize(_numberOfSamples);
+        for (int i = 0; i < _numberOfSamples; i++) {
+            reference->TransformIndexToPhysicalPoint(_indexes[i], _points[i]);
+        }
+    }
+
+    void NeighborSampler::createSampleIndexes2(IndexType& startIdx) {
+        IndexType idx = startIdx;
+        _indexes.reserve(_regionSize[1]*_regionSize[0]);
+        for (int j = 0; j < _regionSize[1]; j++) {
+            idx[0] = startIdx[0];
+            for (int i = 0; i < _regionSize[0]; i++) {
+                _indexes.push_back(idx);
+                idx[0] ++;
+            }
+            idx[1] ++;
+        }
+    }
+
+    void NeighborSampler::createSampleIndexes3(IndexType& startIdx) {
+        IndexType idx = startIdx;
+        for (int k = 0; k < _regionSize[2]; k++) {
+            idx[1] = startIdx[1];
+            for (int j = 0; j < _regionSize[1]; j++) {
+                idx[0] = startIdx[0];
+                for (int i = 0; i < _regionSize[0]; i++) {
+                    _indexes.push_back(idx);
+                    idx[0] ++;
+                }
+                idx[1] ++;
+            }
+            idx[2] ++;
+        }
+    }
+
     //
 
     IntensityForce::IntensityForce()
@@ -463,8 +552,102 @@ namespace pi {
     }
 
 
-    ParticleAttribute& IntensityForce::GetAttribute(int imageId, int particleId) {
-        return m_attrs(imageId, particleId);
+    ParticleAttribute* IntensityForce::GetAttribute(int imageId, int particleId) {
+        if (m_attrs.size1() > imageId && m_attrs.size2() > particleId) {
+            return &m_attrs(imageId, particleId);
+        }
+        return NULL;
+    }
+
+    void IntensityForce::ComputeTransform(pi::ParticleSystem *system) {
+        const bool useResampling = true;
+
+        ParticleSubjectArray& shapes = system->GetSubjects();
+        ParticleSubject& meanSubject = system->GetMeanSubject();
+
+        const int nSubj = shapes.size();
+        const int nPoints = shapes[0].GetNumberOfPoints();
+        
+        m_attrs.resize(nSubj, nPoints);
+        m_attrsMean.set_size(nPoints, NATTRS);
+        warpedImages.resize(nSubj);
+        gradImages.resize(nSubj);
+
+        int level = system->GetCurrentResolutionLevel();
+
+        double gradientSigma = gaussianSigma * shapes[0].GetImage(level)->GetSpacing()[0];
+
+        // first create a warped image into the mean transform space
+        // second create a gradient vector image per subject
+        // third extract attributes (features)
+        ImageProcessing proc;
+        for (int i = 0; i < nSubj; i++) {
+            ParticleSubject& subject = shapes[i];
+            LabelImage::Pointer& refImage = subject.GetLabel();
+
+            if (useResampling) {
+                warpedImages[i] = WarpToMean(meanSubject, subject, subject.GetImage(level));
+                if (useGaussianGradient) {
+                    gradImages[i] = proc.ComputeGaussianGradient(warpedImages[i], gradientSigma);
+                } else {
+                    gradImages[i] = proc.ComputeGradient(warpedImages[i]);
+                }
+            } else {
+                // Assume No Alignment!!!!!
+                ParticleBSpline backwardBspline;
+                backwardBspline.EstimateTransform<ParticleYCaster,RealImage>(meanSubject, subject, meanSubject.GetNumberOfPoints(), subject.realImage);
+                FieldTransformType::Pointer backwardTransform = backwardBspline.GetTransform();
+                subject.m_InverseDeformableTransform = backwardTransform;
+            }
+
+            if (subject.m_DeformableTransform.IsNull()) {
+                ParticleBSpline forwardBspline;
+                forwardBspline.SetReferenceImage(refImage);
+                forwardBspline.EstimateTransform(subject, meanSubject);
+                FieldTransformType::Pointer forwardTransform = forwardBspline.GetTransform();
+                subject.TransformY2Z(forwardTransform);
+                cout << "Forward B-spline transform is null: might forget to include +ensemble term?" << endl;
+            }
+        }
+    }
+    
+    void IntensityForce::SampleAttributes(ParticleSystem* system) {
+        ParticleSubjectArray& shapes = system->GetSubjects();
+        const int nSubj = shapes.size();
+        const int nPoints = shapes[0].GetNumberOfPoints();
+
+        for (int i = 0; i < nSubj; i++) {
+            ParticleSubject& subject = shapes[i];
+
+            RealImage& warpedImage = *(warpedImages[i].GetPointer());
+            GradientImage& gradImage = *(gradImages[i].GetPointer());
+
+            LinearImageInterpolatorType::Pointer warpedSampler = LinearImageInterpolatorType::New();
+            warpedSampler->SetInputImage(&warpedImage);
+
+            GradientInterpolatorType::Pointer warpedGradientSampler = GradientInterpolatorType::New();
+            warpedGradientSampler->SetInputImage(&gradImage);
+
+            // attribute sampling point
+
+#pragma omp parallel for
+            // sample attributes for each pixel
+
+            RealImage::RegionType samplingRegion;
+            fordim (j) {
+                samplingRegion.SetIndex(j, -ATTR_SIZE/2);
+                samplingRegion.SetSize(j, ATTR_SIZE);
+            }
+            NeighborSampler sampler(samplingRegion, &warpedImage);
+
+            for (int j = 0; j < nPoints; j++) {
+                Particle& par = subject.m_Particles[j];
+                ParticleAttribute& jAttr = m_attrs(i, j);
+
+                sampler.sampleValues(warpedSampler, par, jAttr);
+                sampler.sampleGradients(warpedGradientSampler, par, jAttr);
+            }
+        }
     }
 
     void IntensityForce::ComputeAttributes(ParticleSystem* system) {
@@ -550,16 +733,30 @@ namespace pi {
             warpedGradientSampler->SetInputImage(&gradImage);
             
             // attribute sampling point
-            RealImage::IndexType cIdx;
+
 #pragma omp parallel for
             // sample attributes for each pixel
+
+            RealImage::RegionType samplingRegion;
+            fordim (j) {
+                samplingRegion.SetIndex(j, -ATTR_SIZE/2);
+                samplingRegion.SetSize(j, ATTR_SIZE);
+            }
+            NeighborSampler sampler(samplingRegion, &warpedImage);
+
             for (int j = 0; j < nPoints; j++) {
                 Particle& par = subject.m_Particles[j];
+                ParticleAttribute& jAttr = m_attrs(i, j);
+
+                sampler.sampleValues(warpedSampler, par, jAttr);
+                sampler.sampleGradients(warpedGradientSampler, par, jAttr);
+
+                /*
+                RealImage::IndexType cIdx;
                 LabelImage::Pointer labelImage = subject.GetLabel();
                 subject.ComputeIndexZ(par, cIdx);
                 iiter.SetLocation(cIdx);
 
-                ParticleAttribute& jAttr = m_attrs(i, j);
                 fordim(k) {
                     jAttr.o[k] = cIdx[k];
                 }
@@ -592,6 +789,7 @@ namespace pi {
                     } else {
                         // sample intensity at the mean space
                         if (warpedSampler->IsInsideBuffer(nIdx)) {
+
                             jAttr.x[k] = warpedSampler->EvaluateAtIndex(nIdx);
                             GradientPixel gradPixel = warpedGradientSampler->EvaluateAtIndex(nIdx);
                             fordim (u) {
@@ -605,6 +803,7 @@ namespace pi {
                         }
                     }
                 }
+             */
             }
         }
     }
@@ -614,6 +813,22 @@ namespace pi {
         // compute average attr value across subject
         const int nPoints = attrs.size2();
         const int nSubj = attrs.size1();
+
+        // normalize intensity to mean
+        const int nAttrs = NATTRS;
+        for (int s = 0; s < nSubj; s++) {
+            for (int i = 0; i < nPoints; i++) {
+                ParticleAttribute& attr = attrs(s,i);
+                double sum = 0;
+                for (int j = 0; j < nAttrs; j++) {
+                    sum += attr.x[j];
+                }
+                double mean = sum / nAttrs;
+                for (int j = 0; j < nAttrs; j++) {
+                    attr.x[j] -= mean;
+                }
+            }
+        }
 
         for (int i = 0; i < nPoints; i++) {
             for (int j = 0; j < NATTRS; j++) {
@@ -626,6 +841,9 @@ namespace pi {
                 }
             }
         }
+
+        // apply the isotropic gaussian kernel
+        // how?
     }
 
 
@@ -695,13 +913,13 @@ namespace pi {
                     jattr.f[k] = 0;
                 }
                 for (int l = 0; l < NATTRS; l++) {
-                    jattr.x[l] = 0;
+                    jattr.z[l] = 0;
                     for (int k = 0; k < S; k++) {
                         ParticleAttribute& kattr = attrs(k,pointIdx);
-                        jattr.x[l] += kattr.y[l] * invC[k][j];
+                        jattr.z[l] += kattr.y[l] * invC[k][j];
                     }
                     fordim (k) {
-                        jattr.f[k] += jattr.x[l] * jattr.g[l][k];
+                        jattr.f[k] += jattr.z[l] * jattr.g[l][k];
                     }
                 }
             }
@@ -725,9 +943,9 @@ namespace pi {
                     for (int k = 0; k < L; k++) {
                         o += invC[j][k] * attr.y[l];
                     }
-                    attr.x[j] = o;
+                    attr.z[j] = o;
                     fordim (k) {
-                        attr.f[k] += attr.x[l] * attr.g[l][k];
+                        attr.f[k] += attr.z[l] * attr.g[l][k];
                     }
                 }
             }
@@ -739,7 +957,15 @@ namespace pi {
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
 
-        ComputeAttributes(system);
+        system->ImageEnergy.set_size(nPoints);
+
+//        ComputeAttributes(system);
+
+        // compute warp
+        ComputeTransform(system);
+
+        // sample attributes
+        SampleAttributes(system);
 
         // assume all attributes are computed already
         assert(m_attrs.size1() == nSubj && m_attrs.size2() == nPoints);
@@ -754,7 +980,7 @@ namespace pi {
             VNLDoubleMatrix invC(cov);
             if (cov.is_finite() && !cov.has_nans()) {
                 invC = vnl_matrix_inverse<double>(cov);
-                if (cov.size() == 2) {
+                if (cov.rows() == 2) {
                     float det = vnl_det(cov[0], cov[1]);
                     system->ImageEnergy[i] = det;
                 }
@@ -813,7 +1039,7 @@ namespace pi {
                     ff[k] = attr.F[k];
                 }
 //                ff.normalize();
-                subj.inverseAlignment->TransformVector(ff.data_block(), m_attrs(i,j).F);
+//                subj.inverseAlignment->TransformVector(ff.data_block(), m_attrs(i,j).F);
 #ifndef BATCH
                 const bool normalForce = false;
                 if (normalForce) {

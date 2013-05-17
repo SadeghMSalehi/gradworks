@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <itkMacro.h>
+#include <limits>
 
 #include "piParticleSystemSolver.h"
 #include "piParticleCollision.h"
@@ -501,6 +502,23 @@ namespace pi {
 
 
 
+    void ParticleSystemSolver::RunLoopBegin() {
+        _previousImageEnergy = numeric_limits<DataReal>::infinity();
+        m_System.currentIteration = 0;
+    }
+
+    void ParticleSystemSolver::RunLoopEnd() {
+        cout << "Loop Finished" << endl;
+    }
+
+    void ParticleSystemSolver::CheckEnergy() {
+        double currentEnergy = m_System.ImageEnergy.sum();
+        if (_previousImageEnergy < currentEnergy && m_System.currentIteration > 30) {
+            continueToRun = false;
+        }
+        _previousImageEnergy = currentEnergy;
+    }
+
     //////////////////////////////////////////////////////
     //
     // Actual Computation: IMPORTANT!!
@@ -569,7 +587,14 @@ namespace pi {
             intensityForce.ComputeIntensityForce(&m_System);
         }
 
-        // system update
+        // check if the energy reached minimum and return the previous states
+        CheckEnergy();
+        if (!continueToRun) {
+            RunStepEnd();
+            return 0;
+        }
+
+        // if the energy is reduced, do system update
         for (int n = 0; n < nSubz; n++) {
             ParticleSubject& sub = subs[n];
             if (!noBoundary) {
@@ -600,12 +625,15 @@ namespace pi {
                 }
             }
         }
-        
+
+
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // IMPORTANT
         t += dt;
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
+        // perform the final step (save snapshot, print message, store trace, ...)
         RunStepEnd();
         return 0;
     }

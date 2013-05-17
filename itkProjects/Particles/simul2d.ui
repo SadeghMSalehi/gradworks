@@ -36,7 +36,7 @@
        <property name="handleWidth">
         <number>6</number>
        </property>
-       <widget class="myQGraphicsView" name="graphicsView">
+       <widget class="QGraphicsZoomView" name="graphicsView">
         <property name="minimumSize">
          <size>
           <width>0</width>
@@ -62,11 +62,11 @@
          <set>QPainter::Antialiasing|QPainter::NonCosmeticDefaultPen|QPainter::TextAntialiasing</set>
         </property>
        </widget>
-       <widget class="myQGraphicsView" name="graphicsView2">
+       <widget class="QGraphicsZoomView" name="graphicsView2">
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>300</height>
+          <height>150</height>
          </size>
         </property>
         <property name="mouseTracking">
@@ -150,11 +150,20 @@
     <addaction name="menuImage_Features"/>
     <addaction name="actionGrid"/>
     <addaction name="actionShowCostPlot"/>
+    <addaction name="actionShowAttributes"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>Tools</string>
     </property>
+    <widget class="QMenu" name="menuResolution_Level">
+     <property name="title">
+      <string>Resolution Level</string>
+     </property>
+     <addaction name="actionLevel0"/>
+     <addaction name="actionLevel1"/>
+     <addaction name="actionLevel2"/>
+    </widget>
     <addaction name="actionBsplineWarp"/>
     <addaction name="actionImageBsplineWarp"/>
     <addaction name="separator"/>
@@ -163,6 +172,7 @@
     <addaction name="actionGenerateSIFTImage2"/>
     <addaction name="separator"/>
     <addaction name="actionDistanceMap"/>
+    <addaction name="menuResolution_Level"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -581,19 +591,48 @@ LabelImages: strings 2
     <string>Create Distance Map</string>
    </property>
   </action>
+  <action name="actionShowAttributes">
+   <property name="text">
+    <string>Show Attributes</string>
+   </property>
+  </action>
+  <action name="actionLevel0">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Level 0</string>
+   </property>
+  </action>
+  <action name="actionLevel1">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Level 1</string>
+   </property>
+  </action>
+  <action name="actionLevel2">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Level 2</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="3"/>
  <customwidgets>
-  <customwidget>
-   <class>myQGraphicsView</class>
-   <extends>QGraphicsView</extends>
-   <header>myQGraphicsView.h</header>
-  </customwidget>
   <customwidget>
    <class>QCustomPlot</class>
    <extends>QWidget</extends>
    <header>qcustomplot.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QGraphicsZoomView</class>
+   <extends>QGraphicsView</extends>
+   <header>QGraphicsZoomView.h</header>
   </customwidget>
  </customwidgets>
  <resources>

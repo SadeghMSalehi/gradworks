@@ -39,9 +39,10 @@ namespace pi {
         void Run();
         void Setup();
         void SetupParameters();
-        void RunStepBegin();
+
+        void RunLoopBegin();
         int  RunStep();
-        void RunStepEnd();
+        void RunLoopEnd();
         void Stop();
 
         void PrintPoints();
@@ -50,6 +51,10 @@ namespace pi {
         pi::LabelImage::Pointer WarpLabel(int i, int j = -1);
 
 
+    private:
+        void RunStepBegin();
+        void RunStepEnd();
+        void CheckEnergy();
 
     public:
         Options m_Options;
@@ -83,6 +88,9 @@ namespace pi {
         DataReal t1;
         DataReal dt;
         DataReal t;
+
+    private:
+        DataReal _previousImageEnergy;
     };
 }
 #endif /* defined(__ParticlesGUI__piParticleSystemSolver__) */

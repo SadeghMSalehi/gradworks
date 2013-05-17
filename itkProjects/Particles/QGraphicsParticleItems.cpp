@@ -35,6 +35,14 @@ QGraphicsParticleItems::~QGraphicsParticleItems() {
 }
 
 
+int QGraphicsParticleItems::getSelectedParticleId() {
+    if (_isParticleSelected) {
+        return _particleSelectedId;
+    } else {
+        return -1;
+    }
+}
+
 void QGraphicsParticleItems::hideParticles(bool on) {
     _isHide = on;
     updateParticles();
@@ -110,11 +118,9 @@ void QGraphicsParticleItems::updateParticles() {
         _subject->ComputeIndexX(p, x);
         _particleItems[j]->setPos(x[0], x[1]);
 
-        if (_isParticleSelected) {
-            if (j != _particleSelectedId) {
-                _particleItems[j]->setBrush(grayBrush);
-                _particleItems[j]->setOpacity(0.3);
-            }
+        if (_isParticleSelected && j != _particleSelectedId) {
+            _particleItems[j]->setBrush(grayBrush);
+            _particleItems[j]->setOpacity(0.3);
         } else {
             RGBA color = _hsvFunc->operator()(j);
             _particleItems[j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));

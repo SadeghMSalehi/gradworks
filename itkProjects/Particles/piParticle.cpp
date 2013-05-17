@@ -43,16 +43,25 @@ namespace pi {
 
     }
 
+    void Particle::Enable() {
+        enabled = true;
+    }
+
+    void Particle::Disable() {
+        enabled = false;
+    }
+
     void Particle::Zero() {
         t = 0;
         subj = 0;
         idx = 0;
         for4(j) {
-            x[j] = y[j] = z[j] = v[j] = f[j] = w[j] = 0;
+            x[j] = y[j] = z[j] = v[j] = f[j] = w[j] = E[j] = 0;
         }
         density = pressure = 0;
         label = 0;
         collisionEvent = false;
+        enabled = true;
     }
 
     void Particle::Sub(const Particle& p, DataReal* d) {
@@ -62,6 +71,9 @@ namespace pi {
     }
 
     void Particle::AddForce(DataReal* ff, DataReal alpha) {
+        if (!enabled) {
+            return;
+        }
 #if 0
 #ifndef BATCH
 #if DIMENSIONS == 3

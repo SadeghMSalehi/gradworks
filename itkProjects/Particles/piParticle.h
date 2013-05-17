@@ -27,11 +27,13 @@ namespace pi {
 
     class ParticleAttribute {
     public:
-        DataReal o[DIMENSIONS];
         DataReal f[DIMENSIONS];
         DataReal F[DIMENSIONS];
+        DataReal o[DIMENSIONS];
+
         DataReal x[NATTRS];
         DataReal y[NATTRS];
+        DataReal z[NATTRS];
         DataReal g[NATTRS][DIMENSIONS];
     };
 
@@ -53,17 +55,21 @@ namespace pi {
         // the current velocity v and the force f
         DataReal v[4];
         DataReal f[4];
+        DataReal E[4];
 
         // the density and pressure of a particle
         DataReal density;
         DataReal pressure;
 
+        bool enabled;
         bool collisionEvent;
 
         Particle();
         ~Particle();
 
         void Zero();
+        void Disable();
+        void Enable();
         void Sub(const Particle& p, DataReal* nx);
         void AddForce(DataReal* ff, DataReal alpha = 1);
         void UpdateStatus(DataReal dt);

@@ -26,30 +26,35 @@ void QGraphicsZoomView::mousePressEvent(QMouseEvent *event) {
         QTransform xform = transform();
         _scale = xform.m11();
     }
+
+    QGraphicsView::mousePressEvent(event);
 }
 
 void QGraphicsZoomView::mouseMoveEvent(QMouseEvent *event) {
-    QPointF pos = event->pos();
-    QPointF delta = pos - _trackingStartPoint;
+    if (event->buttons() & Qt::RightButton) {
+        QPointF pos = event->pos();
+        QPointF delta = pos - _trackingStartPoint;
 
-    int scaleFactor = 50 - delta.y();
-    scaleFactor = scaleFactor < 0.01 ? 0.01 : scaleFactor;
-    float scale = _scale * (scaleFactor / 50.0);
+        int scaleFactor = 50 - delta.y();
+        scaleFactor = scaleFactor < 0.01 ? 0.01 : scaleFactor;
+        float scale = _scale * (scaleFactor / 50.0);
 
-    QTransform transform;
-    transform.scale(scale, scale);
+        QTransform transform;
+        transform.scale(scale, scale);
 
-    setTransform(transform);
+        setTransform(transform);
+    }
+    QGraphicsView::mouseMoveEvent(event);
 }
 
 void QGraphicsZoomView::mouseReleaseEvent(QMouseEvent *event) {
-
+    QGraphicsView::mouseReleaseEvent(event);
 }
 
 void QGraphicsZoomView::enterEvent(QEvent *event) {
-
+    QGraphicsView::enterEvent(event);
 }
 
 void QGraphicsZoomView::leaveEvent(QEvent *event) {
-
+    QGraphicsView::leaveEvent(event);
 }

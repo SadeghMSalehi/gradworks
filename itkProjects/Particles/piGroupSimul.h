@@ -27,6 +27,7 @@ namespace pi {
     class ParticleSystem;
     class QGraphicsImageView;
     typedef QGraphicsImageItem<float> QGraphicsRealImageItem;
+    typedef QGraphicsImageItem<double> QGraphicsDoubleImageItem;
 
     class GroupSimul: public QObject, public QGraphicsEllipseEventItem::Listener {
         Q_OBJECT
@@ -50,7 +51,11 @@ namespace pi {
         void showGrid(bool);
         void showParticles(bool);
         void createDistanceMap();
+        void showAttributes();
+        void showAttribute(int particleId);
 
+        void setResolutionLevel();
+        
     protected:
         virtual void timerEvent(QTimerEvent* event);
         virtual void mousePressed(QGraphicsEllipseEventItem* sender, QGraphicsSceneMouseEvent* event);
@@ -68,13 +73,15 @@ namespace pi {
         int _nSubjs;
         int _nParticles;
 
-        QGraphicsScene _scene;
+        QGraphicsScene _scene, _scene2;
         QVector<RealImage::Pointer> _images;
         QVector<RealImage::Pointer> _warpedImages;
         QVector<LabelImage::Pointer> _labels;
         QVector<QGraphicsRealImageItem*> _imageItems;
         QVector<QGraphicsRealImageItem*> _secondImageItems;
         QVector<QGraphicsParticleItems> _particleGroups;
+
+        QGraphicsRealImageItem* _particleWindow;
 
         QBasicTimer m_timer;
         QFuture<void> m_future;

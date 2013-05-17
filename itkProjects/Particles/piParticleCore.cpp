@@ -499,6 +499,7 @@ namespace pi {
     }
 
     ParticleSystem::ParticleSystem()  {
+        m_CurrentResolutionLevel = 0;
     }
 
     int ParticleSystem::GetNumberOfSubjects() {
@@ -513,6 +514,7 @@ namespace pi {
     }
 
     void ParticleSystem::InitializeSystem(int nSubj, int nParticles) {
+        m_CurrentResolutionLevel = 0;
         m_Subjects.clear();
         m_Subjects.resize(nSubj);
         for (int i = 0; i < m_Subjects.size(); i++) {
@@ -522,6 +524,7 @@ namespace pi {
     }
     
     void ParticleSystem::InitializeSystem(Options& options) {
+        m_CurrentResolutionLevel = 0;
         m_Options = &options;
         m_Subjects.clear();
         m_Subjects.resize(options.GetStringVector("Subjects:").size());
@@ -684,7 +687,34 @@ namespace pi {
         }
         return nIntersectionPixels;
     }
-    
+
+    void ParticleSystem::UseSingleParticle(int particleId) {
+        for (int i = 0; i < m_Subjects.size(); i++) {
+            for (int j = 0; j < m_Subjects[i].m_Particles.size(); j++) {
+                if (particleId < 0) {
+                    m_Subjects[i].m_Particles[j].Enable();
+                } else {
+                    if (j == particleId) {
+                        m_Subjects[i].m_Particles[j].Enable();
+                    } else {
+                        m_Subjects[i].m_Particles[j].Disable();
+                    }
+                }
+            }
+        }
+    }
+
+    int ParticleSystem::GetCurrentResolutionLevel() {
+        return m_CurrentResolutionLevel;
+    }
+
+    void ParticleSystem::SetCurrentResolutionLevel(int level) {
+        m_CurrentResolutionLevel = level;
+    }
+
+    int ParticleSystem::GetMaximumResolutionLevel() {
+        return m_Subjects[0].m_Images.size() - 1;
+    }
 
     /*
     void export2vtk(ParticleSubject& sub, const char* vtkname, int field) {

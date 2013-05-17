@@ -76,6 +76,33 @@ namespace pi {
     };
 
 
+    class NeighborSampler {
+    public:
+        typedef RealImage::PixelType PixelType;
+        typedef RealImage::IndexType IndexType;
+        typedef RealImage::PointType PointType;
+        typedef RealImage::RegionType RegionType;
+        typedef RealImage::SizeType SizeType;
+
+        NeighborSampler(RegionType region, RealImage::Pointer image);
+        ~NeighborSampler();
+
+        void setSampleRegion(RegionType& region, RealImage* reference);
+        
+        void sampleValues(LinearImageInterpolatorType* interp, Particle& particle, ParticleAttribute &attr);
+        void sampleGradients(GradientInterpolatorType* interp, Particle& particle, ParticleAttribute &attr);
+
+        void createSampleIndexes2(IndexType& startIdx);
+        void createSampleIndexes3(IndexType& startIdx);
+        
+    private:
+        RealImage::SizeType _regionSize;
+
+        int _numberOfSamples;
+        std::vector<IndexType> _indexes;
+        std::vector<PointType> _points;
+    };
+
     class IntensityForce {
     public:
         typedef boost::numeric::ublas::matrix<ParticleAttribute> AttrMatrix;
@@ -92,7 +119,9 @@ namespace pi {
         void SetImageContext(ImageContext* context);
         void ComputeIntensityForce(ParticleSystem* system);
 
-        void ComputeAttributes(ParticleSystem* system);
+        void ComputeTransform(ParticleSystem* system);
+        void SampleAttributes(ParticleSystem* system);
+
         
         // attrmatrix has S subject rows and N point columns
         void NormalizeAttributes(AttrMatrix& attrs);
@@ -100,8 +129,11 @@ namespace pi {
         void ComputeGradient(AttrMatrix& attrs, VNLDoubleMatrix& invC, int pointIdx, bool useDual);
 
         // access to particle attribute
-        ParticleAttribute& GetAttribute(int imageId, int particleId);
+        ParticleAttribute* GetAttribute(int imageId, int particleId);
 
+
+        // deprecated function
+        void ComputeAttributes(ParticleSystem* system);
     private:
 
         RealImageVector warpedImages;
