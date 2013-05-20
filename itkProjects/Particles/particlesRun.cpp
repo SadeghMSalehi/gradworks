@@ -167,11 +167,10 @@ int main(int argc, char* argv[]) {
 
         // load data
         solver.LoadConfig(args[0].c_str());
-        ImageContext& imageCtx = solver.m_ImageContext;
 
         // bspline resampling
         ParticleBSpline particleTransform;
-        particleTransform.SetReferenceImage(imageCtx.GetLabel(0));
+        particleTransform.SetReferenceImage(solver.m_System[0].GetLabel());
 
         int srcIdx = atoi(parser.GetString("--srcidx", "1").c_str());
         int dstIdx = atoi(parser.GetString("--dstidx", "0").c_str());
@@ -324,7 +323,7 @@ int main(int argc, char* argv[]) {
             cout << "--markOutput requires [output.txt] [output-image]" << endl;
         }
         solver.LoadConfig(args[0].c_str());
-        LabelImage::Pointer label = labelIO.NewImage(solver.m_ImageContext.GetLabel(srcIdx));
+        LabelImage::Pointer label = labelIO.NewImage(solver.m_System[srcIdx].GetLabel());
         int nPoints = system[srcIdx].GetNumberOfPoints();
         cout << "Marking " << nPoints << " points ..." << endl;
         MarkAtImage(system[srcIdx], system[srcIdx].GetNumberOfPoints(), label, 1);
@@ -449,9 +448,7 @@ int main(int argc, char* argv[]) {
         system[srcIdx].AlignmentTransformX2Y();
         cout << system[srcIdx].alignment << endl;
         cout << system[srcIdx].inverseAlignment << endl;
-        export2vtk(system[srcIdx], "src.vtk", 0);
-        export2vtk(system[dstIdx], "dst.vtk", 1);
-    } else if (parser.GetBool("--eval")) {
+   } else if (parser.GetBool("--eval")) {
         if (args.size() < 2) {
             cout << "--eval requires [label1] [label2]" << endl;
             return 0;
@@ -515,7 +512,7 @@ int main(int argc, char* argv[]) {
             ImageIO<LabelImage> io;
 
             for (int i = 0; i < markingImages.size(); i++) {
-                LabelImage::Pointer label = solver.m_ImageContext.GetLabel(i);
+                LabelImage::Pointer label = solver.m_System[i].GetLabel();
                 LabelImage::Pointer canvas = io.NewImage(label);
                 ParticleArray& data = system[i].m_Particles;
                 MarkAtImage<ParticleArray>(data, data.size(), canvas, 1);

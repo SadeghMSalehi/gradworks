@@ -52,6 +52,7 @@ namespace air {
     typedef itk::ImageRegionIteratorWithIndex<Label> LabelIterator;
     typedef itk::ImageRegionIteratorWithIndex<LabelSlice> LabelSliceIterator;
     typedef itk::LinearInterpolateImageFunction<Image> ImageInterpolator;
+    typedef itk::NearestNeighborInterpolateImageFunction<Image> NNImageInterpolator;
 
     typedef air::ImageAlgorithm<Image,Label> ImageAlgo;
 
