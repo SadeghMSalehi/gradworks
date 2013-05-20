@@ -475,6 +475,7 @@ namespace pi {
             /////////////////////////////////
             // t is automatically increases
             ////////////////////////////////
+            RunLoopBegin();
             for (t = t0; t < t1;) {
                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 // IMPORTANT STEP
@@ -488,6 +489,7 @@ namespace pi {
                 }
                 cout << "Done ..." << endl;
             }
+            RunLoopEnd();
         } catch (itk::ExceptionObject& ex) {
             ex.Print(cout);
         }
@@ -513,7 +515,9 @@ namespace pi {
 
     void ParticleSystemSolver::CheckEnergy() {
         double currentEnergy = m_System.ImageEnergy.sum();
-        if (_previousImageEnergy < currentEnergy && m_System.currentIteration > 30) {
+        cout << "Current Image Energy: " << currentEnergy << endl;
+        if (_previousImageEnergy < currentEnergy && m_System.currentIteration > 100) {
+            cout << "Local Maxima Exceeded: " << _previousImageEnergy << " < " << currentEnergy << endl;
             continueToRun = false;
         }
         _previousImageEnergy = currentEnergy;
