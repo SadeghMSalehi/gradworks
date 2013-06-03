@@ -80,6 +80,7 @@ namespace pi {
         // Image related member variables
         std::string m_ImageFile;
         RealImageVector m_Images;
+        RealImage::Pointer m_WarpedImage;
 
         std::string m_LabelFile;
         LabelImage::Pointer m_Label;
@@ -92,6 +93,7 @@ namespace pi {
         // Label sampler for multi-phase internal force
         LabelImage::Pointer friendImage;
         NNLabelInterpolatorType::Pointer friendSampler;
+
 
         RealImage::Pointer realImage;
         LinearImageInterpolatorType::Pointer realSampler;
@@ -159,6 +161,7 @@ namespace pi {
         void ComputeIndexZ(Particle& p, RealIndex& x);
         void SetFromIndex(IntIndex &x, Particle& p);
 
+        void ContinuousIndexToPoint(ImagePoint& idx, ImagePoint& point);
 
         // particle IO
         void ReadParticlePositions(std::istream& is, int nPoints);
@@ -171,6 +174,7 @@ namespace pi {
         // image related functions
         void LoadLabel(std::string filename);
         void LoadImage(std::string filename);
+        LabelImage::Pointer WarpLabelToMeanSpace();
 
         LabelImage::Pointer& GetLabel();
         void SetLabel(LabelImage::Pointer label);

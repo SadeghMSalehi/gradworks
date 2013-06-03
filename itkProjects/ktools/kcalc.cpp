@@ -11,6 +11,7 @@ using namespace pi;
 #endif
 
 typedef itk::Image<PIXEL_TYPE,3> ImageType;
+typedef itk::Image<PIXEL_TYPE,2> Image2D;
 ImageIO<ImageType> io;
 std::vector<ImageType::Pointer> inputImages;
 
@@ -18,6 +19,7 @@ int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
         { 0, "-o", SO_REQ_SEP },
         { 1, "-e", SO_REQ_SEP },
+        { 2, "-2", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
@@ -38,19 +40,36 @@ int main(int argc, char* argv[]) {
         cout << "       Please refer to http://muparser.beltoforion.de/mup_features.html for functions and operators." << endl;
         return 0;
     }
-    
-    ImageInfo lastImageInfo;
-    PixelMathImageFilter<ImageType, ImageType>::Pointer pixelFilter = PixelMathImageFilter<ImageType, ImageType>::New();
-    pixelFilter->SetEquation(eq);
-    for (int i = 0; i < args.size(); i++) {
-        pixelFilter->PushBackInput(io.ReadCastedImage(args[i], lastImageInfo));
-    }
-    try {
-        pixelFilter->Update();
-    } catch (itk::ExceptionObject& e) {
-        cout << e.what() << endl;
-    }
 
-    io.WriteCastedImage(outputFilename, pixelFilter->GetOutput(), lastImageInfo.componenttype);
+    if (argParser.GetBool("-2")) {
+        cout << "Working on 2D images" << endl;
+        ImageIO<Image2D> io2;
+        ImageInfo lastImageInfo;
+        PixelMathImageFilter<Image2D, Image2D>::Pointer pixelFilter = PixelMathImageFilter<Image2D, Image2D>::New();
+        pixelFilter->SetEquation(eq);
+        for (int i = 0; i < args.size(); i++) {
+            pixelFilter->PushBackInput(io2.ReadCastedImage(args[i], lastImageInfo));
+        }
+        try {
+            pixelFilter->Update();
+        } catch (itk::ExceptionObject& e) {
+            cout << e.what() << endl;
+        }
+        io2.WriteCastedImage(outputFilename, pixelFilter->GetOutput(), lastImageInfo.componenttype);
+    } else {
+        ImageInfo lastImageInfo;
+        PixelMathImageFilter<ImageType, ImageType>::Pointer pixelFilter = PixelMathImageFilter<ImageType, ImageType>::New();
+        pixelFilter->SetEquation(eq);
+        for (int i = 0; i < args.size(); i++) {
+            pixelFilter->PushBackInput(io.ReadCastedImage(args[i], lastImageInfo));
+        }
+        try {
+            pixelFilter->Update();
+        } catch (itk::ExceptionObject& e) {
+            cout << e.what() << endl;
+        }
+
+        io.WriteCastedImage(outputFilename, pixelFilter->GetOutput(), lastImageInfo.componenttype);
+    }
     return 0;
 }

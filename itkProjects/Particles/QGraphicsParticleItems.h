@@ -32,6 +32,8 @@ public:
     void createParticles(pi::ParticleSubject* subject);
     void updateParticles();
     void clearParticles();
+    void useParticleX(bool value);
+    QGraphicsEllipseEventItem* getItem(int i);
 
     // be careful about this behavior
     void selectParticle(int);
@@ -39,6 +41,7 @@ public:
 
 protected:
 private:
+    bool _useParticleX;
     bool _isParticleSelected;
     int _particleSelectedId;
     bool _isHide;

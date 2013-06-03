@@ -43,11 +43,11 @@ namespace pi {
         void on_traceSteps_valueChanged(int n);
 
         void on_actionViewOrientation_triggered();
-        void on_actionShowWarped_triggered();
         void on_actionPrint_triggered();
         void on_actionTest_triggered();
         void on_actionBsplineWarp_triggered();
-        void on_actionImageBsplineWarp_triggered();
+
+//        void on_actionImageBsplineWarp_triggered();
         void on_actionIntensityGradient_triggered();
         void on_actionThreadTest_toggled(bool);
         void on_actionShowCostPlot_toggled(bool);

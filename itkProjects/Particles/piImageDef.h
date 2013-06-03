@@ -60,6 +60,7 @@ namespace pi {
 
     typedef NNLabelInterpolatorType::IndexType IntIndex;
     typedef LinearVectorImageInterpolatorType::ContinuousIndexType RealIndex;
+    typedef RealImage::PointType ImagePoint;
     
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
     typedef itk::ImageRegionIteratorWithIndex<RealImage> RealImageIteratorType;

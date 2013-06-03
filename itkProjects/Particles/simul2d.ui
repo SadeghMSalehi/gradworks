@@ -126,6 +126,7 @@
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="actionSaveTransform"/>
    </widget>
    <widget class="QMenu" name="menuParticles">
     <property name="title">
@@ -165,6 +166,7 @@
      <addaction name="actionLevel2"/>
     </widget>
     <addaction name="actionBsplineWarp"/>
+    <addaction name="actionParticleBsplineWarp2"/>
     <addaction name="actionImageBsplineWarp"/>
     <addaction name="separator"/>
     <addaction name="actionThreadTest"/>
@@ -259,8 +261,9 @@
           </font>
          </property>
          <property name="plainText">
-          <string>Options: +adaptive_sampling +ensemble +intensity
+          <string>Options: -adaptive_sampling +ensemble +intensity
 NumberOfParticles: int 100
+ControlPointSpacing: int 8
 ForceCoefficients: reals 0.1 0.2 1
 PreprocessingTimeRange: reals 0 0.05 30
 RunTrace: /tmp/trace.txt
@@ -270,11 +273,11 @@ Subjects: strings 2
 00
 11
 RealImages: strings 2
-/NIRAL/work/joohwi/nadia/SliceImages/C33/C33_E04_slice_128.nii.gz
-/NIRAL/work/joohwi/nadia/SliceImages/C31/C31_E04_slice_128.nii.gz
+/NIRAL/work/joohwi/nadia/052613/C31_E04_128.nii.gz
+/NIRAL/work/joohwi/nadia/052613/C33_E04_128.nii.gz
 LabelImages: strings 2
-/NIRAL/work/joohwi/nadia/SliceImages/C33/C33_E04_label_128.nii.gz
-/NIRAL/work/joohwi/nadia/SliceImages/C31/C31_E04_label_128.nii.gz
+/NIRAL/work/joohwi/nadia/052613/C31_E04_label.nii.gz
+/NIRAL/work/joohwi/nadia/052613/C33_E04_label.nii.gz
 ==option_end==</string>
          </property>
         </widget>
@@ -618,6 +621,31 @@ LabelImages: strings 2
    </property>
    <property name="text">
     <string>Level 2</string>
+   </property>
+  </action>
+  <action name="actionSaveTransform">
+   <property name="text">
+    <string>Save Transform</string>
+   </property>
+  </action>
+  <action name="action4">
+   <property name="text">
+    <string>4</string>
+   </property>
+  </action>
+  <action name="action8">
+   <property name="text">
+    <string>8</string>
+   </property>
+  </action>
+  <action name="action16">
+   <property name="text">
+    <string>16</string>
+   </property>
+  </action>
+  <action name="actionParticleBsplineWarp2">
+   <property name="text">
+    <string>Particle Bspline Warp #2</string>
    </property>
   </action>
  </widget>

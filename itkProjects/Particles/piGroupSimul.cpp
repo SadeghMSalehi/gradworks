@@ -10,6 +10,7 @@
 #include <QMovie>
 
 #include "piGroupSimul.h"
+#include "piImageRegistration.h"
 #include "piParticleSystemSolver.h"
 #include "piParticleBSpline.h"
 #include "piImageIO.h"
@@ -47,6 +48,10 @@ namespace pi {
         connect(_ui->actionShowParticles, SIGNAL(toggled(bool)), SLOT(showParticles(bool)));
         connect(_ui->actionDistanceMap, SIGNAL(triggered()), SLOT(createDistanceMap()));
         connect(_ui->actionShowAttributes, SIGNAL(triggered()), SLOT(showAttributes()));
+        connect(_ui->actionShowWarped, SIGNAL(triggered()), SLOT(showWarpedImages()));
+        connect(_ui->actionImageBsplineWarp, SIGNAL(triggered()), SLOT(computeImageBspline()));
+        connect(_ui->actionSaveTransform, SIGNAL(triggered()), SLOT(saveTransform()));
+        connect(_ui->actionParticleBsplineWarp2, SIGNAL(triggered()), SLOT(computeParticleWarp()));
 
         connect(_ui->actionLevel0, SIGNAL(triggered()), SLOT(setResolutionLevel()));
         connect(_ui->actionLevel1, SIGNAL(triggered()), SLOT(setResolutionLevel()));
@@ -98,6 +103,7 @@ namespace pi {
         _imageItems.resize(_nSubjs);
         _secondImageItems.resize(_nSubjs);
         _particleGroups.resize(_nSubjs);
+        _secondParticleGroups.resize(_nSubjs);
 
         int hPos = 0;
         int wPos = 0;
@@ -141,6 +147,13 @@ namespace pi {
             _particleGroups[i].setParentItem(_imageItems[i]);
             _particleGroups[i].createParticles(&(_solver->m_System[i]));
 
+            _secondParticleGroups[i].useParticleX(false);
+            _secondParticleGroups[i].setListener(this);
+            _secondParticleGroups[i].hideParticles(true);
+            _secondParticleGroups[i].setScene(&_scene);
+            _secondParticleGroups[i].setParentItem(_secondImageItems[i]);
+            _secondParticleGroups[i].createParticles(&(_solver->m_System[i]));
+
             hPos += (_imageItems[i]->boundingRect().height() + 3);
         }
 
@@ -169,31 +182,88 @@ namespace pi {
         for (int i = 0; i < _nSubjs; i++) {
             _particleGroups[i].hideParticles(!on);
             _particleGroups[i].updateParticles();
+
+            _secondParticleGroups[i].hideParticles(!on);
+            _secondParticleGroups[i].updateParticles();
         }
         showAttribute(_particleGroups[0].getSelectedParticleId());
 //        cout << "Image Energy: " << _solver->m_System.ImageEnergy.sum() << endl;
     }
 
     void GroupSimul::computeWarpedImages() {
+        stringstream configstream;
+        string config = _ui->config->toPlainText().toStdString();
+        configstream.str(config);
+
+        Options options;
+        configstream >> options;
+
         const int n = _solver->m_System.GetNumberOfSubjects();
-        ParticleSubject& meanSubj = _solver->m_System[0];
-
         for (int i = 0; i < n; i++) {
-            ParticleBSpline bspline;
-            bspline.SetReferenceImage(_labels[i]);
-            bspline.EstimateTransform(meanSubj, _solver->m_System[i]);
-            _warpedImages[i] = bspline.WarpImage(_images[i]);
-            FieldTransformType::Pointer transform = bspline.GetTransform();
-
             // show warpedImage
-            _secondImageItems[i]->setImage<RealImage>(_warpedImages[i]);
+            if (_solver->m_System[i].m_WarpedImage.IsNotNull()) {
+                cout << "showing the cached warped image" << endl;
+                _secondImageItems[i]->setImage<RealImage>(_solver->m_System[i].m_WarpedImage);
+            }
+            
             _secondImageItems[i]->setRange(_imageItems[0]->getRange(0), _imageItems[0]->getRange(1));
-            _secondImageItems[i]->generateUserGrids<FieldTransformType>(transform);
             _secondImageItems[i]->refresh();
             _secondImageItems[i]->show();
 
+            _secondParticleGroups[i].updateParticles();
+            _secondParticleGroups[i].hideParticles(false);
+            
             __realIO.WriteImage(QString("/tmpfs/WarpedImage_%1.nii.gz").arg(i).toStdString(), _warpedImages[i]);
         }
+    }
+
+    // compute warped image using current particle display which may be different from the one used during registration
+    void GroupSimul::computeParticleWarp() {
+        stringstream configstream;
+        string config = _ui->config->toPlainText().toStdString();
+        configstream.str(config);
+
+        Options options;
+        configstream >> options;
+
+        cout << "ControlPointSpacing: " << options.GetInt("ControlPointSpacing:", 8);
+
+        const int n = _solver->m_System.GetNumberOfSubjects();
+        _solver->m_System.ComputeXMeanSubject();
+        ParticleSubject& meanSubj = _solver->m_System.GetMeanSubject();
+
+        for (int i = 0; i < n; i++) {
+            ParticleBSpline bspline;
+            bspline.SetControlPointSpacing(options.GetInt("ControlPointSpacing:", 8));
+            bspline.SetReferenceImage(_labels[i]);
+            bspline.EstimateTransform(meanSubj, _solver->m_System[i]);
+
+            FieldTransformType::Pointer transform = bspline.GetTransform();
+            _warpedImages[i] = bspline.WarpImage(_solver->m_System[i].GetImage(0));
+            _secondImageItems[i]->setImage<RealImage>(_warpedImages[i]);
+            _secondImageItems[i]->generateUserGrids<FieldTransformType>(transform);
+
+            _secondImageItems[i]->setRange(_imageItems[0]->getRange(0), _imageItems[0]->getRange(1));
+            _secondImageItems[i]->refresh();
+            _secondImageItems[i]->show();
+
+            _secondParticleGroups[i].updateParticles();
+            _secondParticleGroups[i].hideParticles(false);
+        }
+    }
+
+    void GroupSimul::computeImageBspline() {
+        RealImage::Pointer image = bsplineRegistration(_solver->m_System[1].GetImage(0), _solver->m_System[0].GetImage(0));
+        if (image.IsNotNull()) {
+            _secondImageItems[0]->setImage<RealImage>(image);
+            _secondImageItems[0]->setRange(_imageItems[0]->getRange(0), _imageItems[0]->getRange(1));
+            _secondImageItems[0]->refresh();
+            _secondImageItems[0]->show();
+        }
+    }
+
+    void GroupSimul::showWarpedImages() {
+        
     }
 
     void GroupSimul::startRun() {
@@ -259,6 +329,10 @@ namespace pi {
 
     void GroupSimul::mousePressed(QGraphicsEllipseEventItem *sender, QGraphicsSceneMouseEvent *event) {
         event->accept();
+
+        int particleId = sender->data(0).value<int>();
+
+        cout << "Particle #" << particleId << " selected." << endl;
     }
 
     void GroupSimul::mouseReleased(QGraphicsEllipseEventItem *sender, QGraphicsSceneMouseEvent *event) {
@@ -271,6 +345,24 @@ namespace pi {
 //        _solver->m_System.UseSingleParticle(selectedParticleId);
 
         showAttribute(particleId);
+
+        QPointF pos = sender->mapToParent(event->pos().x(), event->pos().y());
+
+        RealImage::PointType idx, point;
+        idx[0] = pos.x();
+        idx[1] = pos.y();
+        
+        ParticleSystem& system = _solver->m_System;
+        for (int i = 0; i < system.GetNumberOfSubjects(); i++) {
+            if (_particleGroups[i].getItem(particleId) != sender) {
+                continue;
+            }
+            system[i].ContinuousIndexToPoint(idx, point);
+            fordim (k) {
+                system[i][particleId].x[k] = point[k];
+            }
+            _particleGroups[i].updateParticles();
+        }
     }
 
     void GroupSimul::createDistanceMap() {
@@ -303,8 +395,8 @@ namespace pi {
                 item->setPos((w+3)*i, (w+3)*j);
 
                 _scene2.addItem(item);
-//                _ui->graphicsView2->fitInView(0, 0, (w+3)*(i+1), (w+3)*(j+1), Qt::KeepAspectRatio);
-                _ui->graphicsView2->fitInView(0, 0, (w+3), w, Qt::KeepAspectRatio);
+                _ui->graphicsView2->fitInView(0, 0, (w+3)*(i+1), (w+3)*(j+1), Qt::KeepAspectRatio);
+//                _ui->graphicsView2->fitInView(0, 0, (w+3), w, Qt::KeepAspectRatio);
                 cout << attr->F[0] << "," << attr->F[1] << "; ";
             }
         }
@@ -334,6 +426,19 @@ namespace pi {
 
                     cout << "F = [" << attr->F[0] << "," << attr->F[1] << "]" << endl;
                 }
+            }
+        }
+    }
+
+    void GroupSimul::saveTransform() {
+        ParticleSystem& system = _solver->m_System;
+        for (int i = 0; i < system.GetNumberOfSubjects(); i++) {
+            if (system[i].m_InverseDeformableTransform.IsNotNull()) {
+                string labelFile = _solver->m_Options.GetStringVectorValue("LabelImages:", i);
+                string filename = QString::fromStdString(labelFile).replace("_label", "_warpedLabel").toStdString();
+                
+                LabelImage::Pointer label = system[i].WarpLabelToMeanSpace();
+                __labelIO.WriteImage(filename, label);
             }
         }
     }

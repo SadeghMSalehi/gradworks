@@ -37,11 +37,17 @@ namespace pi {
     class ParticleBSpline {
     public:
         ParticleBSpline() : m_SplineOrder(__SPLINE_ORDER__), m_SplineLevel(1), m_ControlPoints(__SPLINE_CONTROL_POINTS__) {
+            m_ControlPointSpacing = 4;
         }
 
+        int m_ControlPointSpacing;
         int m_SplineOrder;
         int m_SplineLevel;
         int m_ControlPoints;
+
+        void SetControlPointSpacing(int spacing) {
+            m_ControlPointSpacing = spacing;
+        }
 
         LabelImage::Pointer GetReferenceImage();
         void SetReferenceImage(LabelImage::Pointer img);
@@ -49,6 +55,7 @@ namespace pi {
         void EstimateTransformY(const ParticleSubject& a, const ParticleSubject& b);
         void EstimateTransformZ(const ParticleSubject& a, const ParticleSubject& b);
         void EstimateTransformYZ(const ParticleSubject& a, const ParticleSubject& b);
+
 
 
         template <class C, class R, class T> void EstimateTransform(const T& src, const T& dst, const int nPoints, typename R::Pointer refImage);
@@ -86,15 +93,17 @@ namespace pi {
         C caster;
         int n = nPoints;
         for (int i = 0; i < n; i++) {
-            IntPointSetType::PointType iPoint;
+            IntPointSetType::PointType srcPoint;
+            IntPointSetType::PointType dstPoint;
             fordim(j) {
-                iPoint[j] = caster.castSource(src[i],j);
+                srcPoint[j] = caster.castSource(src[i],j);
+                dstPoint[j] = caster.castTarget(dst[i],j);
             }
             VectorType vector;
             fordim(j) {
                 vector[j] = caster.castTarget(dst[i],j) - caster.castSource(src[i],j);
             }
-            m_FieldPoints->SetPoint(i, iPoint);
+            m_FieldPoints->SetPoint(i, srcPoint);
             m_FieldPoints->SetPointData(i, vector);
         }
 
@@ -113,7 +122,7 @@ namespace pi {
 
 
         for (int i = 0; i < imageSize.GetSizeDimension(); i++) {
-            numControlPoints[i] = imageSize[i] / 16 + splineOrder;
+            numControlPoints[i] = imageSize[i] / m_ControlPointSpacing + splineOrder;
         }
 
 //        cout << "# control points: " << numControlPoints << endl;

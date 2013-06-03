@@ -21,9 +21,6 @@
 #include "iostream"
 #include "vector"
 
-#ifndef DIMENSIONS
-#define DIMENSIONS 3
-#endif
 
 using namespace std;
 
@@ -52,6 +49,7 @@ namespace pi {
 		itk::ImageIOBase::IOComponentType _componentType;
         
 	public:
+        typedef ImageIO Self;
 		typedef typename T::Pointer ImagePointer;
 		typedef typename T::PixelType ImagePixel;
 		typedef typename T::SizeType ImageSize;
@@ -61,7 +59,10 @@ namespace pi {
         typedef itk::TransformFileWriter TransformFileWriter;
         typedef TransformFileReader::TransformType TransformType;
         typedef TransformFileReader::TransformListType   TransformListType;
-        
+
+        /** Image dimension. */
+        itkStaticConstMacro(ImageDimension, unsigned int, T::ImageDimension);
+
         bool __noverbose;
         
 		ImageIO() {
@@ -106,17 +107,8 @@ namespace pi {
             return imageIO;
         }
 
-
-		ImagePointer NewImageT(int sx, int sy, int sz) {
+        ImagePointer NewImageT(ImageSize size) {
 			ImagePointer newImage = T::New();
-			ImageSize size;
-
-			size[0] = sx;
-			size[1] = sy;
-            if (T::GetImageDimension() == 3) {
-                size[2] = sz;
-            }
-
 			ImageRegion region;
 			region.SetSize(size);
 
@@ -140,14 +132,54 @@ namespace pi {
                 newImage->SetOrigin(origin);
                 newImage->SetSpacing(spacing);
             }
+
 			newImage->Allocate();
 			return newImage;
 		}
+
+		ImagePointer NewImageT(int sx, int sy, int sz) {
+			ImagePointer newImage = T::New();
+			ImageSize size;
+
+			size[0] = sx;
+			size[1] = sy;
+            if (T::GetImageDimension() == 3) {
+                size[2] = sz;
+            }
+            return NewImageT(size);
+		}
+
+        ImagePointer NewImage(ImagePointer ref) {
+            ImagePointer output = CopyImage(ref);
+            output->FillBuffer(0);
+            return output;
+        }
+
+        ImagePointer WrapImage(typename T::PixelType* imagePointer, int *size) {
+            int nElems = 1;
+            typename T::PixelContainer::Pointer importer = T::PixelContainer::New();
+            typename T::RegionType region;
+            for (int i = 0; i < ImageDimension; i++) {
+                region.SetSize(i, size[i]);
+                nElems *= size[i];
+            }
+            importer->SetImportPointer(imagePointer, nElems, false);
+            
+            ImagePointer image = T::New();
+            image->SetPixelContainer(importer);
+            image->SetRequestedRegion(region);
+            image->SetLargestPossibleRegion(region);
+            image->SetBufferedRegion(region);
+            return image;
+        }
+        
         ImagePointer CopyImage(ImagePointer src) {
             typename itk::ImageDuplicator<T>::Pointer dub = itk::ImageDuplicator<T>::New();
             dub->SetInputImage(src);
             dub->Update();
-			return dub->GetOutput();
+			ImagePointer output = dub->GetOutput();
+            output->DisconnectPipeline();
+            return output;
 		}
         
         ImagePointer ReadImage(std::string filename) {
@@ -166,7 +198,9 @@ namespace pi {
                     std::cout << " done." << std::endl;
                 }
                 reader->Update();
-                return reader->GetOutput();
+                ImagePointer ret = reader->GetOutput();
+                ret->DisconnectPipeline();
+                return ret;
             } else {
                 if (!__noverbose) {
                     cout << "' failed. (file not exist)" << endl;
@@ -223,61 +257,61 @@ namespace pi {
             switch (pixelType) {
                 case itk::ImageIOBase::DOUBLE:
                 {
-                    typedef itk::Image<double,DIMENSIONS> I;
+                    typedef itk::Image<double, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::FLOAT:
                 {
-                    typedef itk::Image<float,DIMENSIONS> I;
+                    typedef itk::Image<float, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::SHORT:
                 {
-                    typedef itk::Image<short,DIMENSIONS> I;
+                    typedef itk::Image<short, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::USHORT:
                 {
-                    typedef itk::Image<unsigned short,DIMENSIONS> I;
+                    typedef itk::Image<unsigned short, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::UCHAR:
                 {
-                    typedef itk::Image<unsigned char,DIMENSIONS> I;
+                    typedef itk::Image<unsigned char, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::CHAR:
                 {
-                    typedef itk::Image<char,DIMENSIONS> I;
+                    typedef itk::Image<char, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::ULONG:
                 {
-                    typedef itk::Image<unsigned long,DIMENSIONS> I;
+                    typedef itk::Image<unsigned long, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::LONG:
                 {
-                    typedef itk::Image<long,DIMENSIONS> I;
+                    typedef itk::Image<long, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::INT:
                 {
-                    typedef itk::Image<int,DIMENSIONS> I;
+                    typedef itk::Image<int, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
                 case itk::ImageIOBase::UINT:
                 {
-                    typedef itk::Image<unsigned int,DIMENSIONS> I;
+                    typedef itk::Image<unsigned int, Self::ImageDimension> I;
                     return CastImageFromS<I>(ReadImageS<I>(inputFilename));
                     break;
                 }
@@ -295,61 +329,61 @@ namespace pi {
             switch (pixelType) {
                 case itk::ImageIOBase::DOUBLE:
                 {
-                    typedef itk::Image<double,DIMENSIONS> I;
+                    typedef itk::Image<double, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::FLOAT:
                 {
-                    typedef itk::Image<float,DIMENSIONS> I;
+                    typedef itk::Image<float, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::SHORT:
                 {
-                    typedef itk::Image<short,DIMENSIONS> I;
+                    typedef itk::Image<short, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::USHORT:
                 {
-                    typedef itk::Image<unsigned short,DIMENSIONS> I;
+                    typedef itk::Image<unsigned short, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::UCHAR:
                 {
-                    typedef itk::Image<unsigned char,DIMENSIONS> I;
+                    typedef itk::Image<unsigned char, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::CHAR:
                 {
-                    typedef itk::Image<char,DIMENSIONS> I;
+                    typedef itk::Image<char, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::ULONG:
                 {
-                    typedef itk::Image<unsigned long,DIMENSIONS> I;
+                    typedef itk::Image<unsigned long, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::LONG:
                 {
-                    typedef itk::Image<long,DIMENSIONS> I;
+                    typedef itk::Image<long, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::INT:
                 {
-                    typedef itk::Image<int,DIMENSIONS> I;
+                    typedef itk::Image<int, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
                 case itk::ImageIOBase::UINT:
                 {
-                    typedef itk::Image<unsigned int,DIMENSIONS> I;
+                    typedef itk::Image<unsigned int, Self::ImageDimension> I;
                     return WriteImageS<I>(inputFilename, CastImageToS<I>(img));
                     break;
                 }
@@ -424,7 +458,9 @@ namespace pi {
             typename CastFilterType::Pointer caster = CastFilterType::New();
             caster->SetInput(img);
             caster->Update();
-            return caster->GetOutput();
+            ImagePointer output = caster->GetOutput();
+            output->DisconnectPipeline();
+            return output;
         }
 
         // Casting an image to a different typed image
@@ -434,7 +470,9 @@ namespace pi {
             typename CastFilterType::Pointer caster = CastFilterType::New();
             caster->SetInput(img);
             caster->Update();
-            return caster->GetOutput();
+            typename S::Pointer output = caster->GetOutput();
+            output->DisconnectPipeline();
+            return output;
         }
 
         // Write an image with different type
@@ -464,14 +502,14 @@ namespace pi {
             return transformList->front();
         }
         
-        void WriteSingleTransform(char* fileName, typename TransformType::Pointer transform) {
+        void WriteSingleTransform(const char* fileName, TransformType* transform) {
             typename TransformFileWriter::Pointer writer = TransformFileWriter::New();
             writer->SetFileName(fileName);
             writer->AddTransform(transform);
             writer->Update();
         }
         
-        void WriteMultipleTransform(char* fileName, typename TransformFileWriter::ConstTransformListType transformList) {
+        void WriteMultipleTransform(const char* fileName, typename TransformFileWriter::ConstTransformListType transformList) {
             typename TransformFileWriter::Pointer writer = TransformFileWriter::New();
             writer->SetFileName(fileName);
             typename TransformFileWriter::ConstTransformListType::iterator transformIter = transformList.begin();

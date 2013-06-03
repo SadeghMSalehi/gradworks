@@ -28,12 +28,17 @@ QGraphicsParticleItems::QGraphicsParticleItems() {
     _isParticleSelected = false;
     _particleSelectedId = -1;
     _listener = NULL;
+    _useParticleX = true;
 }
 
 QGraphicsParticleItems::~QGraphicsParticleItems() {
 
 }
 
+
+void QGraphicsParticleItems::useParticleX(bool value) {
+    _useParticleX = value;
+}
 
 int QGraphicsParticleItems::getSelectedParticleId() {
     if (_isParticleSelected) {
@@ -114,8 +119,13 @@ void QGraphicsParticleItems::updateParticles() {
         } else {
             _particleItems[j]->show();
         }
-        IntIndex x;
-        _subject->ComputeIndexX(p, x);
+        
+        RealIndex x;
+        if (_useParticleX) {
+            _subject->ComputeIndexX(p, x);
+        } else {
+            _subject->ComputeIndexZ(p, x);
+        }
         _particleItems[j]->setPos(x[0], x[1]);
 
         if (_isParticleSelected && j != _particleSelectedId) {
@@ -125,7 +135,6 @@ void QGraphicsParticleItems::updateParticles() {
             RGBA color = _hsvFunc->operator()(j);
             _particleItems[j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));
             _particleItems[j]->setOpacity(1);
-
         }
     }
 }
@@ -156,4 +165,8 @@ void QGraphicsParticleItems::selectParticle(int particleId) {
     }
 
     updateParticles();
+}
+
+QGraphicsEllipseEventItem* QGraphicsParticleItems::getItem(int i) {
+    return _particleItems[i];
 }

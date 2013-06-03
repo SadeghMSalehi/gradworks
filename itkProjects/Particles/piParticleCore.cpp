@@ -18,6 +18,8 @@
 #include "piVTK.h"
 #include "vtkLandmarkTransform.h"
 
+#include <itkResampleImageFilter.h>
+
 namespace pi {
     ostream& operator<<(ostream& os, const vtkTransformType& t) {
         vtkMatrix4x4* mat = t->GetMatrix();
@@ -442,6 +444,17 @@ namespace pi {
     }
 
 
+    void ParticleSubject::ContinuousIndexToPoint(ImagePoint& idx, ImagePoint& point) {
+        if (m_Label.IsNull()) {
+            return;
+        }
+        RealIndex realIdx;
+        fordim (k) {
+            realIdx[k] = idx[k];
+        }
+        m_Label->TransformContinuousIndexToPhysicalPoint(realIdx, point);
+    }
+
     // Image related functions
     void ParticleSubject::LoadLabel(std::string filename) {
         ImageIO<LabelImage> io;
@@ -484,6 +497,19 @@ namespace pi {
             }
         }
 
+    }
+
+    LabelImage::Pointer ParticleSubject::WarpLabelToMeanSpace() {
+        typedef itk::ResampleImageFilter<LabelImage,LabelImage> ResampleFilterType;
+        ResampleFilterType::Pointer resampleFilter = ResampleFilterType::New();
+        resampleFilter->SetInput(GetLabel());
+        //        resampleFilter->SetTransform(transform);
+        resampleFilter->SetTransform(m_InverseDeformableTransform);
+        resampleFilter->SetInterpolator(NNLabelInterpolatorType::New());
+        resampleFilter->SetReferenceImage(GetLabel());
+        resampleFilter->UseReferenceImageOn();
+        resampleFilter->Update();
+        return resampleFilter->GetOutput();
     }
 
     LabelImage::Pointer& ParticleSubject::GetLabel() {
@@ -585,13 +611,16 @@ namespace pi {
         const int nPoints = m_Subjects[0].GetNumberOfPoints();
         const int nSubjects = m_Subjects.size();
 
-        m_MeanSubject.m_SubjId = -1;
-        m_MeanSubject.NewParticles(nPoints);
+        if (m_MeanSubject.GetNumberOfPoints() != nPoints) {
+            m_MeanSubject.m_SubjId = -1;
+            m_MeanSubject.NewParticles(nPoints);
+        }
 
         // for every dimension k
         fordim(k) {
             // for every point i
             for (int i = 0; i < nPoints; i++) {
+                m_MeanSubject[i].x[k] = 0;
                 // sum over all subject j
                 for (int j = 0; j < nSubjects; j++) {
                     m_MeanSubject[i].x[k] += m_Subjects[j][i].x[k];
@@ -606,13 +635,16 @@ namespace pi {
         const int nPoints = m_Subjects[0].GetNumberOfPoints();
         const int nSubjects = m_Subjects.size();
 
-        m_MeanSubject.m_SubjId = -1;
-        m_MeanSubject.NewParticles(nPoints);
+        if (m_MeanSubject.GetNumberOfPoints() != nPoints) {
+            m_MeanSubject.m_SubjId = -1;
+            m_MeanSubject.NewParticles(nPoints);
+        }
 
         // for every dimension k
         fordim(k) {
             // for every point i
             for (int i = 0; i < nPoints; i++) {
+                m_MeanSubject[i].y[k] = 0;
                 // sum over all subject j
                 for (int j = 0; j < nSubjects; j++) {
                     m_MeanSubject[i].y[k] += m_Subjects[j][i].y[k];
@@ -634,6 +666,7 @@ namespace pi {
         fordim(k) {
             // for every point i
             for (int i = 0; i < nPoints; i++) {
+                m_MeanSubject[i].z[k] = 0;
                 // sum over all subject j
                 for (int j = 0; j < nSubjects; j++) {
                     m_MeanSubject[i].z[k] += m_Subjects[j][i].z[k];

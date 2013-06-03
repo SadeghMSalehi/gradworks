@@ -111,6 +111,7 @@ namespace pi {
         bool useGaussianGradient;
         DataReal gaussianSigma;
         bool useAttributesAtWarpedSpace;
+        bool computeForwardTransform;
 
     public:
         IntensityForce();
@@ -131,11 +132,10 @@ namespace pi {
         // access to particle attribute
         ParticleAttribute* GetAttribute(int imageId, int particleId);
 
-
         // deprecated function
         void ComputeAttributes(ParticleSystem* system);
-    private:
 
+    private:
         RealImageVector warpedImages;
         std::vector<GradientImage::Pointer> gradImages;
         AttrMatrix m_attrs;

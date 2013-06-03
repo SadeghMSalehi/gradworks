@@ -434,7 +434,14 @@ namespace pi {
                 // translate to the particle
                 samplePoint[l] += particle.z[l];
             }
-            attr.x[k] = interp->Evaluate(samplePoint);
+            if (interp->IsInsideBuffer(samplePoint)) {
+                attr.x[k] = interp->Evaluate(samplePoint);
+            } else {
+                IntIndex idx;
+                interp->GetInputImage()->TransformPhysicalPointToIndex(samplePoint, idx);
+                cout << "Out of region: " << idx << "; " << particle.x[0] << ", " << particle.x[1] << endl;
+                attr.x[k] = 0;
+            }
         }
     }
 
@@ -519,35 +526,43 @@ namespace pi {
 
 
 
-    RealImage::Pointer WarpToMean(ParticleSubject& mean, ParticleSubject& subject, RealImage::Pointer m) {
-        typedef itk::AffineTransform<PointReal, __Dim> AffineTransformType;
-        AffineTransformType::Pointer affineTransform = AffineTransformType::New();
-        AffineTransformType::ParametersType affineParams;
-        affineParams.SetSize((__Dim+1)*(__Dim));
-        for (int i = 0; i < __Dim; i++) {
-            for (int j = 0; j < __Dim; j++) {
-                affineParams[i*__Dim + j] = subject.inverseAlignment->GetMatrix()->GetElement(i,j);
+    RealImage::Pointer WarpToMean(ParticleSubject& mean, ParticleSubject& subject, RealImage::Pointer sourceImage, int nControlPoints) {
+        const bool useAffine = false;
+
+        if (useAffine) {
+            typedef itk::AffineTransform<PointReal, __Dim> AffineTransformType;
+            AffineTransformType::Pointer affineTransform = AffineTransformType::New();
+            AffineTransformType::ParametersType affineParams;
+            affineParams.SetSize((__Dim+1)*(__Dim));
+            for (int i = 0; i < __Dim; i++) {
+                for (int j = 0; j < __Dim; j++) {
+                    affineParams[i*__Dim + j] = subject.inverseAlignment->GetMatrix()->GetElement(i,j);
+                }
+                affineParams[__Dim*__Dim + i] = subject.inverseAlignment->GetMatrix()->GetElement(i,3);
             }
-            affineParams[__Dim*__Dim + i] = subject.inverseAlignment->GetMatrix()->GetElement(i,3);
+            affineTransform->SetParameters(affineParams);
         }
-        affineTransform->SetParameters(affineParams);
 
         ParticleBSpline bsp;
-        bsp.EstimateTransform<ParticleYCaster,RealImage>(mean, subject, mean.GetNumberOfPoints(), m);
+        bsp.SetControlPointSpacing(nControlPoints);
+        bsp.EstimateTransform<ParticleYCaster,RealImage>(mean, subject, mean.GetNumberOfPoints(), sourceImage);
 
         typedef itk::CompositeTransform<PointReal,__Dim> CompositeTransformType;
         CompositeTransformType::Pointer transform = CompositeTransformType::New();
         transform->AddTransform(bsp.GetTransform());
-        transform->AddTransform(affineTransform);
+//        transform->AddTransform(affineTransform);
 
         typedef itk::ResampleImageFilter<RealImage,RealImage> ResampleFilterType;
         ResampleFilterType::Pointer resampleFilter = ResampleFilterType::New();
-        resampleFilter->SetInput(m);
-        resampleFilter->SetTransform(transform);
-        resampleFilter->SetReferenceImage(m);
+        resampleFilter->SetInput(sourceImage);
+//        resampleFilter->SetTransform(transform);
+        resampleFilter->SetTransform(bsp.GetTransform());
+        resampleFilter->SetReferenceImage(sourceImage);
         resampleFilter->UseReferenceImageOn();
         resampleFilter->Update();
         subject.m_InverseDeformableTransform = bsp.GetTransform();
+        subject.m_WarpedImage = resampleFilter->GetOutput();
+
         return resampleFilter->GetOutput();
     }
 
@@ -562,6 +577,9 @@ namespace pi {
     void IntensityForce::ComputeTransform(pi::ParticleSystem *system) {
         const bool useResampling = true;
 
+        system->ComputeXMeanSubject();
+        system->ComputeYMeanSubject();
+
         ParticleSubjectArray& shapes = system->GetSubjects();
         ParticleSubject& meanSubject = system->GetMeanSubject();
 
@@ -574,6 +592,7 @@ namespace pi {
         gradImages.resize(nSubj);
 
         int level = system->GetCurrentResolutionLevel();
+        int nControlPointsSpacing = level == 0 ? 8 : 8;
 
         double gradientSigma = gaussianSigma * shapes[0].GetImage(level)->GetSpacing()[0];
 
@@ -583,10 +602,13 @@ namespace pi {
         ImageProcessing proc;
         for (int i = 0; i < nSubj; i++) {
             ParticleSubject& subject = shapes[i];
+
             LabelImage::Pointer& refImage = subject.GetLabel();
+            RealImage::Pointer sourceImage = subject.GetImage(level);
 
             if (useResampling) {
-                warpedImages[i] = WarpToMean(meanSubject, subject, subject.GetImage(level));
+                warpedImages[i] = WarpToMean(meanSubject, subject, sourceImage, nControlPointsSpacing);
+
                 if (useGaussianGradient) {
                     gradImages[i] = proc.ComputeGaussianGradient(warpedImages[i], gradientSigma);
                 } else {
@@ -600,13 +622,13 @@ namespace pi {
                 subject.m_InverseDeformableTransform = backwardTransform;
             }
 
-            if (subject.m_DeformableTransform.IsNull()) {
+            if (computeForwardTransform) {
                 ParticleBSpline forwardBspline;
+                forwardBspline.SetControlPointSpacing(nControlPointsSpacing);
                 forwardBspline.SetReferenceImage(refImage);
-                forwardBspline.EstimateTransform(subject, meanSubject);
+                forwardBspline.EstimateTransform<ParticleYCaster,RealImage>(subject, meanSubject, meanSubject.GetNumberOfPoints(), subject.realImage);
                 FieldTransformType::Pointer forwardTransform = forwardBspline.GetTransform();
                 subject.TransformY2Z(forwardTransform);
-                cout << "Forward B-spline transform is null: might forget to include +ensemble term?" << endl;
             }
         }
     }
@@ -666,6 +688,8 @@ namespace pi {
         warpedImages.resize(nSubj);
         gradImages.resize(nSubj);
 
+        int nCurrentLevel = system->GetCurrentResolutionLevel();
+
         // first create a warped image into the mean transform space
         // second create a gradient vector image per subject
         // third extract attributes (features)
@@ -676,7 +700,7 @@ namespace pi {
                 LabelImage::Pointer& refImage = subject.GetLabel();
 
                 if (useResampling) {
-                    warpedImages[i] = WarpToMean(meanSubject, subject, subject.GetImage());
+                    warpedImages[i] = WarpToMean(meanSubject, subject, subject.GetImage(nCurrentLevel), 16);
                     if (useGaussianGradient) {
                         gradImages[i] = proc.ComputeGaussianGradient(warpedImages[i], gaussianSigma);
                     } else {
@@ -814,7 +838,8 @@ namespace pi {
         const int nPoints = attrs.size2();
         const int nSubj = attrs.size1();
 
-        // normalize intensity to mean
+        // normalize intensity to local intensity average
+#if 0
         const int nAttrs = NATTRS;
         for (int s = 0; s < nSubj; s++) {
             for (int i = 0; i < nPoints; i++) {
@@ -829,6 +854,7 @@ namespace pi {
                 }
             }
         }
+#endif
 
         for (int i = 0; i < nPoints; i++) {
             for (int j = 0; j < NATTRS; j++) {
@@ -959,6 +985,7 @@ namespace pi {
 
         system->ImageEnergy.set_size(nPoints);
 
+        // old version
 //        ComputeAttributes(system);
 
         // compute warp

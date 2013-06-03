@@ -44,6 +44,10 @@ namespace pi {
         void loadConfig();
         void spreadParticles();
         void computeWarpedImages();
+        void computeParticleWarp();
+        void computeImageBspline();
+        void showWarpedImages();
+        void saveTransform();
 
         void startRun();
         void stopRun();
@@ -79,7 +83,9 @@ namespace pi {
         QVector<LabelImage::Pointer> _labels;
         QVector<QGraphicsRealImageItem*> _imageItems;
         QVector<QGraphicsRealImageItem*> _secondImageItems;
+
         QVector<QGraphicsParticleItems> _particleGroups;
+        QVector<QGraphicsParticleItems> _secondParticleGroups;
 
         QGraphicsRealImageItem* _particleWindow;
 

@@ -33,7 +33,7 @@ TARGET_LINK_LIBRARIES(kextract ${ITK_LIBRARIES})
 ENDIF(${BUILD_KTOOLS})
 
 IF(${BUILD_KCALC})
-ADD_EXECUTABLE(kcalc kcalc.cpp piOptions.cpp piOptions.h ${muparser_SRC} PixelMathImageFilter.h PixelMathImageFilter.hxx)
+ADD_EXECUTABLE(kcalc kcalc.cpp piImageIO.h piOptions.cpp piOptions.h ${muparser_SRC} PixelMathImageFilter.h PixelMathImageFilter.hxx)
 SET_TARGET_PROPERTIES(kcalc PROPERTIES COMPILE_FLAGS "-DPIXEL_TYPE=float")
 TARGET_LINK_LIBRARIES(kcalc ${ITK_LIBRARIES})
 ENDIF(${BUILD_KCALC})

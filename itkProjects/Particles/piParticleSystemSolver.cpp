@@ -555,7 +555,8 @@ namespace pi {
 
         // compute alignment and apply internal force
         if (!noInternal) {
-            if (nSubz > 1 && useAlignment) {
+            // No alignment right now
+            if (nSubz > 1 && useAlignment && false) {
                 m_System.ComputeXMeanSubject();
                 for (int n = 0; n < nSubz; n++) {
                     internalForce.ComputeForce(m_System[n]);
@@ -578,6 +579,7 @@ namespace pi {
         }
 
         // work on coordinate Y
+        // No ensemble right now
         if (useEnsemble) {
             ensembleForce.ComputeEnsembleForce(m_System);
         } else {
@@ -588,6 +590,7 @@ namespace pi {
 
         // work on coordinate Z
         if (useIntensity) {
+            intensityForce.computeForwardTransform = true;
             intensityForce.ComputeIntensityForce(&m_System);
         }
 

@@ -265,23 +265,23 @@ namespace pi {
     void Simul2::on_actionBsplineWarp_triggered() {
         groupSimul.computeWarpedImages();
     }
-
-    void Simul2::on_actionImageBsplineWarp_triggered() {
-        RealImage::Pointer warpedImage = bsplineRegistration(core.getImage(1), core.getImage(0));
-        core.showAuxImage(1, warpedImage);
-    }
+//
+//    void Simul2::on_actionImageBsplineWarp_triggered() {
+//        RealImage::Pointer warpedImage = bsplineRegistration(core.getImage(1), core.getImage(0));
+//        core.showAuxImage(1, warpedImage);
+//    }
 
     void Simul2::on_actionIntensityGradient_triggered() {
         core.showAuxImage(0, main.m_System[0].kappaImage, true);
     }
 
-    void Simul2::on_actionShowWarped_triggered() {
-//        main.m_System.WarpImage(0, 1);
-        RealImage::Pointer warpedImage1 = main.WarpImage(0);
-        core.showAuxImage(0, warpedImage1);
-        RealImage::Pointer warpedImage2 = main.WarpImage(1);
-        core.showAuxImage(1, warpedImage2);
-    }
+//    void Simul2::on_actionShowWarped_triggered() {
+////        main.m_System.WarpImage(0, 1);
+//        RealImage::Pointer warpedImage1 = main.WarpImage(0);
+//        core.showAuxImage(0, warpedImage1);
+//        RealImage::Pointer warpedImage2 = main.WarpImage(1);
+//        core.showAuxImage(1, warpedImage2);
+//    }
 
     void Simul2::on_actionShowCostPlot_toggled(bool toggle) {
         if (toggle) {

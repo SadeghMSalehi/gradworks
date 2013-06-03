@@ -9,22 +9,20 @@
 #include "piImageRegistration.h"
 
 
-#include "itkImageRegistrationMethod.h"
 #include "itkMeanSquaresImageToImageMetric.h"
 #include "itkTimeProbesCollectorBase.h"
 #include "itkSpatialObjectToImageFilter.h"
 #include "itkEllipseSpatialObject.h"
-
-#if ITK_VERSION_MAJOR < 4
-#include "itkBSplineDeformableTransform.h"
-#else
 #include "itkBSplineTransform.h"
-#endif
 #include "itkLBFGSOptimizer.h"
 #include "itkImageFileWriter.h"
 #include "itkResampleImageFilter.h"
 #include "itkCastImageFilter.h"
 #include "itkSquaredDifferenceImageFilter.h"
+
+#include <itkImageRegistrationMethod.h>
+#include <itkImageRegistrationMethodv4.h>
+#include <itkGradientDescentLineSearchOptimizerv4.h>
 
 
 namespace pi {
@@ -42,7 +40,7 @@ namespace pi {
         typedef itk::BSplineTransform<CoordinateRepType, SpaceDimension, SplineOrder> TransformType;
         typedef itk::LBFGSOptimizer OptimizerType;
         typedef itk::MeanSquaresImageToImageMetric<ImageType, ImageType> MetricType;
-        typedef itk:: LinearInterpolateImageFunction<ImageType, double> InterpolatorType;
+        typedef itk::LinearInterpolateImageFunction<ImageType, double> InterpolatorType;
         typedef itk::ImageRegistrationMethod<ImageType, ImageType> RegistrationType;
 
         MetricType::Pointer         metric        = MetricType::New();
@@ -79,13 +77,13 @@ namespace pi {
 
         TransformType::PhysicalDimensionsType   fixedPhysicalDimensions;
         TransformType::MeshSizeType             meshSize;
-        for( unsigned int i=0; i < ImageDimension; i++ )
-        {
+        for (unsigned int i=0; i < ImageDimension; i++) {
             fixedPhysicalDimensions[i] = dstImg->GetSpacing()[i] *
             static_cast<double>(dstImg->GetLargestPossibleRegion().GetSize()[i] - 1 );
+            meshSize[i] = dstImg->GetLargestPossibleRegion().GetSize()[i] / 8 - SplineOrder;
         }
-        unsigned int numberOfGridNodesInOneDimension = 5;
-        meshSize.Fill( numberOfGridNodesInOneDimension - SplineOrder );
+//        unsigned int numberOfGridNodesInOneDimension = 15;
+//        meshSize.Fill( numberOfGridNodesInOneDimension - SplineOrder );
         transform->SetTransformDomainOrigin( dstImg->GetOrigin() );
         transform->SetTransformDomainPhysicalDimensions( fixedPhysicalDimensions );
         transform->SetTransformDomainMeshSize( meshSize );
@@ -109,11 +107,11 @@ namespace pi {
         std::cout << transform->GetParameters() << std::endl;
 
         //  Next we set the parameters of the LBFGS Optimizer.
-        optimizer->SetGradientConvergenceTolerance( 0.005 );
-        optimizer->SetLineSearchAccuracy( 0.09 );
-        optimizer->SetDefaultStepLength( .5 );
+        optimizer->SetGradientConvergenceTolerance(0.1);
+        optimizer->SetLineSearchAccuracy(0.09);
+        optimizer->SetDefaultStepLength(.1);
         optimizer->TraceOn();
-        optimizer->SetMaximumNumberOfFunctionEvaluations( 1000 );
+        optimizer->SetMaximumNumberOfFunctionEvaluations(1000);
 
         std::cout << std::endl << "Starting Registration" << std::endl;
 
