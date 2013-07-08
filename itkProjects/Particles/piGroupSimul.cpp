@@ -183,6 +183,9 @@ namespace pi {
             _particleGroups[i].hideParticles(!on);
             _particleGroups[i].updateParticles();
 
+            _particleGroups[i].useScalars(true);
+            _particleGroups[i].setScalars(_solver->m_System.NormalizedImageEnergy);
+
             _secondParticleGroups[i].hideParticles(!on);
             _secondParticleGroups[i].updateParticles();
         }
@@ -233,13 +236,36 @@ namespace pi {
         ParticleSubject& meanSubj = _solver->m_System.GetMeanSubject();
 
         for (int i = 0; i < n; i++) {
+            // warp to the first
             ParticleBSpline bspline;
             bspline.SetControlPointSpacing(options.GetInt("ControlPointSpacing:", 8));
             bspline.SetReferenceImage(_labels[i]);
-            bspline.EstimateTransform(meanSubj, _solver->m_System[i]);
+            bspline.EstimateTransform(_solver->m_System[0], _solver->m_System[i]);
 
             FieldTransformType::Pointer transform = bspline.GetTransform();
             _warpedImages[i] = bspline.WarpImage(_solver->m_System[i].GetImage(0));
+
+            LabelImage::Pointer labelOutput = bspline.WarpLabel(_solver->m_System[i].GetLabel());
+
+            string labelFile = _solver->m_Options.GetStringVectorValue("LabelImages:", i);
+            string filename = QString::fromStdString(labelFile).replace("_label", "_warpedLabelTo0").toStdString();
+            __labelIO.WriteImage(filename, labelOutput);
+
+            // warp to the mean
+            {
+                ParticleBSpline bspline;
+                bspline.SetControlPointSpacing(options.GetInt("ControlPointSpacing:", 8));
+                bspline.SetReferenceImage(_labels[i]);
+                bspline.EstimateTransform(meanSubj, _solver->m_System[i]);
+                FieldTransformType::Pointer transform = bspline.GetTransform();
+                LabelImage::Pointer labelOutput = bspline.WarpLabel(_solver->m_System[i].GetLabel());
+                string labelFile = _solver->m_Options.GetStringVectorValue("LabelImages:", i);
+                string filename = QString::fromStdString(labelFile).replace("_label", "_warpedLabelToMean").toStdString();
+                __labelIO.WriteImage(filename, labelOutput);
+            }
+
+
+
             _secondImageItems[i]->setImage<RealImage>(_warpedImages[i]);
             _secondImageItems[i]->generateUserGrids<FieldTransformType>(transform);
 
@@ -332,7 +358,9 @@ namespace pi {
 
         int particleId = sender->data(0).value<int>();
 
-        cout << "Particle #" << particleId << " selected." << endl;
+        if (_solver->m_System.NormalizedImageEnergy.size() > particleId) {
+            cout << "Particle #" << particleId << " Energy: " << _solver->m_System.NormalizedImageEnergy[particleId] << endl;
+        }
     }
 
     void GroupSimul::mouseReleased(QGraphicsEllipseEventItem *sender, QGraphicsSceneMouseEvent *event) {

@@ -500,8 +500,13 @@ int main(int argc, char* argv[]) {
             cout << "continue optimization;" << endl;
         }
 
-        cout << "Spreading Particles ..." << endl;
-        solver.SpreadParticles();
+        cout << "Spreading Particles ..." << flush;
+        for (int i = 0; i < 3; i++) {
+            cout << i << " " << flush;
+            solver.SpreadParticles();
+        }
+        cout << " done" << endl;
+
         cout << "Start Running... " << endl;
         solver.Run();
         solver.SaveConfig(args[1].c_str());

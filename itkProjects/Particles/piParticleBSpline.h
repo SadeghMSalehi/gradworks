@@ -49,6 +49,11 @@ namespace pi {
             m_ControlPointSpacing = spacing;
         }
 
+        void SetWeights(VNLVector weights) {
+            m_UseWeights = true;
+            m_Weights = weights;
+        }
+
         LabelImage::Pointer GetReferenceImage();
         void SetReferenceImage(LabelImage::Pointer img);
         void EstimateTransform(const ParticleSubject& a, const ParticleSubject& b);
@@ -68,6 +73,8 @@ namespace pi {
         LabelImage::Pointer m_RefImage;
         DisplacementFieldPointSetType::Pointer m_FieldPoints;
         DisplacementFieldType::Pointer m_DisplacementField;
+        bool m_UseWeights;
+        VNLVector m_Weights;
 
     };
 
@@ -82,12 +89,6 @@ namespace pi {
         }
         m_FieldPoints->Initialize();
 
-        // create point structures
-//        IntPointSetType::Pointer srcPoints = IntPointSetType::New();
-//        IntPointSetType::Pointer dstPoints = IntPointSetType::New();
-//
-//        srcPoints->Initialize();
-//        dstPoints->Initialize();
 
         // casting object C;
         C caster;
@@ -119,6 +120,8 @@ namespace pi {
         typename R::SizeType imageSize = refImage->GetBufferedRegion().GetSize();
         typename R::SpacingType imageSpacing = refImage->GetSpacing();
         typename R::PointType imageOrigin = refImage->GetOrigin();
+        typename R::DirectionType imageDirection = refImage->GetDirection();
+
 
 
         for (int i = 0; i < imageSize.GetSizeDimension(); i++) {
@@ -132,15 +135,25 @@ namespace pi {
             bspliner->SetOrigin(imageOrigin);
             bspliner->SetSpacing(imageSpacing);
             bspliner->SetSize(imageSize);
+            bspliner->SetDirection(imageDirection);
             bspliner->SetGenerateOutputImage(true);
             bspliner->SetNumberOfLevels(numOfLevels);
             bspliner->SetSplineOrder(splineOrder);
             bspliner->SetNumberOfControlPoints(numControlPoints);
             bspliner->SetInput(m_FieldPoints);
 
-            /// Description: itk::ERROR: MultiThreader(0x7fd09c02b400): Exception occurred during SingleMethodExecute ??
-            // Error occurred due to particles out of the image itself
-//            bspliner->SetNumberOfThreads(1);
+            if (m_UseWeights && n == m_Weights.size()) {
+                BSplineFilterType::WeightsContainerType::Pointer weights = BSplineFilterType::WeightsContainerType::New();
+
+                weights->Reserve(n);
+
+                for (int i = 0; i < n; i++) {
+                    // how to choose src or dst weight?
+                    weights->SetElement(i, m_Weights[i]);
+                }
+                bspliner->SetPointWeights(weights.GetPointer());
+            }
+            
             bspliner->Update();
             m_DisplacementField = bspliner->GetOutput();
         } catch (itk::ExceptionObject& e) {

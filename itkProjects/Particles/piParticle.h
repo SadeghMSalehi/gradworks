@@ -60,6 +60,7 @@ namespace pi {
         // the density and pressure of a particle
         DataReal density;
         DataReal pressure;
+        DataReal weight;
 
         bool enabled;
         bool collisionEvent;

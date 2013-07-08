@@ -8,7 +8,7 @@
 
 #include "piImageProcessing.h"
 #include "iostream"
-#include "itkImageIO.h"
+#include "piImageIO.h"
 
 using namespace std;
 using namespace pi;
@@ -18,9 +18,8 @@ int main(int argc, char* argv[]) {
         cout << argv[0] << " requires input-label1 input-label2" << endl;
         return 0;
     }
-    itkcmds::__noverbose = 1;
-    itkcmds::itkImageIO<LabelImage> io;
+    pi::ImageIO<LabelImage> io;
     AtlasSimilarityScore score;
-    score.Compute(io.ReadImageT(argv[1]), io.ReadImageT(argv[2]));
+    score.Compute(io.ReadCastedImage(argv[1]), io.ReadCastedImage(argv[2]));
     cout << score;
 }

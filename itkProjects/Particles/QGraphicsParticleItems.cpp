@@ -70,6 +70,14 @@ void QGraphicsParticleItems::setParentItem(QGraphicsItem *parentItem) {
     _parentItem = parentItem;
 }
 
+void QGraphicsParticleItems::useScalars(bool use) {
+    _useScalars = use;
+}
+
+void QGraphicsParticleItems::setScalars(VNLVector scalars) {
+    _scalars = scalars;
+}
+
 void QGraphicsParticleItems::createParticles(pi::ParticleSubject *subject) {
     _subject = subject;
 
@@ -91,6 +99,7 @@ void QGraphicsParticleItems::createParticles(pi::ParticleSubject *subject) {
         _particleItems[j]->setOpacity(1);
         _particleItems[j]->setPen(Qt::NoPen);
         _particleItems[j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));
+//        _particleItems[j]->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
         if (_isHide) {
             _particleItems[j]->hide();
         }
@@ -107,6 +116,12 @@ void QGraphicsParticleItems::updateParticles() {
     
     if (numberOfParticleItems != numberOfSubjectPoints) {
         createParticles(_subject);
+    }
+
+    bool useColorFromScalar = _useScalars && _scalars.size() == numberOfSubjectPoints;
+    if (useColorFromScalar) {
+        _hsvFunc->SetMinimumInputValue(_scalars.min_value());
+        _hsvFunc->SetMaximumInputValue(_scalars.max_value());
     }
 
     assert(_particleItems.size() == _subject->GetNumberOfPoints());
@@ -132,7 +147,12 @@ void QGraphicsParticleItems::updateParticles() {
             _particleItems[j]->setBrush(grayBrush);
             _particleItems[j]->setOpacity(0.3);
         } else {
-            RGBA color = _hsvFunc->operator()(j);
+            RGBA color;
+            if (useColorFromScalar) {
+                color = _hsvFunc->operator()(_scalars[j]);
+            } else {
+                color = _hsvFunc->operator()(j);
+            }
             _particleItems[j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));
             _particleItems[j]->setOpacity(1);
         }

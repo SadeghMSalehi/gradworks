@@ -202,6 +202,7 @@ namespace pi {
 
         // FIXME: image energy added
         VNLVector ImageEnergy;
+        VNLVector NormalizedImageEnergy;
 
         ParticleSystem();
         ~ParticleSystem() {
@@ -214,7 +215,7 @@ namespace pi {
 
         void InitializeSystem(Options& options);
         void InitializeSystem(int nsubjs, int nparticles);
-        void LoadKappaImages(Options& options, ImageContext* context);
+        void LoadKappaImages(Options& options);
 
         ParticleSubject& GetInitialSubject();
         ParticleSubject& InitializeMean();

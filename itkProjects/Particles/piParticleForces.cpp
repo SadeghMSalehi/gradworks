@@ -155,10 +155,13 @@ namespace pi {
                     DataReal kappa = 1;
                     if (useKappa) {
                         RealIndex jIdx;
+                        RealImage::PointType jPoint;
                         fordim (k) {
-                            jIdx[k] = pj.x[k];
+                            jPoint[k] = pj.x[k];
                         }
+                        subj.GetLabel()->TransformPhysicalPointToContinuousIndex(jPoint, jIdx);
                         kappa = subj.kappaSampler->EvaluateAtContinuousIndex(jIdx);
+//                        kappa = 100 * kappa + 1;
                         kappa *= kappa;
                     }
                     DataReal dij = sqrt(pi.Dist2(pj));
@@ -526,7 +529,7 @@ namespace pi {
 
 
 
-    RealImage::Pointer WarpToMean(ParticleSubject& mean, ParticleSubject& subject, RealImage::Pointer sourceImage, int nControlPoints) {
+    RealImage::Pointer WarpToMean(ParticleSubject& mean, ParticleSubject& subject, RealImage::Pointer sourceImage, int nControlPoints, VNLVector weights) {
         const bool useAffine = false;
 
         if (useAffine) {
@@ -544,6 +547,9 @@ namespace pi {
         }
 
         ParticleBSpline bsp;
+        if (weights.size() > 0) {
+            bsp.SetWeights(weights);
+        }
         bsp.SetControlPointSpacing(nControlPoints);
         bsp.EstimateTransform<ParticleYCaster,RealImage>(mean, subject, mean.GetNumberOfPoints(), sourceImage);
 
@@ -607,7 +613,7 @@ namespace pi {
             RealImage::Pointer sourceImage = subject.GetImage(level);
 
             if (useResampling) {
-                warpedImages[i] = WarpToMean(meanSubject, subject, sourceImage, nControlPointsSpacing);
+                warpedImages[i] = WarpToMean(meanSubject, subject, sourceImage, nControlPointsSpacing, system->NormalizedImageEnergy);
 
                 if (useGaussianGradient) {
                     gradImages[i] = proc.ComputeGaussianGradient(warpedImages[i], gradientSigma);
@@ -700,7 +706,7 @@ namespace pi {
                 LabelImage::Pointer& refImage = subject.GetLabel();
 
                 if (useResampling) {
-                    warpedImages[i] = WarpToMean(meanSubject, subject, subject.GetImage(nCurrentLevel), 16);
+                    warpedImages[i] = WarpToMean(meanSubject, subject, subject.GetImage(nCurrentLevel), 16, VNLVector());
                     if (useGaussianGradient) {
                         gradImages[i] = proc.ComputeGaussianGradient(warpedImages[i], gaussianSigma);
                     } else {
@@ -774,60 +780,6 @@ namespace pi {
 
                 sampler.sampleValues(warpedSampler, par, jAttr);
                 sampler.sampleGradients(warpedGradientSampler, par, jAttr);
-
-                /*
-                RealImage::IndexType cIdx;
-                LabelImage::Pointer labelImage = subject.GetLabel();
-                subject.ComputeIndexZ(par, cIdx);
-                iiter.SetLocation(cIdx);
-
-                fordim(k) {
-                    jAttr.o[k] = cIdx[k];
-                }
-
-                FieldTransformType::InputPointType inputPoint;
-                FieldTransformType::OutputPointType outputPoint;
-                LabelImage::PointType samplePointAtSubjectSpace;
-                for (int k = 0; k < NATTRS; k++) {
-                    IntIndex nIdx = iiter.GetIndex(k);
-
-                    if (!useResampling) {
-                        labelImage->TransformIndexToPhysicalPoint(nIdx, inputPoint);
-
-                        // mean to shape
-                        outputPoint = subject.m_InverseDeformableTransform->TransformPoint(inputPoint);
-                        DataReal y[__Dim], x[__Dim];
-                        fordim (l) {
-                            y[l] = outputPoint[l];
-                        }
-                        subject.inverseAlignment->TransformPoint(y, x);
-                        fordim (l) {
-                            samplePointAtSubjectSpace[l] = x[l];
-                        }
-                        
-                        jAttr.x[k] = subject.realSampler->Evaluate(samplePointAtSubjectSpace);
-                        GradientPixel grad = subject.gradSampler->Evaluate(samplePointAtSubjectSpace);
-                        fordim (u) {
-                            jAttr.g[k][u] = grad[u];
-                        }
-                    } else {
-                        // sample intensity at the mean space
-                        if (warpedSampler->IsInsideBuffer(nIdx)) {
-
-                            jAttr.x[k] = warpedSampler->EvaluateAtIndex(nIdx);
-                            GradientPixel gradPixel = warpedGradientSampler->EvaluateAtIndex(nIdx);
-                            fordim (u) {
-                                jAttr.g[k][u] = gradPixel[u];
-                            }
-                        } else {
-                            jAttr.x[k] = 0;
-                            fordim(u) {
-                                jAttr.g[k][u] = 0;
-                            }
-                        }
-                    }
-                }
-             */
             }
         }
     }
@@ -839,7 +791,7 @@ namespace pi {
         const int nSubj = attrs.size1();
 
         // normalize intensity to local intensity average
-#if 0
+#if 1
         const int nAttrs = NATTRS;
         for (int s = 0; s < nSubj; s++) {
             for (int i = 0; i < nPoints; i++) {
@@ -1007,9 +959,15 @@ namespace pi {
             VNLDoubleMatrix invC(cov);
             if (cov.is_finite() && !cov.has_nans()) {
                 invC = vnl_matrix_inverse<double>(cov);
-                if (cov.rows() == 2) {
+                if (false && cov.rows() == 2) {
                     float det = vnl_det(cov[0], cov[1]);
                     system->ImageEnergy[i] = det;
+                } else {
+                    double energy = 1.0;
+                    for (int k = 0; k < cov.rows(); k++) {
+                        energy *= cov[k][k];
+                    }
+                    system->ImageEnergy[i] = energy;
                 }
             } else {
                 cout << "Wrong Cov: " << cov << endl;
@@ -1021,6 +979,9 @@ namespace pi {
             }
             ComputeGradient(m_attrs, invC, i, useDual);
         }
+
+        // normalize image energy
+        system->NormalizedImageEnergy = system->ImageEnergy / system->ImageEnergy.sum();
 
         // compute force at subject space
         for (int i = 0; i < nSubj; i++) {

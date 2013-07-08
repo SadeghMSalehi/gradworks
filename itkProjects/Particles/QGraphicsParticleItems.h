@@ -12,6 +12,7 @@
 #include <iostream>
 #include <QGraphicsEllipseItem>
 #include "QGraphicsEventItem.h"
+#include "vnlCommon.h"
 
 namespace pi {
     class ParticleSubject;
@@ -29,6 +30,10 @@ public:
     void setListener(QGraphicsEllipseEventItem::Listener* listener);
     void setScene(QGraphicsScene* scene);
     void setParentItem(QGraphicsItem* parentItem);
+
+    void useScalars(bool);
+    void setScalars(VNLVector scalars);
+    
     void createParticles(pi::ParticleSubject* subject);
     void updateParticles();
     void clearParticles();
@@ -50,6 +55,9 @@ private:
     pi::ParticleSubject* _subject;
     QVector<QGraphicsEllipseEventItem*> _particleItems;
     QGraphicsEllipseEventItem::Listener* _listener;
+
+    bool _useScalars;
+    VNLVector _scalars;
 };
 
 #endif /* defined(__ParticleGuidedRegistration__QGraphicsParticleItems__) */

@@ -38,7 +38,8 @@ namespace pi {
 
     typedef itk::Image<ImageReal,3> RealImage3;
     typedef itk::Image<ImageReal,2> RealImage2;
-    
+    typedef itk::Image<LabelPixel,2> LabelImage2;
+
     typedef itk::Image<ImageReal,__Dim> RealImage;
     typedef itk::Image<LabelPixel,__Dim> LabelImage;
     typedef itk::Vector<ImageReal,__Dim> VectorType;
@@ -111,8 +112,14 @@ namespace pi {
         RealImage2Vector computeGaussianSmoothing(RealImage2Vector images, double sigma = 1);
         GradientImage2Vector computeGaussianGradient(RealImage2Vector images, double sigma = 1);
     };
-    
+
+    class LabelImageTools {
+    public:
+        std::vector<float> computeBoundingBox(LabelImage::Pointer label, int labelId);
+    };
+
     extern RealImageTools __realImageTools;
+    extern LabelImageTools __labelImageTools;
 }
 
 #endif

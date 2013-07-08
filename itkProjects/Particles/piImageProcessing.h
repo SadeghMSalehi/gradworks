@@ -83,7 +83,10 @@ namespace pi {
         RealImage::Pointer ComputeGaussianGradientMagnitude(RealImage::Pointer img, double sigma = -1);
 
 
+        
+        RealImage::Pointer ProcessFeatureDensityImage(RealImage::Pointer realImage, float kernelSigma, float repulsionSigma);
 
+        RealImage::Pointer ProcessFeatureDensityImage(RealImage::Pointer realImage, LabelImage::Pointer maskImage, float kernelSigma, float regularizationSigma);
 
 
         LabelImage::Pointer Ellipse(int* outputSize, double* center, double* radius);

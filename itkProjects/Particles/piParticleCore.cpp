@@ -563,15 +563,12 @@ namespace pi {
 
     // load images for adaptive sampling, or create them
     // adaptive sampling can be turned on by option '+adaptve_sampling'
-    void ParticleSystem::LoadKappaImages(Options& options, ImageContext* context) {
+    void ParticleSystem::LoadKappaImages(Options& options) {
         StringVector& kappaNames = options.GetStringVector("KappaImageCache:");
         if (kappaNames.size() != m_Subjects.size()) {
             cout << "Kappa images and subjects are different set (KappaImageCache: missing?)" << endl;
             return;
         }
-
-        DataReal sigma = options.GetReal("AdaptiveSamplingBlurSigma:", 3);
-        DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 2);
 
         ImageIO<RealImage> io;
         for (int i = 0; i < kappaNames.size(); i++) {
@@ -579,12 +576,21 @@ namespace pi {
                 m_Subjects[i].kappaImage = io.ReadCastedImage(kappaNames[i].c_str());
             } else {
                 RealImage::Pointer realImg = m_Subjects[i].GetImage();
+                LabelImage::Pointer labelImg = m_Subjects[i].GetLabel();
+
+                DataReal sigma = options.GetReal("AdaptiveSamplingBlurSigma:", 3);
+                DataReal maxKappa = options.GetReal("AdaptiveSamplingMaxKappa:", 5);
+
+                sigma *= realImg->GetSpacing()[0];
+
                 if (realImg.IsNotNull()) {
                     ImageProcessing proc;
                     RealImage::Pointer gradImg = proc.ComputeGaussianGradientMagnitude(realImg, sigma);
                     RealImage::Pointer kappaImg = proc.RescaleIntensity<RealImage>(gradImg, 1.0, maxKappa);
+
                     m_Subjects[i].kappaImage = kappaImg;
-                    io.WriteImage(kappaNames[i].c_str(), kappaImg);
+//                    m_Subjects[i].kappaImage = proc.ProcessFeatureDensityImage(realImg, labelImg, 0.1, 0.25);
+                    io.WriteImage(kappaNames[i].c_str(), m_Subjects[i].kappaImage);
                 } else {
                     cout << "Real image is null for subject: " << m_Subjects[i].m_Name << endl;
                 }

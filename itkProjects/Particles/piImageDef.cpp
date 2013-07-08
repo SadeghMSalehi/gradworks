@@ -7,15 +7,18 @@
 //
 
 #include <itkExtractImageFilter.h>
+#include <itkLabelGeometryImageFilter.h>
 #include "piImageDef.h"
 #include "piImageIO.h"
 #include "piImageHistogram.h"
+
 
 namespace pi {
     typedef itk::ExtractImageFilter<RealImage3, RealImage2> FilterType;
 
     // external variable for easy access
     RealImageTools __realImageTools;
+    LabelImageTools __labelImageTools;
 
     RealImage3::Pointer RealImageTools::normalizeIntensity(RealImage3::Pointer image, double percentile) {
         ImageIO<RealImage3> io;
@@ -90,5 +93,18 @@ namespace pi {
             outputImages.push_back(filter->GetOutput());
         }
         return outputImages;
+    }
+
+    std::vector<float> LabelImageTools::computeBoundingBox(LabelImage::Pointer label, int labelId) {
+        typedef itk::LabelGeometryImageFilter<LabelImage> LabelFilterType;
+        LabelFilterType::Pointer labelFilter = LabelFilterType::New();
+        labelFilter->SetInput(label);
+        labelFilter->Update();
+        LabelFilterType::BoundingBoxType boundingBox = labelFilter->GetBoundingBox(labelId);
+        std::vector<float> bounds;
+        for (int i = 0; i < boundingBox.Size(); i++) {
+            bounds.push_back(boundingBox[i]);
+        }
+        return bounds;
     }
 }

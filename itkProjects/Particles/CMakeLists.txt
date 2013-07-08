@@ -84,12 +84,15 @@ TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRAR
 ENDIF (${BUILD_2D})
 
 ADD_EXECUTABLE(prun3 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
-SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_FLAGS "-DBATCH -DATTR_SIZE=7")
+SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_FLAGS "-DBATCH -DATTR_SIZE=9")
 SET_TARGET_PROPERTIES(prun3 PROPERTIES DEBUG_POSTFIX "d")
 TARGET_LINK_LIBRARIES(prun3 ${ITK_LIBRARIES} ${VTK_LIBRARIES})
 
 ADD_EXECUTABLE(ptest ptest.cpp ${MY_PARTICLE_WORKS_SOURCES})
 TARGET_LINK_LIBRARIES(ptest ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRARIES})
+
+ADD_EXECUTABLE(ptool ptool.h ptool.cpp piImageDef.h piImageDef.cpp piImageIO.h piOptions.h piOptions.cpp piMacros.h)
+TARGET_LINK_LIBRARIES(ptool ${ITK_LIBRARIES})
 
 IF (${BUILD_PEVAL})
 	ADD_EXECUTABLE(peval peval.cpp piImageDef.h piImageProcessing.cpp piImageProcessing.h piOptions.h piOptions.cpp itkImageIO.h)
@@ -99,7 +102,7 @@ ENDIF(${BUILD_PEVAL})
 IF (${BUILD_GUI})
 	ADD_EXECUTABLE(psim simul2main.cpp ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} piImageDef.h piImageIO.h piImageSlice.h piImageSlice.cpp piImagePatch.h piImagePatch.cpp piPatchTracking.h piPatchTracking.cpp piImageEntropyComputer.h piImageEntropyComputer.cpp piImageRegistration.h piImageRegistration.cpp ${MY_PARTICLE_WORKS_SOURCES} qutils.h qutils.cpp itkSIFTImageFilter.h itkSIFTImageFilter.cpp itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsDirectionItem.h QGraphicsDirectionItem.cpp QGraphicsImageItem.h QGraphicsImageItem.cpp QGraphicsParticleItems.h QGraphicsParticleItems.cpp QGraphicsPatchItem.h QGraphicsPatchItem.cpp QGraphicsEventItem.h QGraphicsEventItem.cpp ${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES}  ${MY_Qt_EXTENSIONS} itkEntropyImageToImageMetricv4.h itkEntropyImageToImageMetricv4.hxx itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.h itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.hxx itkEntropyImageToImageMetricv4HelperThreader.h itkEntropyImageToImageMetricv4HelperThreader.hxx 
         ${QT_PSIM2_RCC})
-	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=7")
+	SET_TARGET_PROPERTIES(psim PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=17")
 	TARGET_LINK_LIBRARIES(psim ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
     
     ADD_EXECUTABLE(pluto plutomain.cpp piPlutoCore.h piPlutoCore.cpp ${QT_PLUTO_HEADERS} ${QT_PLUTO_SOURCES} ${MY_PARTICLE_WORKS_SOURCES} piFitCurve.h piFitCurve.cpp piImagePatch.h piBSplineBasis.h piBSplineBasis.cpp piImageIO.h piOptions.cpp piOptions.h QGraphicsImageItem.h QGraphicsImageItem.cpp QGraphicsPolygonDrawingInteraction.h QGraphicsPolygonDrawingInteraction.cpp qutils.h qutils.cpp ${QT_PLUTO_MOC_HEADERS} ${QT_PLUTO_UI_FILES})

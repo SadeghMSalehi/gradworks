@@ -58,7 +58,7 @@ namespace pi {
         for4(j) {
             x[j] = y[j] = z[j] = v[j] = f[j] = w[j] = E[j] = 0;
         }
-        density = pressure = 0;
+        weight = density = pressure = 0;
         label = 0;
         collisionEvent = false;
         enabled = true;
@@ -92,13 +92,14 @@ namespace pi {
 #endif
 #endif
         fordim(i) {
-            if (ff[i] != ff[i]) {
+            f[i] += (alpha * ff[i]);
+            if (f[i] != f[i]) {
                 cout << "NaN detected in force" << endl;
             }
-            if (std::abs(ff[i]) > 10) {
+            while (std::abs(f[i]) > 10) {
                 cout << "Potentially invalid force" << endl;
+                f[i] *= 0.1;
             }
-            f[i] += (alpha * ff[i]);
         }
     }
 

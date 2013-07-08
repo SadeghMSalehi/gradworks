@@ -73,6 +73,8 @@ namespace pi {
         for (int i = 0; i < realImages.size(); i++) {
             m_System[i].LoadImage(realImages[i]);
         }
+
+        m_System.LoadKappaImages(m_Options);
         
         while (in.good()) {
             char buf[1024];
@@ -292,6 +294,9 @@ namespace pi {
         DataReal dt = 0.1;
         DataReal t1 = 50;
 
+        bool prevUseAdaptiveSampling = internalForce.useAdaptiveSampling;
+        internalForce.useAdaptiveSampling = false;
+
         // iterate over
         for (DataReal t = t0; t < t1; t += dt) {
             cout << "processing time: " << t << endl;
@@ -322,6 +327,7 @@ namespace pi {
                 }
             }
         }
+        internalForce.useAdaptiveSampling = prevUseAdaptiveSampling;
     }
     
 
@@ -476,7 +482,7 @@ namespace pi {
             // t is automatically increases
             ////////////////////////////////
             RunLoopBegin();
-            for (t = t0; t < t1;) {
+            for (t = t0; t < t1 && continueToRun;) {
                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 // IMPORTANT STEP
                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -678,12 +684,6 @@ namespace pi {
         if (j < 0) {
             // warp to the mean image
             ParticleSubject& meanSubj = m_System.ComputeXMeanSubject();
-//            for (int i = 0; i < meanSubj.size(); i++) {
-//                fordim (k) {
-//                    cout << meanSubj[i].x[k] << " ";
-//                }
-//                cout << endl;
-//            }
             ParticleBSpline bspline;
             bspline.SetReferenceImage(m_System[i].GetLabel());
             bspline.EstimateTransform(meanSubj, m_System[i]);

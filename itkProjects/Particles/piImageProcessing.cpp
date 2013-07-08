@@ -35,6 +35,8 @@
 #include <itkDiscreteGaussianImageFilter.h>
 #include <itkSmoothingRecursiveGaussianImageFilter.h>
 #include "itkMultiResolutionPyramidImageFilter.h"
+#include <itkManifoldParzenWindowsPointSetFunction.h>
+#include <itkCannyEdgeDetectionImageFilter.h>
 
 #include "piImageIO.h"
 #include "piImageHistogram.h"
@@ -465,7 +467,67 @@ namespace pi {
     }
 
 
+    RealImage::Pointer ImageProcessing::ProcessFeatureDensityImage(RealImage::Pointer realImage, LabelImage::Pointer maskImage, float kernelSigma, float regularizationSigma) {
+        typedef itk::PointSet<float, DIMENSIONS> PointSetType;
+        typedef PointSetType::PointType PointType;
+        typedef PointSetType::PointsContainerPointer PointsContainerPointer;
 
+
+        // preprocessing edge generation
+        typedef itk::CannyEdgeDetectionImageFilter<RealImage, RealImage> FilterType;
+        FilterType::Pointer filter = FilterType::New();
+        RealImage::SpacingType spacing = realImage->GetSpacing();
+        FilterType::ArrayType var;
+        for (int i = 0; i < spacing.Size(); i++) {
+            var[i] = spacing[i];
+        }
+        filter->SetInput(realImage);
+        filter->SetVariance(var);
+        filter->Update();
+        RealImage::Pointer edgeImage = filter->GetOutput();
+
+
+        // point set generation
+        PointSetType::Pointer pointSet = PointSetType::New();
+        PointsContainerPointer points = pointSet->GetPoints();
+
+        itk::ImageRegionIteratorWithIndex<RealImage> regionIter(edgeImage, edgeImage->GetBufferedRegion());
+        regionIter.GoToBegin();
+        RealImage::PointType point;
+
+        int i = 0;
+        for (; !regionIter.IsAtEnd(); ++regionIter) {
+            RealImage::IndexType idx = regionIter.GetIndex();
+            if (regionIter.Get() > 0 && maskImage->GetPixel(idx) > 0) {
+                edgeImage->TransformIndexToPhysicalPoint(idx, point);
+                points->InsertElement(i++, point);
+            }
+        }
+
+
+        // point set PDF evaluation
+        typedef itk::ManifoldParzenWindowsPointSetFunction<PointSetType> ParzenFuncType;
+        ParzenFuncType::Pointer parzenFunc = ParzenFuncType::New();
+
+        parzenFunc->SetKernelSigma(kernelSigma);
+        parzenFunc->SetRegularizationSigma(regularizationSigma);
+        parzenFunc->SetInputPointSet(pointSet);
+
+        ImageIO<RealImage> realIO;
+        RealImage::Pointer outputImage = realIO.NewImage(realImage);
+        itk::ImageRegionIteratorWithIndex<RealImage> outputIter(outputImage, outputImage->GetBufferedRegion());
+        outputIter.GoToBegin();
+        for (; !outputIter.IsAtEnd(); ++outputIter) {
+            RealImage::IndexType idx = outputIter.GetIndex();
+            RealImage::PointType idxPoint;
+            outputImage->TransformIndexToPhysicalPoint(idx, idxPoint);
+            outputImage->SetPixel(idx, parzenFunc->Evaluate(idxPoint));
+        }
+
+        return outputImage;
+    }
+
+    
     void AtlasSimilarityScore::Add(LabelPixel a, LabelPixel b) {
         if (labelMap.size() <= a || labelMap.size() <= b) {
             labelMap.resize(std::max(a,b)+1);
