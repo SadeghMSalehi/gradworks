@@ -89,14 +89,14 @@ void QGraphicsParticleItems::createParticles(pi::ParticleSubject *subject) {
     _particleItems.resize(n);
 
     for (int j = 0; j < n; j++) {
-        const double r = 2;
+        const double r = 5;
         RGBA color = _hsvFunc->operator()(j);
         _particleItems[j] = new QGraphicsEllipseEventItem(_parentItem);
         _particleItems[j]->setListener(_listener);
         _particleItems[j]->setData(0, QVariant(j));
         _particleItems[j]->setRect(-r/2.0, -r/2.0, r, r);
         _particleItems[j]->setZValue(10);
-        _particleItems[j]->setOpacity(1);
+        _particleItems[j]->setOpacity(0.3);
         _particleItems[j]->setPen(Qt::NoPen);
         _particleItems[j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));
 //        _particleItems[j]->setBrush(QBrush(Qt::blue, Qt::SolidPattern));
@@ -154,7 +154,7 @@ void QGraphicsParticleItems::updateParticles() {
                 color = _hsvFunc->operator()(j);
             }
             _particleItems[j]->setBrush(QBrush(qRgb(color[0], color[1], color[2]), Qt::SolidPattern));
-            _particleItems[j]->setOpacity(1);
+            _particleItems[j]->setOpacity(0.3);
         }
     }
 }

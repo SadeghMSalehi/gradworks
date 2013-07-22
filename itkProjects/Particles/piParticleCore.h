@@ -242,6 +242,8 @@ namespace pi {
             m_Intersection = intersection;
         }
 
+        int SuggestNumberOfParticles();
+
         Options& GetSystemOptions() {
             return (*m_Options);
         }
@@ -254,13 +256,16 @@ namespace pi {
             return m_Subjects[j];
         }
 
+
+        // public property to save intersection image to file
+        std::string m_IntersectionOutput;
+
     private:
         ParticleSubject m_MeanSubject;
         ParticleSubject m_InitialSubject;
         ParticleSubjectArray m_Subjects;
 
         LabelImage::Pointer m_Intersection;
-        std::string m_IntersectionOutput;
 
         int m_CurrentResolutionLevel;
         bool m_UseOriginalSpacing;

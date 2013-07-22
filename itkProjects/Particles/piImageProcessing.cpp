@@ -124,6 +124,9 @@ namespace pi {
 
     
     LabelImage::Pointer ImageProcessing::SmoothLabelMap(LabelImage::Pointer img) {
+#if 1
+        return img;
+#else
         cout << "Computing label map smoothing ..." << flush;
 
         LabelImage::Pointer procImage;
@@ -158,6 +161,9 @@ namespace pi {
         binTreshFilter->SetInsideValue (1);
         binTreshFilter->Update();
         procImage = binTreshFilter->GetOutput();
+
+        ImageIO<LabelImage> io;
+        io.WriteImage("./proc.nii.gz", procImage);
 
         ConnectedComponentFilterType::Pointer concompFilter = ConnectedComponentFilterType::New();
         RelabelFilterType::Pointer relabelFilter = RelabelFilterType::New();
@@ -205,6 +211,7 @@ namespace pi {
 
         cout << "done" << endl;
         return procImage;
+#endif
     }
 
     LabelImage::Pointer ImageProcessing::ErodedBorder(pi::LabelImage::Pointer img) {

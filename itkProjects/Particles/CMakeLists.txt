@@ -70,7 +70,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
-SET (MY_PARTICLE_WORKS_SOURCES piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piImageDef.cpp piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp itkMultiResolutionPyramidImageFilter.h itkMultiResolutionPyramidImageFilter.hxx)
+SET (MY_PARTICLE_WORKS_SOURCES piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piImageDef.cpp piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrainer.h piParticleTrainer.cpp
+    piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp itkMultiResolutionPyramidImageFilter.h itkMultiResolutionPyramidImageFilter.hxx)
 
 SET (PI_LIBS_SOURCE itkImageIO.h piTimer.h piTimer.cpp piImageProcessing.cpp piImageProcessing.h piImageDef.h piOptions.h piOptions.cpp piVTK.cpp piVTK.h)
 SET (PI_VTK_SOURCES piVectorGrid.cpp piVectorGrid.h)
@@ -84,7 +85,7 @@ TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${Armadillo_LIBRARIES} ${VTK_LIBRAR
 ENDIF (${BUILD_2D})
 
 ADD_EXECUTABLE(prun3 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
-SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_FLAGS "-DBATCH -DATTR_SIZE=9")
+SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_FLAGS "-DBATCH -DATTR_SIZE=17")
 SET_TARGET_PROPERTIES(prun3 PROPERTIES DEBUG_POSTFIX "d")
 TARGET_LINK_LIBRARIES(prun3 ${ITK_LIBRARIES} ${VTK_LIBRARIES})
 

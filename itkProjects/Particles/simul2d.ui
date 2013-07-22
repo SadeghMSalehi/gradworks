@@ -261,38 +261,22 @@
           </font>
          </property>
          <property name="plainText">
-          <string>Options: +adaptive_sampling +ensemble +intensity
-NumberOfParticles: int 100
-ControlPointSpacing: int 8
-ForceCoefficients: reals 0.1 0.2 1
+          <string>Options: -adaptive_sampling +ensemble +intensity
+NumberOfParticles: int 300
+ControlPointSpacing: int 4
+ForceCoefficients: reals 0.05 0 0.05
 PreprocessingTimeRange: reals 0 0.05 30
 RunTrace: /tmp/trace.txt
 TimeRange: reals 0 0.05 30
-InitialIntersectionMaskCache: /tmpfs/mask.nii.gz
-Subjects: strings 5
+Subjects: strings 2
 00
 11
-22
-33
-44
-RealImages: strings 5
-/NIRAL/work/joohwi/nadia/052613/C31s.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C32s.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C33s.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C35s.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C36s.nii.gz
-LabelImages: strings 5
-/NIRAL/work/joohwi/nadia/052613/C31_E04_label.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C32_E04_label.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C33_E04_label.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C35_E04_label.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C36_E04_label.nii.gz
-KappaImageCache: strings 5
-/NIRAL/work/joohwi/nadia/052613/C31_kappa.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C32_kappa.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C33_kappa.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C35_kappa.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C36_kappa.nii.gz
+RealImages: strings 2
+/NIRAL/work/joohwi/oasis/monkey/RVf14_T1.nrrd
+/NIRAL/work/joohwi/oasis/monkey/RWm14_T1.nrrd
+LabelImages: strings 2
+/NIRAL/work/joohwi/oasis/monkey/RVf14_mask.nrrd
+/NIRAL/work/joohwi/oasis/monkey/RWm14_mask.nrrd
 ==option_end==</string>
          </property>
         </widget>
@@ -616,6 +600,9 @@ KappaImageCache: strings 5
   </action>
   <action name="actionLevel0">
    <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
     <bool>true</bool>
    </property>
    <property name="text">

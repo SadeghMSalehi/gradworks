@@ -234,11 +234,15 @@ template <class T>
 void QGraphicsImageItem<T>::setImage(T* inputBuffer, int w, int h) {
     _inputBuffer = inputBuffer;
     if (w != _grayImage.width() || h != _grayImage.height()) {
+#ifdef HSV1000
+        _grayImage = QImage(w, h, QImage::Format_ARGB32);
+#else
         _grayImage = QImage(w, h, QImage::Format_Indexed8);
         _grayImage.setColorCount(256);
         for (int i = 0; i < 256; i++) {
             _grayImage.setColor(i, __hsv256[i]);
         }
+#endif
     }
 }
 
@@ -373,17 +377,43 @@ void QGraphicsImageItem<T>::refresh() {
 template <class T>
 void QGraphicsImageItem<T>::convertToIndexed(T* inputBuffer,
                                                const double min, const double range, QImage& outputImage) {
+#ifdef HSV1000
+    const int width = outputImage.width();
+    for (int i = 0; i < outputImage.height(); i++) {
+        unsigned int* outputBuffer = (unsigned int *) outputImage.scanLine(i);
+        for (int j = 0; j < width; j++, outputBuffer++, inputBuffer++) {
+            if (*inputBuffer != *inputBuffer) {
+                *outputBuffer = __hsv1000[999];
+            } else {
+                if (*inputBuffer > min + range) {
+                    *outputBuffer = __hsv1000[998];
+                } else if (*inputBuffer < min) {
+                    *outputBuffer = __hsv1000[0];
+                } else {
+                    *outputBuffer = __hsv1000[(unsigned int)(998 * (*inputBuffer-min)/(range))];
+                }
+            }
+        }
+    }
+#else
     const int width = outputImage.width();
     for (int i = 0; i < outputImage.height(); i++) {
         uchar* outputBuffer = outputImage.scanLine(i);
         for (int j = 0; j < width; j++, outputBuffer++, inputBuffer++) {
-            if (*inputBuffer > min + range) {
-                *outputBuffer = 255u;
+            if (*inputBuffer != *inputBuffer) {
+                *outputBuffer = 255;
             } else {
-                *outputBuffer = uchar(255u * (*inputBuffer-min)/(range));
+                if (*inputBuffer > min + range) {
+                    *outputBuffer = 254;
+                } else if (*inputBuffer < min) {
+                    *outputBuffer = 0;
+                } else {
+                    *outputBuffer = uchar(254 * (*inputBuffer-min)/(range));
+                }
             }
         }
     }
+#endif
 }
 
 template <class T>

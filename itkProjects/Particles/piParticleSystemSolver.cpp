@@ -150,7 +150,7 @@ namespace pi {
         }
         return true;
     }
-    
+
     void ParticleSystemSolver::Preprocessing() {
         string traceFile = m_Options.GetString("PreprocessingTrace:", "");
         const bool traceOn = traceFile != "";
@@ -174,6 +174,7 @@ namespace pi {
             if (io.FileExists(boundary.binaryMaskCache.c_str())) {
                 boundary.SetBinaryMask(io.ReadCastedImage(boundary.binaryMaskCache.c_str()));
             } else {
+                m_System.m_IntersectionOutput = "/tmpfs/intersection.nrrd";
                 int npixels = m_System.ComputeIntersection();
                 if (npixels == 0) {
                     cout << "invalid intersection.. halt" << endl;
@@ -185,10 +186,23 @@ namespace pi {
             
             boundary.UpdateImages();
             m_System.SetIntersection(boundary.GetBinaryMask());
-            
+            int nSuggestedParticles = m_System.SuggestNumberOfParticles();
+            cout << "# of suggested particles = " << nSuggestedParticles << endl;
+
+            // do not use user input
+            int nInputNumberOfParticles = m_Options.GetInt("NumberOfParticles:", 0);
+
+
+            // test: just use input parameters
+            if (nSuggestedParticles != nInputNumberOfParticles) {
+                nSuggestedParticles = nInputNumberOfParticles;
+            }
+
+            cout << "# of actual particles used = " << nSuggestedParticles << endl;
+
             initial.m_Name = "Intersection";
             initial.SetLabel(boundary.GetBinaryMask());
-            initial.NewParticles(m_Options.GetInt("NumberOfParticles:", 0));
+            initial.NewParticles(nSuggestedParticles);
             initial.InitializeRandomPoints(m_System.GetIntersection());
             string initialConfigOutput = m_Options.GetString("InitialConfigOutput:", "");
             if (initialConfigOutput != "") {
@@ -236,13 +250,15 @@ namespace pi {
             for (int i = 0; i < nPoints; i++) {
                 Particle& p = sub[i];
                 LabelImage::IndexType pIdx;
+                LabelImage::PointType pPts;
                 fordim (k) {
                     p.f[k] -= p.v[k];
                     p.v[k] += dt*p.f[k];
                     p.x[k] += dt*p.v[k];
-                    pIdx[k] = p.x[k] + 0.5;
+                    pPts[k] = p.x[k];
                 }
                 
+                initial.GetLabel()->TransformPhysicalPointToIndex(pPts, pIdx);
                 
                 if (!boundary.IsBufferInside(pIdx)) {
                     cout << "Stop system: out of region" << endl;
@@ -274,6 +290,8 @@ namespace pi {
         return;
     }
 
+
+    
     /**
      * This method spread initial particles inside of the each subject
      *
@@ -292,7 +310,7 @@ namespace pi {
         // give enough time range
         DataReal t0 = 0;
         DataReal dt = 0.1;
-        DataReal t1 = 50;
+        DataReal t1 = 500;
 
         bool prevUseAdaptiveSampling = internalForce.useAdaptiveSampling;
         internalForce.useAdaptiveSampling = false;

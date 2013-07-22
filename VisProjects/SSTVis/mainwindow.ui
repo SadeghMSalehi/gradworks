@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>805</width>
-    <height>652</height>
+    <width>981</width>
+    <height>767</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
       <property name="orientation">
        <enum>Qt::Vertical</enum>
       </property>
-      <widget class="QGraphicsView" name="graphicsView">
+      <widget class="QGraphicsZoomView" name="graphicsView">
        <property name="backgroundBrush">
         <brush brushstyle="SolidPattern">
          <color alpha="255">
@@ -242,7 +242,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>805</width>
+     <width>981</width>
      <height>22</height>
     </rect>
    </property>
@@ -279,6 +279,11 @@
    <extends>QWidget</extends>
    <header>qcustomplot.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QGraphicsZoomView</class>
+   <extends>QGraphicsView</extends>
+   <header>QGraphicsZoomView.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

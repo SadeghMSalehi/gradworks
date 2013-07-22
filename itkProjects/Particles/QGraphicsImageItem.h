@@ -271,6 +271,8 @@ void QGraphicsImageItem<T>::setImage(typename S::Pointer image, bool computeRang
                 break;
             }
         }
+        // FIXME : test if it works well
+        i = 0;
         for (; i < nelems; i++, buff++) {
             if (*buff == 0) {
                 continue;

@@ -727,6 +727,25 @@ namespace pi {
         return nIntersectionPixels;
     }
 
+
+    // the suggested number of particles is computed from the area of volume of the intersection
+    int ParticleSystem::SuggestNumberOfParticles() {
+        int nIntersectionPixels = 0;
+        LabelImageIteratorType iter(m_Intersection, m_Intersection->GetBufferedRegion());
+        iter.GoToBegin();
+        for (; !iter.IsAtEnd(); ++iter) {
+            nIntersectionPixels += (iter.Get() > 0);
+        }
+        LabelImage::SpacingType spacing = m_Intersection->GetSpacing();
+
+        int nAttrs = 1;
+        for (int i = 0; i < spacing.Size(); i++) {
+            nAttrs *= (ATTR_SIZE/2);
+        }
+
+        return nIntersectionPixels / nAttrs;
+    }
+
     void ParticleSystem::UseSingleParticle(int particleId) {
         for (int i = 0; i < m_Subjects.size(); i++) {
             for (int j = 0; j < m_Subjects[i].m_Particles.size(); j++) {

@@ -26,7 +26,7 @@ namespace pi {
 
     private:
         std::vector<RealImage::Pointer> _images;
-        ImageSamples<RealImage> _samples;
+//        ImageSamples<RealImage> _samples;
     };
 }
 #endif /* defined(__ParticleGuidedRegistration__piParticleTracker__) */

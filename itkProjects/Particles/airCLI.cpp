@@ -328,6 +328,10 @@ namespace air {
             }
             PasteLabel(args, args[0]);
         } else if (parser->GetBool("--rigidRegister")) {
+            if (args.size() < 1) {
+                cout << "--rigidRegister [fixed] [moving] [resampled-output] [output-transform]" << endl;
+                return 0;
+            }
             RigidRegistration(parser, args);
         }
         return 0;

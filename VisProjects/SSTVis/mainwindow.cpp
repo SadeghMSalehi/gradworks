@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget* parent) {
     _traceItem = _scene.addPath(_tracePath);
 
 
-    _traceItem->setPen(QPen(Qt::green));
+    _traceItem->setPen(QPen(Qt::black));
 
     QTransform matrix;
     matrix.scale(5, 5);
@@ -198,7 +198,7 @@ void MainWindow::graphSelected() {
 
         _plotMarker->setPos(QPointF(x - 0.5f, y - 0.5f));
         _plotMarker->setRect(0, 0, 1, 1);
-        _plotMarker->setPen(QPen(Qt::magenta));
+        _plotMarker->setPen(QPen(Qt::black));
         _plotMarker->setVisible(true);
 
         int graphid = graphs[i]->property("graphid").value<int>();

@@ -106,6 +106,9 @@ namespace pi {
             }
             m_FieldPoints->SetPoint(i, srcPoint);
             m_FieldPoints->SetPointData(i, vector);
+
+//            cout << "src[" << i << "] = " << srcPoint[0] << "," << srcPoint[1] << "," << srcPoint[2] << endl;
+//            cout << "dst[" << i << "] = " << dstPoint[0] << "," << dstPoint[1] << "," << dstPoint[2] << endl;
         }
 
         int splineOrder = m_SplineOrder;

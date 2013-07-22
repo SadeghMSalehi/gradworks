@@ -1051,7 +1051,11 @@ namespace pi {
                 fordim (k) {
                     attr.F[k] *= (spacing[k] * spacing[k]);
                 }
-                par.AddForce(attr.F, -coeff);
+
+                // normalize
+                VNLVector imageForce(attr.F, DIMENSIONS);
+                imageForce.normalize();
+                par.AddForce(imageForce.data_block(), -coeff);
             }
         }
     }

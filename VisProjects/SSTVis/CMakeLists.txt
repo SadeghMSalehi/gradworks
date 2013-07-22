@@ -6,8 +6,8 @@ FIND_PACKAGE(Armadillo REQUIRED)
 
 INCLUDE(${QT_USE_FILE})
 
-SET (QT_HEADERS mainwindow.h qcustomplot.h)
-SET (QT_SOURCES mainwindow.cpp qcustomplot.cpp)
+SET (QT_HEADERS mainwindow.h qcustomplot.h QGraphicsZoomView.h)
+SET (QT_SOURCES mainwindow.cpp qcustomplot.cpp QGraphicsZoomView.cpp)
 qt4_wrap_cpp(QT_MOC_HEADERS ${QT_HEADERS})
 qt4_wrap_ui(QT_UI_FILES mainwindow.ui)
 

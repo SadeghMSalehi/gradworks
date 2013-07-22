@@ -65,7 +65,7 @@ namespace pi {
         levelGroup->addAction(ui.actionLevel1);
         levelGroup->addAction(ui.actionLevel2);
 
-        ui.actionLevel1->setChecked(true);
+        ui.actionLevel0->setChecked(true);
 
 //        core.setUi(&ui);
         ui.costPlot->hide();

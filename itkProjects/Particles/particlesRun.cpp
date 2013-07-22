@@ -9,6 +9,12 @@
 #include "piParticleBSpline.h"
 #include "piImageProcessing.h"
 
+#include "itkSmoothingRecursiveGaussianImageFilter.h"
+#include "itkBSplineTransform.h"
+#include "itkLBFGSOptimizer.h"
+#include "itkImageRegistrationMethod.h"
+#include "itkMeanSquaresImageToImageMetric.h"
+
 using namespace std;
 using namespace pi;
 
@@ -99,6 +105,221 @@ LabelImage::Pointer RemoveBoundary(LabelImage::Pointer labelImage, int size) {
     return labelImage;
 }
 
+
+// draw gaussian like line
+void runExpr1(StringVector &args) {
+    if (args.size() < 2) {
+        cout << "--expr1 [output-real-image] [bending-height]" << endl;
+        return;
+    }
+
+    float bendingHeight = atof(args[1].c_str());
+    int bandWidth = 12;
+
+    ImageIO<RealImage2> io;
+    RealImage2::Pointer canvas = io.NewImageT(300, 200, 1);
+
+    for (int x = 25; x < 275; x++) {
+        double xx = (x - 150) * 0.1;
+        double y = 150 - bendingHeight * exp(-xx*xx/100);
+
+        RealImage2::IndexType realIdx;
+        for (int j = y; j >= y - bandWidth; j--) {
+            realIdx[0] = x;
+            realIdx[1] = j;
+            canvas->SetPixel(realIdx, 1);
+        }
+    }
+
+    io.WriteImage(args[0], canvas);
+}
+
+// draw lines of falling
+void runExpr2(StringVector &args) {
+    if (args.size() < 2) {
+        cout << "--expr2 [output-real-image] [bending-height]" << endl;
+        return;
+    }
+
+    float bendingHeight = atof(args[1].c_str());
+    cout << "height: " << bendingHeight << endl;
+
+    int bandWidth = 12;
+
+    ImageIO<RealImage2> io;
+    RealImage2::Pointer canvas = io.NewImageT(300, 200, 1);
+
+    for (int x = 25; x < 150; x++) {
+        double y = 150;
+        RealImage2::IndexType realIdx;
+        for (int j = y; j >= y - bandWidth; j--) {
+            realIdx[0] = x;
+            realIdx[1] = j;
+            canvas->SetPixel(realIdx, 1);
+        }
+    }
+
+    for (int x = 150; x < 275; x++) {
+        double xx = (x - 150) / 125.0;
+        double y = 150 - bendingHeight * xx * xx;
+
+        RealImage2::IndexType realIdx;
+        for (int j = y; j >= y - bandWidth; j--) {
+            realIdx[0] = x;
+            realIdx[1] = j;
+            canvas->SetPixel(realIdx, 1);
+        }
+    }
+
+    io.WriteImage(args[0], canvas);
+}
+
+
+// perform gaussian blurring for 2D image
+void runBlur2D(StringVector& args) {
+    if (args.size() < 3) {
+        cout << "--blur2d [input-real-image] [output-real-image] [radius]" << endl;
+        return;
+    }
+
+    float blurRadius = atof(args[2].c_str());
+
+    ImageIO<RealImage2> io;
+    RealImage2::Pointer realImage = io.ReadImage(args[0]);
+
+    typedef itk::SmoothingRecursiveGaussianImageFilter<RealImage2, RealImage2> GaussianFilter;
+    GaussianFilter::Pointer filter = GaussianFilter::New();
+    filter->SetInput(realImage);
+    filter->SetSigma(blurRadius);
+    filter->Update();
+    RealImage2::Pointer outputImage = filter->GetOutput();
+
+    io.WriteImage(args[1], outputImage);
+}
+
+
+// perform B-spline registration for 2D image
+void runBspline2D(StringVector& args) {
+    typedef itk::BSplineTransform<double, 2, 3> TransformType;
+    typedef itk::LBFGSOptimizer OptimizerType;
+    typedef itk::MeanSquaresImageToImageMetric<RealImage2, RealImage2> MetricType;
+    typedef itk:: LinearInterpolateImageFunction<RealImage2, double> InterpolatorType;
+    typedef itk::ImageRegistrationMethod<RealImage2, RealImage2> RegistrationType;
+
+    MetricType::Pointer         metric        = MetricType::New();
+    OptimizerType::Pointer      optimizer     = OptimizerType::New();
+    InterpolatorType::Pointer   interpolator  = InterpolatorType::New();
+    RegistrationType::Pointer   registration  = RegistrationType::New();
+
+    // The old registration framework has problems with multi-threading
+    // For now, we set the number of threads to 1
+    registration->SetNumberOfThreads(1);
+
+    registration->SetMetric(        metric        );
+    registration->SetOptimizer(     optimizer     );
+    registration->SetInterpolator(  interpolator  );
+
+    TransformType::Pointer  transform = TransformType::New();
+    registration->SetTransform( transform );
+
+
+    ImageIO<RealImage2> io;
+
+    // Create the synthetic images
+    RealImage2::Pointer  fixedImage  = io.ReadImage(args[0]);
+    RealImage2::Pointer  movingImage  = io.ReadImage(args[1]);
+
+    // Setup the registration
+    registration->SetFixedImage(  fixedImage   );
+    registration->SetMovingImage(   movingImage);
+
+    RealImage2::RegionType fixedRegion = fixedImage->GetBufferedRegion();
+    registration->SetFixedImageRegion( fixedRegion );
+
+    TransformType::PhysicalDimensionsType   fixedPhysicalDimensions;
+    TransformType::MeshSizeType             meshSize;
+    for( unsigned int i=0; i < 2; i++ )
+    {
+        fixedPhysicalDimensions[i] = fixedImage->GetSpacing()[i] *
+        static_cast<double>(
+                            fixedImage->GetLargestPossibleRegion().GetSize()[i] - 1 );
+    }
+    unsigned int numberOfGridNodesInOneDimension = 18;
+    meshSize.Fill( numberOfGridNodesInOneDimension - 3 );
+    transform->SetTransformDomainOrigin( fixedImage->GetOrigin() );
+    transform->SetTransformDomainPhysicalDimensions( fixedPhysicalDimensions );
+    transform->SetTransformDomainMeshSize( meshSize );
+    transform->SetTransformDomainDirection( fixedImage->GetDirection() );
+
+    typedef TransformType::ParametersType     ParametersType;
+
+    const unsigned int numberOfParameters =
+    transform->GetNumberOfParameters();
+
+    ParametersType parameters( numberOfParameters );
+
+    parameters.Fill( 0.0 );
+
+    transform->SetParameters( parameters );
+
+    //  We now pass the parameters of the current transform as the initial
+    //  parameters to be used when the registration process starts.
+
+    registration->SetInitialTransformParameters( transform->GetParameters() );
+
+    std::cout << "Intial Parameters = " << std::endl;
+    std::cout << transform->GetParameters() << std::endl;
+
+    //  Next we set the parameters of the LBFGS Optimizer.
+
+    optimizer->SetGradientConvergenceTolerance( 0.005 );
+    optimizer->SetLineSearchAccuracy( 0.9 );
+    optimizer->SetDefaultStepLength( .1 );
+    optimizer->TraceOn();
+    optimizer->SetMaximumNumberOfFunctionEvaluations( 1000 );
+
+    std::cout << std::endl << "Starting Registration" << std::endl;
+
+    try
+    {
+        registration->Update();
+        std::cout << "Optimizer stop condition = "
+        << registration->GetOptimizer()->GetStopConditionDescription()
+        << std::endl;
+    }
+    catch( itk::ExceptionObject & err )
+    {
+        std::cerr << "ExceptionObject caught !" << std::endl;
+        std::cerr << err << std::endl;
+        return;
+    }
+
+    OptimizerType::ParametersType finalParameters =
+    registration->GetLastTransformParameters();
+
+    std::cout << "Last Transform Parameters" << std::endl;
+    std::cout << finalParameters << std::endl;
+
+    transform->SetParameters( finalParameters );
+
+    typedef itk::ResampleImageFilter<RealImage2, RealImage2> ResampleFilterType;
+
+    ResampleFilterType::Pointer resample = ResampleFilterType::New();
+
+    resample->SetTransform( transform );
+    resample->SetInput( movingImage );
+
+    resample->SetSize(    fixedImage->GetLargestPossibleRegion().GetSize() );
+    resample->SetOutputOrigin(  fixedImage->GetOrigin() );
+    resample->SetOutputSpacing( fixedImage->GetSpacing() );
+    resample->SetOutputDirection( fixedImage->GetDirection() );
+    resample->SetDefaultPixelValue( 100 );
+    resample->Update();
+
+    io.WriteImage(args[2], resample->GetOutput());
+}
+
+
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
         { 9, "--seeConfig", SO_NONE },
@@ -136,6 +357,13 @@ int main(int argc, char* argv[]) {
         { 34, "--interval", SO_REQ_SEP },
         { 35, "--zerocrossing", SO_NONE },
         { 36, "--meanwarp", SO_NONE },
+        { 38, "--blur2d", SO_NONE },
+
+        // Experiment #1
+        { 37, "--expr1", SO_NONE },
+        { 39, "--expr2", SO_NONE },
+        { 40, "--bspline2d", SO_NONE },
+
         SO_END_OF_OPTIONS
     };
 
@@ -153,7 +381,15 @@ int main(int argc, char* argv[]) {
     srcIdx = atoi(parser.GetString("--srcidx", "1").c_str());
     dstIdx = atoi(parser.GetString("--dstidx", "0").c_str());
 
-    if (parser.GetBool("--seeConfig")) {
+    if (parser.GetBool("--expr1")) {
+        runExpr1(args);
+    } else if (parser.GetBool("--expr2")) {
+        runExpr2(args);
+    } else if (parser.GetBool("--blur2d")) {
+        runBlur2D(args);
+    } else if (parser.GetBool("--bspline2d")) {
+        runBspline2D(args);
+    } else if (parser.GetBool("--seeConfig")) {
         solver.LoadConfig(args[0].c_str());
         cout << "Option Contents:\n\n" << options << endl;
         if (args.size() > 1) {
@@ -208,7 +444,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (parser.GetBool("--warp")) {
         if (args.size() < 2) {
-        	cout << "--warp requires [output.txt] [source-image] [warped-output-image]" << endl;
+        	cout << "--warp requires [output.txt] --inputimage|inputlabel [source-image] --reference [reference] [warped-output-image]" << endl;
             return 0;
         }
 

@@ -31,6 +31,8 @@ namespace pi {
 
         void Preprocessing();
 
+        void PreprocessingWithLabels();
+
         // convenient function with only internal forces
         void SpreadParticles();
 
