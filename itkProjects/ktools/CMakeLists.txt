@@ -30,7 +30,11 @@ TARGET_LINK_LIBRARIES(kresample ${ITK_LIBRARIES})
 
 ADD_EXECUTABLE(kextract kextract.cpp piImageIO.h piOptions.h piOptions.cpp)
 TARGET_LINK_LIBRARIES(kextract ${ITK_LIBRARIES})
+
+
 ENDIF(${BUILD_KTOOLS})
+
+
 
 IF(${BUILD_KCALC})
 ADD_EXECUTABLE(kcalc kcalc.cpp piImageIO.h piOptions.cpp piOptions.h ${muparser_SRC} PixelMathImageFilter.h PixelMathImageFilter.hxx)
@@ -47,6 +51,10 @@ IF(${USE_VTK})
 		ADD_EXECUTABLE(kgradmap kgradmap.cpp piImageIO.h piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageProcessing.cpp piImageProcessing.h piTimer.h piTimer.cpp)
 		TARGET_LINK_LIBRARIES(kgradmap ${ITK_LIBRARIES} ${VTK_LIBRARIES})
 	ENDIF(${BUILD_KVTKTOOLS})
+    
+    
+    ADD_EXECUTABLE(ksulcus ksulcus.cpp piImageIO.h piOptions.h piOptions.cpp)
+    TARGET_LINK_LIBRARIES(ksulcus ${ITK_LIBRARIES} ${VTK_LIBRARIES})
 ENDIF(${USE_VTK})
 
 IF(${BUILD_KMBRAIN})
