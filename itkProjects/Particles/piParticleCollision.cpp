@@ -116,30 +116,36 @@ namespace pi {
     }
 
     void ParticleCollision::ComputeClosestBoundary(Particle& pi, DataReal *x1, DataReal *contactPoint) {
-        RealImage::PointType point;
+        RealImage::PointType x1Point;
         fordim (k) {
-            point[k] = x1[k];
+            x1Point[k] = x1[k];
         }
 
         // compute offset as interpolated value
         // wondering if this is not going to cause any problem
-        VectorType offset = m_DistOffsetPicker->Evaluate(point);
+        VectorType offset = m_DistOffsetPicker->Evaluate(x1Point);
+
+        // compute the index from point due to offset computation
+        RealImage::IndexType x1Index;
+        m_DistanceMap->TransformPhysicalPointToIndex(x1Point, x1Index);
         fordim (k) {
-            contactPoint[k] = x1[k] + offset[k] * m_ImageSpacing[k];
+            x1Index[k] += offset[k];
         }
 
 #ifndef BATCH
         if (::abs(offset[0]) > 10 || ::abs(offset[1]) > 10 || ::abs(offset[2]) > 10)  {
             cout << "too large projection offset = [" << offset[0] << "," << offset[1] << "," << offset[2] << "] at [" << x1[0] << "," << x1[1] << "," << x1[2] << "]" << "; particle subj = " << pi.subj << " id = " << pi.idx << endl;
         }
-        fordim(k) {
-            point[k] = contactPoint[k];
-        }
-        if (!m_DistOffsetPicker->IsInsideBuffer(point)) {
+
+        // index to point
+        RealImage::PointType pointOut;
+        m_DistanceMap->TransformIndexToPhysicalPoint(x1Index, pointOut);
+        
+        if (!m_DistOffsetPicker->IsInsideBuffer(x1Index)) {
             cout << "fail to find closest boundary" << endl;
             // rollback
             fordim (k) {
-                contactPoint[k] = x1[k];
+                contactPoint[k] = pointOut[k];
             }
         };
 #endif
@@ -216,6 +222,7 @@ namespace pi {
         }
         // to create binary mask, the label image is mandatory
         if (m_LabelImage.IsNull()) {
+            cout << "label map is null" << endl;
             return false;
         }
         ImageProcessing proc;
@@ -243,18 +250,21 @@ namespace pi {
             ImageProcessing proc;
             m_DistanceMap = proc.ComputeDistanceMap(m_BinaryMask);
             if (filename != "") {
-                io.WriteImage(filename.c_str(), m_DistanceMap, !boost::algorithm::ends_with(filename, ".nrrd"));
+                io.WriteImage(filename.c_str(), m_DistanceMap);
             }
         }
         return true;
     }
 
-    void ParticleCollision::ConstrainPoint(ParticleSubject& subj) {
+    void ParticleCollision::ConstrainPoint(ParticleSubject& subj, int label) {
         m_ImageSpacing = subj.GetLabel()->GetSpacing();
 
         const int nPoints = subj.GetNumberOfPoints();
         for (int i = 0; i < nPoints; i++) {
             Particle &p = subj.m_Particles[i];
+            if (label > 0 && p.label != label) {
+                continue;
+            }
             VNLVector normal(__Dim, 0);
 
             LabelImage::IndexType idx;
@@ -268,26 +278,29 @@ namespace pi {
                 continue;
             }
 
-            DataReal contactPoint[__Dim];
+            DataReal contactPointOut[__Dim];
 
             // initialize contact point as current point
-            forset (p.x, contactPoint);
+            forset (p.x, contactPointOut);
             if (!isValidRegion) {
                 // important!!
                 // this function will move current out-of-region point into the just closest boundary
                 // Point compuation is done in physical point
-                ComputeClosestBoundary(p, p.x, contactPoint);
+                ComputeClosestBoundary(p, p.x, contactPointOut);
             }
-            forset (contactPoint, p.x);
+            forset (contactPointOut, p.x);
             p.collisionEvent = true;
         }
     }
 
-    void ParticleCollision::ProjectForceAndVelocity(pi::ParticleSubject &subj) {
+    void ParticleCollision::ProjectForceAndVelocity(pi::ParticleSubject &subj, int label) {
         const int nPoints = subj.GetNumberOfPoints();
         VNLVector normal(__Dim);
         for (int i = 0; i < nPoints; i++) {
             Particle& p = subj[i];
+            if (label > 0 && p.label != label) {
+                continue;
+            }
             normal.fill(0);
             if (p.collisionEvent) {
                 // project velocity and forces

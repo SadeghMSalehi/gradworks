@@ -20,6 +20,7 @@
 #include "piTimer.h"
 #include "piImageIO.h"
 #include "piParticleBSpline.h"
+#include "piParticleTrainer.h"
 
 namespace pi {
     using namespace std;
@@ -215,6 +216,10 @@ namespace pi {
         
         if (initial.GetNumberOfPoints() == 0) {
             cout << "Fail to initializing with random points" << endl;
+            return;
+        }
+
+        if (1 == 1) {
             return;
         }
         

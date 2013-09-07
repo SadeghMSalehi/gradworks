@@ -69,6 +69,7 @@ namespace pi {
         void connectSignals();
         void initImages();
         void initParticles();
+        void testTrainer();
 
     private:
         Ui_Simul2D* _ui;

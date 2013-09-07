@@ -66,12 +66,15 @@ namespace pi {
     
 //    static void ExtractAttributes(RealImage::Pointer image, VectorImage::Pointer grad, Particle& par);
 
-    void InternalForce::ComputeForce(ParticleSubject& subj) {
+    void InternalForce::ComputeForce(ParticleSubject& subj, int label) {
         const int nPoints = subj.m_Particles.size();
         ParticleArray& particles = subj.m_Particles;
 #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             Particle& pi = particles[i];
+            if (label > 0 && pi.label != label) {
+                continue;
+            }
             for (int j = i+1; j < nPoints; j++) {
                 Particle& pj = particles[j];
                 ComputeForce(pi, pj);
@@ -123,21 +126,24 @@ namespace pi {
     }
 
     
-    void EntropyInternalForce::ComputeForce(ParticleSubject& subj) {
+    void EntropyInternalForce::ComputeForce(ParticleSubject& subj, int label) {
         if (useMultiPhaseForce) {
-            ComputeHeteroForce(subj);
+            ComputeHeteroForce(subj, label);
         } else {
-            ComputeHomoForce(subj);
+            ComputeHomoForce(subj, label);
         }
     }
 
-    void EntropyInternalForce::ComputeHomoForce(ParticleSubject& subj) {
+    void EntropyInternalForce::ComputeHomoForce(ParticleSubject& subj, int label) {
         const int nPoints = subj.GetNumberOfPoints();
 
         bool useKappa = useAdaptiveSampling && subj.kappaSampler.IsNotNull();
 #pragma omp parallel for
         for (int i = 0; i < nPoints; i++) {
             Particle& pi = subj.m_Particles[i];
+            if (pi.label != label) {
+                continue;
+            }
             const DataReal spacing = subj.GetLabel()->GetSpacing()[0];
             const DataReal sigma = repulsionSigma * spacing;
             const DataReal sigma2 = sigma * sigma;
@@ -197,7 +203,7 @@ namespace pi {
         }
     }
 
-    void EntropyInternalForce::ComputeHeteroForce(ParticleSubject& subj) {
+    void EntropyInternalForce::ComputeHeteroForce(ParticleSubject& subj, int label) {
         const int nPoints = subj.GetNumberOfPoints();
 
         bool useKappa = useAdaptiveSampling && subj.kappaSampler.IsNotNull();
@@ -219,6 +225,10 @@ namespace pi {
 
 
             Particle& pi = subj.m_Particles[i];
+            if (pi.label != label) {
+                continue;
+            }
+            
             IntIndex idx;
             fordim (k) {
                 idx[k] = pi.x[k];
@@ -808,14 +818,24 @@ namespace pi {
         }
 #endif
 
+        const bool useMedian = true;
         for (int i = 0; i < nPoints; i++) {
             for (int j = 0; j < NATTRS; j++) {
                 double sum = 0;
+                std::vector<double> datas(nSubj);
                 for (int s = 0; s < nSubj; s++) {
                     sum += attrs(s, i).x[j];
+                    datas[s] = attrs(s,i).x[j];
+                }
+                double mean = sum/nSubj;
+                if (useMedian) {
+                    std::sort(datas.begin(), datas.end());
+                    if (datas.size() % 2 == 0) {
+                        mean = (datas[datas.size()/2]+datas[datas.size()/2-1])/2.0;
+                    }
                 }
                 for (int s = 0; s < nSubj; s++) {
-                    attrs(s,i).y[j] =  attrs(s, i).x[j] - sum/nSubj;
+                    attrs(s,i).y[j] =  attrs(s, i).x[j] - mean;
                 }
             }
         }

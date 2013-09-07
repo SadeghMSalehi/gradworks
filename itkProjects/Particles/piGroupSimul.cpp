@@ -13,6 +13,7 @@
 #include "piImageRegistration.h"
 #include "piParticleSystemSolver.h"
 #include "piParticleBSpline.h"
+#include "piParticleTrainer.h"
 #include "piImageIO.h"
 #include "piImageProcessing.h"
 #include "QGraphicsDirectionItem.h"
@@ -82,8 +83,82 @@ namespace pi {
         _ui->config->setPlainText(QString::fromStdString(cachestream.str()));
         _ui->statusbar->showMessage(QString("%1 particles loaded!").arg(_solver->m_System.GetNumberOfParticles()));
 
+
+        // load images
         initImages();
+
+        // sample particles from brain mask
         initParticles();
+
+        // test trainer
+//        testTrainer();
+    }
+
+    void GroupSimul::testTrainer() {
+        ParticleTrainer trainer(&_solver->m_System);
+        IntVector counts;
+        counts.push_back(100);
+        counts.push_back(0);
+        counts.push_back(0);
+        counts.push_back(0);
+
+        trainer.setNumberOfPointSets(2);
+        trainer.setNumberOfParticles(counts);
+        trainer.trainParticles();
+        trainer.initialClosestCorrespondences();
+
+
+        for (int s = 0; s < _solver->m_System.GetNumberOfSubjects(); s++) {
+            trainer.computeDelaunayTriangulation(s, 1, s);
+            NeighborWeightMatrix& neighbors = trainer.getPointSets(s);
+            
+            // index for display
+            IntIndex x, y;
+            QPainterPath pathItem;
+            ParticleSubject& subj = _solver->m_System[s];
+            for (int i = 0; i < neighbors.size(); i++) {
+                int sourceId = neighbors[i].first;
+                Particle& sourceParticle = subj[sourceId];
+                ParticleWeightVector& targets = neighbors[i].second;
+                subj.ComputeIndexX(sourceParticle, x);
+                for (int j = 0; j < targets.size(); j++) {
+                    pathItem.moveTo(x[0], x[1]);
+                    int targetId = targets[j].first;
+                    Particle& targetParticle = subj[targetId];
+                    subj.ComputeIndexX(targetParticle, y);
+                    pathItem.lineTo(y[0], y[1]);
+                }
+            }
+
+            QColor penColor = Qt::yellow;
+            penColor.setAlphaF(0.1);
+            QPen pen(penColor, 1);
+
+            QGraphicsPathItem* graphicsPath = new QGraphicsPathItem();
+            graphicsPath->setPath(pathItem);
+            graphicsPath->setPen(pen);
+            graphicsPath->setParentItem(_imageItems[s]);
+        }
+
+        trainer.establishCorrespondences();
+        trainer.removeOutliers();
+
+        int nSubjs = _solver->m_System.GetNumberOfSubjects();
+        ParticleSubject& subj0 = _solver->m_System[0];
+        for (int i = 0; i < nSubjs; i++) {
+            ParticleSubject& subj = _solver->m_System[i];
+            VNLVector laplaceSignature(subj.GetNumberOfPoints());
+            for (int j = 0; j < laplaceSignature.size(); j++) {
+                laplaceSignature[j] = subj[j].correspondenceScore;
+            }
+            _particleGroups[i].setScalars(laplaceSignature);
+            _particleGroups[i].useScalars(true);
+            _particleGroups[i].setReferenceSubject(&subj0);
+            _particleGroups[i].updateParticles();
+
+            cout << "Laplace: " << laplaceSignature << endl;
+        }
+
     }
 
     void GroupSimul::setResolutionLevel() {
@@ -183,8 +258,8 @@ namespace pi {
             _particleGroups[i].hideParticles(!on);
             _particleGroups[i].updateParticles();
 
-            _particleGroups[i].useScalars(true);
-            _particleGroups[i].setScalars(_solver->m_System.NormalizedImageEnergy);
+//            _particleGroups[i].useScalars(true);
+//            _particleGroups[i].setScalars(_solver->m_System.NormalizedImageEnergy);
 
             _secondParticleGroups[i].hideParticles(!on);
             _secondParticleGroups[i].updateParticles();
@@ -369,9 +444,6 @@ namespace pi {
             _particleGroups[i].selectParticle(particleId);
         }
 
-//        int selectedParticleId = _particleGroups[0].getSelectedParticleId();
-//        _solver->m_System.UseSingleParticle(selectedParticleId);
-
         showAttribute(particleId);
 
         QPointF pos = sender->mapToParent(event->pos().x(), event->pos().y());
@@ -410,7 +482,7 @@ namespace pi {
         _scene2.clear();
         const int w = ATTR_SIZE;
         int j = 0;
-        cout << "F: ";
+        cout << "F: " << endl;
         for (int i = 0; i < _solver->m_System.GetNumberOfSubjects(); i++) {
             QGraphicsRealImageItem* item = new QGraphicsRealImageItem();
             ParticleAttribute* attr = _solver->intensityForce.GetAttribute(i, particleId);
@@ -427,6 +499,7 @@ namespace pi {
 //                _ui->graphicsView2->fitInView(0, 0, (w+3), w, Qt::KeepAspectRatio);
                 cout << attr->F[0] << "," << attr->F[1] << "; ";
             }
+            cout << _solver->m_System[i][particleId].correspondenceScore << "; ";
         }
         cout << endl;
     }

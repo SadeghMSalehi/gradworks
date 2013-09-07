@@ -44,6 +44,7 @@ namespace pi {
     typedef itk::Image<LabelPixel,__Dim> LabelImage;
     typedef itk::Vector<ImageReal,__Dim> VectorType;
     typedef itk::Image<VectorType,__Dim> VectorImage;
+    typedef itk::Image<VectorType,2> VectorImage2;
     typedef itk::Offset<__Dim> OffsetType;
     typedef itk::Image<OffsetType,__Dim> OffsetImage;
 

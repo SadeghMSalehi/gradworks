@@ -42,6 +42,7 @@ namespace pi {
         int subj;
         int idx;
         int label;
+        int correspondence;
 
         DataReal t;
 
@@ -61,9 +62,11 @@ namespace pi {
         DataReal density;
         DataReal pressure;
         DataReal weight;
+        DataReal correspondenceScore;
 
         bool enabled;
         bool collisionEvent;
+        bool outlier;
 
         Particle();
         ~Particle();

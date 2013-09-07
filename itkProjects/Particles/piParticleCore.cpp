@@ -149,6 +149,8 @@ namespace pi {
         for (int i = 0; i < nPoints; i++) {
             m_Particles[i] = shape.m_Particles[i];
             m_Particles[i].idx = i;
+            m_Particles[i].density = 0;
+            m_Particles[i].correspondence = -1;
         }
     }
 
@@ -159,6 +161,8 @@ namespace pi {
             m_Particles[i] = array[i];
             m_Particles[i].idx = i;
             m_Particles[i].subj = m_SubjId;
+            m_Particles[i].density = 0;
+            m_Particles[i].correspondence = -1;
         }
     }
 
@@ -167,6 +171,27 @@ namespace pi {
         for (int i = 0; i < npoints; i++) {
             pointscopy->SetPoint(i, m_Particles[i].x);
         }
+    }
+
+    struct CorrespondenceComparator {
+        bool operator()(const Particle& a, const Particle& b) {
+            return a.correspondence < b.correspondence;
+        }
+    };
+
+
+    struct CorrespondenceScoreComparator {
+        bool operator()(const Particle& a, const Particle& b) {
+        	return a.correspondenceScore < b.correspondenceScore;
+        }
+    };
+
+    void ParticleSubject::SortByCorrespondence() {
+        std::sort(m_Particles.begin(), m_Particles.end(), CorrespondenceComparator());
+    }
+
+    void ParticleSubject::SortByCorrespondenceScore() {
+        std::sort(m_Particles.begin(), m_Particles.end(), CorrespondenceScoreComparator());
     }
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -417,15 +442,36 @@ namespace pi {
     }
     
     void ParticleSubject::ReadParticles(std::istream& is, int nPoints) {
-        if (m_Particles.size() != nPoints) {
-            m_Particles.resize(nPoints);
-        }
-        
-        for (int i = 0; i < nPoints; i++) {
-            m_Particles[i].idx = i;
-            m_Particles[i].t = 0;
-            m_Particles[i].subj = m_SubjId;
-            is >> m_Particles[i];
+        // if nPoints is specified, read nPoints particles
+        if (nPoints > 0) {
+            if (m_Particles.size() != nPoints) {
+                m_Particles.resize(nPoints);
+            }
+
+            for (int i = 0; i < nPoints; i++) {
+                m_Particles[i].idx = i;
+                m_Particles[i].t = 0;
+                m_Particles[i].subj = m_SubjId;
+                is >> m_Particles[i];
+            }
+        } else {
+            // otherwise read until EOF
+            std::vector<Particle> particles;
+            for (int i = 0; !is.eof(); i++) {
+                Particle p;
+                p.idx = i;
+                p.t = 0;
+                p.subj = m_SubjId;
+                is >> p;
+                particles.push_back(p);
+            }
+            // resize particles
+            m_Particles.resize(particles.size() - 1);
+
+            // copy loaded particles into subject's particles
+            for (int i = 0; i < GetNumberOfPoints(); i++) {
+                m_Particles[i] = particles[i];
+            }
         }
     }
     
@@ -681,6 +727,12 @@ namespace pi {
             }
         }
         return m_MeanSubject;
+    }
+
+    void ParticleSystem::RemoveParticle(int i) {
+        for (int i = 0; i < m_Subjects.size(); i++) {
+            m_Subjects[i].m_Particles.erase_element(i);
+        }
     }
 
     ParticleSubject& ParticleSystem::GetMeanSubject() {

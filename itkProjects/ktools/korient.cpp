@@ -99,6 +99,8 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    imageIO.__noverbose = false;
+
     string instrCode = parser.GetString("-i", "LPI");
     string outstrCode = parser.GetString("-o", "LPI");
 
@@ -132,7 +134,9 @@ int main(int argc, char* argv[]) {
     filter->SetGivenCoordinateOrientation(inputCode);
     filter->SetDesiredCoordinateOrientation(outputCode);
     ImageType::Pointer output = filter->GetOutput();
-    
+
+
+    cout << "Writing output ... " << args[1] << endl;
     imageIO.WriteCastedImage(args[1], output, info.componenttype);
 }
 

@@ -214,6 +214,7 @@ namespace pi {
         }
         ImagePointer ReadCastedImage(std::string inputFilename, ImageInfo& type) {
             if (!FileExists(inputFilename.c_str())) {
+                cout << "File not exist! (" << inputFilename << endl;
                 return ImagePointer();
             }
 

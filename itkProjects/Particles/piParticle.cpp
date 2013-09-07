@@ -17,6 +17,7 @@ namespace pi {
         for4(k) { os << par.y[k] << " "; }
         for4(k) { os << par.v[k] << " "; }
         for4(k) { os << par.f[k] << " "; }
+        os << par.label << " ";
         os << par.density << " ";
         os << par.pressure << " ";
         return os;
@@ -27,6 +28,7 @@ namespace pi {
         for4(k) { is >> par.y[k]; }
         for4(k) { is >> par.v[k]; }
         for4(k) { is >> par.f[k]; }
+        is >> par.label;
         is >> par.density;
         is >> par.pressure;
         return is;
@@ -58,8 +60,9 @@ namespace pi {
         for4(j) {
             x[j] = y[j] = z[j] = v[j] = f[j] = w[j] = E[j] = 0;
         }
-        weight = density = pressure = 0;
+        weight = density = pressure = correspondenceScore = 0;
         label = 0;
+        correspondence = -1;
         collisionEvent = false;
         enabled = true;
     }
@@ -128,8 +131,11 @@ namespace pi {
             y[i] = other.y[i];
             v[i] = other.v[i];
             f[i] = other.f[i];
+            label = other.label;
             density = other.density;
             pressure = other.pressure;
+            correspondence = other.correspondence;
+            correspondenceScore = other.correspondenceScore;
         }
         return (*this);
     }
@@ -139,6 +145,10 @@ namespace pi {
         for (int i = 0; i < particles.size(); i++) {
             particles[i].idx = i;
             particles[i].subj = subj;
+            particles[i].label = 0;
+            particles[i].density = 0;
+            particles[i].pressure = 0;
+            particles[i].correspondenceScore = 0;
         }
     }
 

@@ -148,6 +148,10 @@ float MainWindow::crossCorrelation(float* x, float* y, int n) {
         sy += (y[i] - my) * (y[i] - my);
     }
     denom = sqrt(sx*sy);
+    if (denom == 0) {
+        r = 0;
+        return r;
+    }
 
     /* Calculate the correlation series */
     sxy = 0;
@@ -173,6 +177,9 @@ void MainWindow::selectCorr(int idx) {
                 continue;
             }
             float corr = crossCorrelation(_dataT.colptr(mapId), _dataT.colptr(k), _dataT.n_rows);
+            if (std::isnan(corr)) {
+                continue;
+            }
             _imageBuffer(i, j) = corr;
             k++;
         }

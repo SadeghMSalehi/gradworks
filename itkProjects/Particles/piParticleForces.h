@@ -28,7 +28,7 @@ namespace pi {
         bool heteroForce;
         InternalForce(): heteroForce(false) {}
         ~InternalForce() {}
-        void ComputeForce(ParticleSubject& subj);
+        void ComputeForce(ParticleSubject& subj, int label = 0);
         void ComputeForce(ParticleSubjectArray& shapes);
         void ComputeForce(Particle& a, Particle& b);
         DataReal repulsionSigma;
@@ -39,7 +39,7 @@ namespace pi {
         EntropyInternalForce(): useMultiPhaseForce(false),repulsionSigma(5), repulsionCutoff(repulsionSigma*5),friendSigma(0.45), friendCutoff(friendSigma*5),  useAdaptiveSampling(false), maxKappa(3*0.15), coeff(1) {}
         ~EntropyInternalForce() {}
 
-        void ComputeForce(ParticleSubject& subj);
+        void ComputeForce(ParticleSubject& subj, int label = 0);
         void ComputeForce(ParticleSubjectArray& subjs);
         void ComputeForce(Particle& a, Particle& b);
 
@@ -54,8 +54,8 @@ namespace pi {
         DataReal coeff;
 
     private:
-        void ComputeHomoForce(ParticleSubject& sub);
-        void ComputeHeteroForce(ParticleSubject& sub);
+        void ComputeHomoForce(ParticleSubject& sub, int label = 0);
+        void ComputeHeteroForce(ParticleSubject& sub, int label = 0);
     };
 
     

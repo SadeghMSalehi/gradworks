@@ -69,8 +69,8 @@ namespace pi {
         void HandleCollision(ParticleSubject& subj);
         void HandleCollision(ParticleSubjectArray& subj);
 
-        void ConstrainPoint(ParticleSubject& subj);
-        void ProjectForceAndVelocity(ParticleSubject& subj);
+        void ConstrainPoint(ParticleSubject& subj, int label = 0);
+        void ProjectForceAndVelocity(ParticleSubject& subj, int label = 0);
 
     private:
         LabelImage::Pointer m_LabelImage;

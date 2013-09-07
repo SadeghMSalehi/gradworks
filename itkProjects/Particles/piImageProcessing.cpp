@@ -70,6 +70,7 @@ namespace pi {
     typedef DistanceMapFilterType::VectorImageType DistanceVectorImageType;
     typedef DistanceVectorImageType::PixelType DistancePixelType;
     typedef itk::VectorMagnitudeImageFilter<VectorImage, RealImage> GradientMagnitudeFilterType;
+    typedef itk::VectorMagnitudeImageFilter<VectorImage2, RealImage2> Gradient2MagnitudeFilterType;
     typedef itk::StatisticsImageFilter<RealImage> RealImageStatisticsFilterType;
 
     class OffsetToVector {
@@ -350,6 +351,13 @@ namespace pi {
 
     RealImage::Pointer ImageProcessing::ComputeMagnitudeMap(VectorImage::Pointer img) {
         GradientMagnitudeFilterType::Pointer magFilter = GradientMagnitudeFilterType::New();
+        magFilter->SetInput(img);
+        magFilter->Update();
+        return magFilter->GetOutput();
+    }
+
+    RealImage2::Pointer ImageProcessing::ComputeMagnitude2Map(VectorImage2::Pointer img) {
+        Gradient2MagnitudeFilterType::Pointer magFilter = Gradient2MagnitudeFilterType::New();
         magFilter->SetInput(img);
         magFilter->Update();
         return magFilter->GetOutput();

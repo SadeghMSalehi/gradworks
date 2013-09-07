@@ -144,6 +144,10 @@ namespace pi {
 
         void AlignmentTransformX2Y();
 
+
+        void SortByCorrespondence();
+        void SortByCorrespondenceScore();
+
         // apply transform to particles
         void TransformX2Y(TransformType* transform = NULL);
         void TransformY2X(TransformType* transform = NULL);
@@ -189,6 +193,7 @@ namespace pi {
         inline const Particle& operator[](int i) const {
             return m_Particles[i];
         }
+
 
     };
     typedef boost::numeric::ublas::vector<ParticleSubject> ParticleSubjectArray;
@@ -256,6 +261,7 @@ namespace pi {
             return m_Subjects[j];
         }
 
+        void RemoveParticle(int i);
 
         // public property to save intersection image to file
         std::string m_IntersectionOutput;

@@ -8,6 +8,7 @@
 #include "piParticleForces.h"
 #include "piParticleBSpline.h"
 #include "piImageProcessing.h"
+#include "piParticleTrainer.h"
 
 #include "itkSmoothingRecursiveGaussianImageFilter.h"
 #include "itkBSplineTransform.h"
@@ -320,6 +321,45 @@ void runBspline2D(StringVector& args) {
 }
 
 
+void runVector2Mat(StringVector& args) {
+    ImageIO<VectorImage2> io;
+    VectorImage2::Pointer inputImage = io.ReadImage(args[0]);
+
+    typedef itk::ImageRegionConstIteratorWithIndex<VectorImage2> VectorImageIteratorType;
+    VectorImageIteratorType iter(inputImage, inputImage->GetBufferedRegion());
+
+    ofstream ofs[2];
+    ofs[0].open(args[1].c_str());
+    ofs[1].open(args[2].c_str());
+
+    VectorImage2::SizeType inputSize = inputImage->GetBufferedRegion().GetSize();
+
+    VectorType* buffer = inputImage->GetBufferPointer();
+    for (int j = 0; j < inputSize[1]; j++) {
+        for (int i = 0; i < inputSize[0]; i++) {
+            VectorType& vv = *buffer;
+            for (int k = 0; k < 2; k++) {
+                ofs[k] << vv[k] << " ";
+            }
+            ++buffer;
+        }
+        for (int k = 0; k < 2; k++) {
+            ofs[k] << endl;
+        }
+    }
+
+    for (int k = 0; k < 2; k++) {
+        ofs[k].close();
+    }
+}
+
+void runParticleExperiments(StringVector& args) {
+    ParticleSystem system;
+    ParticleTrainer trainer(&system);
+    trainer.loadParticles();
+    trainer.establishCorrespondences();
+}
+
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
         { 9, "--seeConfig", SO_NONE },
@@ -358,11 +398,14 @@ int main(int argc, char* argv[]) {
         { 35, "--zerocrossing", SO_NONE },
         { 36, "--meanwarp", SO_NONE },
         { 38, "--blur2d", SO_NONE },
+        { 41, "--magnitude2", SO_NONE },
+        { 42, "--vector2mat", SO_NONE },
 
         // Experiment #1
         { 37, "--expr1", SO_NONE },
         { 39, "--expr2", SO_NONE },
         { 40, "--bspline2d", SO_NONE },
+        { 43, "--particleExpr", SO_NONE },
 
         SO_END_OF_OPTIONS
     };
@@ -389,6 +432,10 @@ int main(int argc, char* argv[]) {
         runBlur2D(args);
     } else if (parser.GetBool("--bspline2d")) {
         runBspline2D(args);
+    } else if (parser.GetBool("--vector2mat")) {
+        runVector2Mat(args);
+    } else if (parser.GetBool("--particleExpr")) {
+        runParticleExperiments(args);
     } else if (parser.GetBool("--seeConfig")) {
         solver.LoadConfig(args[0].c_str());
         cout << "Option Contents:\n\n" << options << endl;
@@ -603,6 +650,18 @@ int main(int argc, char* argv[]) {
         VectorImage::Pointer input = vio.ReadImage(args[0].c_str());
         ImageProcessing proc;
         RealImage::Pointer output = proc.ComputeMagnitudeMap(input);
+        rio.WriteImage(args[1].c_str(), output);
+    } else if (parser.GetBool("--magnitude2")) {
+        if (args.size() < 2) {
+            cout << "--magnitude2 requires [input-vector-image] [output-float-image]" << endl;
+            return 0;
+        }
+        ImageIO<VectorImage2> vio;
+        ImageIO<RealImage2> rio;
+
+        VectorImage2::Pointer input = vio.ReadImage(args[0].c_str());
+        ImageProcessing proc;
+        RealImage2::Pointer output = proc.ComputeMagnitude2Map(input);
         rio.WriteImage(args[1].c_str(), output);
     } else if (parser.GetBool("--rescaletoshort")) {
         if (args.size() < 2) {

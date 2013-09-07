@@ -30,10 +30,12 @@ public:
     void setListener(QGraphicsEllipseEventItem::Listener* listener);
     void setScene(QGraphicsScene* scene);
     void setParentItem(QGraphicsItem* parentItem);
-
+    void setReferenceSubject(pi::ParticleSubject* refSubject);
+    
     void useScalars(bool);
     void setScalars(VNLVector scalars);
-    
+
+
     void createParticles(pi::ParticleSubject* subject);
     void updateParticles();
     void clearParticles();
@@ -53,6 +55,7 @@ private:
     QGraphicsScene* _scene;
     QGraphicsItem* _parentItem;
     pi::ParticleSubject* _subject;
+    pi::ParticleSubject* _refSubject;
     QVector<QGraphicsEllipseEventItem*> _particleItems;
     QGraphicsEllipseEventItem::Listener* _listener;
 
