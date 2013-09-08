@@ -266,17 +266,17 @@ NumberOfParticles: int 100
 ControlPointSpacing: int 4
 ForceCoefficients: reals 0.05 0 0.05
 PreprocessingTimeRange: reals 0 0.05 30
-RunTrace: /tmp/trace.txt
+RunTrace: /tmpfs/trace.txt
 TimeRange: reals 0 0.05 30
 Subjects: strings 2
 00
 11
 RealImages: strings 2
-/NIRAL/work/joohwi/nadia/052613/C31_E04_128.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C32_E04_128.nii.gz
+/tools/data/nadia/C31_E04_128.nii.gz
+/tools/data/nadia/C32_E04_128.nii.gz
 LabelImages: strings 2
-/NIRAL/work/joohwi/nadia/052613/C31_E04_label.nii.gz
-/NIRAL/work/joohwi/nadia/052613/C32_E04_label.nii.gz
+/tools/data/nadia/C31_E04_label.nii.gz
+/tools/data/nadia/C32_E04_label.nii.gz
 ==option_end==
 </string>
          </property>

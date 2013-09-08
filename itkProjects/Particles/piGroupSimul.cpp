@@ -91,7 +91,7 @@ namespace pi {
         initParticles();
 
         // test trainer
-//        testTrainer();
+        testTrainer();
     }
 
     void GroupSimul::testTrainer() {
@@ -106,6 +106,10 @@ namespace pi {
         trainer.setNumberOfParticles(counts);
         trainer.trainParticles();
         trainer.initialClosestCorrespondences();
+        trainer.removeOutliers();
+
+//        _solver->RemoveUnusedParticles();
+        _solver->SpreadParticles();
 
 
         for (int s = 0; s < _solver->m_System.GetNumberOfSubjects(); s++) {
@@ -140,8 +144,11 @@ namespace pi {
             graphicsPath->setParentItem(_imageItems[s]);
         }
 
-        trainer.establishCorrespondences();
-        trainer.removeOutliers();
+
+        // establish correspondences
+        //
+//        trainer.establishCorrespondences();
+//        trainer.removeOutliers();
 
         int nSubjs = _solver->m_System.GetNumberOfSubjects();
         ParticleSubject& subj0 = _solver->m_System[0];

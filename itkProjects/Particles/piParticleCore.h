@@ -262,6 +262,7 @@ namespace pi {
         }
 
         void RemoveParticle(int i);
+        void RemoveDisabledParticles();
 
         // public property to save intersection image to file
         std::string m_IntersectionOutput;

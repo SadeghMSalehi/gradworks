@@ -645,7 +645,7 @@ void ParticleTrainer::removeOutliers() {
 
         for (int j = 0; j < npoints; j++) {
             distz[j] = (dist[j] - mean) / stdev;
-            if (std::abs(distz[j]) > 1) {
+            if (std::abs(distz[j]) > 0.5) {
                 // outlier
                 outliers[j] = true;
                 subj0[j].outlier = true;

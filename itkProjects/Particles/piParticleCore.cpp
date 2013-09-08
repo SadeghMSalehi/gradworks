@@ -729,9 +729,15 @@ namespace pi {
         return m_MeanSubject;
     }
 
-    void ParticleSystem::RemoveParticle(int i) {
+    void ParticleSystem::RemoveParticle(int particleId) {
         for (int i = 0; i < m_Subjects.size(); i++) {
-            m_Subjects[i].m_Particles.erase_element(i);
+            m_Subjects[i].m_Particles.erase_element(particleId);
+        }
+    }
+
+
+    void ParticleSystem::RemoveDisabledParticles() {
+        for (int i = 0; i < m_Subjects.size(); i++) {
         }
     }
 
