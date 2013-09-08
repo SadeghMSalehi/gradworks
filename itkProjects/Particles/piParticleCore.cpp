@@ -43,6 +43,29 @@ namespace pi {
         t->SetMatrix(mat);
         return is;
     }
+    
+    
+    void removeDisabledParticles(ParticleArray& src, ParticleArray& dst) {
+        int nEnabledParticles = 0;
+        for (int i = 0; i < src.size(); i++) {
+            if (src[i].enabled) {
+                nEnabledParticles ++;
+            }
+        }
+        
+        const int nParticles = src.size();
+        dst.resize(nEnabledParticles);
+        
+        for (int j = 0, k = 0; j < nParticles; j++) {
+            if (src[j].enabled) {
+                dst[k] = src[j];
+                k++;
+            }
+        }
+    }
+
+    
+
  
     ParticleSubject::ParticleSubject(): m_SubjId(-1) {
         fordim (i) {
@@ -736,8 +759,13 @@ namespace pi {
     }
 
 
+    // remove all disabled particles
     void ParticleSystem::RemoveDisabledParticles() {
         for (int i = 0; i < m_Subjects.size(); i++) {
+            ParticleArray newArray;
+            removeDisabledParticles(m_Subjects[i].m_Particles, newArray);
+            cout << "Particle Count: " << m_Subjects[i].m_Particles.size() << " => " << newArray.size() << endl;
+            m_Subjects[i].m_Particles = newArray;
         }
     }
 

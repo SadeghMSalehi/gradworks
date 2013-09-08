@@ -105,11 +105,14 @@ namespace pi {
         trainer.setNumberOfPointSets(2);
         trainer.setNumberOfParticles(counts);
         trainer.trainParticles();
+
         trainer.initialClosestCorrespondences();
         trainer.removeOutliers();
-
-//        _solver->RemoveUnusedParticles();
+        _solver->m_System.RemoveDisabledParticles();
+        
+        cout << "Before Spread: " << _solver->m_System[0][0].x[0] << "," << _solver->m_System[0][0].x[1] << endl;
         _solver->SpreadParticles();
+        cout << "After Spread: " << _solver->m_System[0][0].x[0] << "," << _solver->m_System[0][0].x[1] << endl;
 
 
         for (int s = 0; s < _solver->m_System.GetNumberOfSubjects(); s++) {

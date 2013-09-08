@@ -67,6 +67,7 @@ namespace pi {
     typedef boost::numeric::ublas::vector<Particle> ParticleArray;
 
     void createParticles(ParticleVector&, int subj, int n);
+    void removeDisabledParticles(ParticleArray& src, ParticleArray& dst);
 
     class ParticleSubject {
     public:

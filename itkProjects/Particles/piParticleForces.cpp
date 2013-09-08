@@ -154,6 +154,13 @@ namespace pi {
             VNLVector weights(nPoints, 0);
             for (int j = 0; j < nPoints; j++) {
                 Particle& pj = subj.m_Particles[j];
+                
+                // interaction between particles with the same label
+                if (pj.label != pi.label) {
+                    continue;
+                }
+                
+                // no self interaction
                 if (i == j) {
                     // there's no self interaction
                     weights[j] = 0;

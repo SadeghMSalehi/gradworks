@@ -307,7 +307,7 @@ namespace pi {
         // Copy particles from initial subjects
         const int nSubz = m_System.GetNumberOfSubjects();
         const int nPoints = m_System[0].GetNumberOfPoints();
-
+        
         // check collision handlers are set up
         SetupCollisionHandlers();
 
@@ -334,7 +334,7 @@ namespace pi {
 
             for (int n = 0; n < nSubz; n++) {
                 ParticleSubject& subj = m_System[n];
-                internalForce.ComputeForce(subj);
+                internalForce.ComputeForce(subj, 1);
                 collisionHandlers[n].ProjectForceAndVelocity(subj);
                 for (int i = 0; i < nPoints; i++) {
                     Particle& p = subj[i];
@@ -351,6 +351,8 @@ namespace pi {
             }
         }
         internalForce.useAdaptiveSampling = prevUseAdaptiveSampling;
+        
+        cout << "# of points : " << nPoints << endl;
     }
     
 
