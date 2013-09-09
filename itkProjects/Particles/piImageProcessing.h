@@ -83,7 +83,7 @@ namespace pi {
         LabelImage::Pointer ThresholdToBinary(LabelImage::Pointer img);
         RealImage::Pointer ComputeGaussianGradientMagnitude(RealImage::Pointer img, double sigma = -1);
 
-
+        LabelImage::Pointer ExtractLabelFilter(LabelImage::Pointer img, int label);
         
         RealImage::Pointer ProcessFeatureDensityImage(RealImage::Pointer realImage, float kernelSigma, float repulsionSigma);
 

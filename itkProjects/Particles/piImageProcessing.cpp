@@ -123,6 +123,7 @@ namespace pi {
 
 
 
+
     
     LabelImage::Pointer ImageProcessing::SmoothLabelMap(LabelImage::Pointer img) {
 #if 1
@@ -481,6 +482,16 @@ namespace pi {
         return "";
     }
 
+    LabelImage::Pointer ImageProcessing::ExtractLabelFilter(LabelImage::Pointer inputImage, int extractLabel) {
+        BinaryThreshFilterType::Pointer threshFilter = BinaryThreshFilterType::New();
+        threshFilter->SetInput(inputImage);
+        threshFilter->SetLowerThreshold(extractLabel);
+        threshFilter->SetUpperThreshold(extractLabel);
+        threshFilter->SetOutsideValue(0);
+        threshFilter->SetInsideValue(1);
+        threshFilter->Update();
+        return threshFilter->GetOutput();
+    }
 
     RealImage::Pointer ImageProcessing::ProcessFeatureDensityImage(RealImage::Pointer realImage, LabelImage::Pointer maskImage, float kernelSigma, float regularizationSigma) {
         typedef itk::PointSet<float, DIMENSIONS> PointSetType;

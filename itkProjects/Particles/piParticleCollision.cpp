@@ -7,8 +7,9 @@
 //
 
 #include "piParticleCollision.h"
-#include "itkZeroCrossingImageFilter.h"
-#include "itkInvertIntensityImageFilter.h"
+#include <itkZeroCrossingImageFilter.h>
+#include <itkInvertIntensityImageFilter.h>
+#include <itkLabelStatisticsImageFilter.h>
 #include "piImageIO.h"
 #include "piImageProcessing.h"
 #include "boost/algorithm/string/predicate.hpp"
@@ -22,6 +23,157 @@
 #define x2string1(x) (x[0]+1)<<","<<(x[1]+1)<<","<<(x[2]+1)
 
 namespace pi {
+
+    void ParticleLocator::CreateLocator(LabelImage::Pointer labelImage, int extractLabel) {
+        ImageProcessing proc;
+
+        m_Label = extractLabel;
+
+        // extract label
+        m_BinaryMask = proc.ExtractLabelFilter(labelImage, m_Label);
+        m_RegionPicker = NNLabelInterpolatorType::New();
+        m_RegionPicker->SetInputImage(m_BinaryMask);
+
+
+        // compute gradient
+        m_Gradient = proc.ComputeGaussianGradient(m_BinaryMask);
+        m_NormalPicker = GradientInterpolatorType::New();
+        m_NormalPicker->SetInputImage(m_Gradient);
+
+
+        // generate distance map
+        m_DistanceMap = proc.ComputeDistanceMap(m_BinaryMask);
+        m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
+        m_DistOffsetPicker->SetInputImage(m_DistanceMap);
+
+    }
+
+    void ParticleLocator::ComputeClosestBoundary(Particle& pi, DataReal *x1, DataReal *contactPoint) {
+        RealImage::PointType x1Point;
+        fordim (k) {
+            x1Point[k] = x1[k];
+        }
+
+        // compute offset as interpolated value
+        // wondering if this is not going to cause any problem
+        VectorType offset = m_DistOffsetPicker->Evaluate(x1Point);
+
+        // compute the index from point due to offset computation
+        RealImage::IndexType x1Index;
+        m_DistanceMap->TransformPhysicalPointToIndex(x1Point, x1Index);
+        fordim (k) {
+            x1Index[k] += offset[k];
+        }
+
+#ifndef BATCH
+        if (::abs(offset[0]) > 10 || ::abs(offset[1]) > 10 || ::abs(offset[2]) > 10)  {
+            cout << "too large projection offset = [" << offset[0] << "," << offset[1] << "," << offset[2] << "] at [" << x1[0] << "," << x1[1] << "," << x1[2] << "]" << "; particle subj = " << pi.subj << " id = " << pi.idx << endl;
+        }
+
+        // index to point
+        RealImage::PointType pointOut;
+        m_DistanceMap->TransformIndexToPhysicalPoint(x1Index, pointOut);
+
+        if (!m_DistOffsetPicker->IsInsideBuffer(x1Index)) {
+            cout << "fail to find closest boundary" << endl;
+            // rollback
+            fordim (k) {
+                contactPoint[k] = pointOut[k];
+            }
+        };
+#endif
+    }
+
+
+    void ParticleMultiCollision::Initialize(LabelImage::Pointer labelImage) {
+        this->labelImage = labelImage;
+
+        // count number of labels
+        typedef itk::LabelStatisticsImageFilter<LabelImage, LabelImage> LabelStatFilter;
+        LabelStatFilter::Pointer labelStat = LabelStatFilter::New();
+        labelStat->SetLabelInput(labelImage);
+        labelStat->Update();
+
+        // assume label is contiguous
+        int nLabels = labelStat->GetNumberOfLabels();
+        locatorVector.resize(nLabels);
+
+        for (int extractLabel = 0; extractLabel < nLabels; extractLabel++) {
+            locatorVector[extractLabel].CreateLocator(labelImage, extractLabel);
+        }
+    }
+
+    bool ParticleMultiCollision::ComputeNormal(DataReal* contactPoint, DataReal* normalOutput, int label) {
+        RealImage::PointType point;
+        fordim (k) {
+            point[k] = contactPoint[k];
+        }
+        GradientPixel normal = locatorVector[label].m_NormalPicker->Evaluate(point);
+        fordim (k) {
+            normalOutput[k] = -normal[k];
+        }
+        return true;
+    }
+
+    void ParticleMultiCollision::ConstrainPoint(ParticleSubject& subj) {
+        imageSpacing = subj.GetLabel()->GetSpacing();
+
+        const int nPoints = subj.GetNumberOfPoints();
+        for (int i = 0; i < nPoints; i++) {
+            Particle &p = subj.m_Particles[i];
+
+            const int particleLabel = p.label;
+            VNLVector normal(__Dim, 0);
+
+            LabelImage::IndexType idx;
+            subj.ComputeIndexX(p, idx);
+
+            const bool isValidRegion = locatorVector[particleLabel].IsRegionInside(idx);
+            const bool isContacting = locatorVector[particleLabel].IsCrossing(idx);
+
+            if (isValidRegion && !isContacting) {
+                p.collisionEvent = false;
+                continue;
+            }
+
+            DataReal contactPointOut[__Dim];
+
+            // initialize contact point as current point
+            forset (p.x, contactPointOut);
+            if (!isValidRegion) {
+                // important!!
+                // this function will move current out-of-region point into the just closest boundary
+                // Point compuation is done in physical point
+                locatorVector[particleLabel].ComputeClosestBoundary(p, p.x, contactPointOut);
+            }
+            forset (contactPointOut, p.x);
+            p.collisionEvent = true;
+        }
+    }
+
+    void ParticleMultiCollision::ProjectForceAndVelocity(ParticleSubject& subj) {
+        const int nPoints = subj.GetNumberOfPoints();
+        VNLVector normal(__Dim);
+        for (int i = 0; i < nPoints; i++) {
+            Particle& p = subj[i];
+            normal.fill(0);
+            
+            if (p.collisionEvent) {
+                // project velocity and forces
+                ComputeNormal(p.x, normal.data_block(), p.label);
+                normal.normalize();
+                DataReal nv = dimdot(p.v, normal);
+                DataReal nf = dimdot(p.f, normal);
+                fordim (k) {
+                    p.v[k] = (p.v[k] - nv * normal[k]);
+                    p.f[k] -= nf * normal[k];
+                }
+            }
+        }
+
+    }
+
+
     bool ParticleCollision::ComputeContactPoint(DataReal *p0, DataReal *p1, ContactPoint& cp) {
         // do binary search between x0 and x1;
         IntIndex x0, x1, xm;

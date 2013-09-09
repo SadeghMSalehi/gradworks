@@ -73,7 +73,8 @@ void ParticleTrainer::sampleParticles() {
         labelStat->SetInput(system[i].GetImage(0));
         labelStat->SetLabelInput(labelImage);
         labelStat->Update();
-        
+
+        // count # of labels
         _numLabels = labelStat->GetNumberOfLabels();
 
         LabelPoints labelPoints;
@@ -122,8 +123,12 @@ void ParticleTrainer::sampleParticles() {
             }
         }
 
+        ParticleMultiCollision collisionHandler;
+        collisionHandler.subject = &subj;
+        collisionHandler.Initialize(subj.GetLabel());
+        
 
-
+        /*
         for (int j = 1; j < _numLabels; j++) {
             LabelImage::Pointer extractedLabel = extractLabel(subj.GetLabel(), i, j);
 
@@ -184,6 +189,7 @@ void ParticleTrainer::sampleParticles() {
                 }
             }
         }
+         */
     }
 }
 

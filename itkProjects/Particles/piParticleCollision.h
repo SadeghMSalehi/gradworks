@@ -26,6 +26,53 @@ namespace pi {
         int status;
     };
 
+
+    class ParticleLocator {
+    public:
+        inline bool IsCrossing(IntIndex& xm) {
+            return m_CrossingPicker->EvaluateAtIndex(xm) > 0;
+        }
+
+        inline bool IsRegionInside(IntIndex& xp) {
+            return m_RegionPicker->EvaluateAtIndex(xp) > 0;
+        }
+
+        inline bool IsBufferInside(IntIndex& xp) {
+            return m_RegionPicker->IsInsideBuffer(xp);
+        }
+
+        void CreateLocator(LabelImage::Pointer labelImage, int label);
+
+        void ComputeClosestBoundary(Particle& p, DataReal* x1, DataReal* cp);
+
+    public:
+        int m_Label;
+        
+        LabelImage::Pointer m_BinaryMask;
+        GradientImage::Pointer m_Gradient;
+        VectorImage::Pointer m_DistanceMap;
+
+        NNLabelInterpolatorType::Pointer m_CrossingPicker;
+        NNLabelInterpolatorType::Pointer m_RegionPicker;
+        GradientInterpolatorType::Pointer m_NormalPicker;
+        NNVectorImageInterpolatorType::Pointer m_DistOffsetPicker;
+    };
+
+    class ParticleMultiCollision {
+    public:
+        ParticleSubject* subject;
+        LabelImage::Pointer labelImage;
+        LabelImage::SpacingType imageSpacing;
+        std::vector<ParticleLocator> locatorVector;
+
+
+    public:
+        void Initialize(LabelImage::Pointer labelImage);
+        bool ComputeNormal(DataReal* cp, DataReal* normal, int label = 0);
+        void ConstrainPoint(ParticleSubject& subj);
+        void ProjectForceAndVelocity(ParticleSubject& subj);
+    };
+
     class ParticleCollision {
     public:
         std::string binaryMaskCache;
