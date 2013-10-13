@@ -37,6 +37,7 @@
 #include "itkMultiResolutionPyramidImageFilter.h"
 #include <itkManifoldParzenWindowsPointSetFunction.h>
 #include <itkCannyEdgeDetectionImageFilter.h>
+#include <itkInvertIntensityImageFilter.h>
 
 #include "piImageIO.h"
 #include "piImageHistogram.h"
@@ -404,6 +405,24 @@ namespace pi {
         zero->SetInput(src);
         zero->Update();
         return zero->GetOutput();
+    }
+
+    LabelImage::Pointer ImageProcessing::ComputeZeroCrossing(LabelImage::Pointer src) {
+        // zero-crossing filter
+        typedef itk::InvertIntensityImageFilter<LabelImage,LabelImage> InvertFilterType;
+        InvertFilterType::Pointer invertFilter = InvertFilterType::New();
+        invertFilter->SetInput(src);
+        invertFilter->SetMaximum(255);
+        invertFilter->Update();
+        LabelImage::Pointer invertedMask = invertFilter->GetOutput();
+
+        typedef itk::ZeroCrossingImageFilter<LabelImage,LabelImage> FilterType;
+        FilterType::Pointer filter = FilterType::New();
+        filter->SetInput(invertedMask);
+        filter->SetForegroundValue(1);
+        filter->SetBackgroundValue(0);
+        filter->Update();
+        return filter->GetOutput();
     }
     
     LabelImage::Pointer ImageProcessing::NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer mask) {

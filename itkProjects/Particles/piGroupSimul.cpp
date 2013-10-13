@@ -97,19 +97,26 @@ namespace pi {
     void GroupSimul::testTrainer() {
         ParticleTrainer trainer(&_solver->m_System);
         IntVector counts;
-        counts.push_back(100);
-        counts.push_back(0);
-        counts.push_back(0);
-        counts.push_back(0);
+        counts.push_back(80);
+        counts.push_back(50);
+        counts.push_back(50);
+        counts.push_back(50);
 
         trainer.setNumberOfPointSets(2);
         trainer.setNumberOfParticles(counts);
-        trainer.trainParticles();
+        trainer.sampleParticles();
+
+
+        // phase #1
+        _solver->SpreadMultiParticles();
+
 
         trainer.initialClosestCorrespondences();
         trainer.removeOutliers();
         _solver->m_System.RemoveDisabledParticles();
-        _solver->SpreadParticles();
+
+        // phase #2
+        _solver->SpreadMultiParticles();
 
 
         for (int s = 0; s < _solver->m_System.GetNumberOfSubjects(); s++) {

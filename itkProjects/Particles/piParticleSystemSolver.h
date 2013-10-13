@@ -35,6 +35,7 @@ namespace pi {
 
         // convenient function with only internal forces
         void SpreadParticles();
+        void SpreadMultiParticles();
 
         void SetupCollisionHandlers();
         
@@ -68,6 +69,7 @@ namespace pi {
 
         ParticleTrace trace;
         std::vector<ParticleCollision> collisionHandlers;
+        std::vector<ParticleMultiCollision> multiCollisionHandlers;
         Timer timer;
 
         // system state store

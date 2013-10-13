@@ -95,7 +95,7 @@ void QGraphicsParticleItems::createParticles(pi::ParticleSubject *subject) {
     _particleItems.resize(n);
 
     for (int j = 0; j < n; j++) {
-        const double r = 5;
+        const double r = 3;
         RGBA color = _hsvFunc->operator()(j);
         _particleItems[j] = new QGraphicsEllipseEventItem(_parentItem);
         _particleItems[j]->setListener(_listener);
@@ -125,10 +125,14 @@ void QGraphicsParticleItems::updateParticles() {
         numberOfParticleItems = numberOfSubjectPoints;
     }
 
-    bool useColorFromScalar = _useScalars && _scalars.size() == numberOfSubjectPoints;
+    bool useColorByLabel = true;
+    bool useColorFromScalar = !useColorByLabel && _useScalars && _scalars.size() == numberOfSubjectPoints;
     if (useColorFromScalar) {
         _hsvFunc->SetMinimumInputValue(_scalars.min_value());
         _hsvFunc->SetMaximumInputValue(_scalars.max_value());
+    } else if (useColorByLabel) {
+        _hsvFunc->SetMinimumInputValue(0);
+        _hsvFunc->SetMaximumInputValue(5);
     }
 
     assert(_particleItems.size() == _subject->GetNumberOfPoints());
@@ -158,6 +162,8 @@ void QGraphicsParticleItems::updateParticles() {
                 RGBA color;
                 if (useColorFromScalar) {
                     color = _hsvFunc->operator()(_scalars[j]);
+                } else if (useColorByLabel) {
+                    color = _hsvFunc->operator()(p.label);
                 } else {
                     color = _hsvFunc->operator()(j);
                 }

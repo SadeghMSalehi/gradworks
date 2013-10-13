@@ -298,7 +298,7 @@ namespace pi {
 
     
     /**
-     * This method spread initial particles inside of the each subject
+     * Spread initial particles inside of the each subject
      *
      */
     void ParticleSystemSolver::SpreadParticles() {
@@ -322,7 +322,7 @@ namespace pi {
 
         // iterate over
         for (DataReal t = t0; t < t1; t += dt) {
-            cout << "processing time: " << t << endl;
+//            cout << "processing time: " << t << endl;
             // compute internal force
             for (int n = 0; n < nSubz; n++) {
                 for (int i = 0; i < nPoints; i++) {
@@ -352,6 +352,63 @@ namespace pi {
         }
         internalForce.useAdaptiveSampling = prevUseAdaptiveSampling;
         
+        cout << "# of points : " << nPoints << endl;
+    }
+
+
+    /**
+     * Spread initial particles inside of the each label
+     *
+     */
+    void ParticleSystemSolver::SpreadMultiParticles() {
+        cout << "Spread initial particles in each label" << endl;
+
+        // Copy particles from initial subjects
+        const int nSubz = m_System.GetNumberOfSubjects();
+        const int nPoints = m_System[0].GetNumberOfPoints();
+
+        // Run again with preprocessing interval, give enough time range
+        DataReal t0 = 0;
+        DataReal dt = 0.1;
+        DataReal t1 = 500;
+
+        bool prevUseAdaptiveSampling = internalForce.useAdaptiveSampling;
+        internalForce.useAdaptiveSampling = false;
+
+        // iterate over
+        for (DataReal t = t0; t < t1; t += dt) {
+//            cout << "processing time: " << t << endl;
+            // compute internal force
+            for (int n = 0; n < nSubz; n++) {
+                for (int i = 0; i < nPoints; i++) {
+                    Particle& pi = m_System[n][i];
+                    forfill(pi.f, 0);
+                }
+                multiCollisionHandlers[n].ConstrainPoint(m_System[n]);
+            }
+
+            for (int n = 0; n < nSubz; n++) {
+                ParticleSubject& subj = m_System[n];
+                for (int k = 0; k < 5; k++) {
+                    internalForce.ComputeForce(subj, k);
+                }
+                multiCollisionHandlers[n].ProjectForceAndVelocity(subj);
+                for (int i = 0; i < nPoints; i++) {
+                    Particle& p = subj[i];
+                    p.UpdateStatus(dt);
+                    IntIndex pIdx;
+                    fordim (k) {
+                        pIdx[k] = p.x[k] + 0.5;
+                    }
+                    if (!multiCollisionHandlers[n].IsBufferInside(p, pIdx)) {
+                        cout << "\nStop system: out of region" << endl;
+                        return;
+                    }
+                }
+            }
+        }
+        internalForce.useAdaptiveSampling = prevUseAdaptiveSampling;
+
         cout << "# of points : " << nPoints << endl;
     }
     
@@ -417,6 +474,15 @@ namespace pi {
 
 
         SetupCollisionHandlers();
+
+        // Set up multi-collision handlers
+        multiCollisionHandlers.resize(nSubz);
+        for (int i = 0; i < nSubz; i++) {
+            multiCollisionHandlers[i].subject = &m_System[i];
+            multiCollisionHandlers[i].Initialize(m_System[i].GetLabel());
+        }
+
+
         
         ////////////////////////////////////////////////
         // Time Range Setup

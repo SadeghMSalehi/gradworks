@@ -76,6 +76,8 @@ namespace pi {
         RealImage::Pointer ComputeMagnitudeMap(GradientImage::Pointer img);
         RealImage2::Pointer ComputeMagnitude2Map(VectorImage2::Pointer img);
 
+        LabelImage::Pointer ComputeZeroCrossing(LabelImage::Pointer img);
+        
         RealImage::Pointer ComputeGaussianSmoothing(RealImage::Pointer img, double sigma = -1);
 
         VectorImage::Pointer ComputeDistanceMap(LabelImage::Pointer img);

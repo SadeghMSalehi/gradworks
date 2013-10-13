@@ -34,6 +34,13 @@ namespace pi {
         m_RegionPicker = NNLabelInterpolatorType::New();
         m_RegionPicker->SetInputImage(m_BinaryMask);
 
+        const bool saveBinaryMask = false;
+        if (saveBinaryMask) {
+            ImageIO<LabelImage> io;
+            char fname[128];
+            sprintf(fname, "/tmpfs/labelmap_%02d.nii.gz", extractLabel);
+            io.WriteImage(fname, m_BinaryMask);
+        }
 
         // compute gradient
         m_Gradient = proc.ComputeGaussianGradient(m_BinaryMask);
@@ -45,6 +52,19 @@ namespace pi {
         m_DistanceMap = proc.ComputeDistanceMap(m_BinaryMask);
         m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
         m_DistOffsetPicker->SetInputImage(m_DistanceMap);
+
+        const bool saveDistanceMap = true;
+        if (saveDistanceMap) {
+            ImageIO<RealImage> io;
+            char fname[128];
+            sprintf(fname, "/tmpfs/distmap_%02d.nii.gz", extractLabel);
+            io.WriteImage(fname, proc.ComputeMagnitudeMap(m_DistanceMap));
+        }
+
+
+        m_ZeroCrossing = proc.ComputeZeroCrossing(m_BinaryMask);
+        m_CrossingPicker = NNLabelInterpolatorType::New();
+        m_CrossingPicker->SetInputImage(m_ZeroCrossing);
 
     }
 
@@ -91,6 +111,7 @@ namespace pi {
         // count number of labels
         typedef itk::LabelStatisticsImageFilter<LabelImage, LabelImage> LabelStatFilter;
         LabelStatFilter::Pointer labelStat = LabelStatFilter::New();
+        labelStat->SetInput(labelImage);
         labelStat->SetLabelInput(labelImage);
         labelStat->Update();
 
@@ -101,6 +122,11 @@ namespace pi {
         for (int extractLabel = 0; extractLabel < nLabels; extractLabel++) {
             locatorVector[extractLabel].CreateLocator(labelImage, extractLabel);
         }
+    }
+
+
+    bool ParticleMultiCollision::IsBufferInside(Particle& p, IntIndex& xp) {
+        return locatorVector[p.label].m_RegionPicker->IsInsideBuffer(xp);
     }
 
     bool ParticleMultiCollision::ComputeNormal(DataReal* contactPoint, DataReal* normalOutput, int label) {

@@ -35,6 +35,7 @@ public:
     void loadParticles();
     void initialClosestCorrespondences();
     void establishCorrespondences();
+    void sampleParticles();
 
 
     // remove outliers from graph-based correspondences
@@ -55,7 +56,6 @@ private:
     typedef std::vector<LabelImage::PointType> PointVector;
     typedef std::vector<PointVector> LabelPoints;
 
-    void sampleParticles();
     void spreadParticles(int labelId);
     LabelImage::Pointer extractLabel(LabelImage::Pointer labelImage, int imageId, int labelId);
 

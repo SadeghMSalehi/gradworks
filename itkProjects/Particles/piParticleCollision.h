@@ -47,10 +47,13 @@ namespace pi {
 
     public:
         int m_Label;
-        
+
+        // information images
         LabelImage::Pointer m_BinaryMask;
         GradientImage::Pointer m_Gradient;
         VectorImage::Pointer m_DistanceMap;
+        LabelImage::Pointer m_ZeroCrossing;
+
 
         NNLabelInterpolatorType::Pointer m_CrossingPicker;
         NNLabelInterpolatorType::Pointer m_RegionPicker;
@@ -68,6 +71,7 @@ namespace pi {
 
     public:
         void Initialize(LabelImage::Pointer labelImage);
+        bool IsBufferInside(Particle& p, IntIndex& xp);
         bool ComputeNormal(DataReal* cp, DataReal* normal, int label = 0);
         void ConstrainPoint(ParticleSubject& subj);
         void ProjectForceAndVelocity(ParticleSubject& subj);

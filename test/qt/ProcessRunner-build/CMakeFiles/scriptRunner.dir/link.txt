@@ -1,0 +1,1 @@
+/usr/bin/c++    -Wl,-search_paths_first -Wl,-headerpad_max_install_names   CMakeFiles/scriptRunner.dir/main.cpp.o CMakeFiles/scriptRunner.dir/mainwindow.cpp.o CMakeFiles/scriptRunner.dir/moc_mainwindow.cxx.o  -o scriptRunner  /opt/local/lib/libQtGui.dylib /opt/local/lib/libQtCore.dylib 

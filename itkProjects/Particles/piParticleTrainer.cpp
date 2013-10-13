@@ -65,7 +65,7 @@ void ParticleTrainer::sampleParticles() {
     _numSubjs = _system->GetNumberOfSubjects();
     _labelBounds.resize(_numSubjs);
 
-    // for every subject
+    // Random particle sampling for every subject
     for (int i = 0; i < _numSubjs; i++) {
         LabelImage::Pointer labelImage = system[i].GetLabel();
 
@@ -123,10 +123,10 @@ void ParticleTrainer::sampleParticles() {
             }
         }
 
-        ParticleMultiCollision collisionHandler;
-        collisionHandler.subject = &subj;
-        collisionHandler.Initialize(subj.GetLabel());
-        
+//        ParticleMultiCollision collisionHandler;
+//        collisionHandler.subject = &subj;
+//        collisionHandler.Initialize(subj.GetLabel());
+
 
         /*
         for (int j = 1; j < _numLabels; j++) {
@@ -340,22 +340,25 @@ void ParticleTrainer::initialClosestCorrespondences() {
             }
             subjs[correspondenceId].correspondence = i;
             subjs[correspondenceId].correspondenceScore = distMin;
-            cout << "Minimum Distance:" << distMin << endl;
+//            cout << "Minimum Distance:" << distMin << endl;
         }
 
         subjs.SortByCorrespondence();
     }
 
 
-    for (int i = 0; i < nPoints; i++) {
-        for (int s = 0; s < nSubjs; s++) {
-            cout << _system->operator[](s)[i].correspondence << " ";
-            fordim (k) {
-                cout << _system->operator[](s)[i].x[k] << " ";
+    const bool printCorrespondence = false;
+    if (printCorrespondence) {
+        for (int i = 0; i < nPoints; i++) {
+            for (int s = 0; s < nSubjs; s++) {
+                cout << _system->operator[](s)[i].correspondence << " ";
+                fordim (k) {
+                    cout << _system->operator[](s)[i].x[k] << " ";
+                }
+                cout << "; ";
             }
-            cout << "; ";
+            cout << endl;
         }
-        cout << endl;
     }
 }
 
