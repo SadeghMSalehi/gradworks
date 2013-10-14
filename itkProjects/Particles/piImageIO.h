@@ -158,6 +158,7 @@ namespace pi {
             return output;
         }
 
+
         ImagePointer WrapImage(typename T::PixelType* imagePointer, int *size) {
             int nElems = 1;
             typename T::PixelContainer::Pointer importer = T::PixelContainer::New();

@@ -11,6 +11,8 @@
 #include "piOptions.h"
 #include "piSimul2.h"
 #include "piParticleCore.h"
+#include "piImageIO.h"
+#include "piPatchCompare.h"
 
 using namespace std;
 
@@ -52,6 +54,9 @@ int main(int argc, char* argv[]) {
     CSimpleOpt::SOption options[] ={
         { 1, "--gui", SO_NONE },
         { 2, "--test", SO_NONE },
+        { 3, "--makePatch", SO_NONE },
+        { 4, "--labelTransferWithPatch", SO_NONE },
+        { 5, "-o", SO_REQ_SEP },
         SO_END_OF_OPTIONS
     };
 
@@ -60,6 +65,15 @@ int main(int argc, char* argv[]) {
 
     if (parser.GetBool("--test")) {
         testUBlasVector();
+    } else if (parser.GetBool("--makePatch")) {
+        ImageIO<RealImage> io;
+        RealImage::Pointer image = io.ReadCastedImage(args[0]);
+        PatchCompare patchMaker;
+        PatchImage::Pointer patchImage = patchMaker.buildPatchImage(image);
+        ImageIO<PatchImage> io2;
+        io2.WriteImage(args[1], patchImage);
+    } else if (parser.GetBool("--labelTransferWithPatch")) {
+        transferLabelsWithPatch(args, parser.GetString("-o"));
     } else if (args.size() == 0 || parser.GetBool("--gui")) {
         MainApps apps(argc, argv);
         Simul2 w;
