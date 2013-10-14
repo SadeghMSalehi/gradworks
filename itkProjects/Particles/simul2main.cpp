@@ -57,6 +57,8 @@ int main(int argc, char* argv[]) {
         { 3, "--makePatch", SO_NONE },
         { 4, "--labelTransferWithPatch", SO_NONE },
         { 5, "-o", SO_REQ_SEP },
+        { 6, "--searchRadius", SO_REQ_SEP },
+        { 7, "--kNearest", SO_REQ_SEP },
         SO_END_OF_OPTIONS
     };
 
@@ -73,7 +75,7 @@ int main(int argc, char* argv[]) {
         ImageIO<PatchImage> io2;
         io2.WriteImage(args[1], patchImage);
     } else if (parser.GetBool("--labelTransferWithPatch")) {
-        transferLabelsWithPatch(args, parser.GetString("-o"));
+        transferLabelsWithPatch(args, parser.GetString("-o"), parser.GetInt("--searchRadius", 3), parser.GetInt("--kNearest", 3));
     } else if (args.size() == 0 || parser.GetBool("--gui")) {
         MainApps apps(argc, argv);
         Simul2 w;

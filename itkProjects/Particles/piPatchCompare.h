@@ -38,7 +38,7 @@ namespace pi {
         // return the estimated target label
         LabelImage::Pointer getTargetLabel();
 
-        void estimateLabel();
+        void estimateLabel(int searchRadius, int kNearest);
 
         PatchImage::Pointer buildPatchImage(RealImage::Pointer image);
     private:
@@ -59,7 +59,7 @@ namespace pi {
      * \param args a list of string arguments
      * \param output filename for estimated label transfer
      */
-    void transferLabelsWithPatch(StringVector& args, std::string output);
+    void transferLabelsWithPatch(StringVector& args, std::string output, int searchRadius = 3, int kNearest = 3);
 }
 
 #endif /* defined(__ParticleGuidedRegistration__piPatchCompare__) */

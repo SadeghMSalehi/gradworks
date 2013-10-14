@@ -76,14 +76,16 @@ namespace pi {
     }
 
     // run estimation comparing patches
-    void PatchCompare::estimateLabel() {
+    void PatchCompare::estimateLabel(int searchRadius, int kNearest) {
         RealImage::RegionType targetRegion = _targetImage->GetBufferedRegion();
         PatchImage::Pointer targetPatch = buildPatchImage((_targetImage));
 
         ImageIO<LabelImage> labelIO;
         _targetLabel = labelIO.CastImageFromS<RealImage>(_targetImage);
         _targetLabel->FillBuffer(0);
-
+        
+        cout << "searchRadius = " << searchRadius << ", kNearest = " << kNearest << endl;
+        
         itk::ImageRegionConstIteratorWithIndex<PatchImage> iter(targetPatch, targetRegion);
         // for each particle
         // for each voxel v1 inside the target radius
@@ -101,8 +103,6 @@ namespace pi {
             // for each voxel v2 inside the search radius of v1
 
             // define search area
-            int searchRadius = 3;
-
             RealImage::RegionType searchRegion;
             RealImage::IndexType searchIndex = idx;
             RealImage::SizeType searchSize;
@@ -139,12 +139,14 @@ namespace pi {
             // choose top k nearest patches
             std::sort(similarityRanking.begin(), similarityRanking.end(), patch_compare_descending);
 
-//            cout << similarityRanking[0].metric << ", " << similarityRanking[1].metric << ", " << similarityRanking[2].metric << endl;
-
             // estimate label for v1
-            std::vector<int> counter(10);
+            std::vector<int> counter(100);
             std::fill(counter.begin(), counter.end(), 0);
-            for (unsigned int k = 0; k < 5; k++) {
+            for (unsigned int k = 0; k < kNearest; k++) {
+                if (similarityRanking[k].originLabel > counter.size()) {
+                    cout << "Too big label index (" << similarityRanking[k].originLabel << ") ignored" << endl;
+                    continue;
+                }
                 counter[similarityRanking[k].originLabel] ++;
             }
             int estimatedLabel = std::distance(counter.begin(), std::max_element(counter.begin(), counter.end()));
@@ -204,10 +206,11 @@ namespace pi {
     }
 
 
-    void transferLabelsWithPatch(StringVector& args, std::string output) {
+    void transferLabelsWithPatch(StringVector& args, std::string output, int searchRadius, int kNearest) {
         int nAtlas = (args.size() - 2) / 2;
         if (args.size() == 0 || args.size() != (nAtlas+1)*2 || nAtlas < 1) {
             cout << "LabelTransfer: target-image target-roi atlas-patch-#1 atlas-patch-#2 ... atlas-label-#1 atlas-label-#2 ..." << endl;
+            return;
         }
 
         ImageIO<RealImage> realIO;
@@ -237,7 +240,7 @@ namespace pi {
         patchRun.setAtlasLabels(atlasLabels);
         patchRun.setTargetImage(targetImage);
         patchRun.setTargetROI(targetROI);
-        patchRun.estimateLabel();
+        patchRun.estimateLabel(searchRadius, kNearest);
 
         labelIO.WriteImage(output, patchRun.getTargetLabel());
     }
