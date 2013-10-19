@@ -12,6 +12,14 @@
 #include <vector>
 #include <algorithm>
 
+#include <itkImageRegistrationMethod.h>
+#include <itkLinearInterpolateImageFunction.h>
+#include <itkMeanSquaresImageToImageMetric.h>
+#include <itkRegularStepGradientDescentOptimizer.h>
+#include <itkResampleImageFilter.h>
+#include <itkRescaleIntensityImageFilter.h>
+#include <itkTranslationTransform.h>
+
 namespace pi {
     struct PatchSimilarity {
         int originAtlas;
@@ -243,5 +251,113 @@ namespace pi {
         patchRun.estimateLabel(searchRadius, kNearest);
 
         labelIO.WriteImage(output, patchRun.getTargetLabel());
+    }
+
+
+    void PatchCompare::performDeformableRegistration(PatchImage::Pointer fixedImage, PatchImage::Pointer movingImage, RealImage::Pointer movingSource) {
+        typedef itk::TranslationTransform<double, __Dim> TransformType;
+        typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
+        typedef itk::MeanSquaresImageToImageMetric<PatchImage, PatchImage> MetricType;
+        typedef itk:: LinearInterpolateImageFunction<PatchImage, double> InterpolatorType;
+        typedef itk::ImageRegistrationMethod<PatchImage, PatchImage> RegistrationType;
+        typedef itk::ResampleImageFilter<RealImage, RealImage> ResampleFilterType;
+
+        // Create components
+        MetricType::Pointer         metric        = MetricType::New();
+        TransformType::Pointer      transform     = TransformType::New();
+        OptimizerType::Pointer      optimizer     = OptimizerType::New();
+        InterpolatorType::Pointer   interpolator  = InterpolatorType::New();
+        RegistrationType::Pointer   registration  = RegistrationType::New();
+
+        // Each component is now connected to the instance of the registration method.
+        registration->SetMetric(        metric        );
+        registration->SetOptimizer(     optimizer     );
+        registration->SetTransform(     transform     );
+        registration->SetInterpolator(  interpolator  );
+
+        // Set the registration inputs
+        registration->SetFixedImage(fixedImage);
+        registration->SetMovingImage(movingImage);
+
+        registration->SetFixedImageRegion(fixedImage->GetLargestPossibleRegion());
+
+        //  Initialize the transform
+        typedef RegistrationType::ParametersType ParametersType;
+        ParametersType initialParameters( transform->GetNumberOfParameters() );
+
+        initialParameters[0] = 0.0;  // Initial offset along X
+        initialParameters[1] = 0.0;  // Initial offset along Y
+
+        registration->SetInitialTransformParameters( initialParameters );
+
+        optimizer->SetMaximumStepLength( 4.00 );
+        optimizer->SetMinimumStepLength( 0.01 );
+
+        // Set a stopping criterion
+        optimizer->SetNumberOfIterations( 200 );
+
+        // Connect an observer
+        //CommandIterationUpdate::Pointer observer = CommandIterationUpdate::New();
+        //optimizer->AddObserver( itk::IterationEvent(), observer );
+
+        try
+        {
+          registration->Update();
+        }
+        catch( itk::ExceptionObject & err )
+        {
+          std::cerr << "ExceptionObject caught !" << std::endl;
+          std::cerr << err << std::endl;
+          return EXIT_FAILURE;
+        }
+
+        //  The result of the registration process is an array of parameters that
+        //  defines the spatial transformation in an unique way. This final result is
+        //  obtained using the \code{GetLastTransformParameters()} method.
+
+        ParametersType finalParameters = registration->GetLastTransformParameters();
+
+        //  In the case of the \doxygen{TranslationTransform}, there is a
+        //  straightforward interpretation of the parameters.  Each element of the
+        //  array corresponds to a translation along one spatial dimension.
+
+        const double TranslationAlongX = finalParameters[0];
+        const double TranslationAlongY = finalParameters[1];
+
+        //  The optimizer can be queried for the actual number of iterations
+        //  performed to reach convergence.  The \code{GetCurrentIteration()}
+        //  method returns this value. A large number of iterations may be an
+        //  indication that the maximum step length has been set too small, which
+        //  is undesirable since it results in long computational times.
+
+        const unsigned int numberOfIterations = optimizer->GetCurrentIteration();
+
+        //  The value of the image metric corresponding to the last set of parameters
+        //  can be obtained with the \code{GetValue()} method of the optimizer.
+
+        const double bestValue = optimizer->GetValue();
+
+        // Print out results
+        //
+        std::cout << "Result = " << std::endl;
+        std::cout << " Translation X = " << TranslationAlongX  << std::endl;
+        std::cout << " Translation Y = " << TranslationAlongY  << std::endl;
+        std::cout << " Iterations    = " << numberOfIterations << std::endl;
+        std::cout << " Metric value  = " << bestValue          << std::endl;
+
+
+        //  A resampling filter is created and the moving image is connected as  its input.
+        ResampleFilterType::Pointer resampler = ResampleFilterType::New();
+        resampler->SetInput(movingSource);
+        resampler->SetTransform(registration->GetOutput()->Get());
+        resampler->SetSize( fixedImage->GetLargestPossibleRegion().GetSize() );
+        resampler->SetOutputOrigin(  fixedImage->GetOrigin() );
+        resampler->SetOutputSpacing( fixedImage->GetSpacing() );
+        resampler->SetOutputDirection( fixedImage->GetDirection() );
+        resampler->SetDefaultPixelValue( 100 );
+        resampler->Update();
+
+        pi::ImageIO<RealImage> realIO;
+        realIO.WriteImage("/tmpfs/resample_output.nrrd", resampler->GetOutput());
     }
 }

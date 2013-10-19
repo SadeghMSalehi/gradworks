@@ -41,6 +41,10 @@ namespace pi {
         void estimateLabel(int searchRadius, int kNearest);
 
         PatchImage::Pointer buildPatchImage(RealImage::Pointer image);
+
+        // run demon's algorithm on these patch image
+        void performDeformableRegistration(PatchImage::Pointer fixed, PatchImage::Pointer moving);
+
     private:
         ParticleSystem* _system;
         RealImage::Pointer _targetImage;
