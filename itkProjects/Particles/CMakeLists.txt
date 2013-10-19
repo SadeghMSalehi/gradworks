@@ -8,6 +8,15 @@ set(CMAKE_AUTOMOC ON)
 # to always look for includes there:
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+# Check if environment variable QTDIR is set.
+# Extra security for windows environment as well.
+if (DEFINED ENV{QTDIR})
+    set(CMAKE_PREFIX_PATH $ENV{QTDIR} ${CMAKE_PREFIX_PATH})
+else ()
+    message (FATAL_ERROR "ERROR: Environment variable QTDIR is not set. Please locate your Qt folder MY_QT5_DIR.")
+endif ()
+
+
 SET (BUILD_2D False CACHE BOOL "Compile 2d version")
 SET (BUILD_PEVAL False CACHE BOOL "Compile peval for label evaluation")
 SET (BUILD_GUI False CACHE BOOL "Compile GUI tools")
@@ -20,11 +29,7 @@ FIND_PACKAGE(ITK 4 REQUIRED)
 # QT Library
 # Older One
 #FIND_PACKAGE(Qt REQUIRED COMPONENTS QtOpenGL)
-
-# Widgets finds its own dependencies (QtGui and QtCore).
-FIND_PACKAGE(Qt5Widgets REQUIRED)
-FIND_PACKAGE(Qt5PrintSupport REQUIRED)
-FIND_PACKAGE(Qt5Concurrent REQUIRED)
+FIND_PACKAGE(Qt5 REQUIRED COMPONENTS Widgets PrintSupport Concurrent )
 
 FIND_PACKAGE(VTK COMPONENTS REQUIRED)
 SET(VTK_REQUIRED_OBJCXX_FLAGS -fobjc-gc)

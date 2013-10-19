@@ -59,6 +59,7 @@ int main(int argc, char* argv[]) {
         { 5, "-o", SO_REQ_SEP },
         { 6, "--searchRadius", SO_REQ_SEP },
         { 7, "--kNearest", SO_REQ_SEP },
+        { 8, "--demons", SO_NONE },
         SO_END_OF_OPTIONS
     };
 
@@ -67,16 +68,16 @@ int main(int argc, char* argv[]) {
 
     if (parser.GetBool("--test")) {
         testUBlasVector();
-    } else if (parser.GetBool("--makePatch")) {
-        ImageIO<RealImage> io;
-        RealImage::Pointer image = io.ReadCastedImage(args[0]);
-        PatchCompare patchMaker;
-        PatchImage::Pointer patchImage = patchMaker.buildPatchImage(image);
-        ImageIO<PatchImage> io2;
-        io2.WriteImage(args[1], patchImage);
-    } else if (parser.GetBool("--labelTransferWithPatch")) {
-        transferLabelsWithPatch(args, parser.GetString("-o"), parser.GetInt("--searchRadius", 3), parser.GetInt("--kNearest", 3));
-    } else if (args.size() == 0 || parser.GetBool("--gui")) {
+    }
+
+
+    // delegate patch-related process to PatchCompare
+    PatchCompare patchMaker;
+    if (patchMaker.main(parser, args)) {
+        return EXIT_SUCCESS;
+    }
+
+    if (args.size() == 0 || parser.GetBool("--gui")) {
         MainApps apps(argc, argv);
         Simul2 w;
         w.show();
