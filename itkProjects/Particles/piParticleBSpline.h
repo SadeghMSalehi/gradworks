@@ -17,11 +17,11 @@
 #include "itkWarpImageFilter.h"
 
 #ifndef NCONTROL
-#define NCONTROL 16
+#define NCONTROL 32
 #endif
 
 #ifndef NORDER
-#define NORDER 3
+#define NORDER 5
 #endif
 
 namespace pi {
@@ -37,7 +37,7 @@ namespace pi {
     class ParticleBSpline {
     public:
         ParticleBSpline() : m_SplineOrder(__SPLINE_ORDER__), m_SplineLevel(1), m_ControlPoints(__SPLINE_CONTROL_POINTS__) {
-            m_ControlPointSpacing = 4;
+            m_ControlPointSpacing = 2;
         }
 
         int m_ControlPointSpacing;
@@ -131,7 +131,7 @@ namespace pi {
             numControlPoints[i] = imageSize[i] / m_ControlPointSpacing + splineOrder;
         }
 
-//        cout << "# control points: " << numControlPoints << endl;
+        cout << "# control points: " << numControlPoints << endl;
 
         try {
             // debug: reparameterized point component is outside
