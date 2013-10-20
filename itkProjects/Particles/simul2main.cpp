@@ -13,6 +13,8 @@
 #include "piParticleCore.h"
 #include "piImageIO.h"
 #include "piPatchCompare.h"
+#include "piTestMain.h"
+#include "vtkParticleHelper.h"
 
 using namespace std;
 
@@ -60,6 +62,8 @@ int main(int argc, char* argv[]) {
         { 6, "--searchRadius", SO_REQ_SEP },
         { 7, "--kNearest", SO_REQ_SEP },
         { 8, "--demons", SO_NONE },
+        { 9, "--boost", SO_NONE },
+        { 10, "--vtk", SO_REQ_SEP },
         SO_END_OF_OPTIONS
     };
 
@@ -74,6 +78,16 @@ int main(int argc, char* argv[]) {
     // delegate patch-related process to PatchCompare
     PatchCompare patchMaker;
     if (patchMaker.main(parser, args)) {
+        return EXIT_SUCCESS;
+    }
+
+    TestMain testMain;
+    if (testMain.main(parser, args)) {
+        return EXIT_SUCCESS;
+    }
+
+    vtkParticleHelper helper;
+    if (helper.main(parser, args)) {
         return EXIT_SUCCESS;
     }
 

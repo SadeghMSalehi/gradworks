@@ -21,7 +21,16 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_5">
-    <property name="margin">
+    <property name="leftMargin">
+     <number>3</number>
+    </property>
+    <property name="topMargin">
+     <number>3</number>
+    </property>
+    <property name="rightMargin">
+     <number>3</number>
+    </property>
+    <property name="bottomMargin">
      <number>3</number>
     </property>
     <item>
@@ -119,7 +128,7 @@
      <x>0</x>
      <y>0</y>
      <width>929</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -221,7 +230,16 @@
    </attribute>
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QVBoxLayout" name="verticalLayout_2">
-     <property name="margin">
+     <property name="leftMargin">
+      <number>3</number>
+     </property>
+     <property name="topMargin">
+      <number>3</number>
+     </property>
+     <property name="rightMargin">
+      <number>3</number>
+     </property>
+     <property name="bottomMargin">
       <number>3</number>
      </property>
      <item>
@@ -272,11 +290,11 @@ Subjects: strings 2
 00
 11
 RealImages: strings 2
-/tools/data/nadia/C31_E04_128.nii.gz
-/tools/data/nadia/C32_E04_128.nii.gz
+/NIRAL/work/joohwi/nadia/patchwork/C31_E04_128.nii.gz
+/NIRAL/work/joohwi/nadia/patchwork/C32_E04_128.nii.gz
 LabelImages: strings 2
-/tools/data/nadia/C31_E04_label.nii.gz
-/tools/data/nadia/C32_E04_label.nii.gz
+/NIRAL/work/joohwi/nadia/patchwork/C31_E04_label.nii.gz
+/NIRAL/work/joohwi/nadia/patchwork/C32_E04_label.nii.gz
 ==option_end==
 </string>
          </property>
@@ -429,7 +447,16 @@ LabelImages: strings 2
        </property>
        <widget class="QWidget" name="page">
         <layout class="QVBoxLayout" name="verticalLayout_3">
-         <property name="margin">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
           <number>0</number>
          </property>
          <item>

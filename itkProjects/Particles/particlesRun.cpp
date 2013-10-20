@@ -28,6 +28,17 @@ int dstIdx = 0;
 ImageIO<RealImage> realIO;
 ImageIO<LabelImage> labelIO;
 
+
+/// particle-guided image registration main
+///
+int particleRegistration(Options& parser, StringVector& args);
+
+/// perform post processing after particle registration
+///
+void postProcessing(Options& opts, StringVector& args, ParticleSystemSolver& solver);
+
+
+/// utility function
 void zeroCrossing(Options& parser, StringVector& args) {
     if (args.size() < 2) {
         cout << "--zercorssing requires [srcimg] [dstimg]" << endl;
@@ -41,7 +52,7 @@ void zeroCrossing(Options& parser, StringVector& args) {
     LabelImage::Pointer label = labelIO.ReadImage(args[0].c_str());
     LabelImage::Pointer zeroCross = proc.ZeroCrossing(label);
     labelIO.WriteImage(args[1].c_str(), zeroCross);
-    
+
     return;
 }
 
@@ -72,9 +83,9 @@ void traceWarp(Options& parser, StringVector& args) {
     ifstream is(traceIn.c_str());
     trace.Read(is);
 
-    
 
-    
+
+
     return;
 }
 
@@ -474,16 +485,16 @@ int main(int argc, char* argv[]) {
 
         bool doingSomething = false;
         if (label != "") {
-			// write image
-			ImageIO<LabelImage> io;
+            // write image
+            ImageIO<LabelImage> io;
             LabelImage::Pointer outputImage = particleTransform.WarpLabel(io.ReadImage(label.c_str()));
-			io.WriteImage(output.c_str(), outputImage);
+            io.WriteImage(output.c_str(), outputImage);
             doingSomething = true;
         }
         if (input != "") {
-			ImageIO<RealImage> io;
-        	RealImage::Pointer outputImage = particleTransform.WarpImage(io.ReadImage(input.c_str()));
-        	io.WriteImage(output.c_str(), outputImage);
+            ImageIO<RealImage> io;
+            RealImage::Pointer outputImage = particleTransform.WarpImage(io.ReadImage(input.c_str()));
+            io.WriteImage(output.c_str(), outputImage);
             doingSomething = true;
         }
         if (!doingSomething) {
@@ -491,7 +502,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (parser.GetBool("--warp")) {
         if (args.size() < 2) {
-        	cout << "--warp requires [output.txt] --inputimage|inputlabel [source-image] --reference [reference] [warped-output-image]" << endl;
+            cout << "--warp requires [output.txt] --inputimage|inputlabel [source-image] --reference [reference] [warped-output-image]" << endl;
             return 0;
         }
 
@@ -504,7 +515,7 @@ int main(int argc, char* argv[]) {
 
         solver.LoadConfig(args[0].c_str());
 
-        
+
         if (system.size() < 2) {
             cout << "system is not loaded successfully" << endl;
             return 0;
@@ -529,7 +540,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (parser.GetBool("--meanwarp")) {
         if (args.size() < 2) {
-        	cout << "--meanwarp requires [output.txt] --inputimage|--inputlabel [source-image] [warped-output-image]" << endl;
+            cout << "--meanwarp requires [output.txt] --inputimage|--inputlabel [source-image] [warped-output-image]" << endl;
             return 0;
         }
 
@@ -544,7 +555,7 @@ int main(int argc, char* argv[]) {
 
 
         ParticleSubject meanSubj = system.ComputeXMeanSubject();
-        
+
         if (system.size() < 2) {
             cout << "system is not loaded successfully" << endl;
             return 0;
@@ -570,7 +581,7 @@ int main(int argc, char* argv[]) {
 
     } else if (parser.GetBool("--markTrace")) {
         if (args.size() < 2) {
-        	cout << "--meanwarp requires [output.txt] [reference-image] [output-image] --srcidx [point-index] --srcsubj [subject-index]" << endl;
+            cout << "--meanwarp requires [output.txt] [reference-image] [output-image] --srcidx [point-index] --srcsubj [subject-index]" << endl;
             return 0;
         }
         ifstream in(args[0].c_str());
@@ -581,7 +592,7 @@ int main(int argc, char* argv[]) {
 
         int srcIdx = atoi(parser.GetString("--srcidx", "-1").c_str());
         int srcSubj = atoi(parser.GetString("--srcsubj", "-1").c_str());
-        
+
         ImageIO<LabelImage> io;
         LabelImage::Pointer ref = io.ReadImage(args[1].c_str());
         LabelImage::Pointer canvas = io.NewImage(ref);
@@ -631,13 +642,13 @@ int main(int argc, char* argv[]) {
         }
         ImageIO<RealImage> iod;
         ImageIO<LabelImage> iol;
-        
+
         RealImage::Pointer input = iod.ReadImage(args[0].c_str());
         LabelImage::Pointer label = iol.ReadImage(args[1].c_str());
-        
+
         ImageProcessing proc;
         RealImage::Pointer output = proc.NormalizeIntensity(input, label);
-        
+
         iod.WriteImage(args[2].c_str(), output);
     } else if (parser.GetBool("--magnitude")) {
         if (args.size() < 2) {
@@ -679,7 +690,7 @@ int main(int argc, char* argv[]) {
             mask = lio.ReadImage(maskInput.c_str());
         }
 
-        LabelPixel outMax = 10000;
+        LabelPixel outMax = 100;
         LabelPixel outMin = 0;
         if (args.size() > 2) {
             outMin = atoi(args[2].c_str());
@@ -751,7 +762,7 @@ int main(int argc, char* argv[]) {
         AtlasSimilarityScore score;
         score.Compute(labelIO.ReadImage(args[0].c_str()), labelIO.ReadImage(args[1].c_str()));
         cout << score << endl;
-        return 0; 
+        return 0;
     } else if (parser.GetBool("--histo")) {
         computeHistogram(parser, args);
     } else if (parser.GetBool("--traceWarp")) {
@@ -760,7 +771,7 @@ int main(int argc, char* argv[]) {
         zeroCrossing(parser, args);
     } else if (parser.GetBool("--removeborder")) {
         if (args.size() < 2) {
-        	cout << "--removeborder requires [input-image] [output-image]" << endl;
+            cout << "--removeborder requires [input-image] [output-image]" << endl;
             return 0;
         }
 
@@ -769,72 +780,95 @@ int main(int argc, char* argv[]) {
         labelIO.WriteImage(args[1].c_str(), img);
 
     } else {
-        if (args.size() < 2) {
-        	cout << "registration requires [config.txt] [output.txt]" << endl;
-            return 0;
-        }
+        return particleRegistration(parser, args);
+    }
+}
 
-        if (!solver.LoadConfig(args[0].c_str())) {
-            return 0;
+
+int particleRegistration(Options& parser, StringVector& args) {
+    // initial checking
+    if (args.size() < 2) {
+        cout << "registration requires [config.txt] [output.txt]" << endl;
+        return 0;
+    }
+
+    ParticleSystemSolver solver;
+    ParticleSystem& system = solver.m_System;
+    Options& options = solver.m_Options;
+
+    srcIdx = atoi(parser.GetString("--srcidx", "1").c_str());
+    dstIdx = atoi(parser.GetString("--dstidx", "0").c_str());
+
+    // load configuration
+    if (!solver.LoadConfig(args[0].c_str())) {
+        return 0;
+    }
+
+    // additional options
+    if (parser.GetBool("--noTrace")) {
+        options.SetString("PreprocessingTrace:", string(""));
+        options.SetString("RunTrace:", string(""));
+        cout << "Trace disabled..." << endl;
+    }
+
+    if (!options.GetBool("no_preprocessing")) {
+        solver.Preprocessing();
+    } else {
+        cout << "Skipping preprocessing; continue with given particles from the input" << endl;
+        cout << "the first particle of each subject: " << endl;
+        for (int i = 0; i < system.GetNumberOfSubjects(); i++) {
+            cout << system[i][0] << endl;
         }
-        
-        if (parser.GetBool("--noTrace")) {
-            options.SetString("PreprocessingTrace:", string(""));
-            options.SetString("RunTrace:", string(""));
-            cout << "Trace disabled..." << endl;
+        cout << "continue optimization;" << endl;
+    }
+
+
+    // preprocessing
+    cout << "Spreading Particles ..." << flush;
+    for (int i = 0; i < 3; i++) {
+        cout << i << " " << flush;
+        solver.SpreadParticles();
+    }
+    cout << " done" << endl;
+
+    cout << "Start Running... " << endl;
+    solver.Run();
+    solver.SaveConfig(args[1].c_str());
+
+    postProcessing(options, args, solver);
+}
+
+void postProcessing(Options& parser, StringVector& args, ParticleSystemSolver& solver) {
+    ParticleSystem& system = solver.m_System;
+    Options& options = solver.m_Options;
+
+    // final point location marking onto image
+    StringVector& markingImages = solver.m_Options.GetStringVector("FinalMarking:");
+    if (markingImages.size() > 0) {
+        ImageIO<LabelImage> io;
+
+        for (int i = 0; i < markingImages.size(); i++) {
+            LabelImage::Pointer label = solver.m_System[i].GetLabel();
+            LabelImage::Pointer canvas = io.NewImage(label);
+            ParticleArray& data = system[i].m_Particles;
+            MarkAtImage<ParticleArray>(data, data.size(), canvas, 1);
+            io.WriteImage(markingImages[i].c_str(), canvas);
         }
-        
-        if (!options.GetBool("no_preprocessing")) {
-            solver.Preprocessing();
+    }
+
+    StringVector& warpedLabels = solver.m_Options.GetStringVector("OutputLabelToFirst:");
+    if (warpedLabels.size() > 0) {
+        ImageIO<LabelImage> io;
+        StringVector& labelImages = solver.m_Options.GetStringVector("LabelImages:");
+        if (warpedLabels.size() != labelImages.size()) {
+            cout << "OutputLabelToFirst: and LabeImages: size are different" << endl;
         } else {
-            cout << "Skipping preprocessing; continue with given particles from the input" << endl;
-            cout << "the first particle of each subject: " << endl;
-            for (int i = 0; i < system.GetNumberOfSubjects(); i++) {
-                cout << system[i][0] << endl;
-            }
-            cout << "continue optimization;" << endl;
-        }
-
-        cout << "Spreading Particles ..." << flush;
-        for (int i = 0; i < 3; i++) {
-            cout << i << " " << flush;
-            solver.SpreadParticles();
-        }
-        cout << " done" << endl;
-
-        cout << "Start Running... " << endl;
-        solver.Run();
-        solver.SaveConfig(args[1].c_str());
-
-        // final point location marking onto image
-        StringVector& markingImages = solver.m_Options.GetStringVector("FinalMarking:");
-        if (markingImages.size() > 0) {
-            ImageIO<LabelImage> io;
-
-            for (int i = 0; i < markingImages.size(); i++) {
-                LabelImage::Pointer label = solver.m_System[i].GetLabel();
-                LabelImage::Pointer canvas = io.NewImage(label);
-                ParticleArray& data = system[i].m_Particles;
-                MarkAtImage<ParticleArray>(data, data.size(), canvas, 1);
-                io.WriteImage(markingImages[i].c_str(), canvas);
-            }
-        }
-
-        StringVector& warpedLabels = solver.m_Options.GetStringVector("OutputLabelToFirst:");
-        if (warpedLabels.size() > 0) {
-            ImageIO<LabelImage> io;
-            StringVector& labelImages = solver.m_Options.GetStringVector("LabelImages:");
-            if (warpedLabels.size() != labelImages.size()) {
-                cout << "OutputLabelToFirst: and LabeImages: size are different" << endl;
-            } else {
-                for (int i = 1; i < warpedLabels.size(); i++) {
-                    LabelImage::Pointer label = io.ReadImage(labelImages[i].c_str());
-                    // bspline resampling
-                    LabelImage::Pointer output = warp_image<LabelImage>(system[0], system[i], label, label, true, false, false);
-                    io.WriteImage(warpedLabels[i].c_str(), output);
-                }
+            for (int i = 1; i < warpedLabels.size(); i++) {
+                LabelImage::Pointer label = io.ReadImage(labelImages[i].c_str());
+                // bspline resampling
+                LabelImage::Pointer output = warp_image<LabelImage>(system[0], system[i], label, label, true, false, false);
+                io.WriteImage(warpedLabels[i].c_str(), output);
             }
         }
     }
-    return 0;
 }

@@ -17,6 +17,7 @@
 #include "vtkPointData.h"
 #include "piVTK.h"
 #include "vtkLandmarkTransform.h"
+#include "vtkParticleHelper.h"
 
 #include <itkResampleImageFilter.h>
 
@@ -43,8 +44,8 @@ namespace pi {
         t->SetMatrix(mat);
         return is;
     }
-    
-    
+
+
     void removeDisabledParticles(ParticleArray& src, ParticleArray& dst) {
         int nEnabledParticles = 0;
         for (int i = 0; i < src.size(); i++) {
@@ -52,10 +53,10 @@ namespace pi {
                 nEnabledParticles ++;
             }
         }
-        
+
         const int nParticles = src.size();
         dst.resize(nEnabledParticles);
-        
+
         for (int j = 0, k = 0; j < nParticles; j++) {
             if (src[j].enabled) {
                 dst[k] = src[j];
@@ -64,9 +65,9 @@ namespace pi {
         }
     }
 
-    
 
- 
+
+
     ParticleSubject::ParticleSubject(): m_SubjId(-1) {
         fordim (i) {
             m_Spacing[i] = 1;
@@ -161,7 +162,7 @@ namespace pi {
         }
         NewParticles(nPoints);
     }
-    
+
     void ParticleSubject::Initialize(int subj, std::string name, const ParticleSubject& shape) {
         m_SubjId = subj;
         if (name != "") {
@@ -196,6 +197,17 @@ namespace pi {
         }
     }
 
+
+    /// split particles' x-coordinate using delaunay triangulation followed by loop subdivision
+    /// the subdivision algorithm also slightly perturbs the original coordinates due to smoothness constraint
+    /// after this call, the number of particles changes
+    /// and all particles will have zero values except x values.
+    ///
+    void ParticleSubject::SplitParticles() {
+        vtkParticleHelper helper;
+        helper.splitParticles(*this);
+    }
+
     struct CorrespondenceComparator {
         bool operator()(const Particle& a, const Particle& b) {
             return a.correspondence < b.correspondence;
@@ -205,7 +217,7 @@ namespace pi {
 
     struct CorrespondenceScoreComparator {
         bool operator()(const Particle& a, const Particle& b) {
-        	return a.correspondenceScore < b.correspondenceScore;
+            return a.correspondenceScore < b.correspondenceScore;
         }
     };
 
@@ -253,7 +265,7 @@ namespace pi {
             inverseAlignment->Inverse();
         }
     }
-    
+
     void ParticleSubject::AlignmentTransformX2Y() {
         const int npoints = m_Particles.size();
         for (int i = 0; i < npoints; i++) {
@@ -454,7 +466,7 @@ namespace pi {
             }
         }
     }
-    
+
     void ParticleSubject::WriteParticlePositions(std::ostream& os) {
         for (int i = 0; i < m_Particles.size(); i++) {
             for4(k) {
@@ -463,7 +475,7 @@ namespace pi {
             os << endl;
         }
     }
-    
+
     void ParticleSubject::ReadParticles(std::istream& is, int nPoints) {
         // if nPoints is specified, read nPoints particles
         if (nPoints > 0) {
@@ -497,7 +509,7 @@ namespace pi {
             }
         }
     }
-    
+
     void ParticleSubject::WriteParticles(std::ostream& os) {
         for (int i = 0; i < m_Particles.size(); i++) {
             os << m_Particles[i] << endl;
@@ -545,7 +557,7 @@ namespace pi {
 
     void ParticleSubject::LoadImage(std::string filename) {
         m_ImageFile = filename;
-        
+
         // load and cast an image to float
         ImageIO<RealImage> io;
         RealImage::Pointer image = io.ReadCastedImage(filename.c_str());
@@ -588,7 +600,7 @@ namespace pi {
     void ParticleSubject::SetLabel(LabelImage::Pointer label) {
         m_Label = label;
     }
-    
+
     RealImage::Pointer& ParticleSubject::GetImage(int level) {
         return m_Images[level];
     }
@@ -617,7 +629,7 @@ namespace pi {
         }
         ImageEnergy.set_size(nParticles);
     }
-    
+
     void ParticleSystem::InitializeSystem(Options& options) {
         m_CurrentResolutionLevel = 0;
         m_Options = &options;

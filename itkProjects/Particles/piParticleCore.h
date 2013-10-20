@@ -54,7 +54,7 @@ namespace pi {
         inline float castSource(const Particle& p, int i) const { return p.z[i]; }
         inline float castTarget(const Particle& p, int i) const { return p.z[i]; }
     };
-    
+
     class ParticleYZCaster {
     public:
         inline float castSource(const Particle& p, int i) const { return p.y[i]; }
@@ -87,7 +87,7 @@ namespace pi {
         LabelImage::Pointer m_Label;
 
         OffsetImage::Pointer m_DistanceMap;
-        
+
         RealImage::Pointer kappaImage;
         LinearImageInterpolatorType::Pointer kappaSampler;
 
@@ -139,11 +139,16 @@ namespace pi {
         void Initialize(const ParticleArray& array);
         void SyncPointsCopy();
 
+        /// particle maintenance
+        /// split this subject's particles using Laplace method
+        void SplitParticles();
+
         // alignment
         void ComputeAlignment(ParticleSubject& subj, bool useSimilarity = false);
         void ComputeDensity();
 
         void AlignmentTransformX2Y();
+
 
 
         void SortByCorrespondence();
@@ -183,7 +188,7 @@ namespace pi {
 
         LabelImage::Pointer& GetLabel();
         void SetLabel(LabelImage::Pointer label);
-        
+
         RealImage::Pointer& GetImage(int level = 0);
 //
         // particle access
@@ -199,7 +204,7 @@ namespace pi {
     };
     typedef boost::numeric::ublas::vector<ParticleSubject> ParticleSubjectArray;
 
- 
+
 
     class ParticleSystem {
     public:
