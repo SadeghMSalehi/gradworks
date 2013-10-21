@@ -637,6 +637,7 @@ namespace pi {
         doBlur2(opts, args);
         doEllipse(opts, args);
         doGradMag(opts, args);
+        doTransform2(opts, args);
 
         // registration test
         doAffineReg(opts, args);
@@ -746,7 +747,65 @@ namespace pi {
 
         exit(EXIT_SUCCESS);
     }
-    
+
+
+    void ImageProcessing::doTransform2(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--transform2")) {
+            return;
+        }
+
+        if (args.size() < 3) {
+            cout << "--transform2 input-image output-image r tx ty" << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        RealImage::Pointer input = __realIO.ReadCastedImage(args[0]);
+        double r = 0, tx = 0, ty = 0;
+        if (args.size() >= 3) {
+            r = atof(args[2].c_str());
+        }
+        if (args.size() >= 4) {
+            tx = atof(args[3].c_str());
+        }
+        if (args.size() >= 5) {
+            ty = atof(args[4].c_str());
+        }
+
+
+        itk::CenteredRigid2DTransform<>::Pointer transform = itk::CenteredRigid2DTransform<>::New();
+        // set rotation degree
+        transform->SetAngleInDegrees(r);
+
+        // set rotation center
+        RealImage::SizeType sz = input->GetBufferedRegion().GetSize();
+        itk::CenteredRigid2DTransform<>::InputPointType center;
+        RealIndex centerIdx;
+        centerIdx[0] = sz[0] / 2;
+        centerIdx[1] = sz[1] / 2;
+        input->TransformContinuousIndexToPhysicalPoint(centerIdx, center);
+        transform->SetCenter(center);
+        cout << "Transform Center: " << center << endl;
+
+        // set translation after rotation
+        TransformType::OutputVectorType translation;
+        translation[0] = tx; translation[1] = ty;
+        transform->SetTranslation(translation);
+
+        ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
+        resampler->SetInput(input);
+        resampler->SetTransform(transform->GetInverseTransform());
+        resampler->SetUseReferenceImage(true);
+        resampler->SetReferenceImage(input);
+        resampler->SetInterpolator(LinearImageInterpolatorType::New());
+        resampler->SetDefaultPixelValue(0);
+        resampler->Update();
+        RealImage::Pointer output = resampler->GetOutput();
+        output->DisconnectPipeline();
+
+        __realIO.WriteImage(args[1], output);
+        exit(EXIT_SUCCESS);
+    }
+
 
 
 

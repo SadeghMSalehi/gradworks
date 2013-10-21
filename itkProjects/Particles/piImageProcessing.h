@@ -68,6 +68,7 @@ namespace pi {
         void doBlur2(Options& opts, StringVector& args);
         void doEllipse(Options& opts, StringVector& args);
         void doGradMag(Options& opts, StringVector& args);
+        void doTransform2(Options& opts, StringVector& args);
 
         /// perform affine registration (translation + rotation + scaling)
         /// using NEWUOA

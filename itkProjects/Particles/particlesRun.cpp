@@ -401,10 +401,11 @@ int main(int argc, char* argv[]) {
         { 100, "--doGaussian", SO_REQ_SEP },
         { 101, "--doBlur2", SO_NONE },
         { 102, "--ellipse", SO_NONE },
-        { 106, "--gradmag", SO_NONE },
         { 103, "--affineReg", SO_NONE },
         { 104, "--gradhist", SO_NONE },
         { 105, "--testgradreg", SO_NONE },
+        { 106, "--gradmag", SO_NONE },
+        { 107, "--transform2", SO_NONE },
 
         // Test Main
         { 200, "--newuoa", SO_NONE },
