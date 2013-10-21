@@ -53,7 +53,7 @@ namespace pi {
         m_DistOffsetPicker = NNVectorImageInterpolatorType::New();
         m_DistOffsetPicker->SetInputImage(m_DistanceMap);
 
-        const bool saveDistanceMap = true;
+        const bool saveDistanceMap = false;
         if (saveDistanceMap) {
             ImageIO<RealImage> io;
             char fname[128];

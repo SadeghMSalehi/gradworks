@@ -10,6 +10,7 @@
 #define __ParticlesGUI__myImageProcessing__
 
 #include <iostream>
+#include "piOptions.h"
 #include "piParticle.h"
 #include "piImageDef.h"
 #include "itkRescaleIntensityImageFilter.h"
@@ -59,6 +60,27 @@ namespace pi {
     class ImageProcessing {
     public:
 
+#pragma mark -
+        /// command-line utilities
+        /// only when no option is related, it will return back, otherwise it will terminate.
+        void main(Options& opts, StringVector& args);
+        void doGaussian(Options& opts, StringVector& args);
+        void doBlur2(Options& opts, StringVector& args);
+        void doEllipse(Options& opts, StringVector& args);
+        void doGradMag(Options& opts, StringVector& args);
+
+        /// perform affine registration (translation + rotation + scaling)
+        /// using NEWUOA
+        void doAffineReg(Options& opts, StringVector& args);
+
+        // print gradient histogram
+        void doGradHist(Options& opts, StringVector& args);
+
+        // test gradient histogram based registration
+        void testGradHistReg(Options& opts, StringVector& args);
+
+#pragma mark -
+        /// algorithm functions
         RealImageVector ComputeImagePyramid(RealImage::Pointer img, int level = 1);
         LabelImageVector ComputeImagePyramid(LabelImage::Pointer label, int level = 1);
 

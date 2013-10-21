@@ -9,6 +9,7 @@
 #include "piParticleBSpline.h"
 #include "piImageProcessing.h"
 #include "piParticleTrainer.h"
+#include "piTestMain.h"
 
 #include "itkSmoothingRecursiveGaussianImageFilter.h"
 #include "itkBSplineTransform.h"
@@ -187,27 +188,6 @@ void runExpr2(StringVector &args) {
 }
 
 
-// perform gaussian blurring for 2D image
-void runBlur2D(StringVector& args) {
-    if (args.size() < 3) {
-        cout << "--blur2d [input-real-image] [output-real-image] [radius]" << endl;
-        return;
-    }
-
-    float blurRadius = atof(args[2].c_str());
-
-    ImageIO<RealImage2> io;
-    RealImage2::Pointer realImage = io.ReadImage(args[0]);
-
-    typedef itk::SmoothingRecursiveGaussianImageFilter<RealImage2, RealImage2> GaussianFilter;
-    GaussianFilter::Pointer filter = GaussianFilter::New();
-    filter->SetInput(realImage);
-    filter->SetSigma(blurRadius);
-    filter->Update();
-    RealImage2::Pointer outputImage = filter->GetOutput();
-
-    io.WriteImage(args[1], outputImage);
-}
 
 
 // perform B-spline registration for 2D image
@@ -408,7 +388,6 @@ int main(int argc, char* argv[]) {
         { 34, "--interval", SO_REQ_SEP },
         { 35, "--zerocrossing", SO_NONE },
         { 36, "--meanwarp", SO_NONE },
-        { 38, "--blur2d", SO_NONE },
         { 41, "--magnitude2", SO_NONE },
         { 42, "--vector2mat", SO_NONE },
 
@@ -417,6 +396,19 @@ int main(int argc, char* argv[]) {
         { 39, "--expr2", SO_NONE },
         { 40, "--bspline2d", SO_NONE },
         { 43, "--particleExpr", SO_NONE },
+
+        // Image Processing
+        { 100, "--doGaussian", SO_REQ_SEP },
+        { 101, "--doBlur2", SO_NONE },
+        { 102, "--ellipse", SO_NONE },
+        { 106, "--gradmag", SO_NONE },
+        { 103, "--affineReg", SO_NONE },
+        { 104, "--gradhist", SO_NONE },
+        { 105, "--testgradreg", SO_NONE },
+
+        // Test Main
+        { 200, "--newuoa", SO_NONE },
+        { 201, "--boost", SO_NONE },
 
         SO_END_OF_OPTIONS
     };
@@ -439,8 +431,6 @@ int main(int argc, char* argv[]) {
         runExpr1(args);
     } else if (parser.GetBool("--expr2")) {
         runExpr2(args);
-    } else if (parser.GetBool("--blur2d")) {
-        runBlur2D(args);
     } else if (parser.GetBool("--bspline2d")) {
         runBspline2D(args);
     } else if (parser.GetBool("--vector2mat")) {
@@ -780,6 +770,19 @@ int main(int argc, char* argv[]) {
         labelIO.WriteImage(args[1].c_str(), img);
 
     } else {
+
+        // TODO: add more test here
+
+        // run image processing and terminate
+        ImageProcessing imageProc;
+        imageProc.main(parser, args);
+
+        TestMain testMain;
+        if (testMain.main(parser, args)) {
+            return EXIT_SUCCESS;
+        }
+
+        // otherwise, run particle registration
         return particleRegistration(parser, args);
     }
 }
@@ -824,23 +827,27 @@ int particleRegistration(Options& parser, StringVector& args) {
 
 
     // preprocessing
-    cout << "Spreading Particles ..." << flush;
-    for (int i = 0; i < 3; i++) {
-        cout << i << " " << flush;
-        solver.SpreadParticles();
+    const bool useSpreadingParticles = false;
+    if (useSpreadingParticles) {
+        cout << "Spreading Particles ..." << flush;
+        for (int i = 0; i < 3; i++) {
+            cout << i << " " << flush;
+            solver.SpreadParticles();
+        }
+        cout << " done" << endl;
     }
-    cout << " done" << endl;
 
     cout << "Start Running... " << endl;
     solver.Run();
     solver.SaveConfig(args[1].c_str());
 
     postProcessing(options, args, solver);
+    return EXIT_SUCCESS;
 }
 
 void postProcessing(Options& parser, StringVector& args, ParticleSystemSolver& solver) {
     ParticleSystem& system = solver.m_System;
-    Options& options = solver.m_Options;
+    // Options& options = solver.m_Options;
 
     // final point location marking onto image
     StringVector& markingImages = solver.m_Options.GetStringVector("FinalMarking:");

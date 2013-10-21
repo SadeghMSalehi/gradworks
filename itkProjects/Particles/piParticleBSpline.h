@@ -126,12 +126,13 @@ namespace pi {
         typename R::DirectionType imageDirection = refImage->GetDirection();
 
 
+        m_ControlPointSpacing = 2;
 
         for (int i = 0; i < imageSize.GetSizeDimension(); i++) {
             numControlPoints[i] = imageSize[i] / m_ControlPointSpacing + splineOrder;
         }
 
-        cout << "# control points: " << numControlPoints << endl;
+//        cout << "# control points: " << numControlPoints << endl;
 
         try {
             // debug: reparameterized point component is outside

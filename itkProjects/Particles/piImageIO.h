@@ -25,6 +25,8 @@
 #define DIMENSIONS 3
 #endif
 
+#define EXIT_IGNORE 2
+
 using namespace std;
 
 namespace pi {

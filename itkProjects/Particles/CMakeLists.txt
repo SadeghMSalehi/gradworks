@@ -90,9 +90,13 @@ add_definitions(${QT_DEFINITIONS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+set (NLOPT_DIR /tools/nlopt)
+include_directories(${NLOPT_DIR}/include)
+link_directories(${NLOPT_DIR}/lib)
+
 SET (MY_Qt_EXTENSIONS QGraphicsGridItem.cpp QGraphicsGridItem.h)
 
-SET (MY_PARTICLE_WORKS_SOURCES piTestMain.h piTestMain.cpp vtkParticleHelper.h vtkParticleHelper.cpp piPatchCompare.h piPatchCompare.cpp piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piImageDef.cpp piParticleBSpline.cpp piParticleBSpline.h piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrainer.h piParticleTrainer.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp itkMultiResolutionPyramidImageFilter.h itkMultiResolutionPyramidImageFilter.hxx)
+SET (MY_PARTICLE_WORKS_SOURCES piTestMain.h piTestMain.cpp vtkParticleHelper.h vtkParticleHelper.cpp piPatchCompare.h piPatchCompare.cpp piTimer.h piTimer.cpp piParticle.h piParticle.cpp piParticleCore.cpp piParticleCore.h piImageDef.h piImageDef.cpp piParticleBSpline.cpp piParticleBSpline.h piPowellOpti.h piPowellOpti.cpp piParticleForces.h piParticleForces.cpp piParticleCollision.h piParticleCollision.cpp piOptions.cpp piOptions.h piImageProcessing.cpp piImageProcessing.h piParticleHydroDynamics.cpp piParticleHydroDynamics.h piParticleSystemSolver.h piParticleSystemSolver.cpp piParticleTrainer.h piParticleTrainer.cpp piParticleTrace.h piParticleTrace.cpp piParticleTools.h piParticleTools.cpp piEntropyComputer.h piEntropyComputer.cpp piImageHistogram.h piImageHistogram.cpp itkMultiResolutionPyramidImageFilter.h itkMultiResolutionPyramidImageFilter.hxx newuoa.hh)
 
 #SET (PI_LIBS_SOURCE itkImageIO.h piTimer.h piTimer.cpp piImageProcessing.cpp piImageProcessing.h piImageDef.h piOptions.h piOptions.cpp piVTK.cpp piVTK.h)
 
@@ -102,7 +106,7 @@ SET (MY_PARTICLE_WORKS_SOURCES piTestMain.h piTestMain.cpp vtkParticleHelper.h v
 ADD_EXECUTABLE(prun2 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 SET_TARGET_PROPERTIES(prun2 PROPERTIES DEBUG_POSTFIX "d")
 SET_TARGET_PROPERTIES(prun2 PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2 -DATTR_SIZE=17 -DBATCH")
-TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${VTK_LIBRARIES} nlopt)
 
 #ADD_EXECUTABLE(prun3 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 #SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_FLAGS "-DBATCH -DATTR_SIZE=17")

@@ -38,21 +38,28 @@
 #include <itkManifoldParzenWindowsPointSetFunction.h>
 #include <itkCannyEdgeDetectionImageFilter.h>
 #include <itkInvertIntensityImageFilter.h>
+#include <itkCenteredRigid2DTransform.h>
 
 #include "piImageIO.h"
 #include "piImageHistogram.h"
+#include "piPowellOpti.h"
 
 #if DIMENSIONS == 3
 #include "itkBinaryMask3DMeshSource.h"
 #endif
 
 namespace pi {
-#if DIMENSIONS == 3
     typedef itk::EllipseSpatialObject<__Dim> EllipseType;
     typedef itk::SpatialObjectToImageFilter<EllipseType, LabelImage> SpatialObjectToImageFilterType;
+
+    ImageIO<RealImage> __realIO;
+    ImageIO<LabelImage> __labelIO;
+
+#if DIMENSIONS == 3
     typedef itk::Mesh<PointReal> MeshType;
     typedef itk::BinaryMask3DMeshSource<LabelImage, MeshType> MeshSourceType;
 #endif
+
     typedef itk::ZeroCrossingImageFilter<LabelImage, LabelImage> ZeroCrossingFilterType;
     typedef itk::CastImageFilter<LabelImage ,RealImage > CastToRealFilterType;
     typedef itk::AntiAliasBinaryImageFilter<RealImage, RealImage> AntiAliasFilterType;
@@ -73,6 +80,8 @@ namespace pi {
     typedef itk::VectorMagnitudeImageFilter<VectorImage, RealImage> GradientMagnitudeFilterType;
     typedef itk::VectorMagnitudeImageFilter<VectorImage2, RealImage2> Gradient2MagnitudeFilterType;
     typedef itk::StatisticsImageFilter<RealImage> RealImageStatisticsFilterType;
+    typedef itk::ResampleImageFilter<RealImage, RealImage> ResampleImageFilterType;
+
 
     class OffsetToVector {
     public:
@@ -293,7 +302,6 @@ namespace pi {
     }
 
     LabelImage::Pointer ImageProcessing::Ellipse(int* outputSize, double *center, double *radius) {
-#if DIMENSIONS == 3
         SpatialObjectToImageFilterType::Pointer imageFilter = SpatialObjectToImageFilterType::New();
         RealImage::SizeType size;
         fordim (k) {
@@ -325,9 +333,6 @@ namespace pi {
         imageFilter->SetOutsideValue(0);
         imageFilter->Update();
         return imageFilter->GetOutput();
-#else
-        return LabelImage::Pointer();
-#endif
     }
 
 
@@ -621,5 +626,451 @@ namespace pi {
     }
 
 
+#pragma mark -
+
+    /// this code section contains a set of functions used in command line execution
+    /// these functions accept arguments parsed from the command line.
+    static ImageIO<RealImage> __io;
+
+    void ImageProcessing::main(pi::Options &opts, StringVector &args) {
+        doGaussian(opts, args);
+        doBlur2(opts, args);
+        doEllipse(opts, args);
+        doGradMag(opts, args);
+
+        // registration test
+        doAffineReg(opts, args);
+        doGradHist(opts, args);
+
+        testGradHistReg(opts, args);
+        return;
+    }
+
+    void ImageProcessing::doGaussian(pi::Options &opts, StringVector &args) {
+        double sigma = opts.GetReal("--doGaussian", -1);
+        if (sigma <= 0) {
+            return;
+        }
+
+        if (args.size() < 2) {
+            cout << "--doGaussian {sigma} input-image output-image" << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        RealImage::Pointer image = __io.ReadCastedImage(args[0]);
+        if (image.IsNull()) {
+            exit(EXIT_FAILURE);
+        }
+
+        GaussianFilterType::Pointer gaussFilter = GaussianFilterType::New();
+        gaussFilter->SetInput(image);
+        gaussFilter->SetSigma(sigma);
+        gaussFilter->Update();
+        __io.WriteImage(args[1], gaussFilter->GetOutput());
+        exit(EXIT_SUCCESS);
+
+        return;
+    }
+
+
+    void ImageProcessing::doBlur2(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--doBlur2")) {
+            return;
+        }
+
+        if (args.size() < 3) {
+            cout << "--doBlur2 [input-real-image] [output-real-image] [radius]" << endl;
+            exit(EXIT_FAILURE);
+        }
+        float blurRadius = atof(args[2].c_str());
+
+        ImageIO<RealImage2> io;
+        RealImage2::Pointer realImage = io.ReadImage(args[0]);
+
+        typedef itk::SmoothingRecursiveGaussianImageFilter<RealImage2, RealImage2> GaussianFilter;
+        GaussianFilter::Pointer filter = GaussianFilter::New();
+        filter->SetInput(realImage);
+        filter->SetSigma(blurRadius);
+        filter->Update();
+        RealImage2::Pointer outputImage = filter->GetOutput();
+        
+        io.WriteImage(args[1], outputImage);
+        exit(EXIT_SUCCESS);
+    }
+
+
+    void ImageProcessing::doEllipse(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--ellipse")) {
+            return;
+        }
+
+        if (args.size() < __Dim * (3) + 1) {
+            cout << "--ellipse output-image [image-size] [ellipse-center] [ellipse-radius] " << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        int size[__Dim];
+        double center[__Dim], radius[__Dim];
+        fordim (k) {
+            size[k] = atoi(args[1+k].c_str());
+            center[k] = atof(args[1+__Dim*1 + k].c_str());
+            radius[k] = atof(args[1+__Dim*2 + k].c_str());
+        }
+
+        LabelImage::Pointer outputImage = Ellipse(size, center, radius);
+        ImageIO<LabelImage> io;
+        io.WriteImage(args[0], outputImage);
+
+        exit(EXIT_SUCCESS);
+    }
+
+    void ImageProcessing::doGradMag(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--gradmag")) {
+            return;
+        }
+
+        if (args.size() < 2) {
+            cout << "--gradmag input-image output-image [sigma]" << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        RealImage::Pointer input = __realIO.ReadCastedImage(args[0]);
+        double sigma = 1;
+        if (args.size() == 3) {
+            sigma = atof(args[2].c_str());
+        }
+
+        ImageProcessing proc;
+        RealImage::Pointer output = proc.ComputeGaussianGradientMagnitude(input, sigma);
+        __realIO.WriteImage(args[1], output);
+
+        exit(EXIT_SUCCESS);
+    }
+    
+
+
+
+
+    class GradientHistogram {
+    public:
+        GradientHistogram(RealImage::Pointer image) {
+            _image = image;
+        }
+
+        void compute() {
+            _gradImage = _proc.ComputeGaussianGradient(_image);
+            _gradMag = _proc.ComputeMagnitudeMap(_gradImage);
+
+            const int nSize = _gradMag->GetPixelContainer()->Size();
+            RealImage::PixelType* magBuff = _gradMag->GetBufferPointer();
+            GradientImage::PixelType* gradBuff = _gradImage->GetBufferPointer();
+
+            _hist.resize(180);
+
+            const int N = _hist.size();
+            _pdf.resize(N);
+            _cdf.resize(N);
+
+            std::fill(_hist.begin(), _hist.end(), 0);
+            std::fill(_pdf.begin(), _pdf.end(), 0);
+            std::fill(_cdf.begin(), _cdf.end(), 0);
+
+            int count = 0;
+            for (int i = 0; i < nSize; i++) {
+                const double n = magBuff[i];
+                if (magBuff[i] > 10) {
+                    double y = gradBuff[i][1] / n;
+                    double x = gradBuff[i][0] / n;
+                    double r = atan2(y, x);
+                    if (r < 0) {
+                        r += (2*M_PI);
+                    }
+                    double a = r * 180 / M_PI;
+                    int bin = (a + 0.5) / 360 * (_hist.size() - 1);
+                    _hist[bin] ++;
+                    count ++;
+                }
+            }
+
+            // threshold for # of gradient pixels (feature pixels)
+            if (count > 50) {
+                static double mask[] = { 0.0003, 0.1065, 0.7866, 0.1065, 0.0003 };
+                double sum = 0;
+                for (int i = 0; i < N; i++) {
+                    double conv = 0;
+                    for (int j = 0; j < 5; j++) {
+                        conv += (_hist[(i+j-2+N)%N] * mask[j-2]);
+                    }
+                    _pdf[i] = conv;
+                    sum += conv;
+                }
+                // normalization to p.d.f and compute c.d.f
+                for (int i = 0; i < N; i++) {
+                    _pdf[i] = _pdf[i] / sum;
+                    if (i > 0) {
+                        _cdf[i] = _cdf[i-1] + _pdf[i];
+                    } else {
+                        _cdf[i] = _pdf[i];
+                    }
+                }
+                cout << "sum = " << _cdf[N-1] << endl;
+            }
+        }
+
+        double ssd(GradientHistogram& o) {
+            if (o._cdf.size() != _cdf.size()) {
+                cout << "# of bins mismatch" << endl;
+                return -1;
+            }
+
+            const int N = _cdf.size();
+            double ssd = 0;
+            for (int i = 0; i < N; i++) {
+                ssd += (_cdf[i] - o._cdf[i])*(_cdf[i] - o._cdf[i]);
+            }
+            return ssd;
+        }
+
+        double emd(GradientHistogram& o) {
+            if (o._pdf.size() != _pdf.size()) {
+                cout << "# of bins mismatch" << endl;
+                return -1;
+            }
+
+            const int N = _pdf.size();
+            std::vector<double> emd;
+            emd.resize(N);
+            std::fill(emd.begin(), emd.end(), 0);
+
+            for (int i = 1; i < N; i++) {
+                emd[i] = (_pdf[i] + emd[i-1]) - o._pdf[i];
+            }
+
+            double emdsum = 0;
+            for (int i = 0; i < N; i++) {
+                emdsum += std::abs(emd[i]);
+            }
+            return emdsum;
+        }
+
+        void print() {
+            for (int i = 0; i < _hist.size(); i++) {
+                cout << _pdf[i] << "\t";
+            }
+            cout << endl;
+        }
+
+    private:
+        std::vector<int> _hist;
+        std::vector<double> _pdf, _cdf;
+        RealImage::Pointer _image;
+        GradientImage::Pointer _gradImage;
+        RealImage::Pointer _gradMag;
+        ImageProcessing _proc;
+    };
+
+    class GradHistReg {
+    public:
+        GradHistReg(RealImage::Pointer f, RealImage::Pointer m): _gf(f) {
+            _f = f;
+            _m = m;
+            _gf.compute();
+
+            RealImage::SizeType sz = f->GetBufferedRegion().GetSize();
+            _transform = TransformType::New();
+            RealIndex centerIdx;
+            centerIdx[0] = sz[0] / 2;
+            centerIdx[1] = sz[1] / 2;
+            f->TransformContinuousIndexToPhysicalPoint(centerIdx, _center);
+            _transform->SetCenter(_center);
+            cout << "Transform Center: " << _center << endl;
+        }
+
+        double operator()(int n, double* x) {
+            RealImage::Pointer w = warpImage(n, x);
+            GradientHistogram gw(w);
+            gw.compute();
+            double metric = 0.7 * _gf.ssd(gw) + 0.3 * msd(_f, w);
+            cout << x[0] << ", " << x[1] << ", " << x[2] << ", " << metric << endl;
+            return metric;
+        }
+
+        double msd(RealImage::Pointer f, RealImage::Pointer w) {
+            int N = f->GetPixelContainer()->Size();
+            RealImage::PixelType* fptr = f->GetBufferPointer();
+            RealImage::PixelType* wptr = w->GetBufferPointer();
+            double ssd = 0;
+            for (int i = 0; i < N; i++) {
+                ssd += ((fptr[i] - wptr[i])*(fptr[i] - wptr[i]));
+            }
+            return sqrt(ssd) / N;
+        }
+
+        RealImage::Pointer warpImage(int n, double *x) {
+            _transform->SetAngleInDegrees(x[0]);
+
+            TransformType::OutputVectorType tx;
+            tx[0] = x[1]; tx[1] = x[2];
+            _transform->SetTranslation(tx);
+
+            ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
+            resampler->SetInput(_m);
+            resampler->SetTransform(_transform->GetInverseTransform());
+            resampler->SetUseReferenceImage(true);
+            resampler->SetReferenceImage(_f);
+            resampler->SetInterpolator(LinearImageInterpolatorType::New());
+            resampler->SetDefaultPixelValue(0);
+            resampler->Update();
+            RealImage::Pointer output = resampler->GetOutput();
+            output->DisconnectPipeline();
+            return output;
+        }
+    private:
+        RealImage::Pointer _f;
+        RealImage::Pointer _m;
+        GradientHistogram _gf;
+
+        typedef itk::CenteredRigid2DTransform<double> TransformType;
+        TransformType::Pointer _transform;
+        TransformType::InputPointType _center;
+
+    };
+
+    class AffineReg {
+    public:
+        AffineReg(RealImage::Pointer f, RealImage::Pointer m) {
+            fixedImage = f;
+            movingImage = m;
+        }
+        double operator()(int n, double *x) {
+            double ssd = 0;
+            cout << "x = " << flush;
+            for (int i = 0; i < n; i++) {
+                cout << x[i] << ", ";
+            }
+            RealImage::Pointer warpedImage = warpImage(n, x);
+            RealImage::PixelType* inBuf = fixedImage->GetBufferPointer();
+            RealImage::PixelType* outBuf = warpedImage->GetBufferPointer();
+            const int nPixels = fixedImage->GetPixelContainer()->Size();
+            for (int i = 0; i < nPixels; i++) {
+                ssd += ((inBuf[i] - outBuf[i])*(inBuf[i] - outBuf[i]));
+            }
+            cout << "ssd = " << ssd << endl;
+            return ssd;
+        }
+        RealImage::Pointer warpImage(int n, double *x) {
+            typedef itk::AffineTransform<double, __Dim> Transform;
+            Transform::Pointer affine = Transform::New();
+            Transform::ParametersType params;
+            params.SetSize(__Dim * __Dim + __Dim);
+            params.Fill(0);
+            if (__Dim == 2) {
+                double theta = x[0]/18.0*M_1_PI;
+                params[0] = cos(theta); params[1] = sin(theta);
+                params[2] = -sin(theta); params[3] = cos(theta);
+                params[4] = x[1]; params[5] = x[2];
+            } else {
+                cout << "not supported dimension" << endl;
+            }
+            affine->SetParameters(params);
+
+            ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
+            resampler->SetInput(movingImage);
+            resampler->SetTransform(affine->GetInverseTransform());
+            resampler->SetUseReferenceImage(true);
+            resampler->SetReferenceImage(fixedImage);
+            resampler->SetInterpolator(LinearImageInterpolatorType::New());
+            resampler->SetDefaultPixelValue(0);
+            resampler->Update();
+            RealImage::Pointer output = resampler->GetOutput();
+            output->DisconnectPipeline();
+            return output;
+        }
+
+    private:
+        RealImage::Pointer fixedImage;
+        RealImage::Pointer movingImage;
+    };
+
+    void ImageProcessing::doGradHist(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--gradhist")) {
+            return;
+        }
+
+        if (args.size() < 1) {
+            cout << "--gradhist input-image" << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        RealImage::Pointer image = __realIO.ReadCastedImage(args[0]);
+
+        GradientHistogram gradHist(image);
+        gradHist.compute();
+        gradHist.print();
+
+        exit(EXIT_SUCCESS);
+    }
+
+    void ImageProcessing::doAffineReg(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--affineReg")) {
+            return;
+        }
+
+        if (args.size() < 3) {
+            cout << "--affineReg fixed-image moving-image warped-image-output" << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        RealImage::Pointer fixedImage = __realIO.ReadCastedImage(args[0]);
+        RealImage::Pointer movingImage = __realIO.ReadCastedImage(args[1]);
+
+        PowellOpti<AffineReg> opti;
+        PowellParams initial;
+        initial.resize(3);
+        initial[0] = initial[1] = initial[2] = 0;
+
+        AffineReg ssd(fixedImage, movingImage);
+        opti.minimizeNEWUOA(ssd, initial, 10);
+
+        for (int i = 0; i < initial.size(); i++) {
+            cout << initial[i] << endl;
+        }
+
+        RealImage::Pointer warpedImage = ssd.warpImage(initial.size(), &initial[0]);
+        __realIO.WriteImage(args[2], warpedImage);
+
+        exit(EXIT_SUCCESS);
+    }
+
+    void ImageProcessing::testGradHistReg(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--testgradreg")) {
+            return;
+        }
+
+        if (args.size() < 1) {
+            cout << "--testgradreg fixed-image moving-image output-image" << endl;
+            exit(EXIT_FAILURE);
+        }
+
+        RealImage::Pointer f = __realIO.ReadCastedImage(args[0]);
+        RealImage::Pointer m = __realIO.ReadCastedImage(args[1]);
+
+        PowellParams x0(3);
+        x0[0] = x0[1] = x0[2] = 0;
+
+        PowellOpti<GradHistReg> opti;
+        GradHistReg reg(f, m);
+        opti.minimizeNEWUOA(reg, x0, 50);
+
+        for (int i = 0; i < x0.size(); i++) {
+            cout << x0[i] << endl;
+        }
+
+        RealImage::Pointer w = reg.warpImage(x0.size(), &x0[0]);
+        __realIO.WriteImage(args[2], w);
+        
+        exit(EXIT_SUCCESS);
+    }
+    
 
 }

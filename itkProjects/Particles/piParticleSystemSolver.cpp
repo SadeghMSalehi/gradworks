@@ -219,9 +219,6 @@ namespace pi {
             return;
         }
 
-        if (1 == 1) {
-            return;
-        }
         
         DataReal t0 = m_Options.GetRealVectorValue("PreprocessingTimeRange:", 0);
         DataReal dt = m_Options.GetRealVectorValue("PreprocessingTimeRange:", 1);
