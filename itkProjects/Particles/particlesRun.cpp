@@ -406,10 +406,16 @@ int main(int argc, char* argv[]) {
         { 105, "--testgradreg", SO_NONE },
         { 106, "--gradmag", SO_NONE },
         { 107, "--transform2", SO_NONE },
+        { 108, "--boundingbox", SO_NONE },
+        { 109, "--crop", SO_REQ_SEP },
+        { 110, "--slice", SO_NONE },
 
         // Test Main
         { 200, "--newuoa", SO_NONE },
         { 201, "--boost", SO_NONE },
+
+        // Particle Tools
+        { 300, "--coverlabel", SO_NONE },
 
         SO_END_OF_OPTIONS
     };
@@ -782,6 +788,8 @@ int main(int argc, char* argv[]) {
         if (testMain.main(parser, args)) {
             return EXIT_SUCCESS;
         }
+
+        ParticleTools(parser, args);
 
         // otherwise, run particle registration
         return particleRegistration(parser, args);

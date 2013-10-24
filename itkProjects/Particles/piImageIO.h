@@ -100,7 +100,7 @@ namespace pi {
 		}
        	bool FileExists(const char* fileName) {
 			ifstream ifile(fileName);
-			return ifile != NULL;
+			return ifile.is_open();
 		}
 
 

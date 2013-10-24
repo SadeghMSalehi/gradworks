@@ -1,6 +1,9 @@
 PROJECT(ParticleGuidedRegistration)
 cmake_minimum_required(VERSION 2.8)
 
+include_directories(/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include)
+link_directories(/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/lib)
+
 # Tell CMake to run moc when necessary:
 set(CMAKE_AUTOMOC ON)
 

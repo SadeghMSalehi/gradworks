@@ -17,6 +17,16 @@
 #include "itkCompositeTransform.h"
 
 namespace pi {
+
+    class ParticleTools {
+    public:
+        ParticleTools(Options& o, StringVector& a);
+        void runCoverLabel();
+    private:
+        Options& opts;
+        StringVector& args;
+    };
+
     template <class T>
     void MarkAtImage(T& data, int n, LabelImage::Pointer image, LabelPixel val) {
         for (int i = 0; i < n; i++) {

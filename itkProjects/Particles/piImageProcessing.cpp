@@ -39,6 +39,8 @@
 #include <itkCannyEdgeDetectionImageFilter.h>
 #include <itkInvertIntensityImageFilter.h>
 #include <itkCenteredRigid2DTransform.h>
+#include <itkLabelStatisticsImageFilter.h>
+#include <itkExtractImageFilter.h>
 
 #include "piImageIO.h"
 #include "piImageHistogram.h"
@@ -82,6 +84,15 @@ namespace pi {
     typedef itk::StatisticsImageFilter<RealImage> RealImageStatisticsFilterType;
     typedef itk::ResampleImageFilter<RealImage, RealImage> ResampleImageFilterType;
 
+
+
+    static void die() {
+        exit(EXIT_FAILURE);
+    }
+
+    static void end() {
+        exit(EXIT_SUCCESS);
+    }
 
     class OffsetToVector {
     public:
@@ -638,6 +649,9 @@ namespace pi {
         doEllipse(opts, args);
         doGradMag(opts, args);
         doTransform2(opts, args);
+        computeBoundingBox(opts, args);
+        doCrop(opts, args);
+        doSlice(opts, args);
 
         // registration test
         doAffineReg(opts, args);
@@ -806,6 +820,123 @@ namespace pi {
         exit(EXIT_SUCCESS);
     }
 
+    void ImageProcessing::computeBoundingBox(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--boundingbox")) {
+            return;
+        }
+        if (args.size() < 2) {
+            cout << "--boundingbox [label] [crop-coordinate-output] [input-label] ..." << endl;
+            die();
+        }
+
+        int labelToCrop = atoi(args[0].c_str());
+        cout << "Label: " << labelToCrop << endl;
+
+        string outputCoord = args[1];
+
+        typedef itk::LabelStatisticsImageFilter<LabelImage, LabelImage> LabelStatFilter;
+
+        // compute maximum bounding box
+        LabelImage::IndexType lowerIndex, upperIndex;
+        for (int i = 2; i < args.size(); i++) {
+            LabelImage::Pointer label = __labelIO.ReadImage(args[i]);
+            LabelStatFilter::Pointer statFilter = LabelStatFilter::New();
+            statFilter->SetLabelInput(label);
+            statFilter->SetInput(label);
+            statFilter->Update();
+            cout << label << endl;
+            cout << statFilter->GetRegion(labelToCrop) << endl;
+            LabelStatFilter::BoundingBoxType box = statFilter->GetBoundingBox(labelToCrop);
+            if (i == 2) {
+                for (int k = 0; k < box.size() / 2; k++) {
+                    lowerIndex[k] = box[2*k];
+                    upperIndex[k] = box[2*k+1];
+                }
+            } else {
+                for (int k = 0; k < box.size() / 2; k++) {
+                    lowerIndex[k] = std::min(lowerIndex[k], box[2*k]);
+                    upperIndex[k] = std::max(upperIndex[k], box[2*k+1]);
+                }
+            }
+        }
+
+        ofstream of(outputCoord);
+        for (int j = 0; j < 3; j++) {
+            cout << lowerIndex[j] << endl;
+            of << lowerIndex[j] << endl;
+        }
+        for (int j = 0; j < 3; j++) {
+            of << upperIndex[j] << endl;
+        }
+        end();
+    }
+
+
+    void ImageProcessing::doCrop(Options& opts, StringVector& args) {
+        if (opts.GetString("--crop") == "") {
+            return;
+        }
+        if (args.size() < 2 || args.size() % 2 != 0) {
+            cout << "--crop crop.txt [input] [output] [input] [output] ..." << endl;
+            die();
+        }
+
+        RealImage::IndexType lowerIndex, upperIndex;
+
+        ifstream in(opts.GetString("--crop"));
+        for (int j = 0; j < 3; j++) {
+            in >> lowerIndex[j];
+        }
+        for (int j = 0; j < 3; j++) {
+            in >> upperIndex[j];
+        }
+
+        int paddingSize = 3;
+        RealImage::RegionType region;
+        region.SetIndex(lowerIndex);
+        region.SetUpperIndex(upperIndex);
+        region.PadByRadius(paddingSize);
+
+        int nFiles = args.size() / 2;
+        for (int j = 0; j < nFiles; j++) {
+            ImageInfo imageInfo;
+            RealImage::Pointer image = __realIO.ReadCastedImage(args[2*j], imageInfo);
+            itk::ExtractImageFilter<RealImage,RealImage>::Pointer filter =  itk::ExtractImageFilter<RealImage,RealImage>::New();
+            filter->SetInput(image);
+            filter->SetExtractionRegion(region);
+            filter->Update();
+            RealImage::Pointer outputImage = filter->GetOutput();
+            __realIO.WriteCastedImage(args[2*j+1], image, imageInfo.componenttype);
+        }
+        end();
+    }
+
+
+    void ImageProcessing::doSlice(Options& opts, StringVector& args) {
+        if (!opts.GetBool("--slice")) {
+            return;
+        }
+        if (args.size() < 4) {
+            cout << "--slice dim index imagefile outputfile" << endl;
+            die();
+        }
+
+        int dim = atoi(args[0].c_str());
+        int slice = atoi(args[1].c_str());
+
+        ImageIO<RealImage3> io;
+        ImageInfo info;
+        RealImage3::Pointer image = io.ReadCastedImage(args[2], info);
+        RealImage2Vector sliceImages = __realImageTools.sliceVolume(image, dim);
+
+        if (slice < sliceImages.size()) {
+            ImageIO<RealImage2> wio;
+            wio.WriteCastedImage(args[3], sliceImages[slice], info.componenttype);
+        } else {
+            cout << "slice index is out of range" << endl;
+        }
+        end();
+    }
 
 
 
