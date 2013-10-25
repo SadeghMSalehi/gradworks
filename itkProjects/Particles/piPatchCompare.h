@@ -56,6 +56,8 @@ namespace pi {
         // run demon's algorithm on these patch image
         int performDeformableRegistration(PatchImage::Pointer fixed, RealImage::Pointer fixedSource, PatchImage::Pointer moving, RealImage::Pointer movingSource, std::string outputImage);
 
+        DisplacementFieldType::Pointer performDenseMapping(PatchImage::Pointer fixed, PatchImage::Pointer moving, PatchImage::RegionType activeRegion);
+
         /// main testing routines
         bool main(Options& parser, StringVector args);
 

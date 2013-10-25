@@ -30,6 +30,12 @@ ImageIO<RealImage> realIO;
 ImageIO<LabelImage> labelIO;
 
 
+// external function defined in piParticleRunner.cpp
+namespace pi {
+    void executeParticleRunner(Options& parser, StringVector& args);
+}
+
+
 /// particle-guided image registration main
 ///
 int particleRegistration(Options& parser, StringVector& args);
@@ -354,6 +360,9 @@ void runParticleExperiments(StringVector& args) {
 int main(int argc, char* argv[]) {
     CSimpleOpt::SOption specs[] = {
         { 9, "--seeConfig", SO_NONE },
+        { 1000, "--json", SO_REQ_SEP },
+        { 1001, "--config", SO_REQ_SEP },
+        { 1002, "--run", SO_NONE },
         { 1, "-w", SO_NONE },
         { 8, "-d", SO_NONE },
         { 2, "-o", SO_REQ_SEP },
@@ -409,13 +418,18 @@ int main(int argc, char* argv[]) {
         { 108, "--boundingbox", SO_NONE },
         { 109, "--crop", SO_REQ_SEP },
         { 110, "--slice", SO_NONE },
+        { 111, "--padding", SO_REQ_SEP },
 
         // Test Main
         { 200, "--newuoa", SO_NONE },
         { 201, "--boost", SO_NONE },
+        { 202, "--testconfig", SO_NONE },
 
         // Particle Tools
         { 300, "--coverlabel", SO_NONE },
+
+        // Options Test
+        { 400, "--testjson", SO_NONE },
 
         SO_END_OF_OPTIONS
     };
@@ -434,7 +448,10 @@ int main(int argc, char* argv[]) {
     srcIdx = atoi(parser.GetString("--srcidx", "1").c_str());
     dstIdx = atoi(parser.GetString("--dstidx", "0").c_str());
 
-    if (parser.GetBool("--expr1")) {
+    if (parser.GetBool("--run")) {
+        executeParticleRunner(parser, args);
+        return 0;
+    } else if (parser.GetBool("--expr1")) {
         runExpr1(args);
     } else if (parser.GetBool("--expr2")) {
         runExpr2(args);
@@ -776,9 +793,14 @@ int main(int argc, char* argv[]) {
         RemoveBoundary(img, parser.GetStringAsInt("--size", 0));
         labelIO.WriteImage(args[1].c_str(), img);
 
+    } else if (parser.GetBool("--run")) {
+
     } else {
 
         // TODO: add more test here
+
+        // option test
+        parser.main(parser, args);
 
         // run image processing and terminate
         ImageProcessing imageProc;

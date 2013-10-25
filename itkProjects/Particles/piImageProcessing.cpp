@@ -45,6 +45,8 @@
 #include "piImageIO.h"
 #include "piImageHistogram.h"
 #include "piPowellOpti.h"
+#include "piOptionParser.h"
+#include "piConfigFile.h"
 
 #if DIMENSIONS == 3
 #include "itkBinaryMask3DMeshSource.h"
@@ -740,8 +742,24 @@ namespace pi {
     }
 
     void ImageProcessing::doGradMag(pi::Options &opts, StringVector &args) {
+        ImageProcessing proc;
+
         if (!opts.GetBool("--gradmag")) {
             return;
+        }
+
+        if (args.size() == 0 && opts.GetConfigFile() != "") {
+            ConfigFile config(opts.GetConfigFile());
+
+            double sigma = config["gaussian-sigma"];
+            std::vector<RealImage::Pointer> outputs;
+            for (int i = 0; i < config.imageCount(); i++) {
+                RealImage::Pointer output = proc.ComputeGaussianGradientMagnitude(config.image(i), sigma);
+                outputs.push_back(output);
+            }
+            config.writeImages<RealImage>(outputs, "gradient-magnitude");
+
+            exit(EXIT_SUCCESS);
         }
 
         if (args.size() < 2) {
@@ -755,7 +773,7 @@ namespace pi {
             sigma = atof(args[2].c_str());
         }
 
-        ImageProcessing proc;
+
         RealImage::Pointer output = proc.ComputeGaussianGradientMagnitude(input, sigma);
         __realIO.WriteImage(args[1], output);
 
@@ -861,13 +879,16 @@ namespace pi {
         }
 
         ofstream of(outputCoord);
-        for (int j = 0; j < 3; j++) {
+        of << "[ ";
+        for (int j = 0; j < lowerIndex.GetIndexDimension(); j++) {
             cout << lowerIndex[j] << endl;
-            of << lowerIndex[j] << endl;
+            of << lowerIndex[j] << ", ";
         }
-        for (int j = 0; j < 3; j++) {
-            of << upperIndex[j] << endl;
+        for (int j = 0; j < upperIndex.GetIndexDimension(); j++) {
+            of << upperIndex[j] << ", ";
         }
+        of << "0 ]" << endl;
+        of.close();
         end();
     }
 
@@ -877,25 +898,29 @@ namespace pi {
             return;
         }
         if (args.size() < 2 || args.size() % 2 != 0) {
-            cout << "--crop crop.txt [input] [output] [input] [output] ..." << endl;
+            cout << "--crop crop.txt [--padding n] [input] [output] [input] [output] ..." << endl;
             die();
         }
 
-        RealImage::IndexType lowerIndex, upperIndex;
+        RealImage::IndexType regionIndexes[2];
 
-        ifstream in(opts.GetString("--crop"));
-        for (int j = 0; j < 3; j++) {
-            in >> lowerIndex[j];
-        }
-        for (int j = 0; j < 3; j++) {
-            in >> upperIndex[j];
+        OptionParser json;
+        json.read(opts.GetString("--crop"));
+
+        if (json.size() == 5) {
+            json.values(regionIndexes, 2, 2);
+        } else if (json.size() == 7) {
+            json.values(regionIndexes, 2, 3);
         }
 
-        int paddingSize = 3;
+        int paddingSize = opts.GetStringAsInt("--padding", 3);
+
         RealImage::RegionType region;
-        region.SetIndex(lowerIndex);
-        region.SetUpperIndex(upperIndex);
+        region.SetIndex(regionIndexes[0]);
+        region.SetUpperIndex(regionIndexes[1]);
         region.PadByRadius(paddingSize);
+
+        cout << "Crop Region: " << region << endl;
 
         int nFiles = args.size() / 2;
         for (int j = 0; j < nFiles; j++) {
@@ -906,7 +931,7 @@ namespace pi {
             filter->SetExtractionRegion(region);
             filter->Update();
             RealImage::Pointer outputImage = filter->GetOutput();
-            __realIO.WriteCastedImage(args[2*j+1], image, imageInfo.componenttype);
+            __realIO.WriteCastedImage(args[2*j+1], outputImage, imageInfo.componenttype);
         }
         end();
     }

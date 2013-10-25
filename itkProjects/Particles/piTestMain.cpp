@@ -6,6 +6,10 @@
 #include <boost/numeric/ublas/matrix.hpp>
 #endif
 
+#include "piOptionParser.h"
+#include "piConfigFile.h"
+#include <libconfig.h++>
+
 namespace pi {
     TestMain::TestMain() {
     }
@@ -16,6 +20,12 @@ namespace pi {
             return true;
         } else if (opts.GetBool("--newuoa")) {
             testNEWUOA(opts, args);
+            return true;
+        } else if (opts.GetBool("--testjson")) {
+            testJSON(opts, args);
+            return true;
+        } else if (opts.GetBool("--testconfig")) {
+            testConfig(opts, args);
             return true;
         }
         return false;
@@ -86,6 +96,34 @@ namespace pi {
         for (int i = 0; i < fInitial.size(); i++) {
             cout << fInitial[i] << endl;
         }
+
+        return true;
+    }
+
+
+
+    bool TestMain::testJSON(pi::Options &opts, StringVector &args) {
+        using namespace std;
+        cout << "Parsing: " << opts.GetString("--json") << endl;
+        OptionParser jsonParser;
+        jsonParser.read(opts.GetString("--json"));
+
+        cout << jsonParser.stringValue() << endl;
+        return true;
+    }
+
+    bool TestMain::testConfig(pi::Options &opts, StringVector &args) {
+        using namespace libconfig;
+        using namespace std;
+
+        Config config;
+        config.readFile(opts.GetString("--config").c_str());
+
+        Setting& images = config.lookup("images");
+        for (int i = 0; i < images.getLength(); i++) {
+            cout << images[i].c_str() << endl;
+        }
+
 
         return true;
     }

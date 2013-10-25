@@ -10,6 +10,8 @@
 #include "sstream"
 #include "iostream"
 #include "fstream"
+#include "rapidjson/rapidjson.h"
+#include "rapidjson/document.h"
 
 using namespace std;
 
@@ -197,6 +199,21 @@ namespace pi {
         }
         return def;
     }
+
+    std::string Options::GetConfigFile() {
+        if (GetString("--config") != "") {
+            return GetString("--config");
+        } else {
+            bool hasConfigFile = false;
+            ifstream in("config.txt");
+            hasConfigFile = in.is_open();
+            in.close();
+            if (hasConfigFile) {
+                return string("config.txt");
+            }
+        }
+        return "";
+    }
     
 
     StringVector& Options::ParseOptions(int argc, char* argv[], CSimpleOpt::SOption* optionSpecs) {
@@ -370,6 +387,9 @@ namespace pi {
         return intVector;
     }
 
+
+    void Options::main(Options& opts, StringVector& args) {
+    }
 
     //////////////////////////////////////////////////////////////////////////////////////
     //

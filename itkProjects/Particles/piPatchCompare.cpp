@@ -403,6 +403,21 @@ namespace pi {
     }
      */
 
+    DisplacementFieldType::Pointer PatchCompare::performDenseMapping(PatchImage::Pointer fixed, PatchImage::Pointer moving, PatchImage::RegionType activeRegion) {
+
+        typedef itk::ImageRegionConstIteratorWithIndex<PatchImage> PatchIteratorType;
+
+        PatchIteratorType movingIter(moving, activeRegion);
+        for (movingIter.GoToBegin(); !movingIter.IsAtEnd(); ++movingIter) {
+            // compute point
+            // from this point, compute closest point
+            // set as displacement
+        }
+
+
+        return DisplacementFieldType::Pointer();
+    }
+
     int PatchCompare::performDeformableRegistration(PatchImage::Pointer fixed, RealImage::Pointer fixedImage, PatchImage::Pointer moving, RealImage::Pointer movingImage, std::string outputImage) {
 
         typedef itk::DemonsRegistrationFilter<RealImage, RealImage, DisplacementFieldType> DemonsFilterType;

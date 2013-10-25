@@ -15,6 +15,7 @@
 #include <string>
 #include "SimpleOpt.h"
 
+
 /**
  * Todo
  * 
@@ -38,6 +39,7 @@ namespace pi {
     typedef std::vector<OptionReal> RealVector;
     typedef std::vector<int> IntVector;
     typedef std::vector<char> CharVector;
+    typedef std::vector<double> DoubleVector;
     
     class Options {
     private:
@@ -90,8 +92,14 @@ namespace pi {
         IntVector& GetIntVector(std::string name);
         int GetIntVectorValue(std::string name, int nth, int def = 0);
 
+
+        std::string GetConfigFile();
+
         StringVector& ParseOptions(int argc, char* argv[], CSimpleOpt::SOption*);
         static StringVector Split(std::string str, std::string tok);
+
+        /// main function for test
+        void main(Options& opts, StringVector& args);
 
     private:
         BoolMap _boolMap;
