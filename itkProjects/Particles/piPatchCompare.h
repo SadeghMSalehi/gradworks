@@ -54,7 +54,7 @@ namespace pi {
         PatchImage::Pointer buildPatchImage(RealImage::Pointer image);
 
         // run demon's algorithm on these patch image
-        int performDeformableRegistration(PatchImage::Pointer fixed, RealImage::Pointer fixedSource, PatchImage::Pointer moving, RealImage::Pointer movingSource, std::string outputImage);
+        int performDemonsRegistration(RealImage::Pointer fixedImage, RealImage::Pointer movingImage, std::string outputImage);
 
         DisplacementFieldType::Pointer performDenseMapping(PatchImage::Pointer fixed, PatchImage::Pointer moving, PatchImage::RegionType activeRegion);
 

@@ -10,11 +10,15 @@
 #include "piParticleRunner.h"
 #include "piPatchCompare.h"
 #include "piImageIO.h"
+#include "piImageProcessing.h"
+
+#include <itkResampleImageFilter.h>
 
 using namespace libconfig;
 using namespace std;
 
 namespace pi {
+    typedef itk::ResampleImageFilter<RealImage, RealImage> ResampleImageFilterType;
 
     static ImageIO<RealImage> io;
     vector<PatchImage::Pointer> __patchImages;
@@ -56,14 +60,34 @@ namespace pi {
         }
 
         Setting& config = _config["dense-patch-mapping"];
-        PatchImage::Pointer fixedImage = __patchImages[(int) config["fixed-image-idx"]];
-        PatchImage::Pointer movingImage = __patchImages[(int) config["moving-image-idx"]];
+        int fixedImageIdx = config["fixed-image-idx"];
+        int movingImageIdx = config["moving-image-idx"];
+        PatchImage::Pointer fixedImage = __patchImages[fixedImageIdx];
+        PatchImage::Pointer movingImage = __patchImages[movingImageIdx];
 
         PatchImage::RegionType sourceRegion = fixedImage->GetBufferedRegion();
-        PatchImage::RegionType activeRegion = _config.offsetRegion(sourceRegion, "dense-patch-mapping.active-region");
+        PatchImage::RegionType activeRegion = _config.offsetRegion(sourceRegion, "dense-patch-mapping.region-offset");
 
         PatchCompare patchMaker;
         DisplacementFieldType::Pointer deformationField = patchMaker.performDenseMapping(fixedImage, movingImage, activeRegion);
+
+        // deformation field output
+        ImageIO<DisplacementFieldType> io;
+        string deformationFieldFile = config["displacement-field-output"];
+        io.WriteImage(deformationFieldFile, deformationField);
+
+        // warped image output
+        string warpedImage = config["warped-image-output"];
+        FieldTransformType::Pointer transform = FieldTransformType::New();
+        transform->SetDisplacementField(deformationField);
+
+        ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
+        resampler->SetInput(_config.image(movingImageIdx));
+        resampler->SetUseReferenceImage(true);
+        resampler->SetReferenceImage(_config.image(fixedImageIdx));
+        resampler->SetTransform(transform);
+        resampler->Update();
+        io.WriteImageS<RealImage>(warpedImage, resampler->GetOutput());
     }
 
     void ParticleRunner::main(pi::Options &opts, StringVector &args) {

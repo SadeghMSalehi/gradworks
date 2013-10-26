@@ -22,6 +22,8 @@
 #include <itkDemonsRegistrationFilter.h>
 
 
+#include "piPowellOpti.h"
+
 namespace pi {
     struct PatchSimilarity {
         int originAtlas;
@@ -79,7 +81,7 @@ namespace pi {
             PatchImage::Pointer nullImage = PatchImage::Pointer(NULL);
 
             cout << "Perform demons registration ... " << flush;
-            performDeformableRegistration(nullImage, fixed, nullImage, moving, args[2]);
+            performDemonsRegistration(fixed, moving, args[2]);
             cout << "done" << endl;
             
             return true;
@@ -208,7 +210,7 @@ namespace pi {
         RealImage::RegionType region = image->GetBufferedRegion();
         RealImage::SizeType imageSize = region.GetSize();
 
-        PatchImage::Pointer outputImage = io.NewImageT(imageSize);
+        PatchImage::Pointer outputImage = io.NewImageS<RealImage>(image);
         LocalPatch zeroVector;
         zeroVector.Fill(0);
         outputImage->FillBuffer(zeroVector);
@@ -403,22 +405,98 @@ namespace pi {
     }
      */
 
+    class PatchTracker {
+    public:
+        typedef itk::VectorLinearInterpolateImageFunction<PatchImage> PatchInterpolator;
+
+        PatchTracker(PatchImage::Pointer f, PatchImage::Pointer m) {
+            fixedImage = f;
+            movingImage = m;
+            fixedInterpolator = PatchInterpolator::New();
+            movingInterpolator = PatchInterpolator::New();
+            fixedInterpolator->SetInputImage(f);
+            movingInterpolator->SetInputImage(m);
+        }
+        void SetMovingPoint(PatchImage::PointType point) {
+            movingPoint = point;
+            movingPixel = movingInterpolator->Evaluate(movingPoint);
+
+        }
+        double operator()(int n, double *x) {
+            PatchImage::PointType point;
+            point[0] = x[0];
+            point[1] = x[1];
+            PatchImage::PixelType f = fixedInterpolator->Evaluate(point);
+            PatchImage::PixelType::ValueType* fBuf = f.GetDataPointer();
+            PatchImage::PixelType::ValueType* mBuf = movingPixel.GetDataPointer();
+            const int size = f.Size();
+            double ssd = 0;
+            for (int i = 0; i < size; i++) {
+                ssd += (*fBuf - *mBuf)*(*fBuf - *mBuf);
+                fBuf++;
+                mBuf++;
+            }
+            ssd = std::sqrt(ssd);
+            cout << x[0] << ", " << x[1] << ", " << ssd << endl;
+            return ssd;
+        }
+
+    private:
+        PatchImage::PointType movingPoint;
+        PatchImage::PixelType movingPixel;
+        PatchImage::Pointer fixedImage;
+        PatchImage::Pointer movingImage;
+        PatchInterpolator::Pointer fixedInterpolator;
+        PatchInterpolator::Pointer movingInterpolator;
+    };
+
     DisplacementFieldType::Pointer PatchCompare::performDenseMapping(PatchImage::Pointer fixed, PatchImage::Pointer moving, PatchImage::RegionType activeRegion) {
 
         typedef itk::ImageRegionConstIteratorWithIndex<PatchImage> PatchIteratorType;
 
+        PatchImage::PointType fixedPoint, movingPoint;
         PatchIteratorType movingIter(moving, activeRegion);
+
+        DisplacementFieldType::Pointer deformField = DisplacementFieldType::New();
+        DisplacementFieldType::PixelType zeroDisplacement;
+        zeroDisplacement.Fill(0);
+        deformField->SetSpacing(moving->GetSpacing());
+        deformField->SetRegions(moving->GetBufferedRegion());
+        deformField->SetOrigin(moving->GetOrigin());
+        deformField->SetDirection(moving->GetDirection());
+        deformField->Allocate();
+        deformField->FillBuffer(zeroDisplacement);
+
+        PatchTracker tracker(fixed, moving);
         for (movingIter.GoToBegin(); !movingIter.IsAtEnd(); ++movingIter) {
-            // compute point
+            // compute index point
+            PatchImage::IndexType idx = movingIter.GetIndex();
+            fixed->TransformIndexToPhysicalPoint(idx, fixedPoint);
+            moving->TransformIndexToPhysicalPoint(idx, movingPoint);
+
             // from this point, compute closest point
+            PowellOpti<PatchTracker> optimizer;
+
+            PowellParams initial(2);
+            initial[0] = fixedPoint[0];
+            initial[1] = fixedPoint[1];
+
+            tracker.SetMovingPoint(movingPoint);
+            optimizer.minimizeNEWUOA(tracker, initial, 1);
+
             // set as displacement
+            DisplacementFieldType::PixelType displacement;
+            fordim (k) {
+                displacement[k] = initial[k] - movingPoint[k];
+            }
+            cout << displacement[0] << "," << displacement[1] << endl;
+            deformField->SetPixel(idx, displacement);
         }
 
-
-        return DisplacementFieldType::Pointer();
+        return deformField;
     }
 
-    int PatchCompare::performDeformableRegistration(PatchImage::Pointer fixed, RealImage::Pointer fixedImage, PatchImage::Pointer moving, RealImage::Pointer movingImage, std::string outputImage) {
+    int PatchCompare::performDemonsRegistration(RealImage::Pointer fixedImage, RealImage::Pointer movingImage, std::string outputImage) {
 
         typedef itk::DemonsRegistrationFilter<RealImage, RealImage, DisplacementFieldType> DemonsFilterType;
 
@@ -426,6 +504,10 @@ namespace pi {
         demonsFilter->SetFixedImage(fixedImage);
         demonsFilter->SetMovingImage(movingImage);
         demonsFilter->SetNumberOfIterations(1000);
+        demonsFilter->SmoothDisplacementFieldOn();
+        demonsFilter->SmoothUpdateFieldOn();
+//        demonsFilter->SetUpdateFieldStandardDeviations(0.1);
+//        demonsFilter->SetStandardDeviations(0.1);
         demonsFilter->Update();
 
 

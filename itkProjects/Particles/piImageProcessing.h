@@ -72,6 +72,7 @@ namespace pi {
         void computeBoundingBox(Options& opts, StringVector& args);
         void doCrop(Options& opts, StringVector& args);
         void doSlice(Options& opts, StringVector& args);
+        void deformImage(Options& opts, StringVector& args);
         
 
         /// perform affine registration (translation + rotation + scaling)

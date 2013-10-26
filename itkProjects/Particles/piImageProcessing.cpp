@@ -654,6 +654,7 @@ namespace pi {
         computeBoundingBox(opts, args);
         doCrop(opts, args);
         doSlice(opts, args);
+        deformImage(opts, args);
 
         // registration test
         doAffineReg(opts, args);
@@ -963,6 +964,34 @@ namespace pi {
         end();
     }
 
+
+    void ImageProcessing::deformImage(Options& opts, StringVector& args) {
+        if (!opts.GetBool("--deform")) {
+            return;
+        }
+        if (args.size() < 3) {
+            cout << "--deform input-image input-deformfield output-image" << endl;
+            die();
+        }
+
+        ImageIO<DisplacementFieldType> io;
+        DisplacementFieldType::Pointer deformField = io.ReadImage(args[1]);
+        FieldTransformType::Pointer transform = FieldTransformType::New();
+        transform->SetDisplacementField(deformField);
+
+        RealImage::Pointer inputImage = __realIO.ReadImage(args[0]);
+
+        ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
+        resampler->SetInput(inputImage);
+        resampler->SetTransform(transform);
+        resampler->SetUseReferenceImage(true);
+        resampler->SetReferenceImage(inputImage);
+        resampler->Update();
+        __realIO.WriteImage(args[2], resampler->GetOutput());
+
+        end();
+    }
+    
 
 
 

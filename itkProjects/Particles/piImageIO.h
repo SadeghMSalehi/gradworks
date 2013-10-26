@@ -142,6 +142,17 @@ namespace pi {
 			return newImage;
 		}
 
+        template<typename S>
+        ImagePointer NewImageS(typename S::Pointer image) {
+			ImagePointer newImage = T::New();
+            newImage->SetRegions(image->GetBufferedRegion());
+            newImage->SetSpacing(image->GetSpacing());
+            newImage->SetOrigin(image->GetOrigin());
+            newImage->SetDirection(image->GetDirection());
+            newImage->Allocate();
+            return newImage;
+        }
+
 		ImagePointer NewImageT(int sx, int sy, int sz) {
 			ImagePointer newImage = T::New();
 			ImageSize size;

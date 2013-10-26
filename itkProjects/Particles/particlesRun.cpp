@@ -10,6 +10,7 @@
 #include "piImageProcessing.h"
 #include "piParticleTrainer.h"
 #include "piTestMain.h"
+#include "piPatchCompare.h"
 
 #include "itkSmoothingRecursiveGaussianImageFilter.h"
 #include "itkBSplineTransform.h"
@@ -419,6 +420,7 @@ int main(int argc, char* argv[]) {
         { 109, "--crop", SO_REQ_SEP },
         { 110, "--slice", SO_NONE },
         { 111, "--padding", SO_REQ_SEP },
+        { 112, "--deform", SO_NONE },
 
         // Test Main
         { 200, "--newuoa", SO_NONE },
@@ -430,6 +432,9 @@ int main(int argc, char* argv[]) {
 
         // Options Test
         { 400, "--testjson", SO_NONE },
+
+        // PatchCompare
+        { 500, "--demons", SO_NONE },
 
         SO_END_OF_OPTIONS
     };
@@ -811,7 +816,14 @@ int main(int argc, char* argv[]) {
             return EXIT_SUCCESS;
         }
 
+        PatchCompare patchCompare;
+        if (patchCompare.main(parser, args)) {
+            return EXIT_SUCCESS;
+        }
+
         ParticleTools(parser, args);
+
+
 
         // otherwise, run particle registration
         return particleRegistration(parser, args);
