@@ -5,9 +5,9 @@ cmake_minimum_required(VERSION 2.8)
 #link_directories(/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/lib)
 
 
-set(LOCAL_DIR /tools/local)
-include_directories(/tools/local/include)
-link_directories(/tools/local/lib)
+set(LOCAL_DIR /tmpfs/local CACHE PATH "directory for local include")
+include_directories(${LOCAL_DIR}/include)
+link_directories(${LOCAL_DIR}/lib)
 
 # Tell CMake to run moc when necessary:
 set(CMAKE_AUTOMOC ON)
