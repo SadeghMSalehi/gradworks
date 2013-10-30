@@ -147,7 +147,7 @@ namespace pi {
 
 
 
-    
+
     LabelImage::Pointer ImageProcessing::SmoothLabelMap(LabelImage::Pointer img) {
 #if 1
         return img;
@@ -274,7 +274,7 @@ namespace pi {
         gradientFilter->Update();
         return gradientFilter->GetOutput();
     }
-    
+
     GradientImage::Pointer ImageProcessing::ComputeGradient(LabelImage::Pointer img) {
         CastToRealFilterType::Pointer toReal = CastToRealFilterType::New();
         toReal->SetInput(img);
@@ -442,7 +442,7 @@ namespace pi {
         filter->Update();
         return filter->GetOutput();
     }
-    
+
     LabelImage::Pointer ImageProcessing::NormalizeToIntegralType(RealImage::Pointer src, LabelPixel min, LabelPixel max, LabelImage::Pointer mask) {
         ImageIO<LabelImage> io;
         LabelImage::Pointer output = io.CastImageFromS<RealImage>(src);
@@ -590,7 +590,7 @@ namespace pi {
         return outputImage;
     }
 
-    
+
     void AtlasSimilarityScore::Add(LabelPixel a, LabelPixel b) {
         if (labelMap.size() <= a || labelMap.size() <= b) {
             labelMap.resize(std::max(a,b)+1);
@@ -711,7 +711,7 @@ namespace pi {
         filter->SetSigma(blurRadius);
         filter->Update();
         RealImage2::Pointer outputImage = filter->GetOutput();
-        
+
         io.WriteImage(args[1], outputImage);
         exit(EXIT_SUCCESS);
     }
@@ -879,7 +879,7 @@ namespace pi {
             }
         }
 
-        ofstream of(outputCoord);
+        ofstream of(outputCoord.c_str());
         of << "[ ";
         for (int j = 0; j < lowerIndex.GetIndexDimension(); j++) {
             cout << lowerIndex[j] << endl;
@@ -991,7 +991,7 @@ namespace pi {
 
         end();
     }
-    
+
 
 
 
@@ -1312,9 +1312,9 @@ namespace pi {
 
         RealImage::Pointer w = reg.warpImage(x0.size(), &x0[0]);
         __realIO.WriteImage(args[2], w);
-        
+
         exit(EXIT_SUCCESS);
     }
-    
+
 
 }

@@ -63,7 +63,7 @@ namespace pi {
         return os;
     }
 
-    
+
 //    static void ExtractAttributes(RealImage::Pointer image, VectorImage::Pointer grad, Particle& par);
 
     void InternalForce::ComputeForce(ParticleSubject& subj, int label) {
@@ -81,19 +81,19 @@ namespace pi {
             }
         }
     }
-    
+
     void InternalForce::ComputeForce(ParticleSubjectArray& shapes) {
         const int nSubjects = shapes.size();
         for (int k = 0; k < nSubjects; k++) {
             ComputeForce(shapes[k]);
         }
     }
-    
+
     void InternalForce::ComputeForce(Particle &pi, Particle &pj) {
         const DataReal sigma = repulsionSigma * 5;
         const DataReal coeff = M_PI_2 / sigma;
         const bool useSimpleForce = false;
-        
+
         DataReal fi[__Dim] = { 0 }, fj[__Dim] = { 0 };
         DataReal dx[__Dim] = { 0 };
 
@@ -125,7 +125,7 @@ namespace pi {
         }
     }
 
-    
+
     void EntropyInternalForce::ComputeForce(ParticleSubject& subj, int label) {
         if (useMultiPhaseForce) {
             ComputeHeteroForce(subj, label);
@@ -154,12 +154,12 @@ namespace pi {
             VNLVector weights(nPoints, 0);
             for (int j = 0; j < nPoints; j++) {
                 Particle& pj = subj.m_Particles[j];
-                
+
                 // interaction between particles with the same label
                 if (pj.label != pi.label) {
                     continue;
                 }
-                
+
                 // no self interaction
                 if (i == j) {
                     // there's no self interaction
@@ -189,7 +189,7 @@ namespace pi {
             if (sumForce > 0) {
                 weights /= sumForce;
             }
-            
+
             // update force for neighboring particles
             for (int j = 0; j < nPoints; j++) {
                 if (i == j || weights[j] == 0) {
@@ -235,7 +235,7 @@ namespace pi {
             if (pi.label != label) {
                 continue;
             }
-            
+
             IntIndex idx;
             fordim (k) {
                 idx[k] = pi.x[k];
@@ -337,7 +337,7 @@ namespace pi {
 //        if (shapes.size() < 1) {
 //            return;
 //        }
-//        
+//
 //        const int nSubjects = shapes.size();
 //        const int nPoints = shapes[0].GetNumberOfPoints();
 //
@@ -384,7 +384,7 @@ namespace pi {
         // for that, we create a big array at a system so that we can compute it later
         // let's use plenty of memory space!
         // now i'm back, and let's compute point gradient
-        
+
         EntropyComputer<double> comp(nSubjects, nPoints, __Dim);
         comp.dataIter.FirstData();
         for (int i = 0; i < nSubjects; i++) {
@@ -608,7 +608,7 @@ namespace pi {
 
         const int nSubj = shapes.size();
         const int nPoints = shapes[0].GetNumberOfPoints();
-        
+
         m_attrs.resize(nSubj, nPoints);
         m_attrsMean.set_size(nPoints, NATTRS);
         warpedImages.resize(nSubj);
@@ -655,7 +655,7 @@ namespace pi {
             }
         }
     }
-    
+
     void IntensityForce::SampleAttributes(ParticleSystem* system) {
         ParticleSubjectArray& shapes = system->GetSubjects();
         const int nSubj = shapes.size();
@@ -674,11 +674,9 @@ namespace pi {
             warpedGradientSampler->SetInputImage(&gradImage);
 
             // attribute sampling point
-
-#pragma omp parallel for
             // sample attributes for each pixel
-
-            RealImage::RegionType samplingRegion;
+    RealImage::RegionType samplingRegion;
+#pragma omp parallel for
             fordim (j) {
                 samplingRegion.SetIndex(j, -ATTR_SIZE/2);
                 samplingRegion.SetSize(j, ATTR_SIZE);
@@ -763,7 +761,7 @@ namespace pi {
             //            sprintf(warpedname, "warped%d_%03d.nrrd", i, system->currentIteration);
             //            io.WriteImageT(warpedname, warpedImages[i]);
 
-            
+
             RealImage& warpedImage = *(warpedImages[i].GetPointer());
             GradientImage& gradImage = *(gradImages[i].GetPointer());
 
@@ -778,13 +776,12 @@ namespace pi {
 
             GradientInterpolatorType::Pointer warpedGradientSampler = GradientInterpolatorType::New();
             warpedGradientSampler->SetInputImage(&gradImage);
-            
+
             // attribute sampling point
+            // sample attributes for each pixel
+            RealImage::RegionType samplingRegion;
 
 #pragma omp parallel for
-            // sample attributes for each pixel
-
-            RealImage::RegionType samplingRegion;
             fordim (j) {
                 samplingRegion.SetIndex(j, -ATTR_SIZE/2);
                 samplingRegion.SetSize(j, ATTR_SIZE);
@@ -855,7 +852,7 @@ namespace pi {
     bool IntensityForce::ComputeCovariance(AttrMatrix& attrs, int pointIdx, VNLDoubleMatrix& cov, double alpha) {
         const int L = NATTRS;
         const int S = attrs.size1();
-        
+
         const bool useDualCOV = L > S;
         const int dimCov = useDualCOV ? S : L;
         cov.set_size(dimCov, dimCov);
