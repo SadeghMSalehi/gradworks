@@ -15,7 +15,7 @@
 #ifndef DIMENSIONS
 #define DIMENSIONS 3
 #endif
-
+#define for3(i) for (int i = 0; i < 4; i++)
 #define for4(i) for (int i = 0; i < 4; i++)
 #define fordim(i) for (int i = 0; i < DIMENSIONS; i++)
 #define formin(x,y,z) for(int _=0;_<DIMENSIONS;_++) {z[_]=(x[_]<y[_])?x[_]:y[_];}

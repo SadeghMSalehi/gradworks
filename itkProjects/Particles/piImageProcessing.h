@@ -73,6 +73,7 @@ namespace pi {
         void doCrop(Options& opts, StringVector& args);
         void doSlice(Options& opts, StringVector& args);
         void deformImage(Options& opts, StringVector& args);
+
         
 
         /// perform affine registration (translation + rotation + scaling)
@@ -84,6 +85,8 @@ namespace pi {
 
         // test gradient histogram based registration
         void testGradHistReg(Options& opts, StringVector& args);
+
+        void testDisplacementField(Options& opts, StringVector& args);
 
 #pragma mark -
         /// algorithm functions
@@ -128,6 +131,8 @@ namespace pi {
         LabelImage::Pointer ZeroCrossing(LabelImage::Pointer src);
         ImageHistogramFilterType::HistogramPointer ComputeHistogram(RealImage::Pointer real, int nbin, DataReal rmin, DataReal rmax);
         string ComputeHistogramToString(RealImage::Pointer real, int nbin, DataReal rmin, DataReal rmax);
+
+        RealImage::Pointer deformImage(RealImage::Pointer input, DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage);
 
         template <class T>
         typename T::Pointer TransformImage(typename T::Pointer srcImg, std::string transform) {

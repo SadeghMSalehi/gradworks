@@ -496,7 +496,7 @@ namespace pi {
         template <typename S>
         bool WriteImageS(std::string filename, typename S::Pointer img) {
             if (!__noverbose) {
-                cout << "Writing " << filename << flush;
+                cout << "Writing '" << filename << flush;
             }
             typename itk::ImageFileWriter<S>::Pointer writer = itk::ImageFileWriter<S>::New();
             writer->SetFileName(filename.c_str());
@@ -504,7 +504,7 @@ namespace pi {
             writer->UseCompressionOn();
             writer->Write();
             if (!__noverbose) {
-                cout << " .. done " << endl;
+                cout << "' done " << endl;
             }
             return true;
         }

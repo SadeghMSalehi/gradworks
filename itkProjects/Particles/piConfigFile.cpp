@@ -49,10 +49,12 @@ namespace pi {
         string useImages = "images";
         string useLabels = "labels";
 
-        _config.lookupValue("use-images", useImages);
-        _config.lookupValue("use-labels", useLabels);
+        if (_config.lookupValue("use-images", useImages)) {
+            readImages<RealImage>(_images, useImages);
+        }
 
-        readImages<RealImage>(_images, useImages);
-        readImages<LabelImage>(_labels, useLabels);
+        if (_config.lookupValue("use-labels", useLabels)) {
+            readImages<LabelImage>(_labels, useLabels);
+        }
     }
 }

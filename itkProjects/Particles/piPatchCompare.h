@@ -30,6 +30,7 @@ namespace pi {
 
     typedef itk::Vector<ImageReal,PATCH_SIZE*PATCH_SIZE> LocalPatch;
     typedef itk::Image<LocalPatch,__Dim> PatchImage;
+    typedef itk::ImageRegionIteratorWithIndex<PatchImage> PatchImageIterator;
     typedef std::vector<PatchImage::Pointer> PatchImageVector;
 
     class PatchCompare {
@@ -52,6 +53,13 @@ namespace pi {
         void estimateLabel(int searchRadius, int kNearest);
 
         PatchImage::Pointer buildPatchImage(RealImage::Pointer image);
+
+        void buildGradientPatchImage(RealImage::Pointer image, const int radius, PatchImageVector& output);
+
+        DisplacementFieldType::Pointer computeOpticalFlow(RealImage::Pointer fixed, RealImage::Pointer moving, double dt);
+
+        DisplacementFieldType::Pointer computeDemonsFlow(RealImage::Pointer fixed, RealImage::Pointer moving, double dt);
+
 
         // run demon's algorithm on these patch image
         int performDemonsRegistration(RealImage::Pointer fixedImage, RealImage::Pointer movingImage, std::string outputImage);

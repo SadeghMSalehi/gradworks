@@ -39,6 +39,8 @@ namespace pi {
     typedef itk::Image<ImageReal,3> RealImage3;
     typedef itk::Image<ImageReal,2> RealImage2;
     typedef itk::Image<LabelPixel,2> LabelImage2;
+    typedef itk::Image<LabelPixel,3> LabelImage3;
+
 
     typedef itk::Image<ImageReal,__Dim> RealImage;
     typedef itk::Image<LabelPixel,__Dim> LabelImage;

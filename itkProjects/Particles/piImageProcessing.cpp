@@ -351,13 +351,23 @@ namespace pi {
 
     VectorImage::Pointer ImageProcessing::ComputeDistanceMap(LabelImage::Pointer img) {
         cout << "Computing distance map ..." << flush;
-        LabelImage::Pointer binaryMap = ThresholdToBinary(img);
+        LabelImage::Pointer binaryMap = img; //ThresholdToBinary(img);
 
         // construct signed distance filter
         SignedDistanceMapFilterType::Pointer distmapFilter = SignedDistanceMapFilterType::New();
         distmapFilter->SetInput(binaryMap);
+        distmapFilter->InsideIsPositiveOff();
+        distmapFilter->UseImageSpacingOn();
         distmapFilter->Update();
-        SignedDistanceMapFilterType::OutputImagePointer distmap = distmapFilter->GetOutput();
+        SignedDistanceMapFilterType::OutputImagePointer distmap = distmapFilter->GetDistanceMap();
+
+        /*
+        ImageIO<SignedDistanceMapFilterType::OutputImageType> io;
+        io.WriteImage("test-dist.nrrd", distmap);
+
+        GradientImage::Pointer gdx = ComputeGradient(distmap);
+        io.WriteImageS<GradientImage>("test-gdx.nrrd", gdx);
+         */
 
         typedef
         itk::UnaryFunctorImageFilter<SignedDistanceMapFilterType::VectorImageType, VectorImage, OffsetToVector> OffsetToVectorCastFilterType;
@@ -591,6 +601,23 @@ namespace pi {
     }
 
 
+    RealImage::Pointer ImageProcessing::deformImage(RealImage::Pointer input, DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage) {
+        FieldTransformType::Pointer transform = FieldTransformType::New();
+        transform->SetDisplacementField(displacement);
+        
+
+        ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
+        resampler->SetInput(input);
+        resampler->SetUseReferenceImage(true);
+        resampler->SetReferenceImage(refImage);
+        resampler->SetTransform(transform);
+        resampler->Update();
+        RealImage::Pointer warpedImage = resampler->GetOutput();
+        warpedImage->DisconnectPipeline();
+        return warpedImage;
+    }
+
+
     void AtlasSimilarityScore::Add(LabelPixel a, LabelPixel b) {
         if (labelMap.size() <= a || labelMap.size() <= b) {
             labelMap.resize(std::max(a,b)+1);
@@ -645,6 +672,38 @@ namespace pi {
     /// these functions accept arguments parsed from the command line.
     static ImageIO<RealImage> __io;
 
+
+    void doDistMap2Contour(pi::Options &opts, StringVector &args) {
+        if (!opts.GetBool("--distmap2contour")) {
+            return;
+        }
+
+        if (args.size() < 2) {
+            cout << "--distmap2contour input-distmap output-contour" << endl;
+            exit(0);
+        }
+
+        VectorImage::Pointer distmap = __io.ReadImageS<VectorImage>(args[0]);
+
+        ImageIO<LabelImage> io;
+        LabelImage::Pointer contourMap = io.NewImageS<VectorImage>(distmap);
+        contourMap->FillBuffer(0);
+
+        itk::ImageRegionIteratorWithIndex<VectorImage> distIter(distmap, distmap->GetBufferedRegion());
+        distIter.GoToBegin();
+        while (!distIter.IsAtEnd()) {
+            VectorImage::PixelType offset = distIter.Get();
+            VectorImage::IndexType idx = distIter.GetIndex();
+            for (int j = 0; j < offset.Size(); j++) {
+                idx[j] += offset[j];
+            }
+            contourMap->SetPixel(idx, 1);
+            ++distIter;
+        }
+        io.WriteImage(args[1], contourMap);
+        exit(0);
+    }
+
     void ImageProcessing::main(pi::Options &opts, StringVector &args) {
         doGaussian(opts, args);
         doBlur2(opts, args);
@@ -655,12 +714,14 @@ namespace pi {
         doCrop(opts, args);
         doSlice(opts, args);
         deformImage(opts, args);
+        doDistMap2Contour(opts, args);
 
         // registration test
         doAffineReg(opts, args);
         doGradHist(opts, args);
 
         testGradHistReg(opts, args);
+        testDisplacementField(opts, args);
         return;
     }
 
@@ -880,7 +941,7 @@ namespace pi {
         }
 
         ofstream of(outputCoord.c_str());
-        of << "[ ";
+        of << "crop_region = [ ";
         for (int j = 0; j < lowerIndex.GetIndexDimension(); j++) {
             cout << lowerIndex[j] << endl;
             of << lowerIndex[j] << ", ";
@@ -905,13 +966,22 @@ namespace pi {
 
         RealImage::IndexType regionIndexes[2];
 
-        OptionParser json;
-        json.read(opts.GetString("--crop"));
+        libconfig::Config cropConfig;
+        cropConfig.readFile(opts.GetString("--crop").c_str());
+        libconfig::Setting& list = cropConfig.lookup("crop_region");
 
-        if (json.size() == 5) {
-            json.values(regionIndexes, 2, 2);
-        } else if (json.size() == 7) {
-            json.values(regionIndexes, 2, 3);
+        if (list.getLength() < 5) {
+            regionIndexes[0][0] = (int) list[0];
+            regionIndexes[0][1] = (int) list[1];
+            regionIndexes[1][0] = (int) list[2];
+            regionIndexes[1][1] = (int) list[3];
+        } else if (list.getLength() >= 6) {
+            regionIndexes[0][0] = (int) list[0];
+            regionIndexes[0][1] = (int) list[1];
+            regionIndexes[0][2] = (int) list[2];
+            regionIndexes[1][0] = (int) list[3];
+            regionIndexes[1][1] = (int) list[4];
+            regionIndexes[1][2] = (int) list[5];
         }
 
         int paddingSize = opts.GetStringAsInt("--padding", 3);
@@ -1314,6 +1384,31 @@ namespace pi {
         __realIO.WriteImage(args[2], w);
 
         exit(EXIT_SUCCESS);
+    }
+
+    void ImageProcessing::testDisplacementField(pi::Options &opts, StringVector &args) {
+
+        if (!opts.GetBool("--testdisplacementfield")) {
+            return;
+        }
+
+        ImageIO<DisplacementFieldType> io;
+        RealImage::Pointer source = io.ReadImageS<RealImage>(args[0]);
+        DisplacementFieldType::Pointer disp = io.NewImageS<RealImage>(source);
+
+        const int n = disp->GetPixelContainer()->Size();
+        DisplacementFieldType::PixelType* data = disp->GetBufferPointer();
+
+        for (int i = 0; i < n; i++) {
+            fordim (k) {
+                (*data)[k] = 1;
+            }
+            data++;
+        }
+
+        RealImage::Pointer warpedImage = deformImage(source, disp, source);
+        io.WriteImageS<RealImage>(args[1], warpedImage);
+        exit(1);
     }
 
 

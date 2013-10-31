@@ -14,6 +14,7 @@ namespace pi {
         bool testNEWUOA(Options& opts, StringVector& args);
         bool testJSON(Options& opts, StringVector& args);
         bool testConfig(Options& opts, StringVector& args);
+        bool testDisplacement(Options& opts, StringVector& args);
     };
 }
 #endif // PITESTMAIN_H

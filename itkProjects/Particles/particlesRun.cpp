@@ -34,6 +34,7 @@ ImageIO<LabelImage> labelIO;
 // external function defined in piParticleRunner.cpp
 namespace pi {
     void executeParticleRunner(Options& parser, StringVector& args);
+    void executeDemonsRunner(Options& parser, StringVector& args);
 }
 
 
@@ -421,6 +422,8 @@ int main(int argc, char* argv[]) {
         { 110, "--slice", SO_NONE },
         { 111, "--padding", SO_REQ_SEP },
         { 112, "--deform", SO_NONE },
+        { 113, "--testdisplacementfield", SO_NONE },
+        { 114, "--distmap2contour", SO_NONE },
 
         // Test Main
         { 200, "--newuoa", SO_NONE },
@@ -435,6 +438,8 @@ int main(int argc, char* argv[]) {
 
         // PatchCompare
         { 500, "--demons", SO_NONE },
+        { 501, "--makeGradientPatch", SO_NONE },
+        { 502, "--opticalFlow", SO_NONE },
 
         SO_END_OF_OPTIONS
     };
@@ -456,6 +461,8 @@ int main(int argc, char* argv[]) {
     if (parser.GetBool("--run")) {
         executeParticleRunner(parser, args);
         return 0;
+    } else if (parser.GetBool("--demons")) {
+        executeDemonsRunner(parser, args);
     } else if (parser.GetBool("--expr1")) {
         runExpr1(args);
     } else if (parser.GetBool("--expr2")) {
@@ -822,6 +829,7 @@ int main(int argc, char* argv[]) {
         }
 
         ParticleTools(parser, args);
+        
 
 
 

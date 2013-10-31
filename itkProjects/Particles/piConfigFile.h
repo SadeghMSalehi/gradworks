@@ -36,6 +36,13 @@ namespace pi {
             return _labels[i];
         }
 
+        bool checkFile(std::string filename) {
+            ifstream i(filename.c_str());
+            bool file = i.is_open();
+            i.close();
+            return file;
+        }
+        
         bool exists(std::string path) {
             return _config.exists(path);
         }
@@ -51,6 +58,15 @@ namespace pi {
         template<class T>
         void readImages(std::vector<typename T::Pointer>& data, std::string path) {
             libconfig::Setting& files = _config.lookup(path);
+            for (int i = 0; i < files.getLength(); i++) {
+                std::string in = files[i];
+                ImageIO<T> io;
+                data.push_back(io.ReadCastedImage(in));
+            }
+        }
+
+        template<class T>
+        void readImages(std::vector<typename T::Pointer>& data, libconfig::Setting& files) {
             for (int i = 0; i < files.getLength(); i++) {
                 std::string in = files[i];
                 ImageIO<T> io;

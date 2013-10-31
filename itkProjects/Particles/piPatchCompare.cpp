@@ -20,9 +20,10 @@
 #include <itkRescaleIntensityImageFilter.h>
 #include <itkTranslationTransform.h>
 #include <itkDemonsRegistrationFilter.h>
-
+#include <vnl/vnl_linear_system.h>
 
 #include "piPowellOpti.h"
+#include "piImageProcessing.h"
 
 namespace pi {
     struct PatchSimilarity {
@@ -64,6 +65,33 @@ namespace pi {
             PatchImage::Pointer patchImage = this->buildPatchImage(image);
             ImageIO<PatchImage> io2;
             io2.WriteImage(args[1], patchImage);
+            return true;
+        } else if (parser.GetBool("--makeGradientPatch")) {
+            if (args.size() < 1 + DIMENSIONS) {
+                cout << "--makeGradientPatch input-image gx-patch gy-patch gz-patch ..." << endl;
+                return true;
+            }
+            ImageIO<RealImage> io;
+            RealImage::Pointer image = io.ReadCastedImage(args[0]);
+            PatchImageVector gradientPatchImages;
+            buildGradientPatchImage(image, 5, gradientPatchImages);
+            for (int i = 0; i < gradientPatchImages.size(); i++) {
+                io.WriteImageS<PatchImage>(args[i+1], gradientPatchImages[i]);
+            }
+            return true;
+        } else if (parser.GetBool("--opticalFlow")) {
+            if (args.size() < 3) {
+                cout << "--opticalFlow fixed-image moving-image output-image" << endl;
+                return true;
+            }
+
+
+            ImageIO<RealImage> io;
+            RealImage::Pointer fixed = io.ReadCastedImage(args[0]);
+            RealImage::Pointer moving = io.ReadCastedImage(args[1]);
+
+            DisplacementFieldType::Pointer flow = computeOpticalFlow(fixed, moving, 0.1);
+            io.WriteImageS<DisplacementFieldType>(args[2], flow);
             return true;
         } else if (parser.GetBool("--labelTransferWithPatch")) {
             transferLabelsWithPatch(args, parser.GetString("-o"), parser.GetInt("--searchRadius", 3), parser.GetInt("--kNearest", 3));
@@ -252,6 +280,169 @@ namespace pi {
         }
         return outputImage;
     }
+
+    void PatchCompare::buildGradientPatchImage(RealImage::Pointer image, const int radius, PatchImageVector& output) {
+
+        LocalPatch zeroVector;
+        zeroVector.Fill(0);
+
+        ImageIO<PatchImage> io;
+        for (int i = 0; i < RealImage::ImageDimension; i++) {
+            PatchImage::Pointer patch = io.NewImageS<RealImage>(image);
+            patch->FillBuffer(zeroVector);
+            output.push_back(patch);
+        }
+
+        ImageProcessing proc;
+        GradientImage::Pointer gradientImage = proc.ComputeGaussianGradient(image, 0.1);
+
+        // set region to contain full patch
+        RealImage::RegionType region = image->GetBufferedRegion();
+        RealImage::SizeType imageSize = region.GetSize();
+
+        RealImage::IndexType regionIdx;
+        regionIdx[0] = radius/2 + 1;
+        regionIdx[1] = radius/2 + 1;
+
+        RealImage::SizeType regionSize;
+        regionSize[0] = imageSize[0] - radius;
+        regionSize[1] = imageSize[1] - radius;
+
+        region.SetIndex(regionIdx);
+        region.SetSize(regionSize);
+
+        // iterate over the region
+        itk::ImageRegionIteratorWithIndex<GradientImage> iter(gradientImage, region);
+        RealImage::RegionType patchRegion;
+        RealImage::OffsetType patchOffset;
+        patchOffset.Fill(radius/2);
+
+        RealImage::SizeType patchSize;
+        patchSize.Fill(radius);
+
+        for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+            LocalPatch patch;
+            // extract patch
+            RealImage::IndexType idx = iter.GetIndex();
+            idx -= patchOffset;
+            patchRegion.SetIndex(idx);
+            patchRegion.SetSize(patchSize);
+            itk::ImageRegionIteratorWithIndex<GradientImage> patchIter(gradientImage, patchRegion);
+            int i = 0;
+            for (patchIter.GoToBegin(); !patchIter.IsAtEnd(); ++patchIter) {
+                GradientImage::PixelType grad = patchIter.Get();
+                for (int j = 0; j < RealImage::ImageDimension; j++) {
+                    output[j]->GetPixel(idx)[i] = grad[j];
+                }
+                i++;
+            }
+        }
+    }
+
+
+    DisplacementFieldType::Pointer PatchCompare::computeOpticalFlow(RealImage::Pointer fixed, RealImage::Pointer moving, double dt) {
+        ImageIO<DisplacementFieldType> io;
+
+        PatchImage::Pointer fPatch = buildPatchImage(fixed);
+        PatchImage::Pointer mPatch = buildPatchImage(moving);
+
+        PatchImageVector gradientPatchImages;
+        buildGradientPatchImage(moving, 5, gradientPatchImages);
+
+        DisplacementFieldType::Pointer flowOutput = io.NewImageS<RealImage>(fixed);
+        DisplacementFieldType::PixelType zeroFlow;
+        zeroFlow.Fill(0);
+        flowOutput->FillBuffer(zeroFlow);
+
+        PatchImage::PixelType* fBuf = fPatch->GetBufferPointer();
+        PatchImage::PixelType* mBuf = mPatch->GetBufferPointer();
+        PatchImage::PixelType* gBuf[RealImage::ImageDimension];
+        fordim (k) {
+            gBuf[k] = gradientPatchImages[k]->GetBufferPointer();
+        }
+
+        DisplacementFieldType::PixelType* oBuf = flowOutput->GetBufferPointer();
+
+        const int nPatchElems = gBuf[0]->Size();
+        const int nImageSize = fixed->GetPixelContainer()->Size();
+
+        VNLDoubleMatrix A(__Dim, __Dim);
+        VNLDoubleVector b(__Dim);
+        for (int i = 0; i < nImageSize; i++) {
+            A.fill(0);
+            b.fill(0);
+            for (int j = 0; j < nPatchElems; j++) {
+                double gx = (*gBuf[0])[j];
+                double gy = (*gBuf[1])[j];
+                double It  = (*fBuf)[j] - (*mBuf)[j];
+                A[0][0] += (gx*gx);
+                A[0][1] += (gx*gy);
+                A[1][1] += (gy*gy);
+                b[0] -= gx*It;
+                b[1] -= gy*It;
+            }
+            A[1][0] = A[0][1];
+
+            if (abs(vnl_det(A[0], A[1])) > 1e-3) {
+                VNLDoubleMatrix inv = vnl_matrix_inverse<double>(A);
+                VNLDoubleVector sol = inv * b;
+                fordim (k) {
+                    (*oBuf)[k] = - (dt * sol[k]);
+                }
+            }
+
+            fBuf ++;
+            mBuf ++;
+            oBuf ++;
+            fordim (k) {
+                gBuf[k]++;
+            }
+        }
+
+        return flowOutput;
+    }
+
+    DisplacementFieldType::Pointer PatchCompare::computeDemonsFlow(RealImage::Pointer fixed, RealImage::Pointer moving, double dt) {
+        ImageIO<DisplacementFieldType> io;
+
+        // allocate output
+        DisplacementFieldType::Pointer flowOutput = io.NewImageS<RealImage>(fixed);
+
+        // compute gradient image
+        ImageProcessing proc;
+        RealImage::SpacingType spacing = fixed->GetSpacing();
+        GradientImage::Pointer gF = proc.ComputeGaussianGradient(fixed, spacing[0]/2.0);
+        GradientImage::Pointer gM = proc.ComputeGaussianGradient(moving, spacing[0]/2.0);
+
+        // assign pointers
+        RealImage::PixelType* fBuf = fixed->GetBufferPointer();
+        RealImage::PixelType* mBuf = moving->GetBufferPointer();
+
+        GradientImage::PixelType* gFv = gF->GetBufferPointer();
+        GradientImage::PixelType* gMv = gM->GetBufferPointer();
+
+        DisplacementFieldType::PixelType* oBuf = flowOutput->GetBufferPointer();
+        const int nPixels = gF->GetPixelContainer()->Size();
+        for (int i = 0; i < nPixels; i++) {
+            double speed = (*fBuf - *mBuf);
+            double gx = (*gMv)[0];
+            double gy = (*gMv)[1];
+            double gm = gx*gx + gy*gy;
+            double denom = gm + speed*speed;
+            if (denom > 1e-2) {
+                (*oBuf)[0] = dt*speed/denom*gx;
+                (*oBuf)[1] = dt*speed/denom*gy;
+            }
+            fBuf++;
+            mBuf++;
+            gFv++;
+            gMv++;
+            oBuf++;
+        }
+
+        return flowOutput;
+    }
+
 
 
     void transferLabelsWithPatch(StringVector& args, std::string output, int searchRadius, int kNearest) {

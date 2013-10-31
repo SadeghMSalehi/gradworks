@@ -1,5 +1,7 @@
 #include "piTestMain.h"
 #include "piPowellOpti.h"
+#include "piImageDef.h"
+#include "piImageIO.h"
 
 #ifndef Q_MOC_RUN
 #include <boost/numeric/ublas/vector.hpp>
@@ -27,7 +29,7 @@ namespace pi {
         } else if (opts.GetBool("--testconfig")) {
             testConfig(opts, args);
             return true;
-        }
+        } 
         return false;
     }
 
@@ -126,5 +128,8 @@ namespace pi {
 
 
         return true;
+    }
+
+    bool TestMain::testDisplacement(pi::Options &opts, StringVector &args) {
     }
 }
