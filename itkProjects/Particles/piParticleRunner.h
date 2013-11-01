@@ -203,6 +203,12 @@ namespace pi {
         PxSubj sampler;
         PxSubj::Vector subjs;
 
+        std::vector<int> numParticles;
+        int totalParticles;
+
+        void main(Options& opts, StringVector& args);
+
+    private:
         void createSampler();
 
         void clearForces();
@@ -219,6 +225,19 @@ namespace pi {
         bool saveParticles(ConfigFile& config, std::string outputName);
         void duplicateParticles();
         void print();
+
+        void initialize(Options& opts, StringVector& args);
+        void computeIntersection(LabelImageVector& regions);
+        void initialLoop();
+        void loop();
+
+        void warpLabels(libconfig::Setting& data);
+        void warpImages(libconfig::Setting& data);
+
+
+        double t0, dt, t1;
+        ConfigFile _config;
+
     };
 
     class ParticleRunner {
@@ -227,13 +246,6 @@ namespace pi {
 
     private:
         void print();
-        void initialize(Options& opts, StringVector& args);
-        void computeIntersection(LabelImageVector& regions);
-        void initialLoop();
-        void loop();
-
-        double t0, dt, t1;
-        ConfigFile _config;
         PxSystem _system;
     };
 

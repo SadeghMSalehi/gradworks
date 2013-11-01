@@ -11,6 +11,7 @@
 #include "piPatchCompare.h"
 #include "piImageIO.h"
 #include "piImageProcessing.h"
+#include "piParticleWarp.h"
 
 #include <numeric>
 #include <itkResampleImageFilter.h>
@@ -284,6 +285,7 @@ namespace pi {
     }
 
 
+    // update the particle dynamic equation
     void PxSubj::updateSystem(double dt) {
         Px::Vector::iterator p = particles.begin();
         Px::Vector::iterator f = forces.begin();
@@ -291,11 +293,9 @@ namespace pi {
         for (; p != particles.end() && f != forces.end(); p++, f++) {
             fordim (k) { p->x[k] += (dt * f->x[k]); }
         }
-
-        cout << forces << endl;
-        cout << particles << endl;
     }
 
+    // iterate all particles and move inside of the object
     void PxSubj::constrainParticles() {
         Px::Vector::iterator p = particles.begin();
         PxA::Vector::iterator a = attrs.begin();
@@ -304,6 +304,7 @@ namespace pi {
         }
     }
 
+    // iterate all particles and remove boundary normal component of forces
     void PxSubj::constrainForces() {
         Px::Vector::iterator p = particles.begin();
         Px::Vector::iterator f = forces.begin();
@@ -318,6 +319,8 @@ namespace pi {
         }
     }
 
+    // random sample particles from each region
+    // this function is only for the sampler
     void PxSubj::sampleParticles(std::vector<int>& numParticles) {
         // allocate particles
         int totalParticles = std::accumulate(numParticles.begin(), numParticles.end(), 0);
@@ -447,6 +450,12 @@ namespace pi {
         nsubjs = config["particles.number-of-subjects"];
         nlabels = config["particles.number-of-labels"];
 
+        Setting& settingNumParticles = config["particles.number-of-particles"];
+        for (int i = 0; i < settingNumParticles.getLength(); i++) {
+            numParticles.push_back(settingNumParticles[i]);
+        }
+        totalParticles = std::accumulate(numParticles.begin(), numParticles.end(), 0);
+
         subjs.resize(nsubjs);
         Setting& subjconfig = config["particles.subjects"];
         for (int i = 0; i < nsubjs; i++) {
@@ -459,11 +468,32 @@ namespace pi {
     }
 
 
+    // iterate subjects to load particle data
+    // only when ignore-particle-input = false
+    bool PxSystem::loadParticles(ConfigFile& config) {
+        if (config["particles.ignore-particle-input"]) {
+            return false;
+        }
+
+        Setting& subjconfig = config["particles.subjects"];
+        bool ok = true;
+        for (int i = 0; i < subjconfig.getLength() && ok; i++) {
+            string f = subjconfig[i]["particle-input"];
+            ok = subjs[i].load(f) && subjs[i].size() == totalParticles;
+        }
+
+        return ok;
+    }
+
     // initialize sampler on first run
     bool PxSystem::loadSampler(ConfigFile& config) {
+        if (config["particles.ignore-sampler-input"]) {
+            return false;
+        }
+
         string samplerCache = config["particles.sampler-cache"];
         if (sys.checkFile(samplerCache)) {
-            if (sampler.load(samplerCache)) {
+            if (sampler.load(samplerCache) && sampler.size() == totalParticles) {
                 return true;
             }
         }
@@ -529,17 +559,6 @@ namespace pi {
 
     }
 
-    // iterate subjects to load particle data
-    bool PxSystem::loadParticles(ConfigFile& config) {
-        Setting& subjconfig = config["particles.subjects"];
-
-        bool ok = true;
-        for (int i = 0; i < subjconfig.getLength() && ok; i++) {
-            string f = subjconfig[i]["particle-input"];
-            ok = subjs[i].load(f);
-        }
-        return ok;
-    }
 
     // iterate subjects to save particle data
     bool PxSystem::saveParticles(ConfigFile& config, string outputName) {
@@ -576,46 +595,48 @@ namespace pi {
      * 3) load sampler and run preprocessing if necessary
      * 4) save initialized particles
      */
-    void ParticleRunner::initialize(Options& opts, StringVector& args) {
+    void PxSystem::initialize(Options& opts, StringVector& args) {
         _config.load(opts.GetConfigFile());
-        _system.load(_config);
-        if (!_system.loadParticles(_config)) {
-            if (!_system.loadSampler(_config)) {
+        load(_config);
+        if (!loadParticles(_config)) {
+            if (!loadSampler(_config)) {
                 initialLoop();
                 string samplerCache = _config["particles.sampler-cache"];
                 cout << samplerCache << endl;
                 ofstream of(samplerCache);
-                _system.sampler.save(of);
+                sampler.save(of);
                 of.close();
             }
-            _system.duplicateParticles();
-            _system.saveParticles(_config, "particle-input");
+            duplicateParticles();
+            saveParticles(_config, "particle-input");
         }
     }
 
     // initial loop to distribute particles inside region
-    void ParticleRunner::initialLoop() {
+    void PxSystem::initialLoop() {
         double t0 = _config["particles.sampler-time-steps.[0]"];
         double dt = _config["particles.sampler-time-steps.[1]"];
         double t1 = _config["particles.sampler-time-steps.[2]"];
+        double sigma = _config["particles.repulsion-parameters.[1]"];
+        double cutoff = _config["particles.repulsion-parameters.[2]"];
 
         ImageIO<LabelImage3> io;
-        LabelImage::Pointer refImage = _system.sampler.regions[0].labelmap;
+        LabelImage::Pointer refImage = sampler.regions[0].labelmap;
         LabelImage3::Pointer tracker = createImage3(refImage, (t1 - t0) / dt + 1);
 
         int m = 0;
         for (double t = t0; t <= t1; t += dt, m++) {
             cout << "t = " << t << endl;
-            _system.sampler.clearForce();
-            _system.sampler.constrainParticles();
+            sampler.clearForce();
+            sampler.constrainParticles();
 
             // how to set repulsion paramter per region?
-            _system.sampler.computeRepulsion(1, 0.3, 0.5);
-            _system.sampler.constrainForces();
-            _system.sampler.updateSystem(dt);
+            sampler.computeRepulsion(1, sigma, cutoff);
+            sampler.constrainForces();
+            sampler.updateSystem(dt);
 
-            for (int i = 0; i < _system.sampler.particles.size(); i++) {
-                LabelImage::IndexType idx = _system.sampler.getIndex(i);
+            for (int i = 0; i < sampler.particles.size(); i++) {
+                LabelImage::IndexType idx = sampler.getIndex(i);
                 LabelImage3::IndexType tx;
                 fordim (k) {
                     tx[k] = idx[k];
@@ -634,17 +655,15 @@ namespace pi {
      * registration loop
      *
      */
-    void ParticleRunner::loop() {
+    void PxSystem::loop() {
         double t0 = _config["particles.time-steps.[0]"];
         double dt = _config["particles.time-steps.[1]"];
         double t1 = _config["particles.time-steps.[2]"];
 
-        const int nsubjs = _system.nsubjs;
 
         ImageIO<LabelImage3> io;
-        LabelImage::Pointer refImage = _system.sampler.regions[0].labelmap;
+        LabelImage::Pointer refImage = subjs[0].regions[0].labelmap;
         std::vector<LabelImage3::Pointer> trackers;
-        trackers.resize(_system.nsubjs);
 
         for (int i = 0; i < nsubjs; i++) {
             LabelImage3::Pointer tracker = createImage3(refImage, (t1 - t0) / dt + 1);
@@ -656,19 +675,20 @@ namespace pi {
             cout << "t = " << t << endl;
 
             // compute internal forces
-            for (int i = 0; i < _system.nsubjs; i++) {
-                _system.subjs[i].clearForce();
-                _system.subjs[i].constrainParticles();
+            for (int i = 0; i < nsubjs; i++) {
+                subjs[i].clearForce();
+                subjs[i].constrainParticles();
 
                 // how to set repulsion paramter per region?
-                _system.subjs[i].computeRepulsion(1, 0.3, 0.5);
-                _system.subjs[i].constrainForces();
-                _system.subjs[i].updateSystem(dt);
+                subjs[i].computeRepulsion(1, 0.3, 0.5);
+                subjs[i].constrainForces();
+                subjs[i].updateSystem(dt);
             }
 
+            // mark each particle location at a tracker image
             for (int i = 0; i < nsubjs; i++) {
-                for (int j = 0; j < _system.subjs[0].particles.size(); j++) {
-                    LabelImage::IndexType idx = _system.subjs[0].getIndex(j);
+                for (int j = 0; j < subjs[0].particles.size(); j++) {
+                    LabelImage::IndexType idx = subjs[i].getIndex(j);
                     LabelImage3::IndexType tx;
                     fordim (k) {
                         tx[k] = idx[k];
@@ -687,10 +707,70 @@ namespace pi {
         }
     }
 
-    void ParticleRunner::main(pi::Options &opts, StringVector &args) {
+    /**
+     * warp label images in according to its setting
+     * setting = [ srcIdx, dstIdx, inputFile, outputFile ]
+     * control point spacing and other bspline parameters may be cached to the system
+     */
+    void PxSystem::warpLabels(libconfig::Setting& warpedLabels) {
+        for (int i = 0; i < warpedLabels.getLength(); i++) {
+            int src = warpedLabels[i][0];
+            int dst = warpedLabels[i][1];
+            string input = warpedLabels[i][2];
+            string output = warpedLabels[i][3];
+
+            cout << "Warping: " << src << " => " << dst << " : " << input << " => " << output << endl;
+            LabelImage::Pointer inputImage = labelIO.ReadCastedImage(input);
+            ParticleWarp warp;
+            warp.setParameters(_config);
+            warp.reference = inputImage;
+            warp.estimateBsplineWarp(subjs[src].particles, subjs[dst].particles);
+            LabelImage::Pointer outputImage = warp.warpLabel(inputImage);
+            labelIO.WriteImage(output, outputImage);
+        }
+    }
+
+    /**
+     * warp intensity images in according to its setting
+     * setting = [ srcIdx, dstIdx, inputFile, outputFile ]
+     * control point spacing and other bspline parameters may be cached to the system
+     */
+    void PxSystem::warpImages(libconfig::Setting& data) {
+        for (int i = 0; i < data.getLength(); i++) {
+            int src = data[i][0];
+            int dst = data[i][1];
+            string input = data[i][2];
+            string output = data[i][3];
+
+            cout << "Warping: " << src << " => " << dst << " : " << input << " => " << output << endl;
+            RealImage::Pointer inputImage = io.ReadCastedImage(input);
+            ParticleWarp warp;
+            warp.reference = subjs[0].regions[0].labelmap;
+            warp.estimateBsplineWarp(subjs[dst].particles, subjs[src].particles);
+            RealImage::Pointer outputImage = warp.warpImage(inputImage);
+            io.WriteImage(output, outputImage);
+        }
+    }
+
+    void PxSystem::main(pi::Options &opts, StringVector &args) {
         initialize(opts, args);
         loop();
+        saveParticles(_config, "particle-output");
+
+        warpLabels(_config["particles/warped-labels"]);
+        warpImages(_config["particles/warped-images"]);
+
         print();
+    }
+
+    void ParticleRunner::main(pi::Options &opts, StringVector &args) {
+        try {
+            _system.main(opts, args);
+        } catch (ParseException & ex) {
+            cout << "File: " << ex.getFile() << endl;
+            cout << "Line: " << ex.getLine() << endl;
+            cout << "Error: " << ex.getError() << endl;
+        }
     }
 
     void ParticleRunner::print() {
