@@ -14,6 +14,11 @@
 #include "piParticleRunner.h"
 
 namespace pi {
+    class ParticleMesh {
+    public:
+        void constructNeighbors(int regionId, int nPx, PxSubj& subj, double cutoff, PxGlobal::Neighbors& neighbors);
+    };
+
     class ParticleWarp {
     public:
         int controlSpacing;

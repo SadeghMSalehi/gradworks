@@ -234,26 +234,50 @@ namespace pi {
         return ix;
     }
 
-    void PxSubj::computeRepulsion(double coeff, double sigma, double cutoff) {
-        const double sigma2 = sigma * sigma;
 
+
+    /// inline function
+    inline void computeRepulsionWeight(VNLMatrix& weights, int i, int j, Px& pi, Px& pj, double cutoff, double sigma2, double kappa) {
+        // compute weight
+        double dij = pi.dist(pj);
+        if (dij < cutoff) {
+            weights[i][j] = exp(-dij*dij*kappa/(sigma2)) / dij;
+        } else {
+            weights[i][j] = 0;
+        }
+    }
+
+    // compute repulsion force
+    void PxSubj::computeRepulsion() {
         const int npx = size();
         VNLMatrix weights(npx, npx);
+        weights.fill(0);
 
         // loop over all particle pairs
         for (int i = 0; i < npx; i++) {
             Px& pi = particles[i];
             weights[i][i] = 0;
             double kappa = 1;
-            for (int j = i + 1; j < npx; j++) {
-                Px& pj = particles[j];
 
-                // compute weight
-                double dij = pi.dist(pj);
-                if (dij < cutoff) {
-                    weights[i][j] = weights[j][i] = exp(-dij*dij*kappa/(sigma2)) / dij;
-                } else {
-                    weights[i][j] = weights[j][i] = 0;
+            const int label = attrs[i].label;
+            double sigma = global->sigmaParams[label];
+            double cutoff = global->cutoffParams[label];
+            const double sigma2 = sigma * sigma;
+
+            // loop over neighbors
+            bool useNeighbors = global->neighbors.size() == npx && global->useLocalRepulsion;
+            if (!useNeighbors) {
+                // neighbor structure isn't yet built (sampler case)
+                for (int jj = i + 1; jj < npx; jj++) {
+                    Px& pj = particles[jj];
+                    computeRepulsionWeight(weights, i, jj, pi, pj, cutoff, sigma2, kappa);
+                    weights[jj][i] = weights[i][jj];
+                }
+            } else {
+                for (int j = 0; j < global->neighbors[i].size(); j++) {
+                    int jj = global->neighbors[i][j];
+                    Px& pj = particles[jj];
+                    computeRepulsionWeight(weights, i, jj, pi, pj, cutoff, sigma2, kappa);
                 }
             }
         }
@@ -269,6 +293,8 @@ namespace pi {
         for (int i = 0; i < npx; i++) {
             Px& fi = forces[i];
             Px& pi = particles[i];
+            const int label = attrs[i].label;
+            double coeff = global->repulsionCoeff[label];
             for (int j = i + 1; j < npx; j++) {
                 Px& pj = particles[j];
                 Px& fj = forces[j];
@@ -379,7 +405,7 @@ namespace pi {
         Setting& labels = config.lookup("labels");
         Setting& data = config.lookup("particles");
 
-        if (labels.getLength() != data[0].getLength()) {
+        if (global->totalParticles != labels.getLength() || labels.getLength() != data[0].getLength()) {
             return false;
         }
 
@@ -418,6 +444,16 @@ namespace pi {
         os << ")" << endl;
     }
 
+    void PxSystem::setupNeighbors(const IntVector& numPx, PxSubj& subj) {
+        global.neighbors.resize(subj.size());
+
+        // construct delaunay triangulations
+        // implicitly assume that the index of numPx represents the label index
+        for (int i = 0; i < numPx.size(); i++) {
+            ParticleMesh mesh;
+            mesh.constructNeighbors(i, numPx[i], subj, 1, global.neighbors);
+        }
+    }
 
     void PxSystem::createSampler() {
 
@@ -445,10 +481,12 @@ namespace pi {
 
     }
 
-    // load data for particle system
-    void PxSystem::load(ConfigFile& config) {
+    void PxGlobal::load(ConfigFile& config) {
         nsubjs = config["particles.number-of-subjects"];
         nlabels = config["particles.number-of-labels"];
+
+        useLocalRepulsion = false;
+        config["particles"].lookupValue("use-local-repulsion", useLocalRepulsion);
 
         Setting& settingNumParticles = config["particles.number-of-particles"];
         for (int i = 0; i < settingNumParticles.getLength(); i++) {
@@ -456,12 +494,28 @@ namespace pi {
         }
         totalParticles = std::accumulate(numParticles.begin(), numParticles.end(), 0);
 
-        subjs.resize(nsubjs);
+        Setting& repulsionParams = config["particles.repulsion-parameters"];
+        repulsionCoeff.resize(nlabels);
+        sigmaParams.resize(nlabels);
+        cutoffParams.resize(nlabels);
+        for (int i = 0; i < repulsionParams.getLength(); i++) {
+            repulsionCoeff[i] = repulsionParams[i][0];
+            sigmaParams[i] = repulsionParams[i][1];
+            cutoffParams[i] = repulsionParams[i][2];
+        }
+    }
+
+    // load data for particle system
+    void PxSystem::load(ConfigFile& config) {
+        global.load(config);
+
+        subjs.resize(global.nsubjs);
         Setting& subjconfig = config["particles.subjects"];
-        for (int i = 0; i < nsubjs; i++) {
+        for (int i = 0; i < global.nsubjs; i++) {
+            subjs[i].global = &global;
             Setting& subjdata = subjconfig[i];
-            subjs[i].regions.resize(nlabels);
-            for (int j = 0; j < nlabels; j++) {
+            subjs[i].regions.resize(global.nlabels);
+            for (int j = 0; j < global.nlabels; j++) {
                 subjs[i].regions[j].load(subjdata["labels"][j]);
             }
         }
@@ -479,7 +533,7 @@ namespace pi {
         bool ok = true;
         for (int i = 0; i < subjconfig.getLength() && ok; i++) {
             string f = subjconfig[i]["particle-input"];
-            ok = subjs[i].load(f) && subjs[i].size() == totalParticles;
+            ok = subjs[i].load(f);
         }
 
         return ok;
@@ -487,23 +541,29 @@ namespace pi {
 
     // initialize sampler on first run
     bool PxSystem::loadSampler(ConfigFile& config) {
-        if (config["particles.ignore-sampler-input"]) {
-            return false;
-        }
-
-        string samplerCache = config["particles.sampler-cache"];
-        if (sys.checkFile(samplerCache)) {
-            if (sampler.load(samplerCache) && sampler.size() == totalParticles) {
-                return true;
+        // sampler needs to load region information
+        // if sampler-input doesn't exist!!
+        if (!config["particles.ignore-sampler-input"]) {
+            string samplerCache = config["particles.sampler-cache"];
+            if (sys.checkFile(samplerCache)) {
+                if (sampler.load(samplerCache)) {
+                    return true;
+                }
             }
         }
+
+        // load each label information and create intersection
         Setting& regionList = config["particles.sampler.labels"];
-        if (nlabels != regionList.getLength()) {
+        if (global.nlabels != regionList.getLength()) {
             cout << "sampler has different number of labels" << endl;
             exit(0);
         }
 
-        sampler.regions.resize(nlabels);
+        /// global configuration setting
+        sampler.global = &global;
+
+        // sampler region load
+        sampler.regions.resize(global.nlabels);
         for (int i = 0; i < regionList.getLength(); i++) {
             // if there exists intersection cache
             if (!sampler.regions[i].load(regionList[i], false)) {
@@ -515,9 +575,9 @@ namespace pi {
 
                 // initialize label pointers for fast access
                 std::vector<LabelImage::PixelType*> ptrs;
-                ptrs.resize(nsubjs);
+                ptrs.resize(global.nsubjs);
 
-                for (int j = 0; j < nsubjs; j++) {
+                for (int j = 0; j < global.nsubjs; j++) {
                     ptrs[j] = subjs[j].regions[i].labelmap->GetBufferPointer();
                 }
 
@@ -576,7 +636,8 @@ namespace pi {
 
     // duplicate particles from sampler to each subject
     void PxSystem::duplicateParticles() {
-        for (int i = 0; i < nsubjs; i++) {
+        for (int i = 0; i < global.nsubjs; i++) {
+            subjs[i].global = &global;
             subjs[i].resize(sampler.size());
             subjs[i].attrs = sampler.attrs;
             subjs[i].particles = sampler.particles;
@@ -617,8 +678,6 @@ namespace pi {
         double t0 = _config["particles.sampler-time-steps.[0]"];
         double dt = _config["particles.sampler-time-steps.[1]"];
         double t1 = _config["particles.sampler-time-steps.[2]"];
-        double sigma = _config["particles.repulsion-parameters.[1]"];
-        double cutoff = _config["particles.repulsion-parameters.[2]"];
 
         ImageIO<LabelImage3> io;
         LabelImage::Pointer refImage = sampler.regions[0].labelmap;
@@ -631,7 +690,7 @@ namespace pi {
             sampler.constrainParticles();
 
             // how to set repulsion paramter per region?
-            sampler.computeRepulsion(1, sigma, cutoff);
+            sampler.computeRepulsion();
             sampler.constrainForces();
             sampler.updateSystem(dt);
 
@@ -647,6 +706,11 @@ namespace pi {
                 }
             }
         }
+
+        // it is very important to construct neighbors
+        setupNeighbors(global.numParticles, sampler);
+        printAdjacencyMatrix();
+
         io.WriteImage("initialLoop.nrrd", tracker);
     }
 
@@ -665,7 +729,7 @@ namespace pi {
         LabelImage::Pointer refImage = subjs[0].regions[0].labelmap;
         std::vector<LabelImage3::Pointer> trackers;
 
-        for (int i = 0; i < nsubjs; i++) {
+        for (int i = 0; i < global.nsubjs; i++) {
             LabelImage3::Pointer tracker = createImage3(refImage, (t1 - t0) / dt + 1);
             trackers.push_back(tracker);
         }
@@ -675,18 +739,18 @@ namespace pi {
             cout << "t = " << t << endl;
 
             // compute internal forces
-            for (int i = 0; i < nsubjs; i++) {
+            for (int i = 0; i < global.nsubjs; i++) {
                 subjs[i].clearForce();
                 subjs[i].constrainParticles();
 
                 // how to set repulsion paramter per region?
-                subjs[i].computeRepulsion(1, 0.3, 0.5);
+                subjs[i].computeRepulsion();
                 subjs[i].constrainForces();
                 subjs[i].updateSystem(dt);
             }
 
             // mark each particle location at a tracker image
-            for (int i = 0; i < nsubjs; i++) {
+            for (int i = 0; i < global.nsubjs; i++) {
                 for (int j = 0; j < subjs[0].particles.size(); j++) {
                     LabelImage::IndexType idx = subjs[i].getIndex(j);
                     LabelImage3::IndexType tx;
@@ -701,7 +765,7 @@ namespace pi {
             }
         }
 
-        for (int i = 0; i < nsubjs; i++) {
+        for (int i = 0; i < global.nsubjs; i++) {
             string file = _config["particles.particle-images"][i];
             io.WriteImage(file, trackers[i]);
         }
@@ -763,6 +827,24 @@ namespace pi {
         print();
     }
 
+
+    void PxSystem::printAdjacencyMatrix() {
+        ofstream of("/tmpfs/adj.txt");
+
+        vnl_matrix<int> adjmat(global.totalParticles, global.totalParticles);
+        adjmat.fill(0);
+
+        for (int i = 0; i < global.totalParticles; i++) {
+            for (int j = 0; j < global.neighbors[i].size(); j++) {
+                adjmat[i][ global.neighbors[i][j] ] = 1;
+            }
+            cout << endl;
+        }
+        of << adjmat;
+        of.close();
+    }
+
+#pragma mark ParticleRunner implementations
     void ParticleRunner::main(pi::Options &opts, StringVector &args) {
         try {
             _system.main(opts, args);

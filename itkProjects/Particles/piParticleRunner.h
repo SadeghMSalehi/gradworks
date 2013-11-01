@@ -119,10 +119,10 @@ namespace pi {
         typedef std::vector<Px> Vector;
     };
 
-
     class PxA {
     public:
         typedef std::vector<PxA> Vector;
+
         int label;
         bool bound;
 
@@ -162,13 +162,43 @@ namespace pi {
 
     };
 
+    /// globally affected parameters
+    class PxGlobal {
+    public:
+        int nsubjs;
+        int nlabels;
+        int totalParticles;
+        bool useLocalRepulsion;
+
+        PxGlobal(): nsubjs(0), nlabels(0), totalParticles(0), useLocalRepulsion(false) {}
+        std::vector<int> numParticles;
+        std::vector<double> repulsionCoeff;
+        std::vector<double> cutoffParams;
+        std::vector<double> sigmaParams;
+
+        typedef std::vector<IntVector> Neighbors;
+        Neighbors neighbors;
+
+        void load(ConfigFile& config);
+    };
+
+
+    /// subject for particle registration
     class PxSubj {
     public:
         typedef std::vector<PxSubj> Vector;
+
+        PxGlobal* global;
         Px::Vector particles;
         Px::Vector forces;
         PxA::Vector attrs;
         PxR::Vector regions;
+
+        PxSubj(): global(NULL) {}
+
+        inline const Px& operator[](int ix) const { return particles[ix]; }
+        inline Px& operator[](int ix) { return particles[ix]; }
+
         inline int size() const {
             return particles.size();
         }
@@ -183,13 +213,15 @@ namespace pi {
         LabelImage::IndexType getIndex(int i);
 
         void sampleParticles(std::vector<int>& numParticles);
-        void computeRepulsion(double coeff, double sigma, double cutoff);
+
+        void computeRepulsion();
         void constrainParticles();
         void constrainForces();
         void updateSystem(double dt);
 
         void save(ostream& os);
         bool load(std::string filename);
+
     };
     std::ostream& operator<<(std::ostream& os, const PxSubj& par);
     
@@ -197,18 +229,19 @@ namespace pi {
 
     class PxSystem {
     public:
-        int nsubjs;
-        int nlabels;
 
+        PxGlobal global;
         PxSubj sampler;
         PxSubj::Vector subjs;
 
-        std::vector<int> numParticles;
-        int totalParticles;
 
         void main(Options& opts, StringVector& args);
 
     private:
+        double t0, dt, t1;
+        ConfigFile _config;
+
+        /// create initialization sampler
         void createSampler();
 
         void clearForces();
@@ -217,6 +250,9 @@ namespace pi {
         void projectParticles();
         void updateParticles();
 
+        /// construct particle neighbor structure
+        void setupNeighbors(const IntVector& numPx, PxSubj& subj);
+
         void load(ConfigFile& config);
         bool loadSampler(ConfigFile& config);
 
@@ -224,7 +260,6 @@ namespace pi {
         bool loadParticles(ConfigFile& config);
         bool saveParticles(ConfigFile& config, std::string outputName);
         void duplicateParticles();
-        void print();
 
         void initialize(Options& opts, StringVector& args);
         void computeIntersection(LabelImageVector& regions);
@@ -235,8 +270,10 @@ namespace pi {
         void warpImages(libconfig::Setting& data);
 
 
-        double t0, dt, t1;
-        ConfigFile _config;
+        // auxilirary (unimportnat) member functions
+        void print();
+        void printAdjacencyMatrix();
+
 
     };
 

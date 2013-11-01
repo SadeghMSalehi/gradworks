@@ -11,6 +11,14 @@
 #include <itkBSplineScatteredDataPointSetToImageFilter.h>
 #include <itkBSplineTransform.h>
 #include <itkWarpImageFilter.h>
+#include <vtkDelaunay2D.h>
+#include <vtkPoints.h>
+#include <vtkTriangleFilter.h>
+#include <vtkPolyData.h>
+#include <vtkIdList.h>
+#include <vtkCell.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkTriangle.h>
 
 namespace pi {
 
@@ -134,4 +142,125 @@ namespace pi {
         return warpFilter->GetOutput();
     }
 
+#pragma mark ParticleMesh Implementations
+    void ParticleMesh::constructNeighbors(int regionId, int nPx, PxSubj& subj, double cutoff, PxGlobal::Neighbors& neighbors) {
+
+        // total number of particles (>= nPx)
+        const int tnPx = subj.size();
+        cout << subj.particles << endl;
+
+        // idmap from vtkPoint to subject-particle
+        // because vtkPoint will have new id to run delaunay filter
+        IntVector idmap(tnPx);
+        std::fill(idmap.begin(), idmap.end(), -1);
+
+
+
+        // setup vtkPoints and store vtkPoint-ParticleId mapping
+        vtkPoints* points = vtkPoints::New();
+        points->SetNumberOfPoints(nPx);
+        for (int i = 0, t = 0; i < tnPx; i++) {
+            if (subj.attrs[i].label == regionId) {
+                double p[3] = { 0, };
+                fordim (k) {
+                    p[k] = subj.particles[i][k];
+                }
+                points->SetPoint(t, p);
+                idmap[t] = i;
+                t++;
+            }
+        }
+
+        // run vtk delaunay filter
+        vtkPolyData* pointsData = vtkPolyData::New();
+        pointsData->SetPoints(points);
+
+
+        // assume delaunay2d filter will give correct results regardless of z-coordinate
+        vtkDelaunay2D* triFilter = vtkDelaunay2D::New();
+        triFilter->SetInput(pointsData);
+        triFilter->Update();
+
+        // create triangle filter to retrieve edges
+        vtkPolyData* triangles = triFilter->GetOutput();
+
+        vtkPolyDataWriter* writer = vtkPolyDataWriter::New();
+        writer->SetInput(triangles);
+        writer->SetFileName("/tmpfs/mesh.vtk");
+        writer->Write();
+        writer->Delete();
+
+        triangles->Print(cout);
+
+        // loop over points and identify neighbor points
+        typedef std::set<int> IntSet;
+        typedef std::vector<IntSet> IntSetVector;
+
+        IntSetVector nbrIds;
+        nbrIds.resize(tnPx);
+
+        for (int j = 0; j < triangles->GetNumberOfCells(); j++) {
+            vtkCell* cells = triangles->GetCell(j);
+            vtkIdList* points = cells->GetPointIds();
+            for (int k = 0; k < points->GetNumberOfIds(); k++) {
+                int pxk = idmap[ points->GetId(k) ];
+                for (int l = k + 1; l < points->GetNumberOfIds(); l++) {
+                    int pxl = idmap [ points->GetId(l) ];
+                    double dkl = subj.particles[pxk].dist2(subj.particles[pxl]);
+                    if (dkl <= cutoff * cutoff) {
+                        nbrIds[pxk].insert(pxl);
+                        nbrIds[pxl].insert(pxk);
+                    }
+                }
+            }
+        }
+
+        // iterate over IntSetVector and copy to neighbors
+        // some degree of duplication is required due to avoid 'set' structure
+        // is 'set' also efficiently iteratable?
+        // question for std implementation
+        IntSetVector::const_iterator iter = nbrIds.begin();
+        for (int i = 0; iter != nbrIds.end(); iter++, i++) {
+            neighbors[i].clear();
+            IntSet::const_iterator niter = iter->begin();
+            for (; niter != iter->end(); niter++) {
+                neighbors[i].push_back(*niter);
+            }
+        }
+
+        /*
+         vtkIdList* cellIds = vtkIdList::New();
+         for (int i = 0; i < nPx; i++) {
+            triangles->GetPointCells(i, cellIds);
+
+            // store in set to avoid duplicate ids
+            std::set<int> neighborIds;
+            for (int j = 0; j < cellIds->GetNumberOfIds(); j++) {
+                int id = cellIds->GetId(j);
+                vtkCell* cell = triangles->GetCell(id);
+                if (cell->GetNumberOfEdges() <= 0) {
+                    continue;
+                }
+                for (int k = 0; k < cell->GetNumberOfEdges(); k++) {
+                    vtkCell* edge = cell->GetEdge(k);
+                    vtkIdList* pointIdList = edge->GetPointIds();
+                    if (pointIdList->GetId(0) == i || pointIdList->GetId(1) == i) {
+                        continue;
+                    }
+                    neighborIds.insert(pointIdList->GetId(0));
+                    neighborIds.insert(pointIdList->GetId(1));
+                }
+            }
+
+            // loop over found neighbors
+            for (std::set<int>::iterator ii = neighborIds.begin(); ii != neighborIds.end(); ii++) {
+                int nId = *ii;
+                int pxId = idmap[nId];
+                neighbors[i].push_back(pxId);
+            }
+            triFilter->Delete();
+        }
+         */
+        triFilter->Delete();
+    }
 }

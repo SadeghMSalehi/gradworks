@@ -4,9 +4,12 @@ particles = {
 	number-of-particles = [ 100 ];
 	ignore-sampler-input = true;
 	ignore-particle-input = true;
+	use-local-repulsion = true;
 
 	// particle interaction parameters
-	repulsion-parameters = [ 1.0, 0.2, 0.3 ];
+	repulsion-parameters = (
+		[ 1.0, 0.3, 0.4 ]
+	)
 
 	// deformation parameters
 	bspline-transform = {
@@ -57,5 +60,6 @@ particles = {
 	warped-images = (
 		( 0, 1, "c31crop.nii.gz", "wi3136.nrrd")
 		,( 1, 0, "c36crop.nii.gz", "wi3631.nrrd")
+		,( 1, 0, "c36s.crop.nii.gz", "ws3631.nrrd")
 	)
 }
