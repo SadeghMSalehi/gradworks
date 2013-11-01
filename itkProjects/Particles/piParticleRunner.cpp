@@ -41,6 +41,33 @@ namespace pi {
         return output;
     }
 
+    LabelImage3::Pointer createImage3(LabelImage::Pointer refImage, int m) {
+        ImageIO<LabelImage3> io;
+        LabelImage::SizeType sz = refImage->GetBufferedRegion().GetSize();
+        LabelImage3::Pointer tracker = io.NewImageT(sz[0], sz[1], m);
+        LabelImage3::SpacingType spacing;
+        LabelImage3::PointType origin;
+        LabelImage3::DirectionType direction;
+        direction.Fill(0);
+        fordim (k) {
+            spacing[k] = refImage->GetSpacing()[k];
+            origin[k] = refImage->GetOrigin()[k];
+            fordim (l) {
+                direction[k][l] = refImage->GetDirection()[k][l];
+            }
+        }
+        spacing[2] = spacing[0];
+        origin[2] = 0;
+        direction[2][2] = 1;
+
+        tracker->FillBuffer(0);
+        tracker->SetSpacing(spacing);
+        tracker->SetOrigin(origin);
+        tracker->SetDirection(direction);
+
+        return tracker;
+    }
+
     void executeParticleRunner(pi::Options &opts, StringVector &args) {
         ParticleRunner runner;
         runner.main(opts, args);
@@ -269,7 +296,7 @@ namespace pi {
         cout << particles << endl;
     }
 
-    void PxSubj::contrainParticles(PxLabel::Vector& labels) {
+    void PxSubj::constrainParticles() {
         Px::Vector::iterator p = particles.begin();
         PxA::Vector::iterator a = attrs.begin();
         for (; p != particles.end(); a++, p++) {
@@ -277,7 +304,7 @@ namespace pi {
         }
     }
 
-    void PxSubj::constrainForces(PxLabel::Vector& labels) {
+    void PxSubj::constrainForces() {
         Px::Vector::iterator p = particles.begin();
         Px::Vector::iterator f = forces.begin();
         PxA::Vector::iterator a = attrs.begin();
@@ -337,85 +364,57 @@ namespace pi {
     }
 
 
-
-    void PxLabel::computeIntersection() {
-        if (maskFiles.size() == 0) {
-            return;
+    // load particle coordinates and labels from libconfig format
+    bool PxSubj::load(string filename) {
+        if (!sys.checkFile(filename)) {
+            return false;
         }
 
-        // allocate new image buffer
-        intersection = labelIO.NewImage(maskFiles[0]);
-        LabelImage::PixelType* outputBuff = intersection->GetBufferPointer();
+        libconfig::Config config;
+        config.readFile(filename.c_str());
 
-        // initialize label pointers for fast access
-        std::vector<LabelImage::PixelType*> ptrs;
-        ptrs.resize(maskFiles.size());
-        for (unsigned int j = 0; j < ptrs.size(); j++) {
-            ptrs[j] = maskFiles[j]->GetBufferPointer();
+        Setting& labels = config.lookup("labels");
+        Setting& data = config.lookup("particles");
+
+        if (labels.getLength() != data[0].getLength()) {
+            return false;
         }
 
-        // loop over pixels to check if the pixel is intersection
-        const int nPixels = maskFiles[0]->GetPixelContainer()->Size();
-        for (int i = 0; i < nPixels; i++) {
-            // test if every labels have label
-            bool all = true;
-            for (unsigned int j = 0; all && j < ptrs.size(); j++) {
-                all = all && (*ptrs[j] == labelIndex);
+        int npx = labels.getLength();
+        resize(npx);
+        for (int i = 0; i < npx; i++) {
+            attrs[i].label = labels[i];
+            fordim (k) {
+                particles[i][k] = data[k][i];
             }
-            if (all) {
-                *outputBuff = 1;
-            }
-
-            // increment pixel pointer
-            for (unsigned int j = 0; j < ptrs.size(); j++) {
-                ptrs[j] ++;
-            }
-            outputBuff ++;
         }
+        return true;
     }
 
-    void PxLabel::load(libconfig::Setting& data) {
-        // set parameters for each label
-        numParticles = data["number-of-particles"];
-        labelIndex = data["label-index"];
-
-        // load binary masks
-        Setting& maskFiles = data["maskfiles"];
-        _config.readImages<LabelImage>(this->maskFiles, maskFiles);
-
-        // compute distance maps for each label map
-        Setting& distanceMaps = data["distance-maps"];
-        cacheDistanceMaps(distanceMaps);
-
-        // cache intersection for initial sampling
-        cacheIntersection(data);
-    }
-
-    void PxLabel::cacheIntersection(libconfig::Setting &data) {
-        ConfigFile config;
-        if (data.lookupValue("intersection-file", intersectionFile)) {
-            if (config.checkFile(intersectionFile)) {
-                intersection = labelIO.ReadCastedImage(intersectionFile);
-            } else {
-                computeIntersection();
-                labelIO.WriteImage(intersectionFile, intersection);
-            }
+    // save particle coordinates and labels in libconfig format
+    void PxSubj::save(ostream &os) {
+        os << "labels = [" << attrs[0].label;
+        for (int i = 1; i < attrs.size(); i++) {
+            os << "," << attrs[i].label;
         }
+        os << "]" << endl;
+
+        os.setf(ios::fixed, ios::floatfield);
+        os << "particles = (";
+
+        fordim (k) {
+            if (k > 0) {
+                os << ",";
+            }
+            os << "[" << particles[0][k];
+            for (int i = 1; i < attrs.size(); i++) {
+                os << "," << particles[i][k];
+            }
+            os << "]" << endl;
+        }
+        os << ")" << endl;
     }
 
-    void PxLabel::cacheDistanceMaps(libconfig::Setting &data) {
-        distMaps.resize(data.getLength());
-        for (int i = 0; i < data.getLength(); i++) {
-            string file = data[i];
-            if (_config.checkFile(file)) {
-                distMaps[i] = io.ReadImageS<VectorImage>(file);
-            } else {
-                ImageProcessing proc;
-                distMaps[i] = proc.ComputeDistanceMap(maskFiles[i]);
-                io.WriteImageS<VectorImage>(file, distMaps[i]);
-            }
-        }
-    }
 
     void PxSystem::createSampler() {
 
@@ -461,11 +460,17 @@ namespace pi {
 
 
     // initialize sampler on first run
-    void PxSystem::loadSampler(ConfigFile& config) {
+    bool PxSystem::loadSampler(ConfigFile& config) {
+        string samplerCache = config["particles.sampler-cache"];
+        if (sys.checkFile(samplerCache)) {
+            if (sampler.load(samplerCache)) {
+                return true;
+            }
+        }
         Setting& regionList = config["particles.sampler.labels"];
         if (nlabels != regionList.getLength()) {
             cout << "sampler has different number of labels" << endl;
-            return;
+            exit(0);
         }
 
         sampler.regions.resize(nlabels);
@@ -516,10 +521,47 @@ namespace pi {
         }
         sampler.sampleParticles(numParticles);
         cout << sampler.particles << endl;
+
+        return false;
     }
 
     void PxSystem::sampleParticles() {
 
+    }
+
+    // iterate subjects to load particle data
+    bool PxSystem::loadParticles(ConfigFile& config) {
+        Setting& subjconfig = config["particles.subjects"];
+
+        bool ok = true;
+        for (int i = 0; i < subjconfig.getLength() && ok; i++) {
+            string f = subjconfig[i]["particle-input"];
+            ok = subjs[i].load(f);
+        }
+        return ok;
+    }
+
+    // iterate subjects to save particle data
+    bool PxSystem::saveParticles(ConfigFile& config, string outputName) {
+        Setting& subjconfig = config["particles.subjects"];
+
+        bool ok = true;
+        for (int i = 0; i < subjconfig.getLength() && ok; i++) {
+            string f = subjconfig[i][outputName];
+            ofstream of(f);
+            subjs[i].save(of);
+            of.close();
+        }
+        return ok;
+    }
+
+    // duplicate particles from sampler to each subject
+    void PxSystem::duplicateParticles() {
+        for (int i = 0; i < nsubjs; i++) {
+            subjs[i].resize(sampler.size());
+            subjs[i].attrs = sampler.attrs;
+            subjs[i].particles = sampler.particles;
+        }
     }
 
     void PxSystem::print() {
@@ -528,51 +570,48 @@ namespace pi {
         }
     }
 
+    /**
+     * 1) load configuration
+     * 2) load particle data
+     * 3) load sampler and run preprocessing if necessary
+     * 4) save initialized particles
+     */
     void ParticleRunner::initialize(Options& opts, StringVector& args) {
         _config.load(opts.GetConfigFile());
         _system.load(_config);
-        _system.loadSampler(_config);
-
-        t0 = _config["particles.time-steps.[0]"];
-        dt = _config["particles.time-steps.[1]"];
-        t1 = _config["particles.time-steps.[2]"];
+        if (!_system.loadParticles(_config)) {
+            if (!_system.loadSampler(_config)) {
+                initialLoop();
+                string samplerCache = _config["particles.sampler-cache"];
+                cout << samplerCache << endl;
+                ofstream of(samplerCache);
+                _system.sampler.save(of);
+                of.close();
+            }
+            _system.duplicateParticles();
+            _system.saveParticles(_config, "particle-input");
+        }
     }
 
-    void ParticleRunner::loop() {
-
-        LabelImage::Pointer refImage = _system.sampler.regions[0].labelmap;
-        LabelImage::SizeType sz = _system.sampler.regions[0].labelmap->GetBufferedRegion().GetSize();
+    // initial loop to distribute particles inside region
+    void ParticleRunner::initialLoop() {
+        double t0 = _config["particles.sampler-time-steps.[0]"];
+        double dt = _config["particles.sampler-time-steps.[1]"];
+        double t1 = _config["particles.sampler-time-steps.[2]"];
 
         ImageIO<LabelImage3> io;
-        LabelImage3::Pointer tracker = io.NewImageT(sz[0], sz[1], (t1 - t0) / dt + 1);
-        LabelImage3::SpacingType spacing;
-        LabelImage3::PointType origin;
-        LabelImage3::DirectionType direction;
-        direction.Fill(0);
-        fordim (k) {
-            spacing[k] = refImage->GetSpacing()[k];
-            origin[k] = refImage->GetOrigin()[k];
-            fordim (l) {
-                direction[k][l] = refImage->GetDirection()[k][l];
-            }
-        }
-        spacing[2] = spacing[0];
-        origin[2] = 0;
-        direction[2][2] = 1;
-
-        tracker->FillBuffer(0);
-        tracker->SetSpacing(spacing);
-        tracker->SetOrigin(origin);
-        tracker->SetDirection(direction);
+        LabelImage::Pointer refImage = _system.sampler.regions[0].labelmap;
+        LabelImage3::Pointer tracker = createImage3(refImage, (t1 - t0) / dt + 1);
 
         int m = 0;
         for (double t = t0; t <= t1; t += dt, m++) {
             cout << "t = " << t << endl;
-
             _system.sampler.clearForce();
-            _system.sampler.contrainParticles(_system.labels);
+            _system.sampler.constrainParticles();
+
+            // how to set repulsion paramter per region?
             _system.sampler.computeRepulsion(1, 0.3, 0.5);
-            _system.sampler.constrainForces(_system.labels);
+            _system.sampler.constrainForces();
             _system.sampler.updateSystem(dt);
 
             for (int i = 0; i < _system.sampler.particles.size(); i++) {
@@ -587,7 +626,65 @@ namespace pi {
                 }
             }
         }
-        io.WriteImage("tracking.nrrd", tracker);
+        io.WriteImage("initialLoop.nrrd", tracker);
+    }
+
+
+    /**
+     * registration loop
+     *
+     */
+    void ParticleRunner::loop() {
+        double t0 = _config["particles.time-steps.[0]"];
+        double dt = _config["particles.time-steps.[1]"];
+        double t1 = _config["particles.time-steps.[2]"];
+
+        const int nsubjs = _system.nsubjs;
+
+        ImageIO<LabelImage3> io;
+        LabelImage::Pointer refImage = _system.sampler.regions[0].labelmap;
+        std::vector<LabelImage3::Pointer> trackers;
+        trackers.resize(_system.nsubjs);
+
+        for (int i = 0; i < nsubjs; i++) {
+            LabelImage3::Pointer tracker = createImage3(refImage, (t1 - t0) / dt + 1);
+            trackers.push_back(tracker);
+        }
+
+        int m = 0;
+        for (double t = t0; t <= t1; t += dt, m++) {
+            cout << "t = " << t << endl;
+
+            // compute internal forces
+            for (int i = 0; i < _system.nsubjs; i++) {
+                _system.subjs[i].clearForce();
+                _system.subjs[i].constrainParticles();
+
+                // how to set repulsion paramter per region?
+                _system.subjs[i].computeRepulsion(1, 0.3, 0.5);
+                _system.subjs[i].constrainForces();
+                _system.subjs[i].updateSystem(dt);
+            }
+
+            for (int i = 0; i < nsubjs; i++) {
+                for (int j = 0; j < _system.subjs[0].particles.size(); j++) {
+                    LabelImage::IndexType idx = _system.subjs[0].getIndex(j);
+                    LabelImage3::IndexType tx;
+                    fordim (k) {
+                        tx[k] = idx[k];
+                    }
+                    tx[2] = m;
+                    if (trackers[i]->GetBufferedRegion().IsInside(tx)) {
+                        trackers[i]->SetPixel(tx, 1);
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < nsubjs; i++) {
+            string file = _config["particles.particle-images"][i];
+            io.WriteImage(file, trackers[i]);
+        }
     }
 
     void ParticleRunner::main(pi::Options &opts, StringVector &args) {

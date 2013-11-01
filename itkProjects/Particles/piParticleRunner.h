@@ -133,35 +133,6 @@ namespace pi {
     std::ostream& operator<<(std::ostream& os, const Px& par);
     std::ostream& operator<<(std::ostream& os, const Px::Vector& par);
 
-    class PxLabel {
-    public:
-        typedef std::vector<PxLabel> Vector;
-
-
-        void computeIntersection();
-
-        void load(libconfig::Setting& data);
-        void cacheIntersection(libconfig::Setting& data);
-        void cacheDistanceMaps(libconfig::Setting& data);
-
-
-        int labelIndex;
-        int numParticles;
-        std::string intersectionFile;
-
-        LabelImageVector maskFiles;
-        VectorImageVector distMaps;
-        std::vector<GradientImage::Pointer> gradientMaps;
-
-        LabelImage::Pointer intersection;
-        VectorImage::Pointer intersectionDistmap;
-        GradientImage::Pointer intersectionGradient;
-
-    private:
-        PxTools _config;
-
-    };
-
 
     class PxR {
     public:
@@ -213,9 +184,12 @@ namespace pi {
 
         void sampleParticles(std::vector<int>& numParticles);
         void computeRepulsion(double coeff, double sigma, double cutoff);
-        void contrainParticles(PxLabel::Vector& labels);
-        void constrainForces(PxLabel::Vector& labels);
+        void constrainParticles();
+        void constrainForces();
         void updateSystem(double dt);
+
+        void save(ostream& os);
+        bool load(std::string filename);
     };
     std::ostream& operator<<(std::ostream& os, const PxSubj& par);
     
@@ -228,7 +202,6 @@ namespace pi {
 
         PxSubj sampler;
         PxSubj::Vector subjs;
-        PxLabel::Vector labels;
 
         void createSampler();
 
@@ -239,9 +212,12 @@ namespace pi {
         void updateParticles();
 
         void load(ConfigFile& config);
-        void loadSampler(ConfigFile& config);
+        bool loadSampler(ConfigFile& config);
 
         void sampleParticles();
+        bool loadParticles(ConfigFile& config);
+        bool saveParticles(ConfigFile& config, std::string outputName);
+        void duplicateParticles();
         void print();
     };
 
@@ -253,6 +229,7 @@ namespace pi {
         void print();
         void initialize(Options& opts, StringVector& args);
         void computeIntersection(LabelImageVector& regions);
+        void initialLoop();
         void loop();
 
         double t0, dt, t1;
