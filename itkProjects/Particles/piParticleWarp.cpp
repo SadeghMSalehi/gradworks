@@ -147,7 +147,6 @@ namespace pi {
 
         // total number of particles (>= nPx)
         const int tnPx = subj.size();
-        cout << subj.particles << endl;
 
         // idmap from vtkPoint to subject-particle
         // because vtkPoint will have new id to run delaunay filter
@@ -190,7 +189,7 @@ namespace pi {
         writer->Write();
         writer->Delete();
 
-        triangles->Print(cout);
+//        triangles->Print(cout);
 
         // loop over points and identify neighbor points
         typedef std::set<int> IntSet;

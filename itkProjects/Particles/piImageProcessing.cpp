@@ -41,6 +41,7 @@
 #include <itkCenteredRigid2DTransform.h>
 #include <itkLabelStatisticsImageFilter.h>
 #include <itkExtractImageFilter.h>
+#include <itkBSplineInterpolateImageFunction.h>
 
 #include "piImageIO.h"
 #include "piImageHistogram.h"
@@ -884,6 +885,9 @@ namespace pi {
         TransformType::OutputVectorType translation;
         translation[0] = tx; translation[1] = ty;
         transform->SetTranslation(translation);
+
+
+        typedef itk::BSplineInterpolateImageFunction<RealImage> IterpolatorType;
 
         ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
         resampler->SetInput(input);

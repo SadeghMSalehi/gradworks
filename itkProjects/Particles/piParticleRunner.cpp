@@ -12,8 +12,10 @@
 #include "piImageIO.h"
 #include "piImageProcessing.h"
 #include "piParticleWarp.h"
+#include "piEntropyComputer.h"
 
 #include <numeric>
+#include <algorithm>
 #include <itkResampleImageFilter.h>
 #include <itkSmoothingRecursiveGaussianImageFilter.h>
 #include <itkVectorResampleImageFilter.h>
@@ -89,7 +91,7 @@ namespace pi {
 
         os << *p;
         for (p++; p != par.end(); p++) {
-            os << ";" << *p;
+            os << endl << *p;
         }
 
         return os;
@@ -248,7 +250,7 @@ namespace pi {
     }
 
     // compute repulsion force
-    void PxSubj::computeRepulsion() {
+    void PxSubj::computeRepulsion(bool ignoreNeighbors) {
         const int npx = size();
         VNLMatrix weights(npx, npx);
         weights.fill(0);
@@ -266,7 +268,7 @@ namespace pi {
 
             // loop over neighbors
             bool useNeighbors = global->neighbors.size() == npx && global->useLocalRepulsion;
-            if (!useNeighbors) {
+            if (!useNeighbors || ignoreNeighbors) {
                 // neighbor structure isn't yet built (sampler case)
                 for (int jj = i + 1; jj < npx; jj++) {
                     Px& pj = particles[jj];
@@ -315,9 +317,10 @@ namespace pi {
     void PxSubj::updateSystem(double dt) {
         Px::Vector::iterator p = particles.begin();
         Px::Vector::iterator f = forces.begin();
+        Px::Vector::iterator e = ensembleForces.begin();
 
-        for (; p != particles.end() && f != forces.end(); p++, f++) {
-            fordim (k) { p->x[k] += (dt * f->x[k]); }
+        for (; p != particles.end() && f != forces.end(); p++, f++, e++) {
+            fordim (k) { p->x[k] += (dt * (f->x[k] + e->x[k])); }
         }
     }
 
@@ -444,42 +447,96 @@ namespace pi {
         os << ")" << endl;
     }
 
-    void PxSystem::setupNeighbors(const IntVector& numPx, PxSubj& subj) {
-        global.neighbors.resize(subj.size());
+#pragma mark PxEnsemble Implementations
+    void PxAffine::estimateAffineTransform(pi::PxSubj *b) {
+        VNLDoubleMatrix mat(_p.size(), __Dim);
+        VNLDoubleMatrix mbt(_p.size(), __Dim);
+        for (int i = 0; i < mat.rows(); i++) {
+            fordim (k) {
+                mbt[i][k] = _p[i][k] - 51;
+                mat[i][k] = b->particles[i][k] - 51;
+            }
+        }
+        double ma = 0, mb = 0;
+        for (int i = 0; i < mat.rows(); i++) {
+            ma += mat[i][0]*mat[i][0] + mat[i][1]*mat[i][1];
+            mb += mbt[i][0]*mbt[i][0] + mbt[i][1]*mbt[i][1];
+        }
+        ma /= mat.rows();
+        mb /= mbt.rows();
+        for (int i = 0; i < mat.rows(); i++) {
+            fordim (k) {
+                mat[i][k] /= ma;
+                mbt[i][k] /= mb;
+            }
+        }
+        VNLDoubleMatrix m = mbt.transpose() * mat;
 
-        // construct delaunay triangulations
-        // implicitly assume that the index of numPx represents the label index
-        for (int i = 0; i < numPx.size(); i++) {
-            ParticleMesh mesh;
-            mesh.constructNeighbors(i, numPx[i], subj, 1, global.neighbors);
+        vnl_svd<double> svd(m);
+        VNLDoubleMatrix v = svd.V();
+        VNLDoubleMatrix u = svd.U();
+        this->r = v.transpose() * u;
+
+        double rm = sqrt(r[0][0]*r[0][0] + r[0][1]*r[0][1]);
+        r /= rm;
+
+        for (int i = 0; i < mat.rows(); i++) {
+            _q[i][0] = ma * (r[0][0] * mat[i][0] + r[0][1] * mat[i][1]) + 51;
+            _q[i][1] = ma * (r[1][0] * mat[i][0] + r[1][1] * mat[i][1]) + 51;
         }
     }
 
-    void PxSystem::createSampler() {
-
-    }
-
-    void PxSystem::clearForces() {
-        for (int i = 0; i < subjs.size(); i++) {
-            std::fill(subjs[i].forces.begin(), subjs[i].forces.end(), 0);
+    void PxAffine::transformVector(Px::Elem *f, Px::Elem *fOut) {
+        fordim (i) {
+            fOut[i] = 0;
+            fordim (j) {
+                fOut[i] += r[i][j] * f[j];
+            }
         }
     }
 
-    void PxSystem::constrainParticles() {
+    void PxEnsemble::computeAttraction(PxSubj::Vector &subjs) {
+        // compute entropy for each particle
+        EntropyComputer<double> comp(global->nsubjs, global->totalParticles, __Dim);
+        // copy data into the entropy computer
+        comp.dataIter.FirstData();
+        for (int i = 0; i < global->nsubjs; i++) {
+            for (int j = 0; j < global->totalParticles; j++) {
+                fordim (k) {
+                    comp.dataIter.sample[k] = subjs[i].affineAligned[j][k];
+                }
+                comp.dataIter.NextSample();
+            }
+            comp.dataIter.NextData();
+        }
+        // move to center (subtract mean from each sample)
+        comp.MoveToCenter();
+        // compute covariance matrix
+        comp.ComputeCovariance();
+        // compute inverse covariance
+        comp.ComputeGradient();
 
+        // now compute gradient w.r.t particles
+        for (int i = 0; i < global->nsubjs; i++) {
+            subjs[0].clearVector(subjs[i].ensembleForces);
+        }
+        EntropyComputer<double>::Iterator gradIter(comp.gradient.data_block(), global->totalParticles, __Dim);
+        gradIter.FirstData();
+        for (int i = 1; i < global->nsubjs; i++) {
+            for (int j = 0; j < global->totalParticles; j++) {
+                double coeff = global->ensembleCoeff[subjs[i].attrs[j].label];
+                Px ensembleForce;
+                subjs[i].affineTxf.transformVector(gradIter.sample, ensembleForce.x);
+                fordim (k) {
+                    subjs[i].ensembleForces[j][k] += coeff*ensembleForce[k];
+                }
+                gradIter.NextSample();
+            }
+            gradIter.NextData();
+        }
     }
 
-    void PxSystem::computeForces() {
-
-    }
-
-    void PxSystem::projectParticles() {
-
-    }
-
-    void PxSystem::updateParticles() {
-
-    }
+#pragma mark PxSystem Implementations
 
     void PxGlobal::load(ConfigFile& config) {
         nsubjs = config["particles.number-of-subjects"];
@@ -494,25 +551,47 @@ namespace pi {
         }
         totalParticles = std::accumulate(numParticles.begin(), numParticles.end(), 0);
 
-        Setting& repulsionParams = config["particles.repulsion-parameters"];
+        Setting& params = config["particles.parameters"];
         repulsionCoeff.resize(nlabels);
+        ensembleCoeff.resize(nlabels);
         sigmaParams.resize(nlabels);
         cutoffParams.resize(nlabels);
-        for (int i = 0; i < repulsionParams.getLength(); i++) {
-            repulsionCoeff[i] = repulsionParams[i][0];
-            sigmaParams[i] = repulsionParams[i][1];
-            cutoffParams[i] = repulsionParams[i][2];
+        for (int i = 0; i < params.getLength(); i++) {
+            repulsionCoeff[i] = params[i][0];
+            ensembleCoeff[i] = params[i][1];
+            sigmaParams[i] = params[i][2];
+            cutoffParams[i] = params[i][3];
+        }
+    }
+
+    void PxSystem::setupNeighbors(const IntVector& numPx, PxSubj& subj) {
+        global.neighbors.resize(subj.size());
+        assert(numPx.size() == global.nlabels);
+
+        // construct delaunay triangulations
+        // implicitly assume that the index of numPx represents the label index
+        for (int i = 0; i < numPx.size(); i++) {
+            ParticleMesh mesh;
+            mesh.constructNeighbors(i, numPx[i], subj, global.cutoffParams[i], global.neighbors);
+        }
+    }
+
+
+    void PxSystem::clearForces() {
+        for (int i = 0; i < subjs.size(); i++) {
+            std::fill(subjs[i].forces.begin(), subjs[i].forces.end(), 0);
         }
     }
 
     // load data for particle system
-    void PxSystem::load(ConfigFile& config) {
+    void PxSystem::loadSystem(ConfigFile& config) {
         global.load(config);
 
+        sampler.setGlobalConfig(&global);
         subjs.resize(global.nsubjs);
         Setting& subjconfig = config["particles.subjects"];
         for (int i = 0; i < global.nsubjs; i++) {
-            subjs[i].global = &global;
+            subjs[i].setGlobalConfig(&global);
             Setting& subjdata = subjconfig[i];
             subjs[i].regions.resize(global.nlabels);
             for (int j = 0; j < global.nlabels; j++) {
@@ -530,6 +609,7 @@ namespace pi {
         }
 
         Setting& subjconfig = config["particles.subjects"];
+
         bool ok = true;
         for (int i = 0; i < subjconfig.getLength() && ok; i++) {
             string f = subjconfig[i]["particle-input"];
@@ -552,6 +632,9 @@ namespace pi {
             }
         }
 
+        // main configuration setting
+        Setting& mainConfig = config["particles"];
+
         // load each label information and create intersection
         Setting& regionList = config["particles.sampler.labels"];
         if (global.nlabels != regionList.getLength()) {
@@ -560,7 +643,7 @@ namespace pi {
         }
 
         /// global configuration setting
-        sampler.global = &global;
+        sampler.setGlobalConfig(&global);
 
         // sampler region load
         sampler.regions.resize(global.nlabels);
@@ -604,28 +687,24 @@ namespace pi {
         }
 
         // sample particles with no cache
-        std::vector<int> numParticles;
-        Setting& numberOfParticleSetting = config["particles.number-of-particles"];
-        for (int i = 0; i < numberOfParticleSetting.getLength(); i++) {
-            numParticles.push_back(numberOfParticleSetting[i]);
-        }
-        sampler.sampleParticles(numParticles);
-        cout << sampler.particles << endl;
+        sampler.sampleParticles(global.numParticles);
 
+        // save cache
+        string file = "";
+        if (mainConfig.lookupValue("sampler-initial-cache", file)) {
+            ofstream of(file.c_str());
+            sampler.save(of);
+            of.close();
+        }
         return false;
     }
-
-    void PxSystem::sampleParticles() {
-
-    }
-
 
     // iterate subjects to save particle data
     bool PxSystem::saveParticles(ConfigFile& config, string outputName) {
         Setting& subjconfig = config["particles.subjects"];
 
         bool ok = true;
-        for (int i = 0; i < subjconfig.getLength() && ok; i++) {
+        for (int i = 0; i < global.nsubjs && ok; i++) {
             string f = subjconfig[i][outputName];
             ofstream of(f);
             subjs[i].save(of);
@@ -635,18 +714,12 @@ namespace pi {
     }
 
     // duplicate particles from sampler to each subject
-    void PxSystem::duplicateParticles() {
+    void PxSystem::transferParticles() {
         for (int i = 0; i < global.nsubjs; i++) {
-            subjs[i].global = &global;
+            subjs[i].setGlobalConfig(&global);
             subjs[i].resize(sampler.size());
             subjs[i].attrs = sampler.attrs;
             subjs[i].particles = sampler.particles;
-        }
-    }
-
-    void PxSystem::print() {
-        for (int i = 0; i < sampler.particles.size(); i++) {
-            cout << sampler.particles[i] << endl;
         }
     }
 
@@ -658,17 +731,16 @@ namespace pi {
      */
     void PxSystem::initialize(Options& opts, StringVector& args) {
         _config.load(opts.GetConfigFile());
-        load(_config);
+        loadSystem(_config);
         if (!loadParticles(_config)) {
             if (!loadSampler(_config)) {
                 initialLoop();
                 string samplerCache = _config["particles.sampler-cache"];
-                cout << samplerCache << endl;
                 ofstream of(samplerCache);
                 sampler.save(of);
                 of.close();
             }
-            duplicateParticles();
+            transferParticles();
             saveParticles(_config, "particle-input");
         }
     }
@@ -690,7 +762,7 @@ namespace pi {
             sampler.constrainParticles();
 
             // how to set repulsion paramter per region?
-            sampler.computeRepulsion();
+            sampler.computeRepulsion(true);
             sampler.constrainForces();
             sampler.updateSystem(dt);
 
@@ -707,9 +779,7 @@ namespace pi {
             }
         }
 
-        // it is very important to construct neighbors
-        setupNeighbors(global.numParticles, sampler);
-        printAdjacencyMatrix();
+//        printAdjacencyMatrix();
 
         io.WriteImage("initialLoop.nrrd", tracker);
     }
@@ -724,6 +794,7 @@ namespace pi {
         double dt = _config["particles.time-steps.[1]"];
         double t1 = _config["particles.time-steps.[2]"];
 
+        ensemble.global = &global;
 
         ImageIO<LabelImage3> io;
         LabelImage::Pointer refImage = subjs[0].regions[0].labelmap;
@@ -734,20 +805,42 @@ namespace pi {
             trackers.push_back(tracker);
         }
 
+
+        setupNeighbors(global.numParticles, subjs[0]);
+
         int m = 0;
+        int s = 0;
         for (double t = t0; t <= t1; t += dt, m++) {
             cout << "t = " << t << endl;
+
+            if (m % 10 == 0) {
+                // construct neighbors
+                setupNeighbors(global.numParticles, subjs[++s%2]);
+            }
 
             // compute internal forces
             for (int i = 0; i < global.nsubjs; i++) {
                 subjs[i].clearForce();
                 subjs[i].constrainParticles();
-
                 // how to set repulsion paramter per region?
                 subjs[i].computeRepulsion();
+            }
+
+            // apply least-square based affine transform
+            affineTransformParticles();
+
+            // now compute ensemble and intensity forces
+            ensemble.computeAttraction(subjs);
+//            cout << subjs[0].ensembleForces << endl;
+
+            // update system
+            for (int i = 0; i < global.nsubjs; i++ ) {
                 subjs[i].constrainForces();
                 subjs[i].updateSystem(dt);
+                subjs[i].constrainParticles();
             }
+
+
 
             // mark each particle location at a tracker image
             for (int i = 0; i < global.nsubjs; i++) {
@@ -765,10 +858,21 @@ namespace pi {
             }
         }
 
+
         for (int i = 0; i < global.nsubjs; i++) {
             string file = _config["particles.particle-images"][i];
             io.WriteImage(file, trackers[i]);
         }
+    }
+
+
+    void PxSystem::affineTransformParticles() {
+        // copy from particle space to affineAligned space
+        for (int i = 0; i < global.nsubjs; i++) {
+            std::copy(subjs[i].particles.begin(), subjs[i].particles.end(), subjs[i].affineAligned.begin());
+        }
+
+        subjs[1].affineTxf.estimateAffineTransform(&subjs[0]);
     }
 
     /**
@@ -782,6 +886,14 @@ namespace pi {
             int dst = warpedLabels[i][1];
             string input = warpedLabels[i][2];
             string output = warpedLabels[i][3];
+
+            // if src-index and dst-index are not correct
+            if (src < 0 || src >= global.nsubjs) {
+                return;
+            }
+            if (dst < 0 || dst >= global.nsubjs) {
+                return;
+            }
 
             cout << "Warping: " << src << " => " << dst << " : " << input << " => " << output << endl;
             LabelImage::Pointer inputImage = labelIO.ReadCastedImage(input);
@@ -806,6 +918,15 @@ namespace pi {
             string input = data[i][2];
             string output = data[i][3];
 
+            // if src-index and dst-index are not correct
+            if (src < 0 || src >= global.nsubjs) {
+                return;
+            }
+            if (dst < 0 || dst >= global.nsubjs) {
+                return;
+            }
+
+            // warp output
             cout << "Warping: " << src << " => " << dst << " : " << input << " => " << output << endl;
             RealImage::Pointer inputImage = io.ReadCastedImage(input);
             ParticleWarp warp;
@@ -825,20 +946,25 @@ namespace pi {
         warpImages(_config["particles/warped-images"]);
 
         print();
+        saveAdjacencyMatrix("adj.txt");
     }
 
+    void PxSystem::print() {
+        for (int i = 0; i < sampler.particles.size(); i++) {
+            cout << sampler.particles[i] << endl;
+        }
+    }
 
-    void PxSystem::printAdjacencyMatrix() {
-        ofstream of("/tmpfs/adj.txt");
+    void PxSystem::saveAdjacencyMatrix(std::string file) {
+        ofstream of(file.c_str());
 
         vnl_matrix<int> adjmat(global.totalParticles, global.totalParticles);
         adjmat.fill(0);
 
-        for (int i = 0; i < global.totalParticles; i++) {
+        for (int i = 0; i < global.neighbors.size(); i++) {
             for (int j = 0; j < global.neighbors[i].size(); j++) {
                 adjmat[i][ global.neighbors[i][j] ] = 1;
             }
-            cout << endl;
         }
         of << adjmat;
         of.close();

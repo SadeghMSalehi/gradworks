@@ -131,5 +131,6 @@ namespace pi {
     }
 
     bool TestMain::testDisplacement(pi::Options &opts, StringVector &args) {
+        return false;
     }
 }

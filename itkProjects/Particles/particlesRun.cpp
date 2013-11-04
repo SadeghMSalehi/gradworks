@@ -432,6 +432,7 @@ int main(int argc, char* argv[]) {
 
         // Particle Tools
         { 300, "--coverlabel", SO_NONE },
+        { 301, "--p2mat", SO_NONE },
 
         // Options Test
         { 400, "--testjson", SO_NONE },

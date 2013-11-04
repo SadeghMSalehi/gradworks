@@ -22,6 +22,7 @@ namespace pi {
     public:
         ParticleTools(Options& o, StringVector& a);
         void runCoverLabel();
+        void particle2mat();
     private:
         Options& opts;
         StringVector& args;

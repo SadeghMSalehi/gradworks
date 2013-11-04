@@ -103,6 +103,11 @@ namespace pi {
             fordim (k) x[k] -= p.x[k];
             return (*this);
         }
+        inline double operator*(const Px& p) {
+            double d = 0;
+            fordim (k) d += x[k] += p.x[k];
+            return d;
+        }
         inline double dist(const Px& o) {
             return sqrt(dist2(o));
         }
@@ -116,6 +121,7 @@ namespace pi {
         void dot(const Px& o, const Px& f) {
             fordim (k) x[k] = o[k] * f[k];
         }
+        typedef double Elem;
         typedef std::vector<Px> Vector;
     };
 
@@ -172,9 +178,10 @@ namespace pi {
 
         PxGlobal(): nsubjs(0), nlabels(0), totalParticles(0), useLocalRepulsion(false) {}
         std::vector<int> numParticles;
-        std::vector<double> repulsionCoeff;
         std::vector<double> cutoffParams;
         std::vector<double> sigmaParams;
+        std::vector<double> repulsionCoeff;
+        std::vector<double> ensembleCoeff;
 
         typedef std::vector<IntVector> Neighbors;
         Neighbors neighbors;
@@ -183,18 +190,50 @@ namespace pi {
     };
 
 
+    class PxSubj;
+
+    class PxAffine {
+    public:
+        VNLDoubleMatrix r;
+
+        PxAffine(Px::Vector& p, Px::Vector& q): _p(p), _q(q) {
+            r.set_size(__Dim, __Dim);
+            r.set_identity();
+        }
+        void estimateAffineTransform(PxSubj* b);
+        void transformVector(Px::Elem* f, Px::Elem *fOut);
+
+    private:
+        friend class PxSubj;
+
+        PxGlobal* global;
+        Px::Vector& _p;
+        Px::Vector& _q;
+    };
+
+
     /// subject for particle registration
     class PxSubj {
+    private:
+        PxGlobal* global;
+
     public:
         typedef std::vector<PxSubj> Vector;
 
-        PxGlobal* global;
         Px::Vector particles;
+        Px::Vector affineAligned;
         Px::Vector forces;
+        Px::Vector ensembleForces;
         PxA::Vector attrs;
         PxR::Vector regions;
+        PxAffine affineTxf;
 
-        PxSubj(): global(NULL) {}
+        PxSubj(): global(NULL), affineTxf(particles, affineAligned) {}
+
+        inline void setGlobalConfig(PxGlobal* g) {
+            global = g;
+            affineTxf.global = g;
+        }
 
         inline const Px& operator[](int ix) const { return particles[ix]; }
         inline Px& operator[](int ix) { return particles[ix]; }
@@ -204,17 +243,23 @@ namespace pi {
         }
         inline void resize(int n) {
             particles.resize(n);
+            affineAligned.resize(n);
             forces.resize(n);
+            ensembleForces.resize(n);
             attrs.resize(n);
         }
         inline void clearForce() {
             std::fill(forces.begin(), forces.end(), 0.0);
         }
+        inline void clearVector(Px::Vector& v) {
+            std::fill(v.begin(), v.end(), 0.0);
+        }
+
         LabelImage::IndexType getIndex(int i);
 
         void sampleParticles(std::vector<int>& numParticles);
 
-        void computeRepulsion();
+        void computeRepulsion(bool ignoreNeighbors = false);
         void constrainParticles();
         void constrainForces();
         void updateSystem(double dt);
@@ -222,18 +267,26 @@ namespace pi {
         void save(ostream& os);
         bool load(std::string filename);
 
+
     };
     std::ostream& operator<<(std::ostream& os, const PxSubj& par);
-    
 
+    class PxEnsemble {
+    public:
+        PxGlobal* global;
+        PxEnsemble(): global(NULL) {}
+
+        void computeAttraction(PxSubj::Vector& subjs);
+    };
 
     class PxSystem {
     public:
 
         PxGlobal global;
+
         PxSubj sampler;
         PxSubj::Vector subjs;
-
+        PxEnsemble ensemble;
 
         void main(Options& opts, StringVector& args);
 
@@ -241,38 +294,41 @@ namespace pi {
         double t0, dt, t1;
         ConfigFile _config;
 
-        /// create initialization sampler
-        void createSampler();
-
         void clearForces();
-        void constrainParticles();
-        void computeForces();
-        void projectParticles();
-        void updateParticles();
+
+
+
+        void initialize(Options& opts, StringVector& args);
+        void loadSystem(ConfigFile& config);
+        bool loadSampler(ConfigFile& config);
+        bool loadParticles(ConfigFile& config);
+        bool saveParticles(ConfigFile& config, std::string outputName);
+
+        // create sampler
+        void computeIntersection(LabelImageVector& regions);
+        void initialLoop();
 
         /// construct particle neighbor structure
         void setupNeighbors(const IntVector& numPx, PxSubj& subj);
 
-        void load(ConfigFile& config);
-        bool loadSampler(ConfigFile& config);
+        /// duplicate particles from the sampler to subjects
+        void transferParticles();
 
-        void sampleParticles();
-        bool loadParticles(ConfigFile& config);
-        bool saveParticles(ConfigFile& config, std::string outputName);
-        void duplicateParticles();
 
-        void initialize(Options& opts, StringVector& args);
-        void computeIntersection(LabelImageVector& regions);
-        void initialLoop();
+        /// main particle registration loop
         void loop();
 
+        /// affine transform particles
+        void affineTransformParticles();
+
+        /// warp result images
         void warpLabels(libconfig::Setting& data);
         void warpImages(libconfig::Setting& data);
 
 
         // auxilirary (unimportnat) member functions
         void print();
-        void printAdjacencyMatrix();
+        void saveAdjacencyMatrix(std::string file);
 
 
     };
