@@ -449,11 +449,11 @@ namespace pi {
 
 #pragma mark PxEnsemble Implementations
     void PxAffine::estimateAffineTransform(pi::PxSubj *b) {
-        VNLDoubleMatrix mat(_p.size(), __Dim);
-        VNLDoubleMatrix mbt(_p.size(), __Dim);
+        VNLDoubleMatrix mat(_p->size(), __Dim);
+        VNLDoubleMatrix mbt(_p->size(), __Dim);
         for (int i = 0; i < mat.rows(); i++) {
             fordim (k) {
-                mbt[i][k] = _p[i][k] - 51;
+                mbt[i][k] = (*_p)[i][k] - 51;
                 mat[i][k] = b->particles[i][k] - 51;
             }
         }
@@ -481,8 +481,8 @@ namespace pi {
         r /= rm;
 
         for (int i = 0; i < mat.rows(); i++) {
-            _q[i][0] = ma * (r[0][0] * mat[i][0] + r[0][1] * mat[i][1]) + 51;
-            _q[i][1] = ma * (r[1][0] * mat[i][0] + r[1][1] * mat[i][1]) + 51;
+            (*_q)[i][0] = ma * (r[0][0] * mat[i][0] + r[0][1] * mat[i][1]) + 51;
+            (*_q)[i][1] = ma * (r[1][0] * mat[i][0] + r[1][1] * mat[i][1]) + 51;
         }
     }
 
@@ -665,7 +665,7 @@ namespace pi {
                 }
 
                 // loop over pixels to check if the pixel is intersection
-                for (int i = 0; i < nPixels; i++) {
+                for (int ii = 0; ii < nPixels; ii++) {
                     // test if every labels have label
                     bool all = true;
                     for (unsigned int j = 0; all && j < ptrs.size(); j++) {
@@ -674,7 +674,7 @@ namespace pi {
                     if (all) {
                         *outputBuff = 1;
                     }
-                    
+
                     // increment pixel pointer
                     for (unsigned int j = 0; j < ptrs.size(); j++) {
                         ptrs[j] ++;
@@ -706,7 +706,7 @@ namespace pi {
         bool ok = true;
         for (int i = 0; i < global.nsubjs && ok; i++) {
             string f = subjconfig[i][outputName];
-            ofstream of(f);
+            ofstream of(f.c_str());
             subjs[i].save(of);
             of.close();
         }
@@ -736,7 +736,7 @@ namespace pi {
             if (!loadSampler(_config)) {
                 initialLoop();
                 string samplerCache = _config["particles.sampler-cache"];
-                ofstream of(samplerCache);
+                ofstream of(samplerCache.c_str());
                 sampler.save(of);
                 of.close();
             }
@@ -1174,7 +1174,7 @@ namespace pi {
         resampledField->DisconnectPipeline();
         return resampledField;
     }
-    
+
 
 
 

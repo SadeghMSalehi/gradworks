@@ -147,7 +147,6 @@ namespace pi {
         LabelImage::Pointer labelmap;
         VectorImage::Pointer distmap;
         GradientImage::Pointer gradmap;
-        double repulsionParams[3] = { 1, 3, 5 };
 
         typedef itk::NearestNeighborInterpolateImageFunction<LabelImage> LabelImageInterpolatorType;
         LabelImageInterpolatorType::Pointer lablIntp;
@@ -196,7 +195,7 @@ namespace pi {
     public:
         VNLDoubleMatrix r;
 
-        PxAffine(Px::Vector& p, Px::Vector& q): _p(p), _q(q) {
+        PxAffine(Px::Vector* p, Px::Vector* q): _p(p), _q(q) {
             r.set_size(__Dim, __Dim);
             r.set_identity();
         }
@@ -207,8 +206,8 @@ namespace pi {
         friend class PxSubj;
 
         PxGlobal* global;
-        Px::Vector& _p;
-        Px::Vector& _q;
+        Px::Vector* _p;
+        Px::Vector* _q;
     };
 
 
@@ -228,7 +227,7 @@ namespace pi {
         PxR::Vector regions;
         PxAffine affineTxf;
 
-        PxSubj(): global(NULL), affineTxf(particles, affineAligned) {}
+        PxSubj(): global(NULL), affineTxf(&particles, &affineAligned) {}
 
         inline void setGlobalConfig(PxGlobal* g) {
             global = g;
