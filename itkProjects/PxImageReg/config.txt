@@ -1,0 +1,65 @@
+particles = {
+	number-of-subjects = 3;
+	number-of-labels = 1;
+	number-of-particles = [ 100 ];
+	ignore-sampler-input = true;
+	ignore-particle-input = true;
+	use-local-repulsion = true;
+
+	// particle interaction parameters
+	repulsion-parameters = (
+		[ 1.0, 0.3, 0.4 ]
+	)
+
+	// deformation parameters
+	bspline-transform = {
+		control-point-spacing = 8;
+	};
+
+	// sampler-related parameters
+	sampler-time-steps = [ 0.0, 0.01, 5.0 ];
+	sampler-cache = "/tmpfs/sampler.txt";
+
+	// assume separately stored label
+	sampler = {
+		labels = ( [ "ec_joint.nii.gz", "ec_joint_dist.nii.gz", "ec_joint_grad.nrrd" ] )
+	}
+
+	time-steps = [ 0.0, 0.02, 20.0 ];
+	particle-images = [ "loop.0.nrrd", "loop.1.nrrd", "loop.2.nrrd" ];
+
+	subjects = (
+		{ 
+			images = [ "c31scrop.nii.gz" ];
+			labels = ( [ "c31crop.nii.gz", "c31dist.nii.gz", "c31grad.nrrd" ] )
+			particle-input = "c31particles.0.txt"
+			particle-output = "c31particles.txt"
+		}
+		,{ 
+			images = [ "c36scrop.nii.gz" ];
+			labels = ( [ "c36crop.nii.gz", "c36dist.nii.gz", "c36grad.nrrd" ] )
+			particle-input = "c36particles.0.txt"
+			particle-output = "c36particles.txt"
+		}
+		,{ 
+			images = [ "e11scrop.nii.gz" ];
+			labels = ( [ "e11crop.nii.gz", "e11dist.nii.gz", "e11grad.nrrd" ] )
+			particle-input = "e11particles.0.txt"
+			particle-output = "e11particles.txt"
+		}
+	)
+
+	
+	// required
+	warped-labels = (
+		( 0, 1, "c31crop.nii.gz", "w3136.nrrd")
+		,( 1, 0, "c36crop.nii.gz", "w3631.nrrd")
+	)
+
+	// required
+	warped-images = (
+		( 0, 1, "c31crop.nii.gz", "wi3136.nrrd")
+		,( 1, 0, "c36crop.nii.gz", "wi3631.nrrd")
+		,( 1, 0, "c36s.crop.nii.gz", "ws3631.nrrd")
+	)
+}

@@ -15,27 +15,11 @@
 
 #include "piOptions.h"
 #include "piConfigFile.h"
+#include "piPx.h"
 
 
 
 namespace pi {
-#pragma mark DemonsRunner
-    class DemonsRunner {
-    public:
-        DemonsRunner(Options& opts, StringVector& args);
-
-        void buildPatches(libconfig::Setting& setting);
-        void computePatchMapping();
-        void computeOpticalFlowMapping();
-
-        RealImage::Pointer deformImage(RealImage::Pointer input, DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage);
-
-        DisplacementFieldType::Pointer resampleField(DisplacementFieldType::Pointer currentField, DisplacementFieldType::Pointer resamplingField);
-
-    private:
-        ConfigFile _config;
-    };
-
 #pragma mark ParticleRunner
     const int __PatchSize = 5;
 
@@ -67,81 +51,42 @@ namespace pi {
         }
     };
 
-    class Px {
+    /// globally affected parameters
+    class PxGlobal {
     public:
-        double x[__Dim];
-        Px() {}
-        Px(double v) {
-            fordim (k) x[k] = v;
-        }
-        inline bool isnan() {
-            fordim (k) {
-                if (x[k] != x[k]) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        /*
-        inline Px& operator=(int v) {
-            fordim (k) x[k] = v;
-            return (*this);
-        }
-         */
-        inline double& operator[](int i) {
-            return x[i];
-        }
-        inline const double& operator[](int i) const {
-            return x[i];
-        }
-        inline Px& operator=(const double v) {
-            fordim (k) x[k] = v;
-            return (*this);
-        }
-        inline Px& operator+=(const Px& p) {
-            fordim (k) x[k] += p.x[k];
-            return (*this);
-        }
-        inline Px& operator-=(const Px& p) {
-            fordim (k) x[k] -= p.x[k];
-            return (*this);
-        }
-        inline double operator*(const Px& p) {
-            double d = 0;
-            fordim (k) d += x[k] += p.x[k];
-            return d;
-        }
-        inline double dist(const Px& o) {
-            return sqrt(dist2(o));
-        }
-        inline double dist2(const Px& o) {
-            double s = 0;
-            for (int k = 0; k < __Dim; k++) {
-                s += ((x[k] - o.x[k])*(x[k] - o.x[k]));
-            }
-            return s;
-        }
-        void dot(const Px& o, const Px& f) {
-            fordim (k) x[k] = o[k] * f[k];
-        }
-        typedef double Elem;
-        typedef std::vector<Px> Vector;
+        int nsubjs;
+        int nlabels;
+        int totalParticles;
+        bool useLocalRepulsion;
+        bool useAffineTransform;
+        bool useEnsembleForce;
+
+        PxGlobal(): nsubjs(0), nlabels(0), totalParticles(0), useLocalRepulsion(false), useAffineTransform(false), useEnsembleForce(true) {}
+        std::vector<int> numParticles;
+        std::vector<double> cutoffParams;
+        std::vector<double> sigmaParams;
+        std::vector<double> repulsionCoeff;
+        std::vector<double> ensembleCoeff;
+        std::vector<double> imageCoeff;
+
+        typedef std::vector<IntVector> Neighbors;
+        Neighbors neighbors;
+
+        void load(ConfigFile& config);
     };
 
-    class PxA {
+
+    class PxI {
     public:
-        typedef std::vector<PxA> Vector;
+        RealImage::Pointer image;
+        GradientImage::Pointer gradient;
 
-        int label;
-        bool bound;
+        LinearImageInterpolatorType::Pointer imageSampler;
+        GradientInterpolatorType::Pointer gradientSampler;
 
-        PxA() { label = 0; }
+        PxI();
+        void load(std::string file);
     };
-
-    // utility operator overloading
-    std::ostream& operator<<(std::ostream& os, const Px& par);
-    std::ostream& operator<<(std::ostream& os, const Px::Vector& par);
-
 
     class PxR {
     public:
@@ -170,26 +115,6 @@ namespace pi {
 
     };
 
-    /// globally affected parameters
-    class PxGlobal {
-    public:
-        int nsubjs;
-        int nlabels;
-        int totalParticles;
-        bool useLocalRepulsion;
-
-        PxGlobal(): nsubjs(0), nlabels(0), totalParticles(0), useLocalRepulsion(false) {}
-        std::vector<int> numParticles;
-        std::vector<double> cutoffParams;
-        std::vector<double> sigmaParams;
-        std::vector<double> repulsionCoeff;
-        std::vector<double> ensembleCoeff;
-
-        typedef std::vector<IntVector> Neighbors;
-        Neighbors neighbors;
-
-        void load(ConfigFile& config);
-    };
 
 
     class PxSubj;
@@ -222,6 +147,7 @@ namespace pi {
     public:
         typedef std::vector<PxSubj> Vector;
 
+        PxI image;
         Px::Vector particles;
         Px::Vector affineAligned;
         Px::Vector forces;
@@ -254,6 +180,10 @@ namespace pi {
         }
         inline void clearForce() {
             std::fill(forces.begin(), forces.end(), 0.0);
+            std::fill(ensembleForces.begin(), ensembleForces.end(), 0.0);
+            std::fill(imageForces.begin(), imageForces.end(), 0.0);
+
+            
         }
         inline void clearVector(Px::Vector& v) {
             std::fill(v.begin(), v.end(), 0.0);
@@ -284,17 +214,21 @@ namespace pi {
     };
 
 
+    class NeighborSampler;
+
     class PxImageTerm {
     public:
         typedef std::vector<float> PixelVector;
 
         PxGlobal* global;
-        RealImageVector images;
-
         PxImageTerm(): global(NULL) {}
 
-        void load(libconfig::Setting& subjects);
+        void computePixelEntropy(int i, int npx, int nsx, int nex, PxSubj::Vector& subjs, NeighborSampler* sampler);
         void computeImageTerm(PxSubj::Vector& subjs, int w);
+
+    private:
+        RealImage::RegionType patchRegion;
+
     };
 
     class PxSystem {
@@ -312,7 +246,7 @@ namespace pi {
         double t0, dt, t1;
         ConfigFile _config;
 
-        void clearForces();
+//        void clearForces();
 
 
 
@@ -356,7 +290,7 @@ namespace pi {
         void main(Options& opts, StringVector& args);
 
     private:
-        void print();
+        void printHelp();
         PxSystem _system;
     };
 

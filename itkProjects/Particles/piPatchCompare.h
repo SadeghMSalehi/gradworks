@@ -66,6 +66,8 @@ namespace pi {
 
         DisplacementFieldType::Pointer performDenseMapping(PatchImage::Pointer fixed, PatchImage::Pointer moving, PatchImage::RegionType activeRegion);
 
+        void testInterpolation(StringVector& args);
+
         /// main testing routines
         bool main(Options& parser, StringVector args);
 

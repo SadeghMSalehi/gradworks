@@ -1,0 +1,39 @@
+PROJECT(PxImageReg)
+cmake_minimum_required(VERSION 2.8)
+
+SET(LOCAL_DIR /tools/local CACHE PATH "local library directory")
+FIND_PACKAGE(ITK 4 REQUIRED)
+FIND_PACKAGE(VTK COMPONENTS REQUIRED)
+SET(VTK_REQUIRED_OBJCXX_FLAGS -fobjc-gc)
+
+SET(Boost_NO_BOOST_CMAKE 1)
+FIND_PACKAGE(Boost REQUIRED)
+IF(Boost_FOUND)
+  INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
+ENDIF()
+
+INCLUDE(${USE_ITK_FILE})
+INCLUDE(${USE_VTK_FILE})
+
+INCLUDE_DIRECTORIES(${LOCAL_DIR}/include)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+
+LINK_DIRECTORIES(${LOCAL_DIR}/lib)
+
+
+SET (MY_PARTICLE_WORKS_SOURCES 
+	piImageDef.h piImageIO.h piMacros.h
+	piTimer.h piTimer.cpp  
+	piOptions.cpp piOptions.h 
+	piConfigFile.h piConfigFile.cpp 
+	piPx.h piPx.cpp
+	piParticleRunner.h piParticleRunner.cpp 
+	piParticleWarp.h piParticleWarp.cpp 
+	piImageProc.h piImageProc.cpp
+	piEntropyComputer.h piEntropyComputer.cpp)
+
+ADD_EXECUTABLE(pxrun2 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
+SET_TARGET_PROPERTIES(pxrun2 PROPERTIES DEBUG_POSTFIX "d")
+SET_TARGET_PROPERTIES(pxrun2 PROPERTIES COMPILE_DEFINITIONS "DIMENSIONS=2;ATTR_SIZE=17;BATCH")
+TARGET_LINK_LIBRARIES(pxrun2 ${ITK_LIBRARIES} ${VTK_LIBRARIES} nlopt ${LOCAL_DIR}/lib/libconfig++.a)

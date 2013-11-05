@@ -113,8 +113,57 @@ namespace pi {
             cout << "done" << endl;
             
             return true;
+        } else if (parser.GetBool("--patchtest") && args.size() > 0) {
+            if (args[0] == "interpolation") {
+                testInterpolation(args);
+            }
+            return true;
         }
         return false;
+    }
+
+#pragma mark Test Codes
+    void PatchCompare::testInterpolation(StringVector &args) {
+        ImageIO<RealImage> io;
+
+        if (args.size() < 4) {
+            cout << "--patchtest interpolation [image] [x] [y] " << endl;
+        }
+        RealImage::Pointer image = io.ReadCastedImage(args[1]);
+        PatchImage::Pointer patchImage = buildPatchImage(image);
+        typedef itk::VectorLinearInterpolateImageFunction<PatchImage> Interpolator;
+
+        double x = atof(args[2].c_str());
+        double y = atof(args[3].c_str());
+
+        Interpolator::Pointer intp = Interpolator::New();
+        intp->SetInputImage(patchImage);
+
+        ImageIO<RealImage3> io3;
+        RealImage3::Pointer realImage = io3.NewImageT(5, 5, 10);
+
+        itk::ImageRegionIteratorWithIndex<RealImage3> iter3(realImage, realImage->GetBufferedRegion());
+
+        iter3.GoToBegin();
+
+        RealIndex idx;
+        for (double t= 0; t < 10; t++) {
+            x += 0.1;
+            y += 0.1;
+
+            idx[0] = x;
+            idx[1] = y;
+
+            cout << x << endl;
+
+            PatchImage::PixelType px = intp->EvaluateAtContinuousIndex(idx);
+            for (int i = 0; i < 25; i++) {
+                iter3.Set(px[i]);
+                ++iter3;
+            }
+        }
+
+        io3.WriteImage("test.nrrd", realImage);
     }
 
 #pragma mark -

@@ -441,6 +441,7 @@ int main(int argc, char* argv[]) {
         { 500, "--demons", SO_NONE },
         { 501, "--makeGradientPatch", SO_NONE },
         { 502, "--opticalFlow", SO_NONE },
+        { 503, "--patchtest", SO_NONE },
 
         SO_END_OF_OPTIONS
     };

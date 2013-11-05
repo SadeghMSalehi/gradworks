@@ -8,11 +8,10 @@
 
 #include "piImageDef.h"
 #include "piParticleRunner.h"
-#include "piPatchCompare.h"
 #include "piImageIO.h"
-#include "piImageProcessing.h"
 #include "piParticleWarp.h"
 #include "piEntropyComputer.h"
+#include "piImageProc.h"
 
 #include <numeric>
 #include <algorithm>
@@ -30,72 +29,12 @@ namespace pi {
     static ImageIO<RealImage> io;
     static ImageIO<LabelImage> labelIO;
 
-    std::vector<PatchImage::Pointer> __patchImages;
-
-    template <typename T>
-    typename T::Pointer applyGaussian(typename T::Pointer input, double sigma) {
-        typedef itk::SmoothingRecursiveGaussianImageFilter<T> GaussianFilter;
-        typename GaussianFilter::Pointer filter = GaussianFilter::New();
-        filter->SetSigma(sigma);
-        filter->SetInput(input);
-        filter->Update();
-        typename T::Pointer output = filter->GetOutput();
-        output->DisconnectPipeline();
-        return output;
-    }
-
-    LabelImage3::Pointer createImage3(LabelImage::Pointer refImage, int m) {
-        ImageIO<LabelImage3> io;
-        LabelImage::SizeType sz = refImage->GetBufferedRegion().GetSize();
-        LabelImage3::Pointer tracker = io.NewImageT(sz[0], sz[1], m);
-        LabelImage3::SpacingType spacing;
-        LabelImage3::PointType origin;
-        LabelImage3::DirectionType direction;
-        direction.Fill(0);
-        fordim (k) {
-            spacing[k] = refImage->GetSpacing()[k];
-            origin[k] = refImage->GetOrigin()[k];
-            fordim (l) {
-                direction[k][l] = refImage->GetDirection()[k][l];
-            }
-        }
-        spacing[2] = spacing[0];
-        origin[2] = 0;
-        direction[2][2] = 1;
-
-        tracker->FillBuffer(0);
-        tracker->SetSpacing(spacing);
-        tracker->SetOrigin(origin);
-        tracker->SetDirection(direction);
-
-        return tracker;
-    }
-
     void executeParticleRunner(pi::Options &opts, StringVector &args) {
         ParticleRunner runner;
         runner.main(opts, args);
     }
 
 
-    // utility operator overloading
-    ostream& operator<<(ostream& os, const Px& par) {
-        fordim(k) { os << par.x[k] << " "; }
-        return os;
-    }
-    ostream& operator<<(ostream& os, const Px::Vector& par) {
-        Px::Vector::const_iterator p = par.begin();
-
-        if (p == par.end()) {
-            return os;
-        }
-
-        os << *p;
-        for (p++; p != par.end(); p++) {
-            os << endl << *p;
-        }
-
-        return os;
-    }
     ostream& operator<<(ostream& os, const PxSubj& p) {
         for (int i = 0; i < p.size(); i++) {
             cout << p.particles[i] << endl;
@@ -103,6 +42,25 @@ namespace pi {
         return os;
     }
 
+
+    PxI::PxI() {
+        imageSampler = LinearImageInterpolatorType::New();
+        gradientSampler = GradientInterpolatorType::New();
+    }
+
+    void PxI::load(std::string file) {
+        this->image = io.ReadCastedImage(file);
+        if (this->image.IsNull()) {
+            cout << "can't read " << file << endl;
+            exit(0);
+        }
+        this->gradient = ComputeGaussianGradient(image, image->GetSpacing()[0] / 2.0);
+
+        this->imageSampler->SetInputImage(this->image);
+        this->gradientSampler->SetInputImage(this->gradient);
+    }
+
+#pragma mark PxR implementations
     // load label map, distance map, gradient map for each region
     bool PxR::load(libconfig::Setting& cache, bool error) {
         string labelfile = cache[0];
@@ -134,18 +92,17 @@ namespace pi {
         string distfile = cache[1];
         string gradfile = cache[2];
 
-        ImageProcessing proc;
         if (saveLabel) {
             labelmap = label;
             io.WriteImageS<LabelImage>(labelfile, label);
         }
         if (distmap.IsNull()) {
-            distmap = proc.ComputeDistanceMap(label);
+            distmap = ComputeDistanceMap(label);
             io.WriteImageS<VectorImage>(distfile, distmap);
         }
         if (gradmap.IsNull()) {
             LabelImage::SpacingType spacing = label->GetSpacing();
-            gradmap = proc.ComputeGaussianGradient(label, spacing[0] / 2.0);
+            gradmap = ComputeGaussianGradient(label, spacing[0] / 2.0);
             io.WriteImageS<GradientImage>(gradfile, gradmap);
         }
 
@@ -225,6 +182,7 @@ namespace pi {
     }
 
 
+#pragma mark PxSubj implementations
     LabelImage::IndexType PxSubj::getIndex(int i) {
         LabelImage::Pointer regionLabel = regions[attrs[i].label].labelmap;
         LabelImage::PointType px;
@@ -318,9 +276,10 @@ namespace pi {
         Px::Vector::iterator p = particles.begin();
         Px::Vector::iterator f = forces.begin();
         Px::Vector::iterator e = ensembleForces.begin();
+        Px::Vector::iterator i = imageForces.begin();
 
-        for (; p != particles.end() && f != forces.end(); p++, f++, e++) {
-            fordim (k) { p->x[k] += (dt * (f->x[k] + e->x[k])); }
+        for (; p != particles.end(); p++, f++, e++, i++) {
+            fordim (k) { p->x[k] += (dt * (f->x[k] + e->x[k] + i->x[k])); }
         }
     }
 
@@ -516,12 +475,6 @@ namespace pi {
         // compute inverse covariance
         comp.ComputeGradient();
 
-        // now compute gradient w.r.t particles
-        for (int i = 0; i < global->nsubjs; i++) {
-            subjs[0].clearVector(subjs[i].ensembleForces);
-        }
-
-
         EntropyComputer<double>::Iterator gradIter(comp.gradient.data_block(), global->totalParticles, __Dim);
         gradIter.FirstData();
         for (int i = 1; i < global->nsubjs; i++) {
@@ -538,22 +491,8 @@ namespace pi {
         }
     }
 
-
-    void PxImageTerm::load(libconfig::Setting& subjects) {
-        // # of subjects must be same
-        assert(global->nsubjs == subjects.getLength());
-        images.clear();
-
-        // iterate over # of subjects
-        for (int i = 0; i < global->nsubjs; i++) {
-            string imageFile;
-            assert(subjects[i].lookupValue("images.[0]", imageFile));
-            RealImage::Pointer image = io.ReadCastedImage(imageFile);
-            images.push_back(image);
-        }
-    }
-
-    class PxPatchSampler {
+#pragma mark Neighbor Intensity Sampler implementations
+    class NeighborSampler {
     public:
         typedef RealImage::PixelType PixelType;
         typedef RealImage::IndexType IndexType;
@@ -561,13 +500,22 @@ namespace pi {
         typedef RealImage::RegionType RegionType;
         typedef RealImage::SizeType SizeType;
 
-        PxPatchSampler(RegionType region, RealImage::Pointer image);
-        ~PxPatchSampler();
+        NeighborSampler(RegionType region, RealImage::Pointer image);
+        ~NeighborSampler();
 
         void setSampleRegion(RegionType& region, RealImage* reference);
 
-        void sampleValues(LinearImageInterpolatorType* interp, Px& px, PxImageTerm::PixelVector& pxValue);
-        void sampleGradients(GradientInterpolatorType* interp, Px& px, Px::Vector& pxGrad);
+        /// sample image intensities from a given interpolator
+        /// @interp ImageInterpolator
+        /// @px particle locations at the original space
+        /// @pz particle locations at the transformed space (actual sampling)
+        void sampleValues(LinearImageInterpolatorType* interp, Px& px, Px& pz, double* pxValue);
+
+        /// sample image gradients from a given interpolator
+        /// @interp GradientInterpolator
+        /// @px particle locations at the original space
+        /// @pz particle locations at the transformed space (actual sampling)
+        void sampleGradients(GradientInterpolatorType* interp, Px& px, Px& pz, Px::Vector& pxGrad);
 
         void createSampleIndexes2(IndexType& startIdx);
         void createSampleIndexes3(IndexType& startIdx);
@@ -580,57 +528,157 @@ namespace pi {
         std::vector<PointType> _points;
     };
 
-    void PxImageTerm::computeImageTerm(PxSubj::Vector& subjs, int w) {
-        const int npx = global->totalParticles;
-        const int nsx = global->nsubjs;
-        const int nex = (__Dim == 2) ? w * w : w * w * w;
+    NeighborSampler::NeighborSampler(RegionType region, RealImage::Pointer image) {
+        setSampleRegion(region, image);
+    }
 
+    NeighborSampler::~NeighborSampler() {
+
+    }
+
+    void NeighborSampler::sampleValues(LinearImageInterpolatorType* interp, Px& px, Px& pz, double* pxValue) {
+        // sample intensity values from images
+        for (int k = 0; k < _numberOfSamples; k++) {
+            PointType samplePoint = _points[k];
+            fordim (l) {
+                // translate to the particle
+                samplePoint[l] += pz.x[l];
+            }
+            if (interp->IsInsideBuffer(samplePoint)) {
+                pxValue[k] = interp->Evaluate(samplePoint);
+            } else {
+                IntIndex idx;
+                interp->GetInputImage()->TransformPhysicalPointToIndex(samplePoint, idx);
+                cout << "Out of region: " << idx << "; " << px.x[0] << ", " << px.x[1] << endl;
+                pxValue[k] = 0;
+            }
+        }
+    }
+
+    void NeighborSampler::sampleGradients(GradientInterpolatorType* interp, Px& px, Px& pz, Px::Vector& pxGrad) {
+        // sample intensity values from images
+        for (int k = 0; k < _numberOfSamples; k++) {
+            PointType samplePoint = _points[k];
+            fordim (l) {
+                // translate to the particle
+                samplePoint[l] += pz[l];
+            }
+            GradientPixel pix = interp->Evaluate(samplePoint);
+            fordim (l) {
+                pxGrad[k][l] = pix[l];
+            }
+        }
+    }
+
+    // should have s sample index
+    void NeighborSampler::setSampleRegion(RegionType& region, RealImage* reference) {
+        _regionSize = region.GetSize();
+
+        _indexes.clear();
+        _points.clear();
+
+        IndexType startIdx = region.GetIndex();
+        if (RegionType::ImageDimension == 2) {
+            createSampleIndexes2(startIdx);
+        } else if (RegionType::ImageDimension == 3){
+            createSampleIndexes3(startIdx);
+        }
+        _numberOfSamples = _indexes.size();
+
+        _points.resize(_numberOfSamples);
+        for (int i = 0; i < _numberOfSamples; i++) {
+            reference->TransformIndexToPhysicalPoint(_indexes[i], _points[i]);
+        }
+    }
+
+    void NeighborSampler::createSampleIndexes2(IndexType& startIdx) {
+        IndexType idx = startIdx;
+        _indexes.reserve(_regionSize[1]*_regionSize[0]);
+        for (int j = 0; j < _regionSize[1]; j++) {
+            idx[0] = startIdx[0];
+            for (int i = 0; i < _regionSize[0]; i++) {
+                _indexes.push_back(idx);
+                idx[0] ++;
+            }
+            idx[1] ++;
+        }
+    }
+
+    void NeighborSampler::createSampleIndexes3(IndexType& startIdx) {
+        IndexType idx = startIdx;
+        for (int k = 0; k < _regionSize[2]; k++) {
+            idx[1] = startIdx[1];
+            for (int j = 0; j < _regionSize[1]; j++) {
+                idx[0] = startIdx[0];
+                for (int i = 0; i < _regionSize[0]; i++) {
+                    _indexes.push_back(idx);
+                    idx[0] ++;
+                }
+                idx[1] ++;
+            }
+            idx[2] ++;
+        }
+    }
+
+#pragma mark PxImageTerm implementations
+    void PxImageTerm::computePixelEntropy(int i, int npx, int nsx, int nex, PxSubj::Vector &subjs, NeighborSampler* sampler) {
         // compute individual entropy
-        EntropyComputer<double> comp(nsx, npx, nex);
+        EntropyComputer<double> comp(nsx, npx, 1);
 
         // rewind data
         comp.dataIter.FirstData();
-        for (int i = 0; i < nsx; i++) {
-            for (int j = 0; j < npx; j++) {
-                comp.dataIter.NextSample();
-            }
+        for (int j = 0; j < nsx; j++) {
+            sampler->sampleValues(subjs[i].image.imageSampler, subjs[i].particles[j], subjs[i].affineAligned[j], comp.dataIter.sample);
             comp.dataIter.NextData();
         }
 
         // move to center (subtract mean from each sample)
         comp.MoveToCenter();
+
         // compute covariance matrix
         comp.ComputeCovariance();
+
         // compute inverse covariance
         comp.ComputeGradient();
 
-        // now compute gradient w.r.t particles
-        for (int i = 0; i < global->nsubjs; i++) {
-            subjs[0].clearVector(subjs[i].ensembleForces);
-        }
-        /*
-        EntropyComputer<double>::Iterator gradIter(comp.gradient.data_block(), global->totalParticles, __Dim);
-        gradIter.FirstData();
-        for (int i = 1; i < global->nsubjs; i++) {
-            for (int j = 0; j < global->totalParticles; j++) {
+        // compute image gradient
+        Px::Vector grad(nex);
+        for (int j = 0; j < nsx; j++) {
+            // now sample image gradient
+            sampler->sampleGradients(subjs[j].image.gradientSampler, subjs[j].particles[i], subjs[j].affineAligned[i], grad);
 
-
-                double coeff = global->ensembleCoeff[subjs[i].attrs[j].label];
-                fordim (d) {
-                    subjs[i].imageForces[j][d] = 0;
-                    for (int k = 0; k < nex; k++) {
-//                        subjs[i].imageForces[j][d] += gradIter.sample[k] * grad[j][k];
-                    }
+            // compute entropy gradient w.r.t particle
+            // dH / dx
+            const double coeff = global->imageCoeff[subjs[i].attrs[j].label];
+            fordim (d) {
+                subjs[i].imageForces[j][d] = 0;
+                for (int k = 0; k < nex; k++) {                        subjs[i].imageForces[j][d] += comp.gradient[j][k] * grad[j][k];
                 }
-                gradIter.NextSample();
+                subjs[i].imageForces[j][d] *= coeff;
             }
-            gradIter.NextData();
         }
-         */
+    }
+
+    void PxImageTerm::computeImageTerm(PxSubj::Vector& subjs, int w) {
+        const int npx = global->totalParticles;
+        const int nsx = global->nsubjs;
+        const int nex = (__Dim == 2) ? w * w : w * w * w;
+
+
+        fordim (j) {
+            patchRegion.SetIndex(j, -w/2);
+            patchRegion.SetSize(j, w);
+        }
+
+        // sample intensity and gradients
+        NeighborSampler sampler(patchRegion, subjs[0].image.image);
+
+        for (int i = 0; i < npx; i++) {
+            computePixelEntropy(i, npx, nsx, nex, subjs, &sampler);
+        }
     }
 
 #pragma mark PxSystem Implementations
-
     void PxGlobal::load(ConfigFile& config) {
         nsubjs = config["particles.number-of-subjects"];
         nlabels = config["particles.number-of-labels"];
@@ -638,6 +686,11 @@ namespace pi {
         useLocalRepulsion = false;
         config["particles"].lookupValue("use-local-repulsion", useLocalRepulsion);
 
+        useAffineTransform = false;
+        config["particles"].lookupValue("use-local-repulsion", useAffineTransform);
+
+        useEnsembleForce = true;
+        config["particles"].lookupValue("use-ensemble-force", useEnsembleForce);
         Setting& settingNumParticles = config["particles.number-of-particles"];
         for (int i = 0; i < settingNumParticles.getLength(); i++) {
             numParticles.push_back(settingNumParticles[i]);
@@ -649,11 +702,13 @@ namespace pi {
         ensembleCoeff.resize(nlabels);
         sigmaParams.resize(nlabels);
         cutoffParams.resize(nlabels);
+        imageCoeff.resize(nlabels);
         for (int i = 0; i < params.getLength(); i++) {
             repulsionCoeff[i] = params[i][0];
             ensembleCoeff[i] = params[i][1];
             sigmaParams[i] = params[i][2];
             cutoffParams[i] = params[i][3];
+            imageCoeff[i] = params[i][4];
         }
     }
 
@@ -670,11 +725,13 @@ namespace pi {
     }
 
 
-    void PxSystem::clearForces() {
-        for (int i = 0; i < subjs.size(); i++) {
-            std::fill(subjs[i].forces.begin(), subjs[i].forces.end(), 0);
-        }
-    }
+//    void PxSystem::clearForces() {
+//        for (int i = 0; i < subjs.size(); i++) {
+//            std::fill(subjs[i].forces.begin(), subjs[i].forces.end(), 0);
+//            std::fill(subjs[i].ensembleForces.begin(), subjs[i].ensembleForces.end(), 0);
+//            std::fill(subjs[i].imageForces.begin(), subjs[i].imageForces.end(), 0);
+//        }
+//    }
 
     // load data for particle system
     void PxSystem::loadSystem(ConfigFile& config) {
@@ -690,6 +747,7 @@ namespace pi {
             for (int j = 0; j < global.nlabels; j++) {
                 subjs[i].regions[j].load(subjdata["labels"][j]);
             }
+            subjs[i].image.load(subjdata["images"][0]);
         }
     }
 
@@ -846,7 +904,9 @@ namespace pi {
 
         ImageIO<LabelImage3> io;
         LabelImage::Pointer refImage = sampler.regions[0].labelmap;
-        LabelImage3::Pointer tracker = createImage3(refImage, (t1 - t0) / dt + 1);
+        LabelImage3::Pointer tracker = CreateImage3(refImage, (t1 - t0) / dt + 1);
+
+        cout << sampler << endl;
 
         int m = 0;
         for (double t = t0; t <= t1; t += dt, m++) {
@@ -871,6 +931,7 @@ namespace pi {
                 }
             }
         }
+        cout << sampler << endl;
 
 //        printAdjacencyMatrix();
 
@@ -894,7 +955,7 @@ namespace pi {
         std::vector<LabelImage3::Pointer> trackers;
 
         for (int i = 0; i < global.nsubjs; i++) {
-            LabelImage3::Pointer tracker = createImage3(refImage, (t1 - t0) / dt + 1);
+            LabelImage3::Pointer tracker = CreateImage3(refImage, (t1 - t0) / dt + 1);
             trackers.push_back(tracker);
         }
 
@@ -923,7 +984,9 @@ namespace pi {
             affineTransformParticles();
 
             // now compute ensemble and intensity forces
-            ensemble.computeAttraction(subjs);
+            if (global.useEnsembleForce) {
+                ensemble.computeAttraction(subjs);
+            }
 //            cout << subjs[0].ensembleForces << endl;
 
             // update system
@@ -965,7 +1028,10 @@ namespace pi {
             std::copy(subjs[i].particles.begin(), subjs[i].particles.end(), subjs[i].affineAligned.begin());
         }
 
-        subjs[1].affineTxf.estimateAffineTransform(&subjs[0]);
+        // estimate affine transform only if it is allowed
+        if (global.useAffineTransform) {
+            subjs[1].affineTxf.estimateAffineTransform(&subjs[0]);
+        }
     }
 
     /**
@@ -1066,225 +1132,27 @@ namespace pi {
 #pragma mark ParticleRunner implementations
     void ParticleRunner::main(pi::Options &opts, StringVector &args) {
         try {
+            if (opts.GetBool("--help")) {
+                printHelp();
+                return;
+            }
             _system.main(opts, args);
         } catch (ParseException & ex) {
+            cout << "Parsing Error" << endl;
             cout << "File: " << ex.getFile() << endl;
             cout << "Line: " << ex.getLine() << endl;
             cout << "Error: " << ex.getError() << endl;
+        } catch (SettingNotFoundException& ex) {
+            cout << "Setting Not Found Error" << endl;
+            cout << "Path: " << ex.getPath() << endl;
+            cout << "What: " << ex.what() << endl;
+        } catch (SettingTypeException& ex) {
+            cout << "Setting Type Error" << endl;
+            cout << "Path: " << ex.getPath() << endl;
         }
     }
 
-    void ParticleRunner::print() {
+    void ParticleRunner::printHelp() {
+        cout << "particle image registration: built (" << __DATE__ << ")" << endl;
     }
-
-
-#pragma mark DemonsRunner
-    void executeDemonsRunner(pi::Options &opts, StringVector &args) {
-        DemonsRunner runner(opts, args);
-        if (args.size() > 0) {
-            if (args[0] == "optical-flow-mapping") {
-                runner.computeOpticalFlowMapping();
-            } else if (args[0] == "patch-mapping") {
-                runner.computePatchMapping();
-            }
-        }
-    }
-
-
-
-    DemonsRunner::DemonsRunner(pi::Options &opts, StringVector &args) {
-        _config.load("config.txt");
-        if (_config.exists("build-patch")) {
-            buildPatches(_config["build-patch"]);
-        }
-        if (_config.exists("patch-images")) {
-            _config.readImages<PatchImage>(__patchImages, "patch-images");
-        }
-    }
-
-    void DemonsRunner::computePatchMapping() {
-        if (!_config.exists("dense-patch-mapping")) {
-            return;
-        }
-
-        Setting& config = _config["dense-patch-mapping"];
-        int fixedImageIdx = config["fixed-image-idx"];
-        int movingImageIdx = config["moving-image-idx"];
-        PatchImage::Pointer fixedImage = __patchImages[fixedImageIdx];
-        PatchImage::Pointer movingImage = __patchImages[movingImageIdx];
-
-        PatchImage::RegionType sourceRegion = fixedImage->GetBufferedRegion();
-        PatchImage::RegionType activeRegion = _config.offsetRegion(sourceRegion, "dense-patch-mapping.region-offset");
-
-        PatchCompare patchMaker;
-        DisplacementFieldType::Pointer deformationField = patchMaker.performDenseMapping(fixedImage, movingImage, activeRegion);
-
-        // deformation field output
-        ImageIO<DisplacementFieldType> io;
-        string deformationFieldFile = config["displacement-field-output"];
-        io.WriteImage(deformationFieldFile, deformationField);
-
-        // warped image output
-        string warpedImage = config["warped-image-output"];
-        io.WriteImageS<RealImage>(warpedImage, deformImage(_config.image(movingImageIdx), deformationField, _config.image(fixedImageIdx)));
-    }
-
-    void DemonsRunner::computeOpticalFlowMapping() {
-        Setting& files = _config["optical-flow-mapping/files"];
-        Setting& param = _config["optical-flow-mapping/params"];
-
-        double dt = 0.1;
-        param.lookupValue("timestep", dt);
-
-        int iter = 1;
-        param.lookupValue("iteration", iter);
-
-        double fieldSigma = -1;
-        param.lookupValue("field-sigma", fieldSigma);
-
-        double velocitySigma = -1;
-        param.lookupValue("velocity-sigma", velocitySigma);
-
-        bool useDemonsFlow = false;
-        param.lookupValue("demons-flow", useDemonsFlow);
-
-        bool iterativeResampling = false;
-        param.lookupValue("iterative-resampling", iterativeResampling);
-
-        cout << "demons = " << useDemonsFlow << endl;
-        cout << "iterative-resampling = " << iterativeResampling << endl;
-        cout << "dt = " << dt << endl;
-        cout << "iter  = " << iter << endl;
-        cout << "field-sigma = " << fieldSigma << endl;
-        cout << "velocity-sigma = " << velocitySigma << endl;
-
-        PatchCompare patchTool;
-        for (int i = 0; i < files.getLength(); i++) {
-            string source = files[i][0];
-            string target = files[i][1];
-            string flowoutput = files[i][2];
-            string warpoutput = files[i][3];
-
-            cout << source << " => " << target << "; " << flowoutput << ", " << warpoutput << endl;
-
-            RealImage::Pointer sourceImage = io.ReadCastedImage(source);
-            RealImage::Pointer targetImage = io.ReadCastedImage(target);
-            RealImage::Pointer initialImage = io.CopyImage(sourceImage);
-
-            const int nPixels = sourceImage->GetPixelContainer()->Size();
-
-            DisplacementFieldType::Pointer velocityImage;
-            DisplacementFieldType::Pointer flowImage;
-
-            ImageIO<DisplacementFieldType> flowIO;
-            flowImage = flowIO.NewImageS<RealImage>(sourceImage);
-            DisplacementFieldType::PixelType zeroFlow;
-            zeroFlow.Fill(0);
-            flowImage->FillBuffer(zeroFlow);
-
-            for (int j = 0; j < iter; j++) {
-                if (useDemonsFlow) {
-                    velocityImage = patchTool.computeDemonsFlow(targetImage, sourceImage, dt);
-                } else {
-                    velocityImage = patchTool.computeOpticalFlow(targetImage, sourceImage, dt);
-                }
-
-                if (velocitySigma > 0) {
-                    cout << "apply gaussian on velocity iter: " << j << endl;
-                    velocityImage = applyGaussian<DisplacementFieldType>(velocityImage, velocitySigma);
-                }
-
-                if (iterativeResampling) {
-                    sourceImage = deformImage(sourceImage, velocityImage, targetImage);
-                } else {
-                    // compute approximated update field
-                    DisplacementFieldType::Pointer updateField = resampleField(flowImage, velocityImage);
-                    DisplacementFieldType::PixelType* pFlow = flowImage->GetBufferPointer();
-                    DisplacementFieldType::PixelType* pUpdateField = updateField->GetBufferPointer();
-
-                    for (int k = 0; k < nPixels; k++) {
-                        fordim (l) {
-                            pFlow[k][l] += pUpdateField[k][l];
-                        }
-                    }
-                    cout << endl;
-
-                    if (fieldSigma > 0) {
-                        cout << "apply gaussian on displacement iter: " << j << endl;
-                        flowImage = applyGaussian<DisplacementFieldType>(flowImage, fieldSigma);
-                    }
-                    sourceImage = deformImage(initialImage, flowImage, targetImage);
-                }
-
-//                io.WriteImageS<DisplacementFieldType>("velocity.nrrd", velocityImage);
-//                io.WriteImageS<DisplacementFieldType>("update.nrrd", updateField);
-
-            }
-
-
-            io.WriteImage(warpoutput, sourceImage);
-            io.WriteImageS<DisplacementFieldType>(flowoutput, flowImage);
-        }
-    }
-
-    RealImage::Pointer DemonsRunner::deformImage(RealImage::Pointer input, DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage) {
-        FieldTransformType::Pointer transform = FieldTransformType::New();
-        transform->SetDisplacementField(displacement);
-
-        ResampleImageFilterType::Pointer resampler = ResampleImageFilterType::New();
-        resampler->SetInput(input);
-        resampler->SetUseReferenceImage(true);
-        resampler->SetReferenceImage(refImage);
-        resampler->SetTransform(transform);
-        resampler->Update();
-        RealImage::Pointer warpedImage = resampler->GetOutput();
-        warpedImage->DisconnectPipeline();
-        return warpedImage;
-    }
-
-    // resample displaecement field
-    DisplacementFieldType::Pointer DemonsRunner::resampleField(DisplacementFieldType::Pointer currentField, DisplacementFieldType::Pointer resamplingField) {
-        typedef itk::VectorLinearInterpolateImageFunction<DisplacementFieldType> InterpolatorType;
-        InterpolatorType::Pointer interpolator = InterpolatorType::New();
-
-        FieldTransformType::Pointer transform = FieldTransformType::New();
-        transform->SetDisplacementField(currentField);
-        transform->SetInterpolator(interpolator);
-
-        typedef itk::VectorResampleImageFilter<DisplacementFieldType, DisplacementFieldType> ResampleFilter;
-        ResampleFilter::Pointer resampler = ResampleFilter::New();
-
-        resampler->SetInput(resamplingField);
-        resampler->SetSize(currentField->GetBufferedRegion().GetSize());
-        resampler->SetOutputOrigin(currentField->GetOrigin());
-        resampler->SetOutputSpacing(currentField->GetSpacing());
-        resampler->SetOutputDirection(currentField->GetDirection());
-        resampler->SetTransform(transform);
-
-        resampler->Update();
-
-        DisplacementFieldType::Pointer resampledField = resampler->GetOutput();
-        resampledField->DisconnectPipeline();
-        return resampledField;
-    }
-
-
-
-
-    void DemonsRunner::buildPatches(libconfig::Setting &setting) {
-        bool checkFiles = setting["check-files"];
-        PatchCompare patchMaker;
-        string inputImageTag = setting["input"];
-        string patchImageTag = "patch-images";
-        for (int i = 0; i < _config[patchImageTag].getLength(); i++) {
-            string output = _config[patchImageTag][i];
-            if (!checkFiles || !io.FileExists(output.c_str())) {
-                string input = _config[inputImageTag][i];
-                RealImage::Pointer inputImage = io.ReadCastedImage(input);
-                PatchImage::Pointer patchImage = patchMaker.buildPatchImage(inputImage);
-                io.WriteImageS<PatchImage>(output, patchImage);
-            }
-        }
-    }
-
 }
