@@ -203,6 +203,12 @@ namespace pi {
             covariance[i][i] += alpha;
         }
         inverseCovariance = vnl_matrix_inverse<T>(covariance);
+        if (std::isnan(inverseCovariance[0][0])) {
+            std::cout << "Covariance is NaN" << std::endl;
+            std::cout << covariance << std::endl;
+            inverseCovariance.set_identity();
+            return false;
+        }
         return true;
     }
 

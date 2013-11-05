@@ -279,7 +279,14 @@ namespace pi {
         Px::Vector::iterator i = imageForces.begin();
 
         for (; p != particles.end(); p++, f++, e++, i++) {
-            fordim (k) { p->x[k] += (dt * (f->x[k] + e->x[k] + i->x[k])); }
+            fordim (k) {
+                p->x[k] += (dt * (f->x[k] + e->x[k] + i->x[k]));
+                if (std::isnan(p->x[k])) {
+                    cout << "NaN coordinate detected!" << endl;
+                    cout << particles << endl;
+                    exit(0);
+                }
+            }
         }
     }
 
@@ -301,6 +308,9 @@ namespace pi {
         for (; f != forces.end(); p++, a++, f++) {
             if (a->bound) {
                 if (regions[a->label].normalForce(*p, *f, fn)) {
+                    if (fn.isnan() || f->isnan()) {
+                        cout << "NaN Force!" << endl;
+                    }
                     *f += fn;
                 }
             }
@@ -471,7 +481,13 @@ namespace pi {
         // move to center (subtract mean from each sample)
         comp.MoveToCenter();
         // compute covariance matrix
-        comp.ComputeCovariance();
+        if (!comp.ComputeCovariance()) {
+            cout << "Wrong covariance!!" << endl;
+            for (int i = 0; i < subjs.size(); i++) {
+                cout << "SUBJ[" << i << "]" << endl;
+                cout << subjs[i].particles << endl;
+            }
+        }
         // compute inverse covariance
         comp.ComputeGradient();
 
