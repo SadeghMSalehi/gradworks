@@ -8,6 +8,7 @@ using namespace pi;
 namespace pi {
     void executeParticleRunner(Options& parser, StringVector& args);
     void executeDemonsRunner(Options& parser, StringVector& args);
+    void executeQARunner(Options& parser, StringVector& args);
 }
 
 
@@ -37,11 +38,17 @@ int main(int argc, char* argv[]) {
     Options opts;
     opts.addOption("--help", SO_NONE);
     opts.addOption("--p2mat", SO_NONE);
+    opts.addOption("--qa", SO_NONE);
+    opts.addOption("--config", SO_REQ_SEP);
 	opts.ParseOptions(argc, argv, NULL);
 	StringVector& args = opts.GetStringVector("args");
 
     if (opts.GetBool("--p2mat")) {
         particle2mat(args);
     }
-	executeParticleRunner(opts, args);
+    if (opts.GetBool("--qa")) {
+        executeQARunner(opts, args);
+    } else {
+        executeParticleRunner(opts, args);
+    }
 }

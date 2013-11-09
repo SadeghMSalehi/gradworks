@@ -23,6 +23,10 @@ LINK_DIRECTORIES(${LOCAL_DIR}/lib)
 
 
 SET (MY_PARTICLE_WORKS_SOURCES 
+    itkARGBColorFunction.h
+    itkScalarToARGBColormapImageFilter.h
+    itkARGBSliceExtractImageFilter.h itkARGBSliceExtractImageFilter.cpp
+
 	piImageDef.h piImageIO.h piMacros.h
 	piTimer.h piTimer.cpp  
 	piOptions.cpp piOptions.h 
@@ -31,7 +35,11 @@ SET (MY_PARTICLE_WORKS_SOURCES
 	piParticleRunner.h piParticleRunner.cpp 
 	piParticleWarp.h piParticleWarp.cpp 
 	piImageProc.h piImageProc.cpp
-	piEntropyComputer.h piEntropyComputer.cpp)
+	piEntropyComputer.h piEntropyComputer.cpp
+    
+    piImageQA.h piImageQA.cpp
+    piImageHistogram.h piImageHistogram.cpp
+)
 
 ADD_EXECUTABLE(pxrun2 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 SET_TARGET_PROPERTIES(pxrun2 PROPERTIES DEBUG_POSTFIX "d")
