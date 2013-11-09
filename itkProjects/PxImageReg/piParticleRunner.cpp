@@ -201,7 +201,11 @@ namespace pi {
         // compute weight
         double dij = pi.dist(pj);
         if (dij < cutoff) {
-            weights[i][j] = exp(-dij*dij*kappa/(sigma2)) / dij;
+            if (dij > 0) {
+                weights[i][j] = exp(-dij*dij*kappa/(sigma2)) / dij;
+            } else if (dij == 0) {
+                cout << "particle overlap!" << endl;
+            }
         } else {
             weights[i][j] = 0;
         }
@@ -281,11 +285,7 @@ namespace pi {
         for (; p != particles.end(); p++, f++, e++, i++) {
             fordim (k) {
                 p->x[k] += (dt * (f->x[k] + e->x[k] + i->x[k]));
-                if (std::isnan(p->x[k])) {
-                    cout << "NaN coordinate detected!" << endl;
-                    cout << particles << endl;
-                    exit(0);
-                }
+                assert(!std::isnan(p->x[k]));
             }
         }
     }
@@ -308,9 +308,8 @@ namespace pi {
         for (; f != forces.end(); p++, a++, f++) {
             if (a->bound) {
                 if (regions[a->label].normalForce(*p, *f, fn)) {
-                    if (fn.isnan() || f->isnan()) {
-                        cout << "NaN Force!" << endl;
-                    }
+                    assert(!fn.isnan());
+                    assert(!f->isnan());
                     *f += fn;
                 }
             }
@@ -1165,6 +1164,9 @@ namespace pi {
         } catch (SettingTypeException& ex) {
             cout << "Setting Type Error" << endl;
             cout << "Path: " << ex.getPath() << endl;
+        } catch (FileIOException& ex) {
+            cout << "File I/O Exception" << endl;
+            cout << "Path: " << ex.what() << endl;
         }
     }
 

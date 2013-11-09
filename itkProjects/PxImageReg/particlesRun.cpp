@@ -1,5 +1,6 @@
 #include "piOptions.h"
 #include "piParticleRunner.h"
+#include "piImageProc.h"
 #include "libconfig.h++"
 
 using namespace pi;
@@ -16,7 +17,14 @@ static void end() {
     exit(EXIT_SUCCESS);
 }
 
-static void particle2mat(StringVector& args) {
+static void die() {
+    exit(EXIT_FAILURE);
+}
+
+static void particle2mat(Options& opts, StringVector& args) {
+    if (!opts.GetBool("--p2mat")) {
+        return;
+    }
     using namespace libconfig;
     Config config;
     config.readFile(args[0].c_str());
@@ -34,18 +42,45 @@ static void particle2mat(StringVector& args) {
     end();
 }
 
+static void doSlice(Options& opts, StringVector& args) {
+    if (!opts.GetBool("--slice")) {
+        return;
+    }
+    if (args.size() < 4) {
+        cout << "--slice dim index imagefile outputfile" << endl;
+        die();
+    }
+    
+    int dim = atoi(args[0].c_str());
+    int slice = atoi(args[1].c_str());
+    
+    ImageIO<RealImage3> io;
+    ImageInfo info;
+    RealImage3::Pointer image = io.ReadCastedImage(args[2], info);
+    RealImage2Vector sliceImages = SliceVolume(image, dim);
+    
+    if (slice < sliceImages.size()) {
+        ImageIO<RealImage2> wio;
+        wio.WriteCastedImage(args[3], sliceImages[slice], info.componenttype);
+    } else {
+        cout << "slice index is out of range" << endl;
+    }
+    end();
+}
+
 int main(int argc, char* argv[]) {
     Options opts;
     opts.addOption("--help", SO_NONE);
     opts.addOption("--p2mat", SO_NONE);
+    opts.addOption("--slice", SO_NONE);
     opts.addOption("--qa", SO_NONE);
     opts.addOption("--config", SO_REQ_SEP);
+
 	opts.ParseOptions(argc, argv, NULL);
 	StringVector& args = opts.GetStringVector("args");
 
-    if (opts.GetBool("--p2mat")) {
-        particle2mat(args);
-    }
+    particle2mat(opts, args);
+    doSlice(opts, args);
     if (opts.GetBool("--qa")) {
         executeQARunner(opts, args);
     } else {
