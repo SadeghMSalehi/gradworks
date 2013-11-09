@@ -73,24 +73,18 @@ int main(int argc, char* argv[]) {
     opts.addOption("--help", SO_NONE);
     opts.addOption("--p2mat", SO_NONE);
     opts.addOption("--slice", SO_NONE);
-<<<<<<< HEAD
     opts.addOption("--qa", SO_NONE);
     opts.addOption("--config", SO_REQ_SEP);
-=======
->>>>>>> c6853f35b3ff2a6bd8f827d1c47b42a6faf7460c
 
 	opts.ParseOptions(argc, argv, NULL);
 	StringVector& args = opts.GetStringVector("args");
 
     particle2mat(opts, args);
     doSlice(opts, args);
-<<<<<<< HEAD
     if (opts.GetBool("--qa")) {
         executeQARunner(opts, args);
     } else {
         executeParticleRunner(opts, args);
     }
-=======
 	executeParticleRunner(opts, args);
->>>>>>> c6853f35b3ff2a6bd8f827d1c47b42a6faf7460c
 }

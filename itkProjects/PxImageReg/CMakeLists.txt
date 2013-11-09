@@ -35,15 +35,11 @@ SET (MY_PARTICLE_WORKS_SOURCES
 	piParticleRunner.h piParticleRunner.cpp 
 	piParticleWarp.h piParticleWarp.cpp 
 	piImageProc.h piImageProc.cpp
-<<<<<<< HEAD
 	piEntropyComputer.h piEntropyComputer.cpp
     
     piImageQA.h piImageQA.cpp
     piImageHistogram.h piImageHistogram.cpp
 )
-=======
-	piEntropyComputer.h piEntropyComputer.cpp)
->>>>>>> c6853f35b3ff2a6bd8f827d1c47b42a6faf7460c
 
 ADD_EXECUTABLE(prun2 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 SET_TARGET_PROPERTIES(prun2 PROPERTIES DEBUG_POSTFIX "d")
