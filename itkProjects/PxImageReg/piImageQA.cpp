@@ -148,7 +148,7 @@ namespace pi {
             // rgb
             for (int k = 0; k < 3; k++) {
                 float labelAlpha = alpha * float(i2[i][3])/255.0;
-                o[i][k] = std::round((1 - alpha) * i1[i][k] + labelAlpha * i2[i][k]);
+                o[i][k] = ::round((1 - alpha) * i1[i][k] + labelAlpha * i2[i][k]);
             }
         }
 
