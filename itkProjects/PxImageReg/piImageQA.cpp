@@ -28,7 +28,7 @@ namespace pi {
     /// execute QA image processing
     void executeQARunner(Options& parser, StringVector& args) {
         if (args.size() < 5) {
-            cout << "--qa input-image input-label axes slice label-alpha output-image [--config config-file]" << endl;
+            cout << "--qa input-image input-label slice axis label-alpha output-image [--config config-file]" << endl;
             return;
         }
 

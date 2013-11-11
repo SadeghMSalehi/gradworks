@@ -86,5 +86,4 @@ int main(int argc, char* argv[]) {
     } else {
         executeParticleRunner(opts, args);
     }
-	executeParticleRunner(opts, args);
 }
