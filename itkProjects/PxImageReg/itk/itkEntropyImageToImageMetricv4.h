@@ -26,6 +26,8 @@
 namespace itk
 {
 
+#pragma mark EntropyImageToImageMetric
+
     /** \class EntropyImageToImageMetricv4
      *
      *  \brief Class implementing normalized entropy metric.
@@ -136,27 +138,28 @@ namespace itk
 
         typename EntropyHelperDenseThreaderType::Pointer  m_HelperDenseThreader;
         typename EntropyHelperSparseThreaderType::Pointer m_HelperSparseThreader;
-        
+
         /* These values are computed during InitializeForIteration(),
          * using the helper class
          * */
         mutable MeasureType m_AverageFix;
         mutable MeasureType m_AverageMov;
-        
+
         /**
          * Covariance matrix
          *
          */
         mutable vnl_vector<MeasureType> m_Averages;
+        mutable vnl_matrix<MeasureType> m_Data;
         mutable vnl_matrix<MeasureType> m_Covariances;
-        
+
         void PrintSelf(std::ostream& os, Indent indent) const;
-        
+
     private:
         EntropyImageToImageMetricv4(const Self &); //purposely not implemented
         void operator = (const Self &); //purposely not implemented
     };
-    
+
 } // end namespace itk
 
 #ifndef ITK_MANUAL_INSTANTIATION

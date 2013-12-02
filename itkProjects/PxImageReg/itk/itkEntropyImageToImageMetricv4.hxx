@@ -20,6 +20,12 @@
 
 #include "itkEntropyImageToImageMetricv4.h"
 
+/**
+ * This class has two separated threaders.
+ * One is used in the initialization step, and another is used in the computation step.
+ * The initialization step computes the covariance matrix and average of intensities.
+ * Once the computation of the inverse of covariance is done, the derivatives are computed from those.
+ */
 namespace itk
 {
 
@@ -67,7 +73,7 @@ namespace itk
         this->m_AverageFix = NumericTraits<MeasureType>::Zero;
         this->m_AverageMov = NumericTraits<MeasureType>::Zero;
 
-        const int nPixels = m_FixedImage->GetPixelContainer()->Size();
+        const int nPixels = 0;
 
         this->m_Averages.set_size(2);
         this->m_Covariances.set_size(2, nPixels);
@@ -92,17 +98,17 @@ namespace itk
         {
             this->m_HelperDenseThreader->Execute( const_cast< Self* >(this), this->GetVirtualRegion() );
         }
-        
+
         /*
          * the results:
          *  this->m_AverageFix
          *  this->m_AverageMov
          * will be stored during helper::AfterThreadedExecution()
          */
-        
-        
+
+
     }
-    
+
 } // end namespace itk
 
 

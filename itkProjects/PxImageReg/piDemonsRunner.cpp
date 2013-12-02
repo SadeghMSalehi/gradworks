@@ -17,6 +17,7 @@
 #include <itkSmoothingRecursiveGaussianImageFilter.h>
 #include <itkVectorResampleImageFilter.h>
 #include <itkWarpImageFilter.h>
+#include <itkWarpVectorImageFilter.h>
 
 using namespace std;
 using namespace libconfig;
@@ -116,7 +117,7 @@ namespace pi {
             gMv++;
             oBuf++;
         }
-        
+
         return flowOutput;
     }
 
@@ -197,7 +198,7 @@ namespace pi {
                 }
 
                 // compute approximated update field
-                coordImage = deformImage(coordImage, velocityImage, targetImage);
+                coordImage = deformVectorImage(coordImage, velocityImage, targetImage);
                 if (fieldSigma > 0) {
                     coordImage = applyGaussian<DisplacementFieldType>(coordImage, fieldSigma);
                 }
@@ -244,18 +245,28 @@ namespace pi {
     }
 
 
-    /// Deform a coordinate image to track the transformation
-    DisplacementFieldType::Pointer DemonsRunner::deformImage(DisplacementFieldType::Pointer input, DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage) {
-        typedef itk::WarpImageFilter<DisplacementFieldType, DisplacementFieldType, DisplacementFieldType> WarpImageFilter;
+    /// As described in the header file, the output pixels are resampled from the input image in according to the given displacement image.
+    ///
+    DisplacementFieldType::Pointer DemonsRunner::deformVectorImage(DisplacementFieldType::Pointer input, DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage) {
+        typedef itk::WarpVectorImageFilter<DisplacementFieldType, DisplacementFieldType, DisplacementFieldType> WarpImageFilter;
 
+        // create an instance of warp image filter
         WarpImageFilter::Pointer warpFilter = WarpImageFilter::New();
         warpFilter->SetInput(input);
         warpFilter->SetDisplacementField(displacement);
+
+        // the output space should be defined in according to the refImage
         warpFilter->SetOutputDirection(refImage->GetDirection());
         warpFilter->SetOutputOrigin(refImage->GetOrigin());
         warpFilter->SetOutputSpacing(refImage->GetSpacing());
-        warpFilter->SetOutputSize(refImage->GetBufferedRegion().GetSize());
+
+        // The LargetPossibleRegion for the output is inherited from the input displacement field.
+        // There is no need to assign output size because it is determined by the displacement field.
+        // This is inconsistent with WarpImageFilter
+        // warpFilter->SetOutputSize(refImage->GetBufferedRegion().GetSize());
         warpFilter->Update();
+
+        // return the produced resampled image
         DisplacementFieldType::Pointer warpedInput = warpFilter->GetOutput();
         warpedInput->DisconnectPipeline();
         return warpedInput;

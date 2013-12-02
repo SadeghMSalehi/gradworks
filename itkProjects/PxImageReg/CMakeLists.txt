@@ -22,37 +22,30 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 LINK_DIRECTORIES(${LOCAL_DIR}/lib)
 
 
-SET (MY_PARTICLE_WORKS_SOURCES 
+SET (MY_PARTICLE_WORKS_SOURCES
     itkARGBColorFunction.h
     itkScalarToARGBColormapImageFilter.h
     itkARGBSliceExtractImageFilter.h itkARGBSliceExtractImageFilter.cpp
 
-	piImageDef.h piImageIO.h piMacros.h
-	piTimer.h piTimer.cpp  
-	piOptions.cpp piOptions.h 
-	piConfigFile.h piConfigFile.cpp 
-	piPx.h piPx.cpp
-	piParticleRunner.h piParticleRunner.cpp 
-	piParticleWarp.h piParticleWarp.cpp 
-	piImageProc.h piImageProc.cpp
-	piEntropyComputer.h piEntropyComputer.cpp
-    
+    piImageDef.h piImageIO.h piMacros.h
+    piTimer.h piTimer.cpp
+    piOptions.cpp piOptions.h
+    piConfigFile.h piConfigFile.cpp
+    piPx.h piPx.cpp
+    piParticleRunner.h piParticleRunner.cpp
+    piParticleWarp.h piParticleWarp.cpp
+    piImageProc.h piImageProc.cpp
+    piEntropyComputer.h piEntropyComputer.cpp
+
     piImageQA.h piImageQA.cpp
     piImageHistogram.h piImageHistogram.cpp
-    
+
 # Demons Runner
     piDemonsRunner.h piDemonsRunner.cpp
-    
+
 # Metric Evaluation
     piImageRxRunner.h piImageRxRunner.cpp
-
-# EntropyMetric for itk framework
-	itk/itkEntropyImageToImageMetricv4.h
-	itk/itkEntropyImageToImageMetricv4.hxx
-	itk/itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.h
-	itk/itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.hxx
-	itk/itkEntropyImageToImageMetricv4HelperThreader.h
-	itk/itkEntropyImageToImageMetricv4HelperThreader.hxx
+    piMovingImage.h piMovingImage.cpp
 )
 
 ADD_EXECUTABLE(prun2 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})

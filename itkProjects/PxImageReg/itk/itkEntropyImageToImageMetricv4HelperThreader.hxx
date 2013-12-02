@@ -26,56 +26,60 @@ template<class TDomainPartitioner, class TImageToImageMetric, class TEntropyMetr
 void EntropyImageToImageMetricv4HelperThreader< TDomainPartitioner, TImageToImageMetric, TEntropyMetric>
 ::BeforeThreadedExecution()
 {
-   Superclass::BeforeThreadedExecution();
+    Superclass::BeforeThreadedExecution();
 
-  /* Store the casted pointer to avoid dynamic casting in tight loops. */
-  this->m_EntropyAssociate = dynamic_cast<TEntropyMetric *>(this->m_Associate);
+    /* Store the casted pointer to avoid dynamic casting in tight loops. */
+    this->m_EntropyAssociate = dynamic_cast<TEntropyMetric *>(this->m_Associate);
 
-   this->m_FixSumPerThread.resize(this->GetNumberOfThreadsUsed());
-   this->m_MovSumPerThread.resize(this->GetNumberOfThreadsUsed());
+    this->m_FixSumPerThread.resize(this->GetNumberOfThreadsUsed());
+    this->m_MovSumPerThread.resize(this->GetNumberOfThreadsUsed());
 
     //---------------------------------------------------------------
     // Set initial values.
     for (ThreadIdType i = 0; i < this->GetNumberOfThreadsUsed(); i++)
-      {
-      this->m_FixSumPerThread[i] = NumericTraits<InternalComputationValueType>::Zero;
-      this->m_MovSumPerThread[i] = NumericTraits<InternalComputationValueType>::Zero;
-      }
+    {
+        this->m_FixSumPerThread[i] = NumericTraits<InternalComputationValueType>::Zero;
+        this->m_MovSumPerThread[i] = NumericTraits<InternalComputationValueType>::Zero;
+    }
+
+    // Allocate data matrix and fill the variable with intensity values
+
+    this->m_EntropyAssociate->GetVirtualRegion();
 
 }
 
 template<class TDomainPartitioner, class TImageToImageMetric, class TEntropyMetric>
 void
 EntropyImageToImageMetricv4HelperThreader<TDomainPartitioner,
-    TImageToImageMetric, TEntropyMetric>::AfterThreadedExecution()
+TImageToImageMetric, TEntropyMetric>::AfterThreadedExecution()
 {
 
-  /* Store the number of valid points the enclosing class \c
+    /* Store the number of valid points the enclosing class \c
    * m_NumberOfValidPoints by collecting the valid points per thread. */
-  this->m_EntropyAssociate->m_NumberOfValidPoints = NumericTraits<SizeValueType>::Zero;
+    this->m_EntropyAssociate->m_NumberOfValidPoints = NumericTraits<SizeValueType>::Zero;
 
-  for (ThreadIdType i = 0; i < this->GetNumberOfThreadsUsed(); i++)
+    for (ThreadIdType i = 0; i < this->GetNumberOfThreadsUsed(); i++)
     {
-    this->m_EntropyAssociate->m_NumberOfValidPoints += this->m_NumberOfValidPointsPerThread[i];
+        this->m_EntropyAssociate->m_NumberOfValidPoints += this->m_NumberOfValidPointsPerThread[i];
     }
 
-  if (this->m_EntropyAssociate->m_NumberOfValidPoints <= 0 )
+    if (this->m_EntropyAssociate->m_NumberOfValidPoints <= 0 )
     {
-    itkWarningMacro("collected only zero points");
-    return;
+        itkWarningMacro("collected only zero points");
+        return;
     }
 
-  InternalComputationValueType sumF = NumericTraits<InternalComputationValueType>::Zero;
-  InternalComputationValueType sumM = NumericTraits<InternalComputationValueType>::Zero;
+    InternalComputationValueType sumF = NumericTraits<InternalComputationValueType>::Zero;
+    InternalComputationValueType sumM = NumericTraits<InternalComputationValueType>::Zero;
 
-  for (size_t i = 0; i < this->m_MeasurePerThread.size(); i++)
+    for (size_t i = 0; i < this->m_MeasurePerThread.size(); i++)
     {
-    sumF += this->m_FixSumPerThread[i];
-    sumM += this->m_MovSumPerThread[i];
+        sumF += this->m_FixSumPerThread[i];
+        sumM += this->m_MovSumPerThread[i];
     }
 
-  this->m_EntropyAssociate->m_AverageFix = sumF / this->m_EntropyAssociate->m_NumberOfValidPoints;
-  this->m_EntropyAssociate->m_AverageMov = sumM / this->m_EntropyAssociate->m_NumberOfValidPoints;
+    this->m_EntropyAssociate->m_AverageFix = sumF / this->m_EntropyAssociate->m_NumberOfValidPoints;
+    this->m_EntropyAssociate->m_AverageMov = sumM / this->m_EntropyAssociate->m_NumberOfValidPoints;
 }
 
 template<class TDomainPartitioner, class TImageToImageMetric, class TEntropyMetric>
@@ -84,68 +88,68 @@ EntropyImageToImageMetricv4HelperThreader<TDomainPartitioner,
 TImageToImageMetric, TEntropyMetric>
 ::ProcessVirtualPoint( const VirtualIndexType & itkNotUsed(virtualIndex), const VirtualPointType & virtualPoint, const ThreadIdType threadID )
 {
-  FixedOutputPointType        mappedFixedPoint;
-  FixedImagePixelType         mappedFixedPixelValue;
-  MovingOutputPointType       mappedMovingPoint;
-  MovingImagePixelType        mappedMovingPixelValue;
-  bool                        pointIsValid = false;
+    FixedOutputPointType        mappedFixedPoint;
+    FixedImagePixelType         mappedFixedPixelValue;
+    MovingOutputPointType       mappedMovingPoint;
+    MovingImagePixelType        mappedMovingPixelValue;
+    bool                        pointIsValid = false;
 
-  /* Transform the point into fixed and moving spaces, and evaluate.
+    /* Transform the point into fixed and moving spaces, and evaluate.
    * Different behavior with pre-warping enabled is handled transparently.
    * Do this in a try block to catch exceptions and print more useful info
    * then we otherwise get when exceptions are caught in MultiThreader. */
-  try
+    try
     {
-    pointIsValid = this->m_EntropyAssociate->TransformAndEvaluateFixedPoint( virtualPoint, mappedFixedPoint, mappedFixedPixelValue );
+        pointIsValid = this->m_EntropyAssociate->TransformAndEvaluateFixedPoint( virtualPoint, mappedFixedPoint, mappedFixedPixelValue );
     }
-  catch( ExceptionObject & exc )
+    catch( ExceptionObject & exc )
     {
-    //NOTE: there must be a cleaner way to do this:
-    std::string msg("Caught exception: \n");
-    msg += exc.what();
-    ExceptionObject err(__FILE__, __LINE__, msg);
-    throw err;
+        //NOTE: there must be a cleaner way to do this:
+        std::string msg("Caught exception: \n");
+        msg += exc.what();
+        ExceptionObject err(__FILE__, __LINE__, msg);
+        throw err;
     }
-  if( !pointIsValid )
+    if( !pointIsValid )
     {
+        return pointIsValid;
+    }
+
+    try
+    {
+        pointIsValid = this->m_EntropyAssociate->TransformAndEvaluateMovingPoint( virtualPoint, mappedMovingPoint, mappedMovingPixelValue );
+    }
+    catch( ExceptionObject & exc )
+    {
+        std::string msg("Caught exception: \n");
+        msg += exc.what();
+        ExceptionObject err(__FILE__, __LINE__, msg);
+        throw err;
+    }
+    if( !pointIsValid )
+    {
+        return pointIsValid;
+    }
+
+    /* Do the specific calculations for values */
+    try
+    {
+        this->m_FixSumPerThread[threadID] += mappedFixedPixelValue;
+        this->m_MovSumPerThread[threadID] += mappedMovingPixelValue;
+    }
+    catch( ExceptionObject & exc )
+    {
+        std::string msg("Exception in ProcessVirtualPoint:\n");
+        msg += exc.what();
+        ExceptionObject err(__FILE__, __LINE__, msg);
+        throw err;
+    }
+    if( pointIsValid )
+    {
+        this->m_NumberOfValidPointsPerThread[threadID]++;
+    }
+
     return pointIsValid;
-    }
-
-  try
-    {
-    pointIsValid = this->m_EntropyAssociate->TransformAndEvaluateMovingPoint( virtualPoint, mappedMovingPoint, mappedMovingPixelValue );
-    }
-  catch( ExceptionObject & exc )
-    {
-    std::string msg("Caught exception: \n");
-    msg += exc.what();
-    ExceptionObject err(__FILE__, __LINE__, msg);
-    throw err;
-    }
-  if( !pointIsValid )
-    {
-    return pointIsValid;
-    }
-
-  /* Do the specific calculations for values */
-  try
-    {
-    this->m_FixSumPerThread[threadID] += mappedFixedPixelValue;
-    this->m_MovSumPerThread[threadID] += mappedMovingPixelValue;
-    }
-  catch( ExceptionObject & exc )
-    {
-    std::string msg("Exception in ProcessVirtualPoint:\n");
-    msg += exc.what();
-    ExceptionObject err(__FILE__, __LINE__, msg);
-    throw err;
-    }
-  if( pointIsValid )
-    {
-    this->m_NumberOfValidPointsPerThread[threadID]++;
-    }
-
-  return pointIsValid;
 }
 } // end namespace itk
 

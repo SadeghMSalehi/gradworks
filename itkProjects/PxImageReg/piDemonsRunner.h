@@ -27,7 +27,13 @@ namespace pi {
 
         RealImage::Pointer deformImage(RealImage::Pointer input, DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage);
 
-        DisplacementFieldType::Pointer deformImage(DisplacementFieldType::Pointer input, DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage);
+        /// Warp a vector image in according to the displacement image
+        /// The displacement image defines a mapping from the output image coordinates to the input image coordinates.
+        /// The mapping is linear so that x_i = x_o + d(x_o)
+        /// The output pixel is resampled from the corresponding input point: p(x_o) = p(x_o + d(x_o)).
+        DisplacementFieldType::Pointer deformVectorImage(
+            DisplacementFieldType::Pointer input,
+            DisplacementFieldType::Pointer displacement, RealImage::Pointer refImage);
 
         /// Compute an intermediate image to record the transformed coordinate
         ///
