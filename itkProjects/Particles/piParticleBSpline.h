@@ -126,7 +126,7 @@ namespace pi {
         typename R::DirectionType imageDirection = refImage->GetDirection();
 
 
-        m_ControlPointSpacing = 2;
+        m_ControlPointSpacing = 10;
 
         for (int i = 0; i < imageSize.GetSizeDimension(); i++) {
             numControlPoints[i] = imageSize[i] / m_ControlPointSpacing + splineOrder;

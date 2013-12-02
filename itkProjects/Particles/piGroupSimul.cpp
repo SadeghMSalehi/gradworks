@@ -91,7 +91,10 @@ namespace pi {
         initParticles();
 
         // test trainer
-        testTrainer();
+        bool runTrainer = false;
+        if (runTrainer) {
+            testTrainer();
+        }
     }
 
     void GroupSimul::testTrainer() {

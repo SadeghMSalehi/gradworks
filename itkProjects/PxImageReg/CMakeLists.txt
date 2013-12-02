@@ -39,6 +39,20 @@ SET (MY_PARTICLE_WORKS_SOURCES
     
     piImageQA.h piImageQA.cpp
     piImageHistogram.h piImageHistogram.cpp
+    
+# Demons Runner
+    piDemonsRunner.h piDemonsRunner.cpp
+    
+# Metric Evaluation
+    piImageRxRunner.h piImageRxRunner.cpp
+
+# EntropyMetric for itk framework
+	itk/itkEntropyImageToImageMetricv4.h
+	itk/itkEntropyImageToImageMetricv4.hxx
+	itk/itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.h
+	itk/itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.hxx
+	itk/itkEntropyImageToImageMetricv4HelperThreader.h
+	itk/itkEntropyImageToImageMetricv4HelperThreader.hxx
 )
 
 ADD_EXECUTABLE(prun2 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})

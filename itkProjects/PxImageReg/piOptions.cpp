@@ -222,6 +222,9 @@ namespace pi {
 				_specs.push_back(endOption);
 			}
 			optionSpecs = &_specs[0];
+            for (int i = 0; i < _specs.size(); i++) {
+                optionSpecs[i].pszArg = _specNames[i].c_str();
+            }
         }
 
         CSimpleOpt args(argc, argv, optionSpecs);
@@ -395,8 +398,35 @@ namespace pi {
 		opt.nId = _specs.size();
 		opt.pszArg = _specNames.back().c_str();
 		opt.nArgType = (_ESOArgType) argType;
-		_specs.insert(_specs.begin(), opt);
+		_specs.push_back(opt);
 	}
+
+    void Options::addOption(std::string name, string help, int argType) {
+		_specNames.push_back(name);
+
+		CSimpleOpt::SOption opt;
+		opt.nId = _specs.size();
+		opt.pszArg = _specNames.back().c_str();
+		opt.nArgType = (_ESOArgType) argType;
+        _specs.push_back(opt);
+
+        std::pair<StringMap::iterator, bool> result = _specHelpMessages.insert(StringPair(name, help));
+        if (!result.second) {
+            result.first->second = help;
+        }
+	}
+
+    std::string Options::GetOptionHelp(std::string name) {
+        if (_specHelpMessages.find(name) == _specHelpMessages.end()) {
+            return "";
+        } else {
+            return _specHelpMessages.at(name);
+        }
+    }
+
+    StringVector& Options::GetOptionNames() {
+        return _specNames;
+    }
 
     void Options::main(Options& opts, StringVector& args) {
     }

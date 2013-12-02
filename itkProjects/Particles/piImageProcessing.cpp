@@ -57,8 +57,8 @@ namespace pi {
     typedef itk::EllipseSpatialObject<__Dim> EllipseType;
     typedef itk::SpatialObjectToImageFilter<EllipseType, LabelImage> SpatialObjectToImageFilterType;
 
-    ImageIO<RealImage> __realIO;
-    ImageIO<LabelImage> __labelIO;
+    static ImageIO<RealImage> __realIO;
+    static ImageIO<LabelImage> __labelIO;
 
 #if DIMENSIONS == 3
     typedef itk::Mesh<PointReal> MeshType;

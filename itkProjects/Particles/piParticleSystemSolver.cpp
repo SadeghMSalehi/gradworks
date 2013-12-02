@@ -623,6 +623,8 @@ namespace pi {
     //
     //
     int ParticleSystemSolver::RunStep() {
+        bool boundaryFirstOnly = true;
+
         ParticleSystem& system = m_System;
 
         const int nSubz = system.GetNumberOfSubjects();
@@ -642,7 +644,11 @@ namespace pi {
                 forfill(pi.f, 0);
             }
             if (!noBoundary) {
-                collisionHandlers[n].ConstrainPoint(m_System[n]);
+                // for the case where the second image has no boundary
+                if (!boundaryFirstOnly || (boundaryFirstOnly && n == 0)) {
+                    collisionHandlers[n].ConstrainPoint(m_System[n]);
+                    cout << n << endl;
+                }
             }
             m_System[n].ComputeDensity();
         }
@@ -698,9 +704,16 @@ namespace pi {
         // if the energy is reduced, do system update
         for (int n = 0; n < nSubz; n++) {
             ParticleSubject& sub = subs[n];
+
+            
             if (!noBoundary) {
-                collisionHandlers[n].ProjectForceAndVelocity(sub);
+                // for the case where the second image has no boundary
+                if (!boundaryFirstOnly || (boundaryFirstOnly && n == 0)) {
+                    collisionHandlers[n].ProjectForceAndVelocity(sub);
+                    cout << n << endl;
+                }
             }
+
             for (int i = 0; i < nPoints; i++) {
                 Particle& p = sub[i];
                 LabelImage::IndexType pIdx;

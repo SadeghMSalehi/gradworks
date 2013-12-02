@@ -100,6 +100,17 @@ namespace pi {
         static StringVector Split(std::string str, std::string tok);
 
 		void addOption(std::string name, int argType);
+		void addOption(std::string name, std::string help, int argType);
+
+        /// return a help message for an option name
+        /// \param name option name
+        /// \return help message for a given option name
+        std::string GetOptionHelp(std::string name);
+
+        /// return specNames
+        /// \return a StringVector contains all option names
+        StringVector& GetOptionNames();
+
 
         /// main function for test
         void main(Options& opts, StringVector& args);
@@ -107,6 +118,7 @@ namespace pi {
     private:
         StringVector _specNames;
 		OptionSpecs _specs;
+        StringMap _specHelpMessages;
 
         BoolMap _boolMap;
         StringMap _stringMap;
