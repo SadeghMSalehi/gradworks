@@ -53,6 +53,7 @@ namespace pi {
                 return;
             }
             cout << realCaller->GetCurrentIteration() << ": " << realCaller->GetCurrentPosition() << endl;
+            realCaller->Print(cout);
         }
 
         /**
@@ -168,7 +169,7 @@ namespace pi {
         // set up cost functions
         // the parameters are different for each cost function
 
-#define USE_ENT
+#define USE_MSQ
 
 #ifdef USE_MSQ
         typedef itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage> CostFunctionType;
