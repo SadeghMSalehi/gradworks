@@ -191,12 +191,22 @@ namespace pi {
         }
         
         ImagePointer CopyImage(ImagePointer src) {
-            typename itk::ImageDuplicator<T>::Pointer dub = itk::ImageDuplicator<T>::New();
-            dub->SetInputImage(src);
-            dub->Update();
-			ImagePointer output = dub->GetOutput();
-            output->DisconnectPipeline();
-            return output;
+            if (src->GetBufferPointer() == NULL) {
+                ImagePointer newImage = T::New();
+                newImage->SetRegions(src->GetBufferedRegion());
+                newImage->SetSpacing(src->GetSpacing());
+                newImage->SetOrigin(src->GetOrigin());
+                newImage->SetDirection(src->GetDirection());
+                newImage->Allocate();
+                return newImage;
+            } else {
+                typename itk::ImageDuplicator<T>::Pointer dub = itk::ImageDuplicator<T>::New();
+                dub->SetInputImage(src);
+                dub->Update();
+                ImagePointer output = dub->GetOutput();
+                output->DisconnectPipeline();
+                return output;
+            }
 		}
         
         ImagePointer ReadImage(std::string filename) {

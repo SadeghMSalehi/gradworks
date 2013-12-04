@@ -154,6 +154,7 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
                 return;
             }
             cout << realCaller->GetCurrentIteration() << ": " << realCaller->GetCurrentPosition() << endl;
+            realCaller->Print(cout);
         }
 
         /**

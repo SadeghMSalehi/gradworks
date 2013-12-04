@@ -146,12 +146,26 @@ namespace itk
         mutable MeasureType m_AverageMov;
 
         /**
-         * Covariance matrix
+         * Covariance matrix and its inverse
          *
          */
-        mutable vnl_vector<MeasureType> m_Averages;
-        mutable vnl_matrix<MeasureType> m_Data;
-        mutable vnl_matrix<MeasureType> m_Covariances;
+        mutable vnl_matrix<double> m_Covariance, m_InverseCovariance;
+
+        // declar MarkImageType which takes bool type as a pixel
+        typedef Image<bool,VirtualImageType::ImageDimension> MarkImageType;
+
+        // each pixel of m_Mark indicates the pixel overlaps across images or not
+        // the covariance is computed only for the valid pixel
+        mutable typename MarkImageType::Pointer m_Mark;
+
+        // m_Data contains image data averaged across the fixed image and the moving images.
+        mutable std::vector<typename VirtualImageType::Pointer> m_Data;
+
+        // Allocate memory to store data
+        void AllocateData() const;
+        
+        // Compute covariance matrix after collecting data
+        void ComputeCovariance(int iter);
 
         void PrintSelf(std::ostream& os, Indent indent) const;
 
