@@ -10,6 +10,7 @@
 #include "piOptions.h"
 #include "piImageIO.h"
 #include "piImageDef.h"
+#include "piImageProc.h"
 
 #include <itkEuler2DTransform.h>
 #include <itkEuler3DTransform.h>
@@ -27,6 +28,106 @@ namespace pi {
         exit(0);
     }
 
+
+#pragma mark MovingImage Implementations
+    MovingImage::MovingImage()
+    {
+        _transform = NULL;
+    }
+
+    void MovingImage::setImage(RealImage::Pointer image) {
+        _image = image;
+
+        // use the half size of spacing as a sigma
+        double sigma = _image->GetSpacing()[0] / 2.0;
+
+        // compute the gradient image using ImageProc
+        _gradientImage = ComputeGaussianGradient(_image, sigma);
+
+        // set up interpolators
+        _intensityInterpolator = itk::LinearInterpolateImageFunction<RealImage>::New();
+        _intensityInterpolator->SetInputImage(_image);
+
+        _gradientInterpolator = itk::VectorLinearInterpolateImageFunction<GradientImage>::New();
+        _gradientInterpolator->SetInputImage(_gradientImage);
+    }
+
+    RealImage::PixelType MovingImage::samplePixel(RealImage::PointType fixedPoint, bool& isValidPixel) {
+        // first compute the transformed point at this moving image
+        if (_transform) {
+            RealImage::PointType movingPoint = _transform->TransformPoint(fixedPoint);
+            if (_intensityInterpolator->IsInsideBuffer(movingPoint)) {
+                isValidPixel = true;
+                return _intensityInterpolator->Evaluate(movingPoint);
+            } else {
+                // if the moving point is outside of the image buffer
+                // the return pixel is not defined
+                isValidPixel = false;
+                return 0;
+            }
+        } else {
+            return _intensityInterpolator->Evaluate(fixedPoint);
+        }
+    }
+
+
+    GradientImage::PixelType MovingImage::sampleGradient(RealImage::PointType fixedPoint, bool& isValidPixel) {
+        // first compute the transformed point at this moving image
+        if (_transform) {
+            RealImage::PointType movingPoint = _transform->TransformPoint(fixedPoint);
+            if (_gradientInterpolator->IsInsideBuffer(movingPoint)) {
+                isValidPixel = true;
+                return _gradientInterpolator->Evaluate(movingPoint);
+            } else {
+                // if the moving point is outside of the image buffer
+                // the return gradient is not defined
+                isValidPixel = false;
+                return GradientImage::PixelType();
+            }
+        } else {
+            return _gradientInterpolator->Evaluate(fixedPoint);
+        }
+    }
+
+    // set a transform instance
+    void MovingImage::setTransform(TransformType *transform) {
+        _transform = transform;
+    }
+
+    // provide parameters to the transform instance
+    void MovingImage::setTransformParameters(TransformType::ParametersType params) {
+        if (_transform) {
+            _transform->SetParameters(params);
+        }
+    }
+
+
+#pragma mark EntropyImageMetric Implementations
+void EntropyImageMetric::setFixedImage(RealImage::Pointer image) {
+    // the fixedImage will not have transform
+    _fixedImage.setImage(image);
+}
+
+void EntropyImageMetric::addMovingImage(RealImage::Pointer image, TransformType* transform, TransformType::ParametersType& params) {
+    // the movingImage will have its own transform and its initial parameters
+    MovingImage movingImage;
+    movingImage.setImage(image);
+    movingImage.setTransform(transform);
+    movingImage.setTransformParameters(params);
+
+    // add to moving image vectors so that additional images can be added
+    _movingImages.push_back(movingImage);
+}
+
+double EntropyImageMetric::GetValue() const {
+    // get value will return \log \det (Covariance)
+    return 0;
+}
+
+void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &deriv) const {
+    // compute value and its derivatives
+    return;
+}
 
 
 #pragma mark OptimizerProgress Listener
@@ -70,6 +171,8 @@ namespace pi {
         OptimizerProgress(const Self &);
         void operator=(const Self &);
     };
+
+
 
 
 #pragma mark Registration Functions
@@ -168,7 +271,7 @@ namespace pi {
         // set up cost functions
         // the parameters are different for each cost function
 
-#define USE_ENT
+#define USE_MSQ
 
 #ifdef USE_MSQ
         typedef itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage> CostFunctionType;
@@ -176,9 +279,7 @@ namespace pi {
 #ifdef USE_CC
         typedef itk::CorrelationImageToImageMetricv4<RealImage, RealImage> CostFunctionType;
 #endif
-#ifdef USE_ENT
-        typedef itk::EntropyImageToImageMetricv4<RealImage,RealImage> CostFunctionType;
-#endif
+
 
         CostFunctionType::Pointer costFunc;
         costFunc = CostFunctionType::New();

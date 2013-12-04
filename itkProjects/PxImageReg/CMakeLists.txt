@@ -45,7 +45,6 @@ SET (MY_PARTICLE_WORKS_SOURCES
 
 # Metric Evaluation
     piImageRxRunner.h piImageRxRunner.cpp
-    piMovingImage.h piMovingImage.cpp
 )
 
 ADD_EXECUTABLE(prun2 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
