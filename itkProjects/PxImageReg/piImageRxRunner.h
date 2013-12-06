@@ -18,19 +18,21 @@
 
 namespace pi {
     /**
-     * @brief The MovingImage class
+     * @brief The TransformingImage class
      *
      * This class encapsulates the moving image.
      * The moving image changes its coordinate space depending on the transformation.
      * Since most similarity metrics requires the computation of derivatives,
      * this class supports functions to sample not only pixel values but also gradient values.
      */
-    class MovingImage
+    class TransformingImage
     {
     public:
-        typedef std::vector<MovingImage> Vector;
+        typedef std::vector<TransformingImage> Vector;
+        typedef itk::LinearInterpolateImageFunction<RealImage> IntensityInterpolator;
+        typedef itk::VectorLinearInterpolateImageFunction<GradientImage> GradientInterpolator;
 
-        MovingImage();
+        TransformingImage();
 
         // set a real-valued intensity image
         void setImage(RealImage::Pointer image);
@@ -46,14 +48,30 @@ namespace pi {
 
         // sample the gradient value for the given fixed physical point
         GradientImage::PixelType sampleGradient(RealImage::PointType fixedPoint, bool& isValidPixel);
+        
+
+        // resample the moving image into the fixed image frame
+        RealImage::Pointer getResampledImage(RealImage::Pointer fixedImage);
+
+
+        // inline functions
+        inline TransformType* getTransform() {
+            return _transform;
+        }
+
+        inline RealImage::Pointer getImage() { return _image; }
+
+        inline IntensityInterpolator::Pointer getInterpolator() {
+            return _intensityInterpolator;
+        }
+
 
     public:
         RealImage::Pointer _image;
         GradientImage::Pointer _gradientImage;
-        itk::LinearInterpolateImageFunction<RealImage>::Pointer _intensityInterpolator;
-        itk::VectorLinearInterpolateImageFunction<GradientImage>::Pointer _gradientInterpolator;
+        IntensityInterpolator::Pointer _intensityInterpolator;
+        GradientInterpolator::Pointer _gradientInterpolator;
         TransformType* _transform;
-
     };
 
 
@@ -72,8 +90,8 @@ namespace pi {
         virtual void GetValueAndDerivative(double& value, DerivativeType& deriv) const;
 
     private:
-        MovingImage _fixedImage;
-        MovingImage::Vector _movingImages;
+        TransformingImage _fixedImage;
+        TransformingImage::Vector _movingImages;
     };
 
 

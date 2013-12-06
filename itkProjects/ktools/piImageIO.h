@@ -21,6 +21,11 @@
 #include "iostream"
 #include "vector"
 
+#ifndef DIMENSIONS
+#define DIMENSIONS 3
+#endif
+
+#define EXIT_IGNORE 2
 
 using namespace std;
 
@@ -95,7 +100,7 @@ namespace pi {
 		}
        	bool FileExists(const char* fileName) {
 			ifstream ifile(fileName);
-			return ifile != NULL;
+			return ifile.is_open();
 		}
 
 
@@ -137,6 +142,17 @@ namespace pi {
 			return newImage;
 		}
 
+        template<typename S>
+        ImagePointer NewImageS(typename S::Pointer image) {
+			ImagePointer newImage = T::New();
+            newImage->SetRegions(image->GetBufferedRegion());
+            newImage->SetSpacing(image->GetSpacing());
+            newImage->SetOrigin(image->GetOrigin());
+            newImage->SetDirection(image->GetDirection());
+            newImage->Allocate();
+            return newImage;
+        }
+
 		ImagePointer NewImageT(int sx, int sy, int sz) {
 			ImagePointer newImage = T::New();
 			ImageSize size;
@@ -154,6 +170,7 @@ namespace pi {
             output->FillBuffer(0);
             return output;
         }
+
 
         ImagePointer WrapImage(typename T::PixelType* imagePointer, int *size) {
             int nElems = 1;
@@ -174,12 +191,22 @@ namespace pi {
         }
         
         ImagePointer CopyImage(ImagePointer src) {
-            typename itk::ImageDuplicator<T>::Pointer dub = itk::ImageDuplicator<T>::New();
-            dub->SetInputImage(src);
-            dub->Update();
-			ImagePointer output = dub->GetOutput();
-            output->DisconnectPipeline();
-            return output;
+            if (src->GetBufferPointer() == NULL) {
+                ImagePointer newImage = T::New();
+                newImage->SetRegions(src->GetBufferedRegion());
+                newImage->SetSpacing(src->GetSpacing());
+                newImage->SetOrigin(src->GetOrigin());
+                newImage->SetDirection(src->GetDirection());
+                newImage->Allocate();
+                return newImage;
+            } else {
+                typename itk::ImageDuplicator<T>::Pointer dub = itk::ImageDuplicator<T>::New();
+                dub->SetInputImage(src);
+                dub->Update();
+                ImagePointer output = dub->GetOutput();
+                output->DisconnectPipeline();
+                return output;
+            }
 		}
         
         ImagePointer ReadImage(std::string filename) {
@@ -214,7 +241,6 @@ namespace pi {
         }
         ImagePointer ReadCastedImage(std::string inputFilename, ImageInfo& type) {
             if (!FileExists(inputFilename.c_str())) {
-                cout << "File not exist! (" << inputFilename << endl;
                 return ImagePointer();
             }
 
@@ -480,7 +506,7 @@ namespace pi {
         template <typename S>
         bool WriteImageS(std::string filename, typename S::Pointer img) {
             if (!__noverbose) {
-                cout << "Writing " << filename << flush;
+                cout << "Writing '" << filename << flush;
             }
             typename itk::ImageFileWriter<S>::Pointer writer = itk::ImageFileWriter<S>::New();
             writer->SetFileName(filename.c_str());
@@ -488,7 +514,7 @@ namespace pi {
             writer->UseCompressionOn();
             writer->Write();
             if (!__noverbose) {
-                cout << " .. done " << endl;
+                cout << "' done " << endl;
             }
             return true;
         }

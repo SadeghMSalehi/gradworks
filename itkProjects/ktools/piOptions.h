@@ -15,6 +15,7 @@
 #include <string>
 #include "SimpleOpt.h"
 
+
 /**
  * Todo
  * 
@@ -38,6 +39,8 @@ namespace pi {
     typedef std::vector<OptionReal> RealVector;
     typedef std::vector<int> IntVector;
     typedef std::vector<char> CharVector;
+    typedef std::vector<double> DoubleVector;
+	typedef std::vector<CSimpleOpt::SOption> OptionSpecs;
     
     class Options {
     private:
@@ -82,6 +85,7 @@ namespace pi {
         StringVector& GetStringVector(std::string name);
         std::string GetStringVectorValue(std::string name, int i, std::string def = "");
         StringVector GetSplitString(std::string name, std::string tok, std::string def = "");
+        IntVector GetStringAsIntVector(std::string name);        
         
         RealVector& GetRealVector(std::string name);
         OptionReal GetRealVectorValue(std::string name, int nth, OptionReal def = 0);
@@ -89,10 +93,33 @@ namespace pi {
         IntVector& GetIntVector(std::string name);
         int GetIntVectorValue(std::string name, int nth, int def = 0);
 
+
+        std::string GetConfigFile();
+
         StringVector& ParseOptions(int argc, char* argv[], CSimpleOpt::SOption*);
         static StringVector Split(std::string str, std::string tok);
 
+		void addOption(std::string name, int argType);
+		void addOption(std::string name, std::string help, int argType);
+
+        /// return a help message for an option name
+        /// \param name option name
+        /// \return help message for a given option name
+        std::string GetOptionHelp(std::string name);
+
+        /// return specNames
+        /// \return a StringVector contains all option names
+        StringVector& GetOptionNames();
+
+
+        /// main function for test
+        void main(Options& opts, StringVector& args);
+
     private:
+        StringVector _specNames;
+		OptionSpecs _specs;
+        StringMap _specHelpMessages;
+
         BoolMap _boolMap;
         StringMap _stringMap;
         IntMap _intMap;

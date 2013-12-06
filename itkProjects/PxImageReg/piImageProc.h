@@ -28,6 +28,7 @@ namespace pi {
 
     /// allocate three dimensional image to store multiple 2d images
     LabelImage3::Pointer CreateImage3(LabelImage::Pointer refImage, int m);
+
     
     /// extract a slice of a volume
     /// @param volume RealImage3

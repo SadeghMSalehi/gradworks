@@ -197,15 +197,36 @@ namespace pi {
         }
         return def;
     }
+
+    std::string Options::GetConfigFile() {
+        if (GetString("--config") != "") {
+            return GetString("--config");
+        } else {
+            bool hasConfigFile = false;
+            ifstream in("config.txt");
+            hasConfigFile = in.is_open();
+            in.close();
+            if (hasConfigFile) {
+                return string("config.txt");
+            }
+        }
+        return "";
+    }
     
 
     StringVector& Options::ParseOptions(int argc, char* argv[], CSimpleOpt::SOption* optionSpecs) {
-        CSimpleOpt::SOption defaultSpecs[] = {
-            SO_END_OF_OPTIONS
-        };
+        const CSimpleOpt::SOption endOption= { -1, NULL, SO_NONE };
+
         if (optionSpecs == NULL) {
-            optionSpecs = defaultSpecs;
+			if (_specs.size() == 0 || _specs.back().nId > -1) {
+				_specs.push_back(endOption);
+			}
+			optionSpecs = &_specs[0];
+            for (int i = 0; i < _specs.size(); i++) {
+                optionSpecs[i].pszArg = _specNames[i].c_str();
+            }
         }
+
         CSimpleOpt args(argc, argv, optionSpecs);
         while (args.Next()) {
             if (args.LastError() == SO_SUCCESS) {
@@ -361,6 +382,54 @@ namespace pi {
         return Split(val, tok);
     }
 
+    IntVector Options::GetStringAsIntVector(std::string name) {
+        StringVector data = GetSplitString(name, ",");
+        IntVector intVector;
+        for (int i = 0; i < data.size(); i++) {
+            intVector.push_back(atoi(data[i].c_str()));
+        }
+        return intVector;
+    }
+
+
+	void Options::addOption(std::string name, int argType) {
+		_specNames.push_back(name);
+		CSimpleOpt::SOption opt;
+		opt.nId = _specs.size();
+		opt.pszArg = _specNames.back().c_str();
+		opt.nArgType = (_ESOArgType) argType;
+		_specs.push_back(opt);
+	}
+
+    void Options::addOption(std::string name, string help, int argType) {
+		_specNames.push_back(name);
+
+		CSimpleOpt::SOption opt;
+		opt.nId = _specs.size();
+		opt.pszArg = _specNames.back().c_str();
+		opt.nArgType = (_ESOArgType) argType;
+        _specs.push_back(opt);
+
+        std::pair<StringMap::iterator, bool> result = _specHelpMessages.insert(StringPair(name, help));
+        if (!result.second) {
+            result.first->second = help;
+        }
+	}
+
+    std::string Options::GetOptionHelp(std::string name) {
+        if (_specHelpMessages.find(name) == _specHelpMessages.end()) {
+            return "";
+        } else {
+            return _specHelpMessages.at(name);
+        }
+    }
+
+    StringVector& Options::GetOptionNames() {
+        return _specNames;
+    }
+
+    void Options::main(Options& opts, StringVector& args) {
+    }
 
     //////////////////////////////////////////////////////////////////////////////////////
     //
