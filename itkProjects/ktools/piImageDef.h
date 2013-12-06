@@ -64,12 +64,8 @@ namespace pi {
 
     typedef NNLabelInterpolatorType::IndexType IntIndex;
     typedef LinearVectorImageInterpolatorType::ContinuousIndexType RealIndex;
-<<<<<<< HEAD
-
-=======
     typedef RealImage::PointType ImagePoint;
-    
->>>>>>> cc496eb211f546aea4e97b45d53bbce6465fd6f4
+
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
     typedef itk::ImageRegionIteratorWithIndex<RealImage> RealImageIteratorType;
 
@@ -84,14 +80,11 @@ namespace pi {
     typedef itk::ConstNeighborhoodIterator<RealImage> RealImageNeighborhoodIteratorType;
     typedef itk::ConstNeighborhoodIterator<GradientImage> GradientImageNeighborhoodIteratorType;
 
-<<<<<<< HEAD
-=======
     typedef itk::GradientRecursiveGaussianImageFilter<RealImage2> Gradient2FilterType;
     typedef Gradient2FilterType::OutputImageType GradientImage2;
     typedef Gradient2FilterType::OutputPixelType GradientPixel2;
     typedef itk::VectorLinearInterpolateImageFunction<GradientImage2> Gradient2InterpolatorType;
-    
->>>>>>> cc496eb211f546aea4e97b45d53bbce6465fd6f4
+
     // definition for transforms
     typedef itk::Transform<PointReal,__Dim,__Dim> TransformType;
     typedef itk::CompositeTransform<PointReal,__Dim> CompositeTransformType;
@@ -109,12 +102,12 @@ namespace pi {
 
     typedef vnl_vector<double> VNLDoubleVector;
     typedef vnl_matrix<double> VNLDoubleMatrix;
-    
+
 
     typedef std::vector<RealImage2::Pointer> RealImage2Vector;
     typedef std::vector<RealImage3::Pointer> RealImage3Vector;
     typedef std::vector<GradientImage2::Pointer> GradientImage2Vector;
-    
+
     class RealImageTools {
     public:
         RealImage3::Pointer normalizeIntensity(RealImage3::Pointer image, double percentile = 0.01);
