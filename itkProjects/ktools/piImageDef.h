@@ -23,52 +23,37 @@
 #include "itkGradientRecursiveGaussianImageFilter.h"
 #include "itkPointSet.h"
 #include "vnl/vnl_vector.h"
+#include "piMacros.h"
 
 #include "vector"
 
-#ifndef DIMENSIONS
-#define DIMENSIONS 3
-#endif
 
 const static int __Dim = DIMENSIONS;
 
-#define for4(i) for (int i = 0; i < 4; i++)
-#define fordim(i) for (int i = 0; i < __Dim; i++)
-#define formin(x,y,z) for(int _=0;_<__Dim;_++) {z[_]=(x[_]<y[_])?x[_]:y[_];}
-#define formax(x,y,z) for(int _=0;_<__Dim;_++) {z[_]=(x[_]>y[_])?x[_]:y[_];}
-#define forset(x, y) for (int _=0;_<__Dim;_++) {y[_]=x[_];}
-#define forcopy(x, y) for (int _=0;_<__Dim;_++) {y[_]=x[_];}
-#define forfill(x, v) for (int _=0;_<__Dim;_++) {x[_]=v;}
-#define forroundset(x,y) for(int _=0; _<__Dim; _++) { y[_]=x[_]+0.5; }
-#define arrayset2(a,x,y) a[0]=x;a[1]=y
-#define arrayset3(a,x,y,z) a[0]=x;a[1]=y;a[2]=z
-#define x2string(x) x[0]<<","<<x[1]<<","<<x[2]
-
-#ifdef DIMENSIONS == 3
-#define dimdot(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
-#define dimequal(x,x0,x1,x2) (x[0]==(x0)&&x[1]==(x1)&&x[2]==(x2))
-#define dimnorm2(x) (x[0]*x[0]+x[1]*x[1]+x[2]*x[2])
-#elif DIMENSIONS == 2
-#define dimdot(x,y) (x[0]*y[0]+x[1]*y[1])
-#define dimequal(x,x0,x1) (x[0]==(x0)&&x[1]==(x1))
-#define dimnorm2(x) (x[0]*x[0]+x[1]*x[1])
-#endif
-
 namespace pi {
     // type definitions
-    typedef unsigned short LabelPixel;
+    typedef unsigned char LabelPixel;
     typedef float ImageReal;
     typedef double PointReal;
-    typedef float DataReal;
+
+    typedef itk::Image<ImageReal,3> RealImage3;
+    typedef itk::Image<ImageReal,2> RealImage2;
+    typedef itk::Image<LabelPixel,2> LabelImage2;
+    typedef itk::Image<LabelPixel,3> LabelImage3;
+
+
     typedef itk::Image<ImageReal,__Dim> RealImage;
     typedef itk::Image<LabelPixel,__Dim> LabelImage;
-    typedef itk::Vector<DataReal,__Dim> VectorType;
+    typedef itk::Vector<ImageReal,__Dim> VectorType;
     typedef itk::Image<VectorType,__Dim> VectorImage;
+    typedef itk::Image<VectorType,2> VectorImage2;
     typedef itk::Offset<__Dim> OffsetType;
     typedef itk::Image<OffsetType,__Dim> OffsetImage;
-    typedef std::vector<LabelImage::Pointer> LabelVector;
+
     typedef std::vector<OffsetImage::Pointer> OffsetImageVector;
     typedef std::vector<RealImage::Pointer> RealImageVector;
+    typedef std::vector<LabelImage::Pointer> LabelImageVector;
+
     typedef std::vector<VectorImage::Pointer> VectorImageVector;
 
     typedef itk::LinearInterpolateImageFunction<RealImage> LinearImageInterpolatorType;
@@ -79,6 +64,7 @@ namespace pi {
 
     typedef NNLabelInterpolatorType::IndexType IntIndex;
     typedef LinearVectorImageInterpolatorType::ContinuousIndexType RealIndex;
+    typedef RealImage::PointType ImagePoint;
     
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
     typedef itk::ImageRegionIteratorWithIndex<RealImage> RealImageIteratorType;
@@ -87,11 +73,17 @@ namespace pi {
     typedef itk::GradientImageFilter<RealImage> GradientFilterType;
     typedef GradientFilterType::OutputImageType GradientImage;
     typedef GradientFilterType::OutputPixelType GradientPixel;
+    typedef itk::ImageRegionConstIteratorWithIndex<GradientImage> GradientIteratorType;
     typedef itk::ConstNeighborhoodIterator<GradientImage> VectorImageNeighborhoodIteratorType;
     typedef itk::GradientRecursiveGaussianImageFilter<RealImage, GradientImage> GaussianGradientFilterType;
     typedef itk::VectorLinearInterpolateImageFunction<GradientImage> GradientInterpolatorType;
     typedef itk::ConstNeighborhoodIterator<RealImage> RealImageNeighborhoodIteratorType;
     typedef itk::ConstNeighborhoodIterator<GradientImage> GradientImageNeighborhoodIteratorType;
+
+    typedef itk::GradientRecursiveGaussianImageFilter<RealImage2> Gradient2FilterType;
+    typedef Gradient2FilterType::OutputImageType GradientImage2;
+    typedef Gradient2FilterType::OutputPixelType GradientPixel2;
+    typedef itk::VectorLinearInterpolateImageFunction<GradientImage2> Gradient2InterpolatorType;
     
     // definition for transforms
     typedef itk::Transform<PointReal,__Dim,__Dim> TransformType;
@@ -107,11 +99,30 @@ namespace pi {
     // auxiliary data structures
     typedef std::vector<std::string> StringVector;
 
-    // VNL related types
-    typedef vnl_vector<DataReal> VNLVector;
-    typedef vnl_matrix<DataReal> VNLMatrix;
+
     typedef vnl_vector<double> VNLDoubleVector;
     typedef vnl_matrix<double> VNLDoubleMatrix;
+    
+
+    typedef std::vector<RealImage2::Pointer> RealImage2Vector;
+    typedef std::vector<RealImage3::Pointer> RealImage3Vector;
+    typedef std::vector<GradientImage2::Pointer> GradientImage2Vector;
+    
+    class RealImageTools {
+    public:
+        RealImage3::Pointer normalizeIntensity(RealImage3::Pointer image, double percentile = 0.01);
+        RealImage2Vector sliceVolume(RealImage3::Pointer image, int dir);
+        RealImage2Vector computeGaussianSmoothing(RealImage2Vector images, double sigma = 1);
+        GradientImage2Vector computeGaussianGradient(RealImage2Vector images, double sigma = 1);
+    };
+
+    class LabelImageTools {
+    public:
+        std::vector<float> computeBoundingBox(LabelImage::Pointer label, int labelId);
+    };
+
+    extern RealImageTools __realImageTools;
+    extern LabelImageTools __labelImageTools;
 }
 
 #endif

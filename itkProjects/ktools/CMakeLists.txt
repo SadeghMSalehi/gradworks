@@ -45,7 +45,7 @@ ENDIF(${BUILD_KCALC})
 IF(${USE_VTK})
 	FIND_PACKAGE(VTK REQUIRED)
 	INCLUDE(${VTK_USE_FILE})
-	SET(BUILD_KVTKTOOLS False CACHE BOOL "Compile ktools with VTK - kgradmap ...")
+	SET(BUILD_KVTKTOOLS False CACHE BOOL "Compile ktools with VTK - kgradmap, ksulcus ...")
 
 	IF(${BUILD_KVTKTOOLS})
 		ADD_EXECUTABLE(kgradmap kgradmap.cpp piImageIO.h piOptions.cpp piOptions.h piVTK.h piVTK.cpp piImageProcessing.cpp piImageProcessing.h piTimer.h piTimer.cpp)
@@ -55,6 +55,20 @@ IF(${USE_VTK})
     
     ADD_EXECUTABLE(ksulcus ksulcus.cpp piImageIO.h piOptions.h piOptions.cpp)
     TARGET_LINK_LIBRARIES(ksulcus ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+    
+    ADD_EXECUTABLE(kvoxelizer 
+        kvoxelizer.h kvoxelizer.cpp
+        piOptions.h piOptions.cpp
+        vtkio.h vtkio.cpp
+    )
+    TARGET_LINK_LIBRARIES(kvoxelizer ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+    
+    ADD_EXECUTABLE(kmesh
+        kmesh.h kmesh.cpp
+        piOptions.h piOptions.cpp
+        vtkio.h vtkio.cpp
+    )
+    TARGET_LINK_LIBRARIES(kmesh ${ITK_LIBRARIES} ${VTK_LIBRARIES})
 ENDIF(${USE_VTK})
 
 IF(${BUILD_KMBRAIN})

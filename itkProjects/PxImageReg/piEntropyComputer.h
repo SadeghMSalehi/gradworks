@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include "piImageDef.h"
+#include <vnl/algo/vnl_symmetric_eigensystem.h>
 
 
 namespace pi {
@@ -124,6 +125,8 @@ namespace pi {
         bool ComputeCovariance(T alpha = 1);
         bool ComputeGradient();
 
+        double ComputeEntropy();
+
     private:
         EntropyComputer() :dataIter(NULL,0,0){};
         void operator=(const EntropyComputer& ec) {};
@@ -196,12 +199,31 @@ namespace pi {
             iter1.NextData();
         }
 
-        for (int i = 0; i < ndata; i++) {
-            for (int j = 0; j < ndata; j++) {
-                covariance[i][j] /= (datasize-1);
+        // this is not working
+        // the covariance of two images will be the same
+        const bool divideByMaxElement = false;
+        if (divideByMaxElement) {
+            double maxElem = 0;
+            for (int i = 0; i < ndata; i++) {
+                for (int j = 0; j < ndata; j++) {
+                    covariance[i][j] /= (datasize-1);
+                    if (covariance[i][j] > maxElem) {
+                        maxElem = covariance[i][j];
+                    }
+                }
             }
+            for (int i = 0; i < ndata; i++) {
+                for (int j = 0; j < ndata; j++) {
+                    covariance[i][j] /= maxElem;
+                }
+            }
+        }
+
+        // regularization term
+        for (int i = 0; i < ndata; i++) {
             covariance[i][i] += alpha;
         }
+
         inverseCovariance = vnl_matrix_inverse<T>(covariance);
         if (std::isnan(inverseCovariance[0][0])) {
             std::cout << "Covariance is NaN" << std::endl;
@@ -237,6 +259,14 @@ namespace pi {
             out.NextData();
         }
         return true;
+    }
+
+    // entropy computation
+    // the entropy is proportional to the determinant of covariance
+    template <class T>
+    double EntropyComputer<T>::ComputeEntropy() {
+        vnl_symmetric_eigensystem<double> eig(covariance);
+        return eig.determinant();
     }
 }
 #endif /* defined(__ParticleGuidedRegistration__piEntropyComputer__) */
