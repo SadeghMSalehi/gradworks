@@ -18,7 +18,6 @@ using namespace std;
 using namespace pi;
 
 int main(int argc, char* argv[]) {
-    __noverbose = 1;
     CSimpleOpt::SOption specs[] = {
         { 0, "-o", SO_REQ_SEP },
         { 1, "--template", SO_REQ_SEP },

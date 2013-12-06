@@ -44,11 +44,13 @@ const static int __Dim = DIMENSIONS;
 #define arrayset3(a,x,y,z) a[0]=x;a[1]=y;a[2]=z
 #define x2string(x) x[0]<<","<<x[1]<<","<<x[2]
 
-#ifdef DIMENSIONS == 3
+#if DIMENSIONS == 3
 #define dimdot(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
 #define dimequal(x,x0,x1,x2) (x[0]==(x0)&&x[1]==(x1)&&x[2]==(x2))
 #define dimnorm2(x) (x[0]*x[0]+x[1]*x[1]+x[2]*x[2])
-#elif DIMENSIONS == 2
+#endif
+
+#if DIMENSIONS == 2
 #define dimdot(x,y) (x[0]*y[0]+x[1]*y[1])
 #define dimequal(x,x0,x1) (x[0]==(x0)&&x[1]==(x1))
 #define dimnorm2(x) (x[0]*x[0]+x[1]*x[1])
@@ -79,7 +81,7 @@ namespace pi {
 
     typedef NNLabelInterpolatorType::IndexType IntIndex;
     typedef LinearVectorImageInterpolatorType::ContinuousIndexType RealIndex;
-    
+
     typedef itk::ImageRegionIteratorWithIndex<LabelImage> LabelImageIteratorType;
     typedef itk::ImageRegionIteratorWithIndex<RealImage> RealImageIteratorType;
 
@@ -92,7 +94,7 @@ namespace pi {
     typedef itk::VectorLinearInterpolateImageFunction<GradientImage> GradientInterpolatorType;
     typedef itk::ConstNeighborhoodIterator<RealImage> RealImageNeighborhoodIteratorType;
     typedef itk::ConstNeighborhoodIterator<GradientImage> GradientImageNeighborhoodIteratorType;
-    
+
     // definition for transforms
     typedef itk::Transform<PointReal,__Dim,__Dim> TransformType;
     typedef itk::CompositeTransform<PointReal,__Dim> CompositeTransformType;

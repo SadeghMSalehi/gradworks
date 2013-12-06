@@ -33,7 +33,6 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-    __noverbose = 0;
     CSimpleOpt::SOption specs[] = {
         { 0, "-o", SO_REQ_SEP },
         SO_END_OF_OPTIONS
