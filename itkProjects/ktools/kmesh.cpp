@@ -19,12 +19,31 @@
 #include <vtkIdList.h>
 #include <vtkFloatArray.h>
 #include <vtkMath.h>
+#include <vtkAppendPolyData.h>
 
 #include <vnl/vnl_vector.h>
 
 
 using namespace std;
 using namespace pi;
+
+
+// append polydatas into one
+void runAppendData(Options& opts, StringVector& args) {
+    vtkAppendPolyData* appender = vtkAppendPolyData::New();
+    vtkIO io;
+
+    // read all files
+    for (int i = 0; i < args.size(); i++) {
+        vtkPolyData* data = io.readFile(args[i]);
+        appender->AddInput(data);
+    }
+
+    appender->Update();
+    io.writeFile(opts.GetString("-appendData"), appender->GetOutput());
+
+    return;
+}
 
 // add scalar value to a mesh
 void runImportScalars(Options& opts, StringVector& args) {
@@ -195,6 +214,8 @@ int main(int argc, char * argv[])
     opts.addOption("-exportScalars", "Export scalar values to a text file [in-mesh] [scalar.txt]", SO_NONE);
     opts.addOption("-importScalars", "Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
+    opts.addOption("-appendData", "Append input meshes into a single data [output-mesh]", SO_REQ_SEP);
+
     opts.addOption("-sigma", "sigma value [double]", SO_REQ_SEP);
     opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
     opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
@@ -214,6 +235,8 @@ int main(int argc, char * argv[])
         runImportScalars(opts, args);
     } else if (opts.GetBool("-exportScalars")) {
         runExportScalars(opts, args);
+    } else if (opts.GetString("-appendData", "") != "") {
+        runAppendData(opts, args);
     }
     return 0;
 }
