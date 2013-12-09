@@ -597,7 +597,9 @@ namespace pi {
     void EntropyCostFunction::computeValueAndDerivatives(double &value, DerivativeList &derivs) {
         computeEntropyValueAndDerivatives(value, derivs);
         if (_bestMetric > value) {
+            // when a better value is computed
             _bestMetric = value;
+            _bestParamsList.resize(derivs.size());
             for (int j = 0; j < derivs.size(); j++) {
                 _bestParamsList[j] = _movingImages[j].getTransform()->GetParameters();
             }
@@ -1088,6 +1090,7 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
         std::vector<TransformType::Pointer> transforms;
 
         for (int j = 0; j < nImages; j++) {
+            cout << "Reading " << (inputdir + images[j]) << endl;
             RealImage::Pointer movingImage = imageIO.ReadCastedImage(inputdir + images[j]);
             // cost function setup
 
