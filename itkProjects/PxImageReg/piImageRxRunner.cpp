@@ -481,6 +481,7 @@ namespace pi {
         void rescaleGradient(DerivativeList& gradient);
         void setParametersList(ParametersList& paramsList);
         void getParametersList(ParametersList& paramsList);
+        void restoreBestParameters();
 
         // inline functions
         inline TransformingImage::Vector& getMovingImages() { return _movingImages; }
@@ -497,10 +498,23 @@ namespace pi {
         float _maximumStepSizeInPhysicalUnit;
         FloatVector _learningRate;
         ParametersList _currentParamsList;
+        ParametersList _bestParamsList;
 
         typedef itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage> MetricType;
         MetricType::Pointer _metric;
+        double _bestMetric;
     };
+
+    // set to the best parameters
+    void EntropyCostFunction::restoreBestParameters() {
+        if (_movingImages.size() == _bestParamsList.size()) {
+            for (int i = 0; i < _movingImages.size(); i++) {
+                if (_movingImages[i].getTransform()->GetNumberOfParameters() == _bestParamsList[i].size()) {
+                    _movingImages[i].getTransform()->SetParameters(_bestParamsList[i]);
+                }
+            }
+        }
+    }
 
     // set up initial parameters
     void EntropyCostFunction::setParametersList(ParametersList& paramsList) {
@@ -508,6 +522,7 @@ namespace pi {
         for (int i = 0; i < _movingImages.size(); i++) {
             _movingImages[i].getTransform()->SetParameters(paramsList[i]);
         }
+        _bestMetric = itk::NumericTraits<double>::max();
     }
 
     // get current parameters
@@ -581,6 +596,12 @@ namespace pi {
     // value and derivative selector
     void EntropyCostFunction::computeValueAndDerivatives(double &value, DerivativeList &derivs) {
         computeEntropyValueAndDerivatives(value, derivs);
+        if (_bestMetric > value) {
+            _bestMetric = value;
+            for (int j = 0; j < derivs.size(); j++) {
+                _bestParamsList[j] = _movingImages[j].getTransform()->GetParameters();
+            }
+        }
     }
 
 
@@ -1102,6 +1123,9 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
         GradientDescentOptimizer opti;
         opti.setCostFunction(myCostFunc);
         opti.startOptimization();
+
+        // set to the best parameters
+        myCostFunc.restoreBestParameters();
 
         for (int j = 0; j < nImages; j++) {
             RealImage::Pointer resampledImage = movingImages[j].getResampledImage(fixedImage);
