@@ -534,13 +534,18 @@ namespace pi {
         rescaleGradient(gradient);
 
         const bool printGradient = false;
+        const bool printParams = false;
         for (int i = 0; i < nImages; i++) {
             _movingImages[i].getTransform()->UpdateTransformParameters(gradient[i]);
 
             // gradient debugging
             if (printGradient) {
-                cout << "Gradient: " << gradient[i] << endl;
-                cout << "Transform: " << _movingImages[i].getTransform()->GetParameters() << endl;
+                cout << "Gradient[" << i << "]: " << gradient[i] << endl;
+            }
+
+            // parameter debugging
+            if (printParams) {
+                cout << "Transform[" << i << "]: " << _movingImages[i].getTransform()->GetParameters() << endl;
             }
         }
     }
@@ -680,6 +685,9 @@ namespace pi {
         std::vector<bool> validPixels;
         validPixels.resize(nPixels);
 
+        // in order to capture all true pixels
+        std::fill(validPixels.begin(), validPixels.end(), true);
+
 
         for (int imIdx = 0; imIdx < nImages; imIdx++) {
             // resample the image with respect to current transform parameters
@@ -704,7 +712,7 @@ namespace pi {
                 // store the sample at j-th index
                 bool outValidPixel = false;
                 iter.data[j] = _movingImages[imIdx].samplePixel(mPoint, outValidPixel);
-                validPixels[j] = outValidPixel;
+                validPixels[j] = validPixels[j] && outValidPixel;
 
                 // if j is not a valid pixel
                 if (!outValidPixel) {
@@ -720,14 +728,18 @@ namespace pi {
         comp.ComputeCovariance(validPixels);
         comp.ComputeGradient();
 
+        // print covariance function
+        bool printCovariance = false;
+        if (printCovariance) {
+            cout << comp.covariance << endl;
+            cout << comp.inverseCovariance << endl;
+        }
 
 
-        const bool useDiffSquareAsValue = true;
-
-        std::streamsize prec = cout.precision();
+        // the choice of cost functions
+        const bool useDiffSquareAsValue = false;
         if (!useDiffSquareAsValue) {
-            value = abs(comp.covariance[0][1]);
-            cout <<  value << endl;
+            value = comp.ComputeEntropy();
         } else {
             value = 0;
             for (int k = 0; k < nPixels; k++) {
@@ -753,6 +765,10 @@ namespace pi {
 
             // iterate over each pixel
             for (int k = 0; k < nPixels; k++, ++iter) {
+                // if k is not inside a valid region
+                if (!validPixels[k]) {
+                    continue;
+                }
                 // compute the physical point
                 // maybe cache saves the computation time
                 RealImage::PointType fixedPoint;
@@ -778,20 +794,28 @@ namespace pi {
 
 
                 // if the point is inside the buffer
-                if (validPixels[k]) {
-                    // compute total derivatives per parameter
-                    for (int pIdx = 0; pIdx < nParams; pIdx++) {
-                        float dI = 0;
-                        for (int d = 0; d < dim; d++) {
-                            dI += (movingGradient[d] * jacobian[d][pIdx]);
-                        }
-                        // compute the total derivative dI_k
-                        dI *= comp.gradient[imIdx+1][k];
-                        // update derivative dEnt/dP_ij
-                        derivs[imIdx][pIdx] -= dI;
+                // compute total derivatives per parameter
+                for (int pIdx = 0; pIdx < nParams; pIdx++) {
+                    float dI = 0;
+                    for (int d = 0; d < dim; d++) {
+                        dI += (movingGradient[d] * jacobian[d][pIdx]);
                     }
+                    // compute the total derivative dI_k
+                    dI *= comp.gradient[imIdx+1][k];
+                    if (dI != dI) {
+                        cout << "NaN dI" << endl;
+                        cout << movingGradient << endl;
+                        cout << jacobian << endl;
+                    }
+                    // update derivative dEnt/dP_ij
+                    derivs[imIdx][pIdx] -= dI;
                 }
             } // k-loop
+
+            const bool printGradient = false;
+            if (printGradient) {
+                cout << "Non-scaled Gradient[" << imIdx << "]: " << derivs[imIdx] << endl;
+            }
         }
     }
 
@@ -1017,7 +1041,7 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
 
         RealImage::Pointer fixedImage  = imageIO.ReadCastedImage(inputdir + "c31s.nii.gz");
 #else
-        const int nImages = 1;
+        const int nImages = 2;
 
         string inputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithAffine/";
         string outputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithAffine/";
