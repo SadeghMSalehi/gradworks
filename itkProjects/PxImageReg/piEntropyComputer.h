@@ -123,6 +123,8 @@ namespace pi {
         void MoveToCenter();
         // in dual space
         bool ComputeCovariance(T alpha = 1);
+        bool ComputeCovariance(std::vector<bool>& validSamples, T alpha = 1);
+
         bool ComputeGradient();
 
         double ComputeEntropy();
@@ -170,6 +172,78 @@ namespace pi {
             dataIter.NextData();
             meanIter.FirstData();
         }
+    }
+
+
+    // in dual space
+    template <class T>
+    bool EntropyComputer<T>::ComputeCovariance(std::vector<bool>& validSamples, T alpha) {
+        if (ndata > nsamples * nelems) {
+            std::cout << "not yet implemented" << std::endl;
+            return false;
+        }
+
+        if (validSamples.size() != nsamples) {
+            std::cout << "validSamples.size() != nsamples" << std::endl;
+            return false;
+        }
+
+        // compute DD'
+        int datasize = nsamples * nelems;
+        covariance.set_size(ndata, ndata);
+        covariance.fill(0);
+
+        Iterator iter1(dataMatrix.data_block(), nsamples, nelems);
+        Iterator iter2(dataMatrix.data_block(), nsamples, nelems);
+
+        for (int i = 0; i < ndata; i++) {
+            iter2.FirstData();
+            for (int j = 0; j < ndata; j++) {
+                for (int k = 0; k < datasize; k++) {
+                    if (validSamples[k]) {
+                        covariance[i][j] += iter1.data[k] * iter2.data[k];
+                    }
+                }
+                iter2.NextData();
+            }
+            iter1.NextData();
+        }
+
+        // this is not working
+        // the covariance of two images will be the same
+        // ==============================================
+        const bool divideByMaxElement = false;
+        if (divideByMaxElement) {
+            double maxElem = 0;
+            for (int i = 0; i < ndata; i++) {
+                for (int j = 0; j < ndata; j++) {
+                    covariance[i][j] /= (datasize-1);
+                    if (covariance[i][j] > maxElem) {
+                        maxElem = covariance[i][j];
+                    }
+                }
+            }
+            for (int i = 0; i < ndata; i++) {
+                for (int j = 0; j < ndata; j++) {
+                    covariance[i][j] /= maxElem;
+                }
+            }
+        }
+        // ==============================================
+
+        // regularization term
+        for (int i = 0; i < ndata; i++) {
+            covariance[i][i] += alpha;
+        }
+
+        inverseCovariance = vnl_matrix_inverse<T>(covariance);
+        if (std::isnan(inverseCovariance[0][0])) {
+            std::cout << "Covariance is NaN" << std::endl;
+            std::cout << covariance << std::endl;
+            inverseCovariance.set_identity();
+            return false;
+        }
+        return true;
     }
 
     // in dual space
