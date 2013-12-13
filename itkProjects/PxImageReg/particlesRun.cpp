@@ -51,15 +51,15 @@ static void doSlice(Options& opts, StringVector& args) {
         cout << "--slice dim index imagefile outputfile" << endl;
         die();
     }
-    
+
     int dim = atoi(args[0].c_str());
     int slice = atoi(args[1].c_str());
-    
+
     ImageIO<RealImage3> io;
     ImageInfo info;
     RealImage3::Pointer image = io.ReadCastedImage(args[2], info);
     RealImage2Vector sliceImages = SliceVolume(image, dim);
-    
+
     if (slice < sliceImages.size()) {
         ImageIO<RealImage2> wio;
         wio.WriteCastedImage(args[3], sliceImages[slice], info.componenttype);
@@ -116,10 +116,12 @@ int main(int argc, char* argv[]) {
     opts.addOption("--demons", "run Demons registration", SO_NONE);
     opts.addOption("--separate", "[input] [x] [y] [z] ... separate vector images into individual image files", SO_NONE);
     opts.addOption("--rx", "[fixed-image] [moving-image] [output-image] [output-transform]", SO_NONE);
+    opts.addOption("--dots", "--rx --dots generate a series of gaussian dot images", SO_NONE);
+    opts.addOption("--sigma", "sigma value [double]", SO_REQ_SEP);
     opts.addOption("--help", SO_NONE);
 
-	opts.ParseOptions(argc, argv, NULL);
-	StringVector& args = opts.GetStringVector("args");
+    opts.ParseOptions(argc, argv, NULL);
+    StringVector& args = opts.GetStringVector("args");
 
     if (opts.GetBool("--help") || opts.GetBool("-h")) {
         printHelp(opts);

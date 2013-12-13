@@ -45,7 +45,7 @@ SET (MY_PARTICLE_WORKS_SOURCES
 
 # Metric Evaluation
     piImageRxRunner.h piImageRxRunner.cpp
-   
+
 # ImageToImageMetric
     itk/itkEntropyImageToImageMetricv4.h
     itk/itkEntropyImageToImageMetricv4.hxx

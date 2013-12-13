@@ -15,6 +15,7 @@
 
 #include <itkObjectToObjectOptimizerBase.h>
 #include <itkCompositeTransform.h>
+#include <itkTranslationTransform.h>
 #include <itkEuler2DTransform.h>
 #include <itkEuler3DTransform.h>
 #include <itkMeanSquaresImageToImageMetricv4.h>
@@ -32,9 +33,15 @@ namespace pi {
     typedef itk::ObjectToObjectOptimizerBase::ParametersType ParametersType;
     typedef itk::ObjectToObjectMetricBase::DerivativeType DerivativeType;
 
+    void generateDotImages();
+
     void executeRxRunner(Options& opts, StringVector& args) {
-        ImageRx runner(opts, args);
-        runner.mainRigidRegistration(opts, args);
+        if (opts.GetBool("--dots")) {
+            generateDotImages();
+        } else {
+            ImageRx runner(opts, args);
+            runner.mainRigidRegistration(opts, args);
+        }
         exit(0);
     }
 
@@ -251,7 +258,7 @@ namespace pi {
         }
     }
 
-    /** 
+    /**
      * Compute the scale for a step. For transform T(x + t * step), the scale
      * w.r.t. the step is the shift produced by step.
      */
@@ -483,6 +490,9 @@ namespace pi {
         void getParametersList(ParametersList& paramsList);
         void restoreBestParameters();
 
+        void beginStep(int iter);
+        void endStep();
+
         // inline functions
         inline TransformingImage::Vector& getMovingImages() { return _movingImages; }
         inline TransformingImage& getFixedImage() { return _fixedImage; }
@@ -497,16 +507,28 @@ namespace pi {
         TransformingImage::Vector _movingImages;
         float _maximumStepSizeInPhysicalUnit;
         FloatVector _learningRate;
-        ParametersList _currentParamsList;
-        ParametersList _bestParamsList;
 
         typedef itk::MeanSquaresImageToImageMetricv4<RealImage, RealImage> MetricType;
         MetricType::Pointer _metric;
+
+        int _currentIteration;
+        double _currentMetric;
+        ParametersList _currentParamsList;
+
+    public:
+        int _bestIteration;
         double _bestMetric;
+        ParametersList _bestParamsList;
+
     };
 
     // set to the best parameters
     void EntropyCostFunction::restoreBestParameters() {
+        const bool printInfo = true;
+        if (printInfo) {
+            cout << "Best iteration: " << _bestIteration << endl;
+            cout << "Best metric: " << _bestMetric << endl;
+        }
         if (_movingImages.size() == _bestParamsList.size()) {
             for (int i = 0; i < _movingImages.size(); i++) {
                 if (_movingImages[i].getTransform()->GetNumberOfParameters() == _bestParamsList[i].size()) {
@@ -522,7 +544,6 @@ namespace pi {
         for (int i = 0; i < _movingImages.size(); i++) {
             _movingImages[i].getTransform()->SetParameters(paramsList[i]);
         }
-        _bestMetric = itk::NumericTraits<double>::max();
     }
 
     // get current parameters
@@ -596,14 +617,8 @@ namespace pi {
     // value and derivative selector
     void EntropyCostFunction::computeValueAndDerivatives(double &value, DerivativeList &derivs) {
         computeEntropyValueAndDerivatives(value, derivs);
-        if (_bestMetric > value) {
-            // when a better value is computed
-            _bestMetric = value;
-            _bestParamsList.resize(derivs.size());
-            for (int j = 0; j < derivs.size(); j++) {
-                _bestParamsList[j] = _movingImages[j].getTransform()->GetParameters();
-            }
-        }
+
+        _currentMetric = value;
     }
 
 
@@ -844,7 +859,7 @@ namespace pi {
 
     // metric set up
     void EntropyCostFunction::setupMetric() {
-//        
+//
 //        _metric = MetricType::New();
 //        _metric->SetFixedImage(_fixedImage.getImage());
 //        _metric->SetMovingImage(_movingImages[0].getImage());
@@ -855,6 +870,32 @@ namespace pi {
 
         _estimator.setImage(_movingImages[0].getImage());
         _estimator.setTransform(_movingImages[0].getTransform());
+
+        _bestIteration = 0;
+        _bestMetric = itk::NumericTraits<double>::max();
+    }
+
+    // begin and end step
+    void EntropyCostFunction::beginStep(int iter) {
+        _currentIteration = iter;
+    }
+
+    void EntropyCostFunction::endStep() {
+        // assume that the iteration goes on more than 10 times
+        if (_bestMetric > _currentMetric || _currentIteration <= 10) {
+            // when a better value is computed
+            const int nImages = _movingImages.size();
+
+
+            this->_bestIteration = _currentIteration;
+            this->_bestMetric = _currentMetric;
+
+            cout << "updating best parameters: " << _bestIteration << ", " << _bestMetric << endl;
+            _bestParamsList.resize(nImages);
+            for (int j = 0; j < nImages; j++) {
+                _bestParamsList[j] = _movingImages[j].getTransform()->GetParameters();
+            }
+        }
     }
 
 
@@ -876,13 +917,13 @@ namespace pi {
         void resumeOptimization();
         void advanceOneStep();
 
-        inline void setCostFunction(EntropyCostFunction costFunc) {
+        inline void setCostFunction(EntropyCostFunction* costFunc) {
             _costFunc = costFunc;
         }
 
     private:
         itk::Function::WindowConvergenceMonitoringFunction<>::Pointer _convergenceFunction;
-        EntropyCostFunction _costFunc;
+        EntropyCostFunction* _costFunc;
         ParametersList _paramsList;
         DerivativeList _gradientList;
         double _currentCost;
@@ -914,7 +955,7 @@ namespace pi {
             // begin with iteration #1
             _currentIteration++;
 
-            _costFunc.computeValueAndDerivatives(_currentCost, _gradientList);
+            _costFunc->computeValueAndDerivatives(_currentCost, _gradientList);
             _convergenceFunction->AddEnergyValue(_currentCost);
 
             if (_convergenceFunction->GetConvergenceValue() < 1e-8) {
@@ -934,14 +975,16 @@ namespace pi {
 
     // modify gradient and update transform parameters to compute the next value
     void GradientDescentOptimizer::advanceOneStep() {
-        _costFunc.updateTransformParameters(_gradientList, _currentIteration);
+        _costFunc->beginStep(_currentIteration);
+        _costFunc->updateTransformParameters(_gradientList, _currentIteration);
+        _costFunc->endStep();
     }
 
     // stop optimization
     void GradientDescentOptimizer::stopOptimization() {
         _stop = true;
     }
-    
+
 
 
 
@@ -1036,7 +1079,11 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
             return;
         }
 
-#define USE_AFFINE_TRANSFORM
+#define USE_TRANSLATION_TRANSFORM
+
+#ifdef USE_TRANSLATION_TRANSFORM
+        typedef itk::TranslationTransform<PointReal,DIMENSIONS> TransformType;
+#endif
 
 #ifdef USE_RIGID_TRANSFORM
 #if DIMENSIONS == 2
@@ -1045,6 +1092,7 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
         typedef itk::Euler3DTransform<> TransformType;
 #endif
 #endif
+
 
 #ifdef USE_AFFINE_TRANSFORM
         typedef itk::AffineTransform<double,DIMENSIONS> TransformType;
@@ -1064,6 +1112,21 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
 
         RealImage::Pointer fixedImage  = imageIO.ReadCastedImage(inputdir + "c31s.nii.gz");
 #else
+
+#define SIMPLE_TEST
+#ifdef SIMPLE_TEST
+        // test the registration method with simple translated images.
+        const int nImages = 4;
+
+        string inputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithDots/";
+        string outputdir = inputdir;
+
+        string images[] = { "dot.2.nii.gz", "dot.3.nii.gz", "dot.4.nii.gz", "dot.5.nii.gz" };
+        string outputImages[] = { "outdot.21.nii.gz", "outdot.31.nii.gz", "outdot.41.nii.gz", "outdot.51.nii.gz" };
+        string outputText[] = { "txtdot.21.txt", "txtdot.31.txt", "txtdot.41.txt", "txtdot.51.txt" };
+
+        RealImage::Pointer fixedImage  = imageIO.ReadCastedImage(inputdir + "dot.1.nii.gz");
+#else
         const int nImages = 2;
 
         string inputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithAffine/";
@@ -1074,6 +1137,7 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
         string outputText[] = { "c3631_ent.txt", "e1131_ent.txt" };
 
         RealImage::Pointer fixedImage  = imageIO.ReadCastedImage(inputdir + "source/c31_129s.nii.gz");
+#endif
 #endif
 
 
@@ -1111,10 +1175,12 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
         myInitialParams.SetSize(movingImages[0].getTransform()->GetNumberOfParameters());
         myInitialParams.Fill(0);
 
+#ifdef USE_AFFINE_TRANSFORM
         int nDim = RealImage::ImageDimension;
         for (int d = 0; d < nDim; d++) {
             myInitialParams[d*(nDim + 1)] = 1;
         }
+#endif
 
         ParametersList paramList;
         for (int j = 0; j < nImages; j++) {
@@ -1124,12 +1190,14 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
         myCostFunc.setParametersList(paramList);
 
         GradientDescentOptimizer opti;
-        opti.setCostFunction(myCostFunc);
+        opti.setCostFunction(&myCostFunc);
         opti.startOptimization();
 
         // set to the best parameters
         myCostFunc.restoreBestParameters();
 
+
+        // save resampled images and transformation output
         for (int j = 0; j < nImages; j++) {
             RealImage::Pointer resampledImage = movingImages[j].getResampledImage(fixedImage);
             imageIO.WriteImage(outputdir + outputImages[j], resampledImage);
@@ -1310,5 +1378,67 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
         imageIO.WriteImage(args[2], resampled);
         imageIO.WriteSingleTransform(args[3].c_str(), transform);
          */
+    }
+
+
+    void generateDotImages() {
+        // # images
+        const int nImages = 5;
+
+        // image size
+        const int nSize = 11;
+        const int dx = 4;
+
+        // translate along x-directions
+        int translate[] = {dx, 2*dx, 3*dx, 4*dx, 5*dx };
+
+        // output directory
+        string outputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithDots/";
+
+        // generate a source image
+        ImageIO<RealImage2> io;
+        RealImage2::Pointer sampleImage = io.NewImageT(50, 30, 0);
+        sampleImage->FillBuffer(0);
+
+        for (int y = 0; y < 11; y++) {
+            for (int x = 0; x < 11; x++) {
+                int rx = x - 5;
+                int ry = y - 5;
+
+                const double sigma2 = 3 * 3;
+                double v = 100*exp(-(rx*rx+ry*ry) / sigma2);
+
+                RealImage2::IndexType idx;
+                idx[0] = x;
+                idx[1] = y + 10;
+
+                sampleImage->SetPixel(idx, v);
+            }
+        }
+
+
+        // compute translated images
+        for (int i = 0; i < nImages; i++) {
+            ParametersType params;
+            params.SetSize(2);
+            // translate to x-axis
+            params[0] = -translate[i];
+            params[1] = 0;
+
+            itk::TranslationTransform<double,2>::Pointer txf = itk::TranslationTransform<double,2>::New();
+            txf->SetParameters(params);
+
+            itk::ResampleImageFilter<RealImage2, RealImage2>::Pointer resampler = itk::ResampleImageFilter<RealImage2, RealImage2>::New();
+            resampler->SetInput(sampleImage);
+            resampler->SetTransform(txf);
+            resampler->UseReferenceImageOn();
+            resampler->SetReferenceImage(sampleImage);
+            resampler->Update();
+            RealImage2::Pointer resampledImage = resampler->GetOutput();
+
+            stringstream str;
+            str << (i+1);
+            io.WriteImage(outputdir + "dot." + str.str() + ".nii.gz", resampledImage);
+        }
     }
 }
