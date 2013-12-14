@@ -481,6 +481,7 @@ namespace pi {
     public:
         void estimateScalesAndStepSize(ScalesType& scales, float& maxStep);
         void computeEntropyValueAndDerivatives(double& value, DerivativeList& derivs);
+        void computeNonFixedEntropyValueAndDerivatives(double& value, DerivativeList& derivs);
         void computeSSDValueAndDerivatives(double& value, DerivativeList& derivs);
 
         void computeValueAndDerivatives(double& value, DerivativeList& derivs);
@@ -499,6 +500,7 @@ namespace pi {
 
         // temporary metric setup for validation
         void setupMetric();
+        void saveResampledImages();
 
     private:
         ScalesType _scales;
@@ -521,6 +523,20 @@ namespace pi {
         ParametersList _bestParamsList;
 
     };
+
+
+    // save resampled images to files
+    void EntropyCostFunction::saveResampledImages() {
+        const int nImages = _movingImages.size();
+        string outputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithDots";
+        ImageIO<RealImage> imageIO;
+        for (int j = 0; j < nImages; j++) {
+            RealImage::Pointer resampledImage = _movingImages[j].getResampledImage(_fixedImage.getImage());
+            char fn[256];
+            sprintf(fn, "%s/outdot.%d.%03d.nii.gz", outputdir.c_str(), (j+1), _currentIteration);
+            imageIO.WriteImage(fn, resampledImage);
+        }
+    }
 
     // set to the best parameters
     void EntropyCostFunction::restoreBestParameters() {
@@ -616,8 +632,7 @@ namespace pi {
 
     // value and derivative selector
     void EntropyCostFunction::computeValueAndDerivatives(double &value, DerivativeList &derivs) {
-        computeEntropyValueAndDerivatives(value, derivs);
-
+        computeNonFixedEntropyValueAndDerivatives(value, derivs);
         _currentMetric = value;
     }
 
@@ -857,6 +872,170 @@ namespace pi {
         }
     }
 
+
+
+    // compute value and derivatives of the cost function
+    void EntropyCostFunction::computeNonFixedEntropyValueAndDerivatives(double& value, DerivativeList &derivs) {
+        // number of moving images
+        const int nImages = _movingImages.size();
+
+        // initialize derivatives' output
+        derivs.resize(nImages);
+
+        // number of pixels
+        const int nPixels = _fixedImage.getImage()->GetPixelContainer()->Size();
+
+        // use only moving images
+        EntropyComputer<> comp(_movingImages.size(), nPixels, 1);
+
+        // Fixed image instance
+        RealImage::Pointer fIm = _fixedImage.getImage();
+        RealImage::RegionType fRegion = _fixedImage.getImage()->GetBufferedRegion();
+
+        // fixed image intensity set-up
+        EntropyComputer<>::Iterator iter = comp.dataIter;
+        iter.FirstData();
+
+        // loop over the moving image
+        std::vector<bool> validPixels;
+        validPixels.resize(nPixels);
+
+        // in order to capture all true pixels
+        std::fill(validPixels.begin(), validPixels.end(), true);
+
+
+        for (int imIdx = 0; imIdx < nImages; imIdx++) {
+            // resample the image with respect to current transform parameters
+            //            RealImage::Pointer resampledImage = _movingImages[i].getResampledImage(_fixedImage.getImage());
+
+            // compute the transformed point and sample the intensity
+            TransformType* transform = _movingImages[imIdx].getTransform();
+            RealImage::Pointer mIm = _movingImages[imIdx].getImage();
+            RealImageIteratorType fIter(fIm, fRegion);
+
+            // store the resampled pixel into the entropy computer
+            fIter.GoToBegin();
+            for (int j = 0; j < nPixels; j++, ++fIter) {
+                // current index of the fixedImage
+                RealImage::IndexType idx = fIter.GetIndex();
+
+                // point conversion
+                RealImage::PointType fPoint, mPoint;
+                fIm->TransformIndexToPhysicalPoint(idx, fPoint);
+                mPoint = transform->TransformPoint(fPoint);
+
+                // store the sample at j-th index
+                bool outValidPixel = false;
+                iter.data[j] = _movingImages[imIdx].samplePixel(mPoint, outValidPixel);
+                validPixels[j] = validPixels[j] && outValidPixel;
+
+                // if j is not a valid pixel
+                if (!outValidPixel) {
+                    iter.data[j] = 0;
+                }
+            }
+
+            // go to next data
+            iter.NextData();
+        }
+
+        comp.MoveToCenter();
+        comp.ComputeCovariance(validPixels);
+        comp.ComputeGradient();
+
+        // print covariance function
+        bool printCovariance = false;
+        if (printCovariance) {
+            cout << comp.covariance << endl;
+            cout << comp.inverseCovariance << endl;
+        }
+
+
+        // the choice of cost functions
+        const bool useDiffSquareAsValue = false;
+        if (!useDiffSquareAsValue) {
+            value = comp.ComputeEntropy();
+        } else {
+            value = 0;
+            for (int k = 0; k < nPixels; k++) {
+                double d = (comp.dataMatrix[0][k] - comp.dataMatrix[1][k]);
+                value += (d*d);
+            }
+        }
+
+
+        // iterative over all moving images
+        for (int imIdx = 0; imIdx < derivs.size(); imIdx++) {
+            // compute the gradient with respect to parameters
+            // assume that every moving image has the same type of transformations
+            const int nParams = _movingImages[imIdx].getTransform()->GetNumberOfParameters();
+            derivs[imIdx].SetSize(nParams);
+
+            // initialize output
+            derivs[imIdx].Fill(0);
+
+            // iterator to compute the jacobian
+            RealImageIteratorType iter(_fixedImage.getImage(), _fixedImage.getImage()->GetBufferedRegion());
+            iter.GoToBegin();
+
+            // iterate over each pixel
+            for (int k = 0; k < nPixels; k++, ++iter) {
+                // if k is not inside a valid region
+                if (!validPixels[k]) {
+                    continue;
+                }
+                // compute the physical point
+                // maybe cache saves the computation time
+                RealImage::PointType fixedPoint;
+                _fixedImage.getImage()->TransformIndexToPhysicalPoint(iter.GetIndex(), fixedPoint);
+
+                // compute the jacobian at the fixedPoint
+                TransformType::JacobianType jacobian;
+                _movingImages[imIdx].getTransform()->ComputeJacobianWithRespectToParameters(fixedPoint, jacobian);
+
+                // compute the total derivative with respect to a parameter
+                // this is done by the inner product of the gradient of image
+                // and the l-th column of the jacobian matrix
+                const int dim = RealImage::ImageDimension;
+
+                // l is the index representing the x-y-z dimension
+                bool isValidPixel;
+
+                // compute the moving image's point to sample its gradient
+                RealImage::PointType movingPoint = _movingImages[imIdx].getTransform()->TransformPoint(fixedPoint);
+
+                // sample the intensity gradient at the moving point
+                GradientImage::PixelType movingGradient = _movingImages[imIdx].sampleGradient(movingPoint, isValidPixel);
+
+
+                // if the point is inside the buffer
+                // compute total derivatives per parameter
+                for (int pIdx = 0; pIdx < nParams; pIdx++) {
+                    float dI = 0;
+                    for (int d = 0; d < dim; d++) {
+                        dI += (movingGradient[d] * jacobian[d][pIdx]);
+                    }
+                    // compute the total derivative dI_k
+                    dI *= comp.gradient[imIdx][k];
+                    if (dI != dI) {
+                        cout << "NaN dI" << endl;
+                        cout << movingGradient << endl;
+                        cout << jacobian << endl;
+                    }
+                    // update derivative dEnt/dP_ij
+                    derivs[imIdx][pIdx] -= dI;
+                }
+            } // k-loop
+
+            const bool printGradient = false;
+            if (printGradient) {
+                cout << "Non-scaled Gradient[" << imIdx << "]: " << derivs[imIdx] << endl;
+            }
+        }
+    }
+
+
+
     // metric set up
     void EntropyCostFunction::setupMetric() {
 //
@@ -970,6 +1149,11 @@ namespace pi {
             if (_currentIteration >= _maxIterations) {
                 stopOptimization();
             }
+
+
+            // save intermediate steps into files
+            // save resampled images and transformation output
+            _costFunc->saveResampledImages();
         }
     }
 
@@ -1116,25 +1300,25 @@ void EntropyImageMetric::GetValueAndDerivative(double &value, DerivativeType &de
 #define SIMPLE_TEST
 #ifdef SIMPLE_TEST
         // test the registration method with simple translated images.
-        const int nImages = 4;
+        const int nImages = 5;
 
         string inputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithDots/";
         string outputdir = inputdir;
 
-        string images[] = { "dot.2.nii.gz", "dot.3.nii.gz", "dot.4.nii.gz", "dot.5.nii.gz" };
-        string outputImages[] = { "outdot.21.nii.gz", "outdot.31.nii.gz", "outdot.41.nii.gz", "outdot.51.nii.gz" };
-        string outputText[] = { "txtdot.21.txt", "txtdot.31.txt", "txtdot.41.txt", "txtdot.51.txt" };
+        string images[] = { "dot.1.nii.gz", "dot.2.nii.gz", "dot.3.nii.gz", "dot.4.nii.gz", "dot.5.nii.gz" };
+        string outputImages[] = { "outdot.11.nii.gz", "outdot.21.nii.gz", "outdot.31.nii.gz", "outdot.41.nii.gz", "outdot.51.nii.gz" };
+        string outputText[] = { "txtdot.11.txt", "txtdot.21.txt", "txtdot.31.txt", "txtdot.41.txt", "txtdot.51.txt" };
 
         RealImage::Pointer fixedImage  = imageIO.ReadCastedImage(inputdir + "dot.1.nii.gz");
 #else
-        const int nImages = 2;
+        const int nImages = 3;
 
         string inputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithAffine/";
         string outputdir = "/NIRAL/work/joohwi/nadia/Processing/MetricTestWithAffine/";
 
-        string images[] = { "source/c36_129s.nii.gz", "source/e11_129s.nii.gz" };
-        string outputImages[] = { "c3631_ent.nii.gz", "e1131_ent.nii.gz" };
-        string outputText[] = { "c3631_ent.txt", "e1131_ent.txt" };
+        string images[] = { "source/c31_129s.nii.gz", "source/c36_129s.nii.gz", "source/e11_129s.nii.gz" };
+        string outputImages[] = { "c3131_ent_nonFixed.nii.gz", "c3631_ent_nonFixed.nii.gz", "e1131_ent_nonFixed.nii.gz" };
+        string outputText[] = { "c3131_ent_nonFixed.txt", "c3631_ent_nonFixed.txt", "e1131_ent_nonFixed.txt" };
 
         RealImage::Pointer fixedImage  = imageIO.ReadCastedImage(inputdir + "source/c31_129s.nii.gz");
 #endif

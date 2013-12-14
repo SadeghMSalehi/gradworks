@@ -14,6 +14,9 @@ namespace pi {
 }
 
 
+static void doMerge(Options& opts, StringVector& args);
+
+
 static void end() {
     exit(EXIT_SUCCESS);
 }
@@ -103,14 +106,15 @@ static void printHelp(Options& opts) {
         if (help == "") {
             continue;
         }
-        cout << name << "\t" << help << endl;
+        cout << name << "\n\t" << help << endl;
     }
 }
 
 int main(int argc, char* argv[]) {
     Options opts;
     opts.addOption("--p2mat", "point list to matrix", SO_NONE);
-    opts.addOption("--slice", "extract a slice", SO_NONE);
+    opts.addOption("--slice", "extract a slice (--slice dim index imagefile outputfile)", SO_NONE);
+    opts.addOption("--imageMerge", "merge 2D images into a 3d volume (--imageMerge output input1 input2 ...)", SO_REQ_SEP);
     opts.addOption("--qa", "extract a slice with a label map", SO_NONE);
     opts.addOption("--config", "[file] use this config file", SO_REQ_SEP);
     opts.addOption("--demons", "run Demons registration", SO_NONE);
@@ -131,6 +135,7 @@ int main(int argc, char* argv[]) {
     particle2mat(opts, args);
     doSlice(opts, args);
     doSeparate(opts, args);
+    doMerge(opts, args);
 
     if (opts.GetBool("--qa")) {
         executeQARunner(opts, args);
@@ -141,4 +146,54 @@ int main(int argc, char* argv[]) {
     } else {
         executeParticleRunner(opts, args);
     }
+}
+
+
+// merge a given list of arguments into the output-image that is given with the parameter --imageMerge
+static void doMerge(Options& opts, StringVector& args) {
+    string outputFile = opts.GetString("--imageMerge", "");
+    if (outputFile == "") {
+        cout << "--imageMerge [output-image] [input1] [input2] ..." << endl;
+        exit(0);
+    }
+
+    // first, create an empty image with the same x-y dimension with
+    // the first argument image but has z-dimension with the number of arguments
+
+    ImageIO<RealImage2> image2IO;
+    ImageIO<RealImage3> image3IO;
+
+    // read the first image and create the outputImage buffer
+    RealImage2::Pointer inputImage = image2IO.ReadCastedImage(args[0]);
+    RealImage3::Pointer outputImage = image3IO.NewImageT(
+                inputImage->GetBufferedRegion().GetSize(0), inputImage->GetBufferedRegion().GetSize(1), args.size());
+
+    // prepare the outputBuffer to write
+    RealImage3::PixelType* outputBuffer = outputImage->GetBufferPointer();
+
+
+    int i = 0;
+    while (i < args.size()) {
+        // prepare the inputImage buffer
+        uint nSize = inputImage->GetPixelContainer()->Size();
+        RealImage2::PixelType* inputBuffer = inputImage->GetBufferPointer();
+
+        // copy the inputImage into the outputImage
+        int nBytes = nSize * sizeof(RealImage3::PixelType);
+        memcpy(outputBuffer, inputBuffer, nBytes);
+
+        // forward the outputBuffer
+        outputBuffer += nSize;
+
+        // read the next image
+        if (++i < args.size()) {
+            inputImage = image2IO.ReadImage(args[i]);
+        }
+    }
+
+    // write the 3d output image
+    image3IO.WriteImage(outputFile, outputImage);
+
+    // exit the program
+    exit(0);
 }
