@@ -416,6 +416,26 @@ namespace pi {
         }
 	}
 
+    void Options::addOption(std::string name, string help, string usage, int argType) {
+		_specNames.push_back(name);
+
+		CSimpleOpt::SOption opt;
+		opt.nId = _specs.size();
+		opt.pszArg = _specNames.back().c_str();
+		opt.nArgType = (_ESOArgType) argType;
+        _specs.push_back(opt);
+
+        std::pair<StringMap::iterator, bool> result = _specHelpMessages.insert(StringPair(name, help));
+        if (!result.second) {
+            result.first->second = help;
+        }
+
+        std::pair<StringMap::iterator, bool> resultUsage = _specUsage.insert(StringPair(name, usage));
+        if (!resultUsage.second) {
+            resultUsage.first->second = usage;
+        }
+	}
+
     std::string Options::GetOptionHelp(std::string name) {
         if (_specHelpMessages.find(name) == _specHelpMessages.end()) {
             return "";
@@ -424,8 +444,36 @@ namespace pi {
         }
     }
 
+    std::string Options::GetOptionUsage(std::string name) {
+        if (_specUsage.find(name) == _specUsage.end()) {
+            return "";
+        } else {
+            return _specUsage.at(name);
+        }
+    }
+
+
     StringVector& Options::GetOptionNames() {
         return _specNames;
+    }
+
+
+    // print usage
+    void Options::PrintUsage() {
+        StringVector& specs = GetOptionNames();
+        for (int i = 0; i < specs.size(); i++) {
+            string name = specs[i];
+            string help = GetOptionHelp(name);
+            string usage = GetOptionUsage(name);
+
+            cout << "* " << name << endl;
+            if (help != "") {
+                cout << "\t* " << help << endl;
+            }
+            if (usage != "") {
+                cout << "\t*" << usage << endl;
+            }
+        }
     }
 
     void Options::main(Options& opts, StringVector& args) {

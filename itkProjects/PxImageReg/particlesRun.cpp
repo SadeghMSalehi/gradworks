@@ -148,7 +148,8 @@ int main(int argc, char* argv[]) {
     StringVector& args = opts.GetStringVector("args");
 
     if (opts.GetBool("--help") || opts.GetBool("-h")) {
-        printHelp(opts);
+        cout << "## *prun* Command Line Options" << endl;
+        opts.PrintUsage();
         return 0;
     }
 

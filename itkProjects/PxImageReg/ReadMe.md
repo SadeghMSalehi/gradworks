@@ -1,11 +1,25 @@
+./prun2d with dimension = 2
 ## *prun* Command Line Options
 * --fusion
-   * label fusion from a config file
-   * ex) --fusion config-file output-file target-image
+	* label fusion from a config (--fusion config-file output-file target-image)
 * --p2mat
-   * convert point list to a matrix form
+	* point list to matrix
 * --slice
-   * extract a slice
-   * ex) --slice dim index imagefile outputfile
+	* extract a slice (--slice dim index imagefile outputfile)
+* --imageMerge
+	* merge 2D images into a 3d volume (--imageMerge output input1 input2 ...)
+* --qa
+	* extract a slice with a label map
+* --config
+	* [file] use this config file
+* --demons
+	* run Demons registration
+* --separate
+	* [input] [x] [y] [z] ... separate vector images into individual image files
+* --rx
+	* registration experiments 
+* --dots
+	* --rx --dots generate a series of gaussian dot images
+* --sigma
+	* sigma value [double]
 * --help
-   * show help message
