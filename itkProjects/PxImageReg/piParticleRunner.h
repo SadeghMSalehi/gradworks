@@ -16,40 +16,13 @@
 #include "piOptions.h"
 #include "piConfigFile.h"
 #include "piPx.h"
+#include "piTools.h"
 
 
 
 namespace pi {
 #pragma mark ParticleRunner
     const int __PatchSize = 5;
-
-    class PxTools {
-    public:
-        bool checkFile(std::string filename) {
-            ifstream i(filename.c_str());
-            bool file = i.is_open();
-            i.close();
-            return file;
-        }
-
-        template<class T>
-        void readImages(std::vector<typename T::Pointer>& data, libconfig::Setting& files) {
-            for (int i = 0; i < files.getLength(); i++) {
-                std::string in = files[i];
-                ImageIO<T> io;
-                data.push_back(io.ReadCastedImage(in));
-            }
-        }
-
-        template<class T>
-        void writeImages(std::vector<typename T::Pointer>& data, libconfig::Setting& files) {
-            for (int i = 0; i < files.getLength(); i++) {
-                std::string in = files[i];
-                ImageIO<T> io;
-                io.WriteImage(in, data[i]);
-            }
-        }
-    };
 
     /// globally affected parameters
     class PxGlobal {

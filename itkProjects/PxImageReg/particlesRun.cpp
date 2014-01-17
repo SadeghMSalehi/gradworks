@@ -11,6 +11,7 @@ namespace pi {
     void executeDemonsRunner(Options& parser, StringVector& args);
     void executeQARunner(Options& parser, StringVector& args);
     void executeRxRunner(Options& parser, StringVector& args);
+    void executeLabelFusionRunner(Options& parser, StringVector& args);
 }
 
 
@@ -110,8 +111,27 @@ static void printHelp(Options& opts) {
     }
 }
 
+
+
+/*MD
+ ## *prun* Command Line Options
+ * --fusion
+    * label fusion from a config file
+    * ex) --fusion config-file output-file target-image
+ * --p2mat
+    * convert point list to a matrix form
+ * --slice
+    * extract a slice
+    * ex) --slice dim index imagefile outputfile
+ * --help
+    * show help message
+*/
 int main(int argc, char* argv[]) {
+    // show which dimension this executable is handling
+    cout << argv[0] << " with dimension = " << __Dim << endl;
+
     Options opts;
+    opts.addOption("--fusion", "label fusion from a config (--fusion config-file output-file target-image)", SO_REQ_SEP);
     opts.addOption("--p2mat", "point list to matrix", SO_NONE);
     opts.addOption("--slice", "extract a slice (--slice dim index imagefile outputfile)", SO_NONE);
     opts.addOption("--imageMerge", "merge 2D images into a 3d volume (--imageMerge output input1 input2 ...)", SO_REQ_SEP);
@@ -119,7 +139,7 @@ int main(int argc, char* argv[]) {
     opts.addOption("--config", "[file] use this config file", SO_REQ_SEP);
     opts.addOption("--demons", "run Demons registration", SO_NONE);
     opts.addOption("--separate", "[input] [x] [y] [z] ... separate vector images into individual image files", SO_NONE);
-    opts.addOption("--rx", "[fixed-image] [moving-image] [output-image] [output-transform]", SO_NONE);
+    opts.addOption("--rx", "registration experiments ", SO_NONE);
     opts.addOption("--dots", "--rx --dots generate a series of gaussian dot images", SO_NONE);
     opts.addOption("--sigma", "sigma value [double]", SO_REQ_SEP);
     opts.addOption("--help", SO_NONE);
@@ -135,14 +155,18 @@ int main(int argc, char* argv[]) {
     particle2mat(opts, args);
     doSlice(opts, args);
     doSeparate(opts, args);
-    doMerge(opts, args);
+
 
     if (opts.GetBool("--qa")) {
         executeQARunner(opts, args);
+    } else if (opts.GetString("--imageMerge", "") != "" && args.size() > 0) {
+        doMerge(opts, args);
     } else if (opts.GetBool("--demons")) {
         executeDemonsRunner(opts, args);
     } else if (opts.GetBool("--rx")) {
         executeRxRunner(opts, args);
+    } else if (opts.GetString("--fusion", "") != "") {
+        executeLabelFusionRunner(opts, args);
     } else {
         executeParticleRunner(opts, args);
     }
@@ -151,11 +175,6 @@ int main(int argc, char* argv[]) {
 
 // merge a given list of arguments into the output-image that is given with the parameter --imageMerge
 static void doMerge(Options& opts, StringVector& args) {
-    string outputFile = opts.GetString("--imageMerge", "");
-    if (outputFile == "") {
-        cout << "--imageMerge [output-image] [input1] [input2] ..." << endl;
-        exit(0);
-    }
 
     // first, create an empty image with the same x-y dimension with
     // the first argument image but has z-dimension with the number of arguments
@@ -190,6 +209,9 @@ static void doMerge(Options& opts, StringVector& args) {
             inputImage = image2IO.ReadImage(args[i]);
         }
     }
+
+    // output file preparation
+    string outputFile = opts.GetString("--imageMerge");
 
     // write the 3d output image
     image3IO.WriteImage(outputFile, outputImage);

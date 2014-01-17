@@ -28,6 +28,7 @@ SET (MY_PARTICLE_WORKS_SOURCES
     itkARGBSliceExtractImageFilter.h itkARGBSliceExtractImageFilter.cpp
 
     piImageDef.h piImageIO.h piMacros.h
+    piTools.h piTools.cpp
     piTimer.h piTimer.cpp
     piOptions.cpp piOptions.h
     piConfigFile.h piConfigFile.cpp
@@ -39,6 +40,9 @@ SET (MY_PARTICLE_WORKS_SOURCES
 
     piImageQA.h piImageQA.cpp
     piImageHistogram.h piImageHistogram.cpp
+
+# Label Fusion
+    piLabelFusionRunner.h piLabelFusionRunner.cpp
 
 # Demons Runner
     piDemonsRunner.h piDemonsRunner.cpp
