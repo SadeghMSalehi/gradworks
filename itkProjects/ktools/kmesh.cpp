@@ -225,9 +225,7 @@ int main(int argc, char * argv[])
 
 
     if (opts.GetBool("-h")) {
-        for (uint i = 0; i < opts.GetOptionNames().size(); i++) {
-            cout << opts.GetOptionNames()[i] << "\t" << opts.GetOptionHelp(opts.GetOptionNames()[i]) << endl;
-        }
+        opts.PrintUsage();
         return 0;
     } else if (opts.GetBool("-smoothScalars")) {
         runScalarSmoothing(opts, args);
