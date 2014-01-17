@@ -225,6 +225,7 @@ int main(int argc, char * argv[])
 
 
     if (opts.GetBool("-h")) {
+        cout << "## *kmesh* Usage" << endl;
         opts.PrintUsage();
         return 0;
     } else if (opts.GetBool("-smoothScalars")) {
