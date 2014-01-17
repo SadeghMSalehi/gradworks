@@ -1,4 +1,4 @@
-./prun2d with dimension = 2
+/Prime/Sources/PxImageRx-build/Debug/prun2d with dimension = 2
 ## *prun* Command Line Options
 * --fusion
 	* label fusion from a config
@@ -23,4 +23,6 @@
 	* --rx --dots generate a series of gaussian dot images
 * --sigma
 	* sigma value [double]
+	* *ex)* --sigma 0.8
 * --help
+	* print this message

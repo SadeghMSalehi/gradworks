@@ -142,8 +142,8 @@ int main(int argc, char* argv[]) {
     opts.addOption("--separate", "[input] [x] [y] [z] ... separate vector images into individual image files", SO_NONE);
     opts.addOption("--rx", "registration experiments ", SO_NONE);
     opts.addOption("--dots", "--rx --dots generate a series of gaussian dot images", SO_NONE);
-    opts.addOption("--sigma", "sigma value [double]", SO_REQ_SEP);
-    opts.addOption("--help", SO_NONE);
+    opts.addOption("--sigma", "sigma value [double]", "--sigma 0.8", SO_REQ_SEP);
+    opts.addOption("--help", "print this message", SO_NONE);
 
     opts.ParseOptions(argc, argv, NULL);
     StringVector& args = opts.GetStringVector("args");
