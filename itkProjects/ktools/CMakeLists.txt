@@ -69,6 +69,7 @@ IF(${USE_VTK})
         vtkio.h vtkio.cpp
     )
     TARGET_LINK_LIBRARIES(kmesh ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+    ADD_CUSTOM_COMMAND(TARGET kmesh POST_BUILD COMMAND kmesh -h > ${CMAKE_CURRENT_SOURCE_DIR}/kmesh.md)
 ENDIF(${USE_VTK})
 
 IF(${BUILD_KMBRAIN})

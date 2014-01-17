@@ -211,7 +211,7 @@ void runScalarSmoothing(Options& opts, StringVector& args) {
 int main(int argc, char * argv[])
 {
     Options opts;
-    opts.addOption("-exportScalars", "Export scalar values to a text file [in-mesh] [scalar.txt]", SO_NONE);
+    opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
     opts.addOption("-importScalars", "Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
     opts.addOption("-appendData", "Append input meshes into a single data [output-mesh]", SO_REQ_SEP);
