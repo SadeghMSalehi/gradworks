@@ -130,8 +130,9 @@ int main(int argc, char* argv[]) {
     // show which dimension this executable is handling
     cout << argv[0] << " with dimension = " << __Dim << endl;
 
+    
     Options opts;
-    opts.addOption("--fusion", "label fusion from a config (--fusion config-file output-file target-image)", SO_REQ_SEP);
+    opts.addOption("--fusion", "label fusion from a config", "--fusion config-file output-file target-image", SO_REQ_SEP);
     opts.addOption("--p2mat", "point list to matrix", SO_NONE);
     opts.addOption("--slice", "extract a slice (--slice dim index imagefile outputfile)", SO_NONE);
     opts.addOption("--imageMerge", "merge 2D images into a 3d volume (--imageMerge output input1 input2 ...)", SO_REQ_SEP);
@@ -152,6 +153,7 @@ int main(int argc, char* argv[]) {
         opts.PrintUsage();
         return 0;
     }
+
 
     particle2mat(opts, args);
     doSlice(opts, args);

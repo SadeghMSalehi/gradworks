@@ -471,7 +471,7 @@ namespace pi {
                 cout << "\t* " << help << endl;
             }
             if (usage != "") {
-                cout << "\t*" << usage << endl;
+                cout << "\t* *ex)* " << usage << endl;
             }
         }
     }

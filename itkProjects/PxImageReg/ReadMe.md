@@ -1,7 +1,8 @@
 ./prun2d with dimension = 2
 ## *prun* Command Line Options
 * --fusion
-	* label fusion from a config (--fusion config-file output-file target-image)
+	* label fusion from a config
+	* *ex)* --fusion config-file output-file target-image
 * --p2mat
 	* point list to matrix
 * --slice
