@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
             "Note that the output data type is the same with the last input file. The order of images may produce different results, if images with different types are used.\n\n"
             "Some examples are:\n"
             "* **Addition**: kcalc -e \"(A+B)\" input1.nrrd input2.nrrd -o output.nrrd\n"
-            "* **Averaging**: kcalc -e \"(A+B)/2\" input1.nrrd input2.nrrd -o output.nrrd"
+            "* **Averaging**: kcalc -e \"(A+B)/2\" input1.nrrd input2.nrrd -o output.nrrd\n"
             "* **Thresholding**: kcalc -e \"(A>10?1:0)\" input.nrrd -o output.nrrd\n"
             "* **Scaling**: -e (A-AMIN)/AMAX*255\n"
             "* **Masking**: -e (A==8?B:0)\n"
