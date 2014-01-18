@@ -183,11 +183,11 @@ namespace pi {
         // create triangle filter to retrieve edges
         vtkPolyData* triangles = triFilter->GetOutput();
 
-        vtkPolyDataWriter* writer = vtkPolyDataWriter::New();
-        writer->SetInput(triangles);
-        writer->SetFileName("/tmpfs/mesh.vtk");
-        writer->Write();
-        writer->Delete();
+//        vtkPolyDataWriter* writer = vtkPolyDataWriter::New();
+//        writer->SetInput(triangles);
+//        writer->SetFileName("/tmpfs/mesh.vtk");
+//        writer->Write();
+//        writer->Delete();
 
 //        triangles->Print(cout);
 

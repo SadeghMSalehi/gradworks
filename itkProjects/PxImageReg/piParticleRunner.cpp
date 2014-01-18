@@ -667,7 +667,8 @@ namespace pi {
             const double coeff = global->imageCoeff[subjs[i].attrs[j].label];
             fordim (d) {
                 subjs[i].imageForces[j][d] = 0;
-                for (int k = 0; k < nex; k++) {                        subjs[i].imageForces[j][d] += comp.gradient[j][k] * grad[j][k];
+                for (int k = 0; k < nex; k++) {
+                    subjs[i].imageForces[j][d] += comp.gradient[j][k] * grad[j][k];
                 }
                 subjs[i].imageForces[j][d] *= coeff;
             }
@@ -1002,6 +1003,10 @@ namespace pi {
             if (global.useEnsembleForce) {
                 ensemble.computeAttraction(subjs);
             }
+
+
+            // compute pixel entropy
+            
 //            cout << subjs[0].ensembleForces << endl;
 
             // update system

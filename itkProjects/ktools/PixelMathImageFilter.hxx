@@ -20,6 +20,7 @@
 #include "PixelMathImageFilter.h"
 #include "itkImageRegionIterator.h"
 #include "itkImageRegionConstIterator.h"
+#include <itkStatisticsImageFilter.h>
 #include "itkProgressReporter.h"
 #include "iostream"
 
@@ -142,6 +143,10 @@ PixelMathImageFilter<TInputImage,TOutputImage>
                           << "cannot cast input to "
                           << typeid(ImageBase<Superclass::InputImageDimension>*).name() );
     }
+
+
+
+    ComputeIntensityStatistics();
 }
 
 
@@ -179,9 +184,13 @@ PixelMathImageFilter<TInputImage,TOutputImage>
         outputIt.GoToBegin();
 
 		mu::Parser mathParser;
-		double m_Vars[NUM_MAX_VARS];
-		const char* VarNames[NUM_MAX_VARS] = { "A", "B", "C", "D", "E" };
-		for (int i = 0; i < NUM_MAX_VARS; i++) {
+		double m_Vars[NUM_MAX_VARS + 2 * NUM_MAX_VARS];
+        for (int i = 0; i < NUM_MAX_VARS; i++) {
+            m_Vars[NUM_MAX_VARS + i * 2] = m_MinIntensities[i];
+            m_Vars[NUM_MAX_VARS + i * 2 + 1] = m_MaxIntensities[i];
+        }
+		const char* VarNames[NUM_MAX_VARS + 2 * NUM_MAX_VARS] = { "A", "B", "C", "D", "E", "AMIN", "AMAX", "BMIN", "BMAX", "CMIN", "CMAX", "DMIN", "DMAX", "EMIN", "EMAX"  };
+		for (int i = 0; i < NUM_MAX_VARS + 2 * NUM_MAX_VARS; i++) {
 			mathParser.DefineVar(VarNames[i], &m_Vars[i]);
 		}
 		mathParser.SetExpr(m_Equation);
@@ -208,4 +217,27 @@ PixelMathImageFilter<TInputImage,TOutputImage>
 	}
 }
 
+
+/**
+ * Compute Intensity Statistics such as min and max
+ */
+template <class TInputImage, class TOutputImage >
+void
+PixelMathImageFilter<TInputImage,TOutputImage>::
+ComputeIntensityStatistics() {
+    const int nInputs = static_cast<int>(this->GetNumberOfInputs());
+
+    m_MinIntensities.resize(nInputs);
+    m_MaxIntensities.resize(nInputs);
+
+    typedef itk::StatisticsImageFilter<TInputImage> StatisticsFilterType;
+
+    for (int i = 0; i < nInputs; i++) {
+        typename StatisticsFilterType::Pointer filter = StatisticsFilterType::New();
+        filter->SetInput(this->GetInput(i));
+        filter->Update();
+        m_MinIntensities[i] = filter->GetMinimum();
+        m_MaxIntensities[i] = filter->GetMaximum();
+    }
+}
 #endif

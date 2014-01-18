@@ -40,6 +40,7 @@ IF(${BUILD_KCALC})
 ADD_EXECUTABLE(kcalc kcalc.cpp piImageIO.h piOptions.cpp piOptions.h ${muparser_SRC} PixelMathImageFilter.h PixelMathImageFilter.hxx)
 SET_TARGET_PROPERTIES(kcalc PROPERTIES COMPILE_FLAGS "-DPIXEL_TYPE=float")
 TARGET_LINK_LIBRARIES(kcalc ${ITK_LIBRARIES})
+ADD_CUSTOM_COMMAND(TARGET kcalc POST_BUILD COMMAND kcalc -h > ${CMAKE_CURRENT_SOURCE_DIR}/../kcalc.md)
 ENDIF(${BUILD_KCALC})
 
 IF(${USE_VTK})

@@ -6,7 +6,8 @@
 * --p2mat
 	* point list to matrix
 * --slice
-	* extract a slice (--slice dim index imagefile outputfile)
+	* extract a slice from 3d volume
+	* *ex)* --slice dim index imagefile outputfile
 * --imageMerge
 	* merge 2D images into a 3d volume (--imageMerge output input1 input2 ...)
 * --qa

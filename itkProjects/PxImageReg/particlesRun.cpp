@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
     Options opts;
     opts.addOption("--fusion", "label fusion from a config", "--fusion config-file output-file target-image", SO_REQ_SEP);
     opts.addOption("--p2mat", "point list to matrix", SO_NONE);
-    opts.addOption("--slice", "extract a slice (--slice dim index imagefile outputfile)", SO_NONE);
+    opts.addOption("--slice", "extract a slice from 3d volume", "--slice dim index imagefile outputfile", SO_NONE);
     opts.addOption("--imageMerge", "merge 2D images into a 3d volume (--imageMerge output input1 input2 ...)", SO_REQ_SEP);
     opts.addOption("--qa", "extract a slice with a label map", SO_NONE);
     opts.addOption("--config", "[file] use this config file", SO_REQ_SEP);

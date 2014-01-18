@@ -209,6 +209,8 @@ namespace pi {
 
         PxGlobal global;
 
+        // what is sampler?
+        // maybe the intersection?
         PxSubj sampler;
         PxSubj::Vector subjs;
         PxEnsemble ensemble;
