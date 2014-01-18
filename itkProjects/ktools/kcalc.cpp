@@ -27,14 +27,14 @@ int main(int argc, char* argv[]) {
 
     if (argParser.GetBool("-h") || eq == "" || args.size() == 0 || outputFilename == "") {
         cout << "## kcalc usage \n"
-            "   kcalc [-e equation] [-o output-file] input1:A input2:B ...\n\n"
+            "\tkcalc [-e equation] [-o output-file] input1:A input2:B ...\n\n"
             "The kcalc performs a pixel-wise arithmetic. The pixel value of each input image is given as variables, A,B,C,D, and E. Several functions implemented in [MuParser](http://muparser.beltoforion.de/) includes +,-,*,/, and ?, as well as, trigonometric functions.\n\n"
             "Also, there are the min, max values of each input image for the use of scaling and other purposes, which are given as AMIN, AMAX, BMIN, BMAX, and etc.\n\n"
             "Note that the output data type is the same with the last input file. The order of images may produce different results, if images with different types are used.\n\n"
             "Some examples are:\n"
-            "* **Addition**: -e (A+B)\n"
-            "* **Averaging**: -e (A+B/2)\n"
-            "* **Thresholding**: -e (A>10?1:0)\n"
+            "* **Addition**: kcalc -e \"(A+B)\" input1.nrrd input2.nrrd -o output.nrrd\n"
+            "* **Averaging**: kcalc -e \"(A+B)/2\" input1.nrrd input2.nrrd -o output.nrrd"
+            "* **Thresholding**: kcalc -e \"(A>10?1:0)\" input.nrrd -o output.nrrd\n"
             "* **Scaling**: -e (A-AMIN)/AMAX*255\n"
             "* **Masking**: -e (A==8?B:0)\n"
             "* ...\n\n"

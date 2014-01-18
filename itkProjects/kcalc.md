@@ -1,5 +1,5 @@
 ## kcalc usage 
-   kcalc [-e equation] [-o output-file] input1:A input2:B ...
+	kcalc [-e equation] [-o output-file] input1:A input2:B ...
 
 The kcalc performs a pixel-wise arithmetic. The pixel value of each input image is given as variables, A,B,C,D, and E. Several functions implemented in [MuParser](http://muparser.beltoforion.de/) includes +,-,*,/, and ?, as well as, trigonometric functions.
 
@@ -8,9 +8,8 @@ Also, there are the min, max values of each input image for the use of scaling a
 Note that the output data type is the same with the last input file. The order of images may produce different results, if images with different types are used.
 
 Some examples are:
-* **Addition**: -e (A+B)
-* **Averaging**: -e (A+B/2)
-* **Thresholding**: -e (A>10?1:0)
+* **Addition**: kcalc -e "(A+B)" input1.nrrd input2.nrrd -o output.nrrd
+* **Averaging**: kcalc -e "(A+B)/2" input1.nrrd input2.nrrd -o output.nrrd* **Thresholding**: kcalc -e "(A>10?1:0)" input.nrrd -o output.nrrd
 * **Scaling**: -e (A-AMIN)/AMAX*255
 * **Masking**: -e (A==8?B:0)
 * ...
