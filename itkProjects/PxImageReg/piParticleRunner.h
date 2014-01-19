@@ -25,57 +25,71 @@ namespace pi {
     const int __PatchSize = 5;
 
     /// A class stores configuration used as global
-    /// @property nsubjs the number of subjects
-    /// @property nlabels the number of labels. This should be the same across subjects
-    /// @property totalParticles the total number of particles of a subject
-    /// @property useLocalRepulsion
-    /// @property useAffineTransform
-    /// @property useEnsembleForce
-    /// @property numParticles a vector stores the number of particles for each label
-    /// @property cutoffParams the cut-off parameters used in the sampling process
-    /// @property sigmaParams the sigma parameters used in the sampling process for controlling spacing
-    /// @property repulsionCoeff the distribution weight between terms
-    /// @property ensembleCoeff the ensemble weight between terms
-    /// @property imageCoeff the image term weight
-    /// @property Neighbors ???
-    /// @method load to load a config file
     class PxGlobal {
     public:
+        /// the number of subjects
         int nsubjs;
+        /// the number of labels. This should be the same across subjects
         int nlabels;
+        /// the total number of particles of a subject
         int totalParticles;
+        
         bool useLocalRepulsion;
         bool useAffineTransform;
         bool useEnsembleForce;
 
         PxGlobal(): nsubjs(0), nlabels(0), totalParticles(0), useLocalRepulsion(false), useAffineTransform(false), useEnsembleForce(true) {}
+
+
+        /// a vector stores the number of particles for each label
         std::vector<int> numParticles;
+        /// the cut-off parameters used in the sampling process
         std::vector<double> cutoffParams;
+        /// the sigma parameters used in the sampling process for controlling spacing
         std::vector<double> sigmaParams;
+        /// the distribution weight between terms
         std::vector<double> repulsionCoeff;
+        /// the ensemble weight between terms
         std::vector<double> ensembleCoeff;
+        /// the image term weight
         std::vector<double> imageCoeff;
 
+
+        /// Type to represents the adjacency matrix
         typedef std::vector<IntVector> Neighbors;
+
+        /// An adjacency matrix to store particle neighbors
         Neighbors neighbors;
 
+        /// @brief Load the config file.
+        /// @param config ConfigFile instance
         void load(ConfigFile& config);
+
+        /// @brief Set the number of labels and resize related vector variables.
+        /// @param nLabels the number of labels.
+        void setNumberOfLabels(int nLabels);
     };
 
     /// A class represents an image to be registered.
-    /// @property image an intensity image
-    /// @property gradient the gradient of the image
-    /// @method load(std::string file)
-
     class PxI {
     public:
+        /// an intensity image
         RealImage::Pointer image;
+
+        /// the gradient of the image
         GradientImage::Pointer gradient;
 
+        /// intensity interpolator
         LinearImageInterpolatorType::Pointer imageSampler;
+
+        /// the intensity gradient interpolator
         GradientInterpolatorType::Pointer gradientSampler;
 
+        /// Initialize interpolators
         PxI();
+
+        /// @brief Load an image file and generate a gradient image and their interpolators.
+        /// @param file An input filename to load.
         void load(std::string file);
     };
 
@@ -267,12 +281,13 @@ namespace pi {
         /// @param nex the number of elements in a local intensity patch
         /// @param subjs the vector of subjects
         /// @param sampler the intensity sampler which has the size of a patch
-        void computePixelEntropy(int i, int npx, int nsx, int nex, PxSubj::Vector& subjs, NeighborSampler* sampler);
+        double computePixelEntropy(int i, int npx, int nsx, int nex, PxSubj::Vector& subjs, NeighborSampler* sampler);
 
         /// @brief Compute the image term for all subjects
-        /// @param subjs the vector of subjects
-        /// @param w the width of a local intensity patch
-        void computeImageTerm(PxSubj::Vector& subjs, int w);
+        /// @param subjs A vector of subjects
+        /// @param w The width of a local intensity patch
+        /// @param entropyOutput A vector to store entropy values for every particle
+        void computeImageTerm(PxSubj::Vector& subjs, int w, DoubleVector& entropyOutput);
 
     private:
         RealImage::RegionType patchRegion;

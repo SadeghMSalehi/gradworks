@@ -29,6 +29,9 @@ namespace pi {
     static ImageIO<RealImage> io;
     static ImageIO<LabelImage> labelIO;
 
+//    void executeParticleRunner(pi::Options &opts, StringVector &args);
+//    void executeEntropyImage(Options& opts, StringVector& args);
+
     void executeParticleRunner(pi::Options &opts, StringVector &args) {
         ParticleRunner runner;
         runner.main(opts, args);
@@ -43,17 +46,33 @@ namespace pi {
     }
 
 
+
+#pragma mark PxGlobal Implementation
+    void PxGlobal::setNumberOfLabels(int nLabels) {
+        numParticles.resize(nLabels);
+        cutoffParams.resize(nLabels);
+        sigmaParams.resize(nLabels);
+        repulsionCoeff.resize(nLabels);
+        ensembleCoeff.resize(nLabels);
+        imageCoeff.resize(nLabels);
+    }
+
+#pragma mark PxI implementation
+
     PxI::PxI() {
         imageSampler = LinearImageInterpolatorType::New();
         gradientSampler = GradientInterpolatorType::New();
     }
 
     void PxI::load(std::string file) {
+        /// ---
         this->image = io.ReadCastedImage(file);
         if (this->image.IsNull()) {
+            /// * If the file can't be loaded, exit to the system
             cout << "can't read " << file << endl;
             exit(0);
         }
+        /// * The gradient is computed after applying the Gaussian filter with the sigma of the half of the spacing.
         this->gradient = ComputeGaussianGradient(image, image->GetSpacing()[0] / 2.0);
 
         this->imageSampler->SetInputImage(this->image);
@@ -520,16 +539,18 @@ namespace pi {
 
         void setSampleRegion(RegionType& region, RealImage* reference);
 
-        /// sample image intensities from a given interpolator
-        /// @interp ImageInterpolator
-        /// @px particle locations at the original space
-        /// @pz particle locations at the transformed space (actual sampling)
+        /// @brief sample image intensities from a given interpolator
+        /// @param interp ImageInterpolator
+        /// @param px particle locations at the original space
+        /// @param pz particle locations at the transformed space (actual sampling)
+        /// @param pxValue
         void sampleValues(LinearImageInterpolatorType* interp, Px& px, Px& pz, double* pxValue);
 
-        /// sample image gradients from a given interpolator
-        /// @interp GradientInterpolator
-        /// @px particle locations at the original space
-        /// @pz particle locations at the transformed space (actual sampling)
+        /// @brief sample image gradients from a given interpolator
+        /// @param interp GradientInterpolator
+        /// @param px particle locations at the original space
+        /// @param pz particle locations at the transformed space (actual sampling)
+        /// @param pxGrad the gradient vectors
         void sampleGradients(GradientInterpolatorType* interp, Px& px, Px& pz, Px::Vector& pxGrad);
 
         void createSampleIndexes2(IndexType& startIdx);
@@ -636,7 +657,7 @@ namespace pi {
     }
 
 #pragma mark PxImageTerm implementations
-    void PxImageTerm::computePixelEntropy(int i, int npx, int nsx, int nex, PxSubj::Vector &subjs, NeighborSampler* sampler) {
+    double PxImageTerm::computePixelEntropy(int i, int npx, int nsx, int nex, PxSubj::Vector &subjs, NeighborSampler* sampler) {
 
         /// ---
         /// ### The entropy computation for image patch
@@ -660,6 +681,10 @@ namespace pi {
         /// * Compute inverse covariance
         comp.ComputeGradient();
 
+
+        /// * Compute the entropy for this particle
+        const double entropy = comp.ComputeEntropy();
+
         /// * Compute image gradient
         Px::Vector imageGradient(nex);
 
@@ -677,9 +702,11 @@ namespace pi {
                 subjs[j].imageForces[i][d] *= coeff;
             }
         }
+
+        return entropy;
     }
 
-    void PxImageTerm::computeImageTerm(PxSubj::Vector& subjs, int w) {
+    void PxImageTerm::computeImageTerm(PxSubj::Vector& subjs, int w, DoubleVector& entropy) {
         /// ---
         const int npx = global->totalParticles;
         const int nsx = global->nsubjs;
@@ -696,7 +723,7 @@ namespace pi {
 
         /// Iterate every particle with *i*, and call computePixelEntropy()
         for (int i = 0; i < npx; i++) {
-            computePixelEntropy(i, npx, nsx, nex, subjs, &sampler);
+            entropy[i] = computePixelEntropy(i, npx, nsx, nex, subjs, &sampler);
         }
     }
 
@@ -1183,5 +1210,76 @@ namespace pi {
 
     void ParticleRunner::printHelp() {
         cout << "particle image registration: built (" << __DATE__ << ")" << endl;
+    }
+
+
+#pragma mark --entropyImage implementation
+    void executeEntropyImage(Options& opts, StringVector& args) {
+        /// * If it is in __test__ mode (`--test`), it automatically provides a set of test files.
+        bool testMode = opts.GetBool("--test");
+        string output = opts.GetString("-o");
+
+        if (testMode) {
+            args.clear();
+            args[0] = "/NIRAL/work/joohwi/c57/ResizedData/c57_07_uchar.nrrd";
+            args[1] = "/NIRAL/work/joohwi/c57/ResizedData/c57_11_uchar.nrrd";
+            args[2] = "/NIRAL/work/joohwi/c57/ResizedData/c57_02_uchar.nrrd";
+            args[3] = "/NIRAL/work/joohwi/c57/ResizedData/c57_15_uchar.nrrd";
+            output = "/NIRAL/work/joohwi/c57/entropy_test.nrrd";
+        } else {
+            if (output == "" || args.size() < 2) {
+                cout << "Error: the output is not given or at least two images are not given." << endl;
+                exit(0);
+            }
+        }
+
+        /// * Create a vector of PxSubj list from arguments to feed into PxImageTerm::computeImageTerm()
+        PxGlobal global;
+        global.nsubjs = args.size();
+        global.setNumberOfLabels(1);
+
+        PxSubj::Vector subjs;
+        subjs.resize(args.size());
+
+        for (int i = 0; i < args.size(); i++) {
+            subjs[i].setGlobalConfig(&global);
+            subjs[i].image.load(args[i]);
+
+            /// * Create a list of particles to cover all voxels
+            if (i == 0) {
+                // perform only for the first subject
+                global.totalParticles = subjs[i].image.image->GetPixelContainer()->Size();
+                subjs[i].resize(nvoxels);
+                RealImageIteratorType iter(subjs[i].image.image, subjs[i].image.image->GetBufferedRegion());
+                for (int j = 0; !iter.IsAtEnd(); iter++, j++) {
+                    IntIndex idx = iter.GetIndex();
+                    ImagePoint point = subjs[i].image.image->TransformIndexToPhysicalPoint(idx, point);
+                    for (int d = 0; d < __Dim; d++) {
+                        subjs[i].particles[j].x[d] = point[d];
+                    }
+                }
+            } else {
+                // duplicate particles
+                subjs[i].resize(global.totalParticles);
+                subjs[i].particles = subjs[0].particles;
+            }
+        }
+
+        // Prepare to store entropy values.
+        DoubleVector entropyValues;
+        entropyValues.resize(global.totalParticles);
+
+        /// * Create an instance of PxImageTerm and call PxImageTerm::computeImageTerm
+        imageTerm.computeImageTerm(subjs, 5, entropyValues);
+
+        /// * Convert the entropyValues vector into an image
+        ImageIO<RealImage> io;
+        RealImage::Pointer outputImage = io.NewImage(subjs[0].image.image);
+        for (int i = 0; i < global.totalParticles; i++) {
+            outputImage->GetBufferPointer()[i] = entropyValues[i];
+        }
+
+        /// * Write the output image
+        io.WriteImage(output, outputImage);
     }
 }
