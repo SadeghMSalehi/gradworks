@@ -3,6 +3,14 @@
 #include "piImageProc.h"
 #include "libconfig.h++"
 
+/**
+ 
+ @mainpage Particle-guided Image Registration Software
+
+ This documentation provides the complete set of functions and usage for the use of Particle-guided Image Registration.
+
+ */
+
 using namespace pi;
 
 // external function defined in piParticleRunner.cpp
@@ -113,25 +121,13 @@ static void printHelp(Options& opts) {
 
 
 
-/*MD
- ## *prun* Command Line Options
- * --fusion
-    * label fusion from a config file
-    * ex) --fusion config-file output-file target-image
- * --p2mat
-    * convert point list to a matrix form
- * --slice
-    * extract a slice
-    * ex) --slice dim index imagefile outputfile
- * --help
-    * show help message
-*/
 int main(int argc, char* argv[]) {
     // show which dimension this executable is handling
     cout << argv[0] << " with dimension = " << __Dim << endl;
 
     
     Options opts;
+    opts.addOption("-o", "Specify a filename for an output image", SO_REQ_SEP);
     opts.addOption("--fusion", "label fusion from a config", "--fusion config-file output-file target-image", SO_REQ_SEP);
     opts.addOption("--p2mat", "point list to matrix", SO_NONE);
     opts.addOption("--slice", "extract a slice from 3d volume", "--slice dim index imagefile outputfile", SO_NONE);
@@ -143,6 +139,7 @@ int main(int argc, char* argv[]) {
     opts.addOption("--rx", "registration experiments ", SO_NONE);
     opts.addOption("--dots", "--rx --dots generate a series of gaussian dot images", SO_NONE);
     opts.addOption("--sigma", "sigma value [double]", "--sigma 0.8", SO_REQ_SEP);
+    opts.addOption("--entropyImage", "Compute an entropy image from a set of given images", "`--entropyImage -o output.nrrd input1.nrrd input2.nrrd ...`", SO_REQ_SEP);
     opts.addOption("--help", "print this message", SO_NONE);
 
     opts.ParseOptions(argc, argv, NULL);

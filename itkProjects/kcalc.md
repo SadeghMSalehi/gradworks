@@ -1,7 +1,7 @@
 ## kcalc usage 
 	kcalc [-e equation] [-o output-file] input1:A input2:B ...
 
-The kcalc performs a pixel-wise arithmetic. The pixel value of each input image is given as variables, A,B,C,D, and E. Several functions implemented in [MuParser](http://muparser.beltoforion.de/) includes +,-,*,/, and ?, as well as, trigonometric functions.
+The kcalc performs a pixel-wise arithmetic. The pixel value of each input image is given as variables, A,B,C,D, and E. Several functions implemented in [MuParser](http://muparser.beltoforion.de/) includes +,-,*,/, and ? as well as trigonometric functions.
 
 Also, there are the min, max values of each input image for the use of scaling and other purposes, which are given as AMIN, AMAX, BMIN, BMAX, and etc.
 

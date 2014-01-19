@@ -12,6 +12,8 @@ IF(Boost_FOUND)
   INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 ENDIF()
 
+
+
 INCLUDE(${USE_ITK_FILE})
 INCLUDE(${USE_VTK_FILE})
 
@@ -64,9 +66,32 @@ SET_TARGET_PROPERTIES(prun2 PROPERTIES DEBUG_POSTFIX "d")
 SET_TARGET_PROPERTIES(prun2 PROPERTIES COMPILE_DEFINITIONS "DIMENSIONS=2;ATTR_SIZE=17;BATCH")
 TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${VTK_LIBRARIES} nlopt ${LOCAL_DIR}/lib/libconfig++.a)
 
-ADD_CUSTOM_COMMAND(TARGET prun2 POST_BUILD COMMAND prun2 --help > ${CMAKE_CURRENT_SOURCE_DIR}/../prun.md)
+ADD_CUSTOM_COMMAND(TARGET prun2 POST_BUILD COMMAND prun2 --help > ${CMAKE_CURRENT_SOURCE_DIR}/../prun_usage.md)
 
 ADD_EXECUTABLE(prun3 particlesRun.cpp ${MY_PARTICLE_WORKS_SOURCES})
 SET_TARGET_PROPERTIES(prun3 PROPERTIES DEBUG_POSTFIX "d")
 SET_TARGET_PROPERTIES(prun3 PROPERTIES COMPILE_DEFINITIONS "DIMENSIONS=3;ATTR_SIZE=17;BATCH")
 TARGET_LINK_LIBRARIES(prun3 ${ITK_LIBRARIES} ${VTK_LIBRARIES} nlopt ${LOCAL_DIR}/lib/libconfig++.a)
+
+# Doxygen 
+FIND_PACKAGE(Doxygen)
+IF(NOT DOXYGEN_FOUND)
+MESSAGE(FATAL_ERROR
+  "Doxygen is needed to build the documentation.")
+ENDIF()
+
+SET( doxyfile_in          ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in     )
+SET( doxyfile             ${PROJECT_BINARY_DIR}/Doxyfile              )
+SET( doxy_html_index_file ${CMAKE_CURRENT_BINARY_DIR}/html/index.html )
+SET( doxy_output_root     ${CMAKE_CURRENT_BINARY_DIR}                 ) # Pasted into Doxyfile.in
+SET( doxy_input           ${CMAKE_CURRENT_SOURCE_DIR}                   ) # Pasted into Doxyfile.in
+SET( doxy_extra_files     ${CMAKE_CURRENT_SOURCE_DIR}/mainpage.dox    ) # Pasted into Doxyfile.in
+
+CONFIGURE_FILE( ${doxyfile_in} ${doxyfile} @ONLY )
+
+ADD_CUSTOM_TARGET(doc ${DOXYGEN_EXECUTABLE} ${doxyfile} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+#ADD_CUSTOM_COMMAND( OUTPUT ${doxy_html_index_file} COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile}  MAIN_DEPENDENCY ${doxyfile} ${doxyfile_in}  DEPENDS prun2 ${doxy_extra_files} COMMENT "Generating HTML documentation")
+
+
+
+

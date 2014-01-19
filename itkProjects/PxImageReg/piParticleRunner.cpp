@@ -637,45 +637,50 @@ namespace pi {
 
 #pragma mark PxImageTerm implementations
     void PxImageTerm::computePixelEntropy(int i, int npx, int nsx, int nex, PxSubj::Vector &subjs, NeighborSampler* sampler) {
-        // compute individual entropy
-        EntropyComputer<double> comp(nsx, npx, 1);
 
-        // rewind data
+        /// ---
+        /// ### The entropy computation for image patch
+        /// * Prepare the entropy computer
+        EntropyComputer<double> comp(nsx, npx, 1);
         comp.dataIter.FirstData();
+
+        /// * Iterate every subject with *j*
+        ///   * Sample intensity values
         for (int j = 0; j < nsx; j++) {
-            sampler->sampleValues(subjs[i].image.imageSampler, subjs[i].particles[j], subjs[i].affineAligned[j], comp.dataIter.sample);
+            sampler->sampleValues(subjs[j].image.imageSampler, subjs[j].particles[i], subjs[j].affineAligned[i], comp.dataIter.sample);
             comp.dataIter.NextData();
         }
 
-        // move to center (subtract mean from each sample)
+        /// * Move to the center of the intensity values \f$\bar{X} = \sum X_i \f$
         comp.MoveToCenter();
 
-        // compute covariance matrix
+        /// * Compute covariance matrix
         comp.ComputeCovariance();
 
-        // compute inverse covariance
+        /// * Compute inverse covariance
         comp.ComputeGradient();
 
-        // compute image gradient
-        Px::Vector grad(nex);
-        for (int j = 0; j < nsx; j++) {
-            // now sample image gradient
-            sampler->sampleGradients(subjs[j].image.gradientSampler, subjs[j].particles[i], subjs[j].affineAligned[i], grad);
+        /// * Compute image gradient
+        Px::Vector imageGradient(nex);
 
-            // compute entropy gradient w.r.t particle
-            // dH / dx
-            const double coeff = global->imageCoeff[subjs[i].attrs[j].label];
+        /// * Iterate every subject with *j*
+        ///   * Sample the gradient of each image by the chain rule
+        ///   * Compute the gradient of entropy with respect to a particle \f$dH/dx\f$
+        for (int j = 0; j < nsx; j++) {
+            sampler->sampleGradients(subjs[j].image.gradientSampler, subjs[j].particles[i], subjs[j].affineAligned[i], imageGradient);
+            const double coeff = global->imageCoeff[subjs[j].attrs[i].label];
             fordim (d) {
-                subjs[i].imageForces[j][d] = 0;
+                subjs[j].imageForces[i][d] = 0;
                 for (int k = 0; k < nex; k++) {
-                    subjs[i].imageForces[j][d] += comp.gradient[j][k] * grad[j][k];
+                    subjs[j].imageForces[i][d] += comp.gradient[j][k] * imageGradient[k][d];
                 }
-                subjs[i].imageForces[j][d] *= coeff;
+                subjs[j].imageForces[i][d] *= coeff;
             }
         }
     }
 
     void PxImageTerm::computeImageTerm(PxSubj::Vector& subjs, int w) {
+        /// ---
         const int npx = global->totalParticles;
         const int nsx = global->nsubjs;
         const int nex = (__Dim == 2) ? w * w : w * w * w;
@@ -689,6 +694,7 @@ namespace pi {
         // sample intensity and gradients
         NeighborSampler sampler(patchRegion, subjs[0].image.image);
 
+        /// Iterate every particle with *i*, and call computePixelEntropy()
         for (int i = 0; i < npx; i++) {
             computePixelEntropy(i, npx, nsx, nex, subjs, &sampler);
         }
