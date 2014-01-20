@@ -17,6 +17,7 @@
 #include "libconfig.h++"
 
 namespace pi {
+    /// A utiliity class to perform I/O
     class PxTools {
     public:
         bool checkFile(std::string filename) {
@@ -26,6 +27,9 @@ namespace pi {
             return file;
         }
 
+        /// @brief Read images given in files
+        /// @param data A vector will contain loaded images (Output)
+        /// @param files An instance of libconfig::Setting that stores a list of files
         template<class T>
         void readImages(std::vector<typename T::Pointer>& data, libconfig::Setting& files) {
             for (int i = 0; i < files.getLength(); i++) {
@@ -34,6 +38,7 @@ namespace pi {
                     cout << "can't read file " << in << endl;
                     exit(0);
                 }
+                cout << "Reading ... " << in << endl;
                 ImageIO<T> io;
                 data.push_back(io.ReadCastedImage(in));
             }

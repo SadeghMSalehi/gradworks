@@ -1,10 +1,13 @@
-/Prime/Sources/PxImageRx-build/Debug/prun2d with dimension = 2
+./prun2 with dimension = 2
 ## ParticleRun Command Line Options
 * -o
 	* Specify a filename for an output image
 * --fusion
 	* label fusion from a config
 	* *ex)* `--fusion config-file output-file target-image`
+* --overlap
+	* Compute the overlap ratio (dice|jaccard). This option can take two or arguments. The first argument is a gold standard, and other arguments are multiple number of label images to be compared.
+	* *ex)* --overlap dice output-text ref1 ref2-1 ref2-2 ... ref2-n
 * --p2mat
 	* point list to matrix
 * --slice
@@ -31,6 +34,6 @@
 	* Compute an entropy image from a set of given images
 	* *ex)* `--entropyImage -o output.nrrd input1.nrrd input2.nrrd ...`
 * --test
-	* Run in a test mode. The test mode is context sensitive depending on the given argument. If `--entropyImage` is given, it will automatically provide a set of input images and produce an output into a specific directory.
+	* Run in a test mode. The test mode is context sensitive depending on the given argument. For example, if `--entropyImage --test` is given, it will automatically provide a set of input images and produce an output into a specific directory.
 * --help
 	* print this message

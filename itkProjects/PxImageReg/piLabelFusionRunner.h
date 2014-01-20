@@ -13,6 +13,10 @@
 #include "piImageDef.h"
 
 namespace pi {
+    /// @brief Perform majority voting for the final segmentation
+    /// @param labels A vector of label images
+    /// @param images A vector of intensity images
+    /// @param targetImage the target intensity image to be segmented
     LabelImage::Pointer performLabelFusion(LabelImageVector& labels, RealImageVector& images, RealImage::Pointer targetImage);
 };
 

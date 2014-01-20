@@ -31,10 +31,6 @@ namespace pi {
     typedef itk::WarpImageFilter<RealImage, RealImage, DisplacementFieldType> WarpImageFilterType;
     typedef itk::WarpImageFilter<LabelImage, LabelImage, DisplacementFieldType> WarpLabelFilterType;
 
-    void ParticleWarp::setParameters(pi::ConfigFile &config) {
-        controlSpacing = config["particles.bspline-transform.control-point-spacing"];
-    }
-
     void ParticleWarp::estimateBsplineWarp(Px::Vector &src, Px::Vector &dst) {
         if (reference.IsNull()) {
             cout << "Cannot estimate grid size without reference image!" << endl;

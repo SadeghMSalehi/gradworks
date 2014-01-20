@@ -21,9 +21,14 @@ namespace pi {
     void executeRxRunner(Options& parser, StringVector& args);
     void executeLabelFusionRunner(Options& parser, StringVector& args);
 
+    /// @brief Measure the volume overlap ratio
+    void executeVolumeOverlaps(Options& parser, StringVector& args);
 
     /// @brief Compute the entropy image from a list of intensity images.
     void executeEntropyImage(Options& parser, StringVector& args);
+
+    /// @brief Compute the distance map
+    void executeComputeDistanceMap(Options& parser, StringVector &args);
 }
 
 
@@ -111,18 +116,6 @@ static void doSeparate(Options& opts, StringVector& args) {
     end();
 }
 
-static void printHelp(Options& opts) {
-    StringVector& specs = opts.GetOptionNames();
-    for (int i = 0; i < specs.size(); i++) {
-        string name = specs[i];
-        string help = opts.GetOptionHelp(name);
-        if (help == "") {
-            continue;
-        }
-        cout << name << "\n\t" << help << endl;
-    }
-}
-
 
 
 int main(int argc, char* argv[]) {
@@ -133,6 +126,7 @@ int main(int argc, char* argv[]) {
     Options opts;
     opts.addOption("-o", "Specify a filename for an output image", SO_REQ_SEP);
     opts.addOption("--fusion", "label fusion from a config", "`--fusion config-file output-file target-image`", SO_REQ_SEP);
+    opts.addOption("--overlap", "Compute the overlap ratio (dice|jaccard). This option can take two or arguments. The first argument is a gold standard, and other arguments are multiple number of label images to be compared.", "--overlap dice output-text ref1 ref2-1 ref2-2 ... ref2-n", SO_REQ_SEP);
     opts.addOption("--p2mat", "point list to matrix", SO_NONE);
     opts.addOption("--slice", "extract a slice from 3d volume", "--slice dim index imagefile outputfile", SO_NONE);
     opts.addOption("--imageMerge", "merge 2D images into a 3d volume (--imageMerge output input1 input2 ...)", SO_REQ_SEP);
@@ -143,8 +137,9 @@ int main(int argc, char* argv[]) {
     opts.addOption("--rx", "registration experiments ", SO_NONE);
     opts.addOption("--dots", "--rx --dots generate a series of gaussian dot images", SO_NONE);
     opts.addOption("--sigma", "sigma value [double]", "--sigma 0.8", SO_REQ_SEP);
-    opts.addOption("--entropyImage", "Compute an entropy image from a set of given images", "`--entropyImage -o output.nrrd input1.nrrd input2.nrrd ...`", SO_REQ_SEP);
-    opts.addOption("--test", "Run in a test mode. The test mode is context sensitive depending on the given argument. If `--entropyImage` is given, it will automatically provide a set of input images and produce an output into a specific directory.", SO_NONE);
+    opts.addOption("--entropyImage", "Compute an entropy image from a set of given images", "`--entropyImage -o output.nrrd input1.nrrd input2.nrrd ...`", SO_NONE);
+    opts.addOption("--test", "Run in a test mode. The test mode is context sensitive depending on the given argument. For example, if `--entropyImage --test` is given, it will automatically provide a set of input images and produce an output into a specific directory.", SO_NONE);
+    opts.addOption("--distanceMap", "Compute the Danielsson's distance map", "--distanceMap input output-vector output-magnitude", SO_NONE);
     opts.addOption("--help", "print this message", SO_NONE);
 
     opts.ParseOptions(argc, argv, NULL);
@@ -174,6 +169,10 @@ int main(int argc, char* argv[]) {
         executeLabelFusionRunner(opts, args);
     } else if (opts.GetBool("--entropyImage")) {
         executeEntropyImage(opts, args);
+    } else if (opts.GetString("--overlap") == "dice" || opts.GetString("--overlap") == "jaccard") {
+        executeVolumeOverlaps(opts, args);
+    } else if (opts.GetBool("--distanceMap")) {
+        executeComputeDistanceMap(opts, args);
     } else {
         executeParticleRunner(opts, args);
     }

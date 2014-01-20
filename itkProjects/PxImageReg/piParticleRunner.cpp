@@ -66,17 +66,35 @@ namespace pi {
 
     void PxI::load(std::string file) {
         /// ---
-        this->image = io.ReadCastedImage(file);
-        if (this->image.IsNull()) {
-            /// * If the file can't be loaded, exit to the system
-            cout << "can't read " << file << endl;
+        /// If the file exists and is loaded correctily, set the image
+        RealImage::Pointer image = io.ReadCastedImage(file);
+        if (image.IsNull()) {
+            cout << "can't read image: " << file << endl;
             exit(0);
         }
+        setImage(image);
+    }
+
+
+    void PxI::setImage(RealImage::Pointer image) {
+        /// ---
+        this->image = image;
         /// * The gradient is computed after applying the Gaussian filter with the sigma of the half of the spacing.
         this->gradient = ComputeGaussianGradient(image, image->GetSpacing()[0] / 2.0);
 
         this->imageSampler->SetInputImage(this->image);
         this->gradientSampler->SetInputImage(this->gradient);
+    }
+
+
+    void PxI::write(std::string file) {
+        ImageIO<RealImage> io;
+        io.WriteImage(file, this->image);
+    }
+
+    void PxI::writeGradient(std::string file) {
+        ImageIO<RealImage> io;
+        io.WriteImage(file.c_str(), ComputeGradientMagnitude(gradient));
     }
 
 #pragma mark PxR implementations
@@ -116,7 +134,7 @@ namespace pi {
             io.WriteImageS<LabelImage>(labelfile, label);
         }
         if (distmap.IsNull()) {
-            distmap = ComputeDistanceMap(label);
+            distmap = ComputeDistanceMap(label, "");
             io.WriteImageS<VectorImage>(distfile, distmap);
         }
         if (gradmap.IsNull()) {
@@ -137,7 +155,7 @@ namespace pi {
     }
 
     void PxR::computeNormal(Px& p, Px& nOut) {
-        GradientImageInterpolatorType::InputType pi;
+        GradientImageInterpolatorType::PointType pi;
         fordim (k) {
             pi[k] = p[k];
         }
@@ -147,12 +165,14 @@ namespace pi {
         }
     }
 
-    bool PxR::isIn(Px& p) {
-        LabelImageInterpolatorType::InputType pi;
+    bool PxR::isIn(Px& p, bool& isInsideBuffer) {
+        LabelImageInterpolatorType::PointType pi;
         fordim (k) {
             pi[k] = p[k];
         }
-        if (lablIntp->IsInsideBuffer(pi) && lablIntp->Evaluate(pi) > 0) {
+
+        isInsideBuffer = lablIntp->IsInsideBuffer(pi);
+        if (isInsideBuffer && lablIntp->Evaluate(pi) > 0) {
             return true;
         }
         return false;
@@ -171,15 +191,22 @@ namespace pi {
         if (!lablIntp->IsInsideBuffer(ix)) {
             return false;
         }
-        if (isIn(p)) {
+
+        bool isInsideBuffer = false;
+        if (isIn(p, isInsideBuffer)) {
             return false;
         }
-        LinearVectorImageInterpolatorType::InputType pi;
+//        LinearVectorImageInterpolatorType::InputType pi;
+
+        LabelImage::IndexType newIx = ix;
         LinearVectorImageInterpolatorType::OutputType dx = distIntp->EvaluateAtIndex(ix);
         fordim (k) {
-            ix[k] += dx[k];
+            newIx[k] += dx[k];
+            if (newIx[k] < 0) {
+                cout << "Error in distance map! " << ix << " => " << newIx << endl;
+            }
         }
-        labelmap->TransformIndexToPhysicalPoint(ix, px);
+        labelmap->TransformIndexToPhysicalPoint(newIx, px);
         fordim (k) {
             p[k] = px[k];
         }
@@ -187,7 +214,20 @@ namespace pi {
     }
 
     bool PxR::normalForce(Px& p, Px& f, Px& fout) {
-        if (isIn(p)) {
+        bool isInsideBuffer = false;
+        if (isIn(p, isInsideBuffer)) {
+            return false;
+        }
+
+        if (!isInsideBuffer) {
+            LabelImage::IndexType pi;
+            LabelImage::PointType px;
+            fordim (k) {
+                px[k] = p[k];
+            }
+            cout << this->labelmap->GetBufferedRegion().GetSize() << endl;
+            this->labelmap->TransformPhysicalPointToIndex(px, pi);
+            cout << "A particle is located out of the image buffer: " << p << "; " << pi << endl;
             return false;
         }
 
@@ -231,7 +271,7 @@ namespace pi {
     }
 
     // compute repulsion force
-    void PxSubj::computeRepulsion(bool ignoreNeighbors) {
+    void PxSubj::computeSamplingTerm(const bool isInitial, bool ignoreNeighbors) {
         const int npx = size();
         VNLMatrix weights(npx, npx);
         weights.fill(0);
@@ -243,8 +283,16 @@ namespace pi {
             double kappa = 1;
 
             const int label = attrs[i].label;
-            double sigma = global->sigmaParams[label];
-            double cutoff = global->cutoffParams[label];
+            double sigma = 0;
+            double cutoff = 0;
+            if (isInitial) {
+                sigma = global->initialSigmaParams[label];
+                cutoff = global->initialCutoffParams[label];
+            } else {
+                sigma = global->sigmaParams[label];
+                cutoff = global->cutoffParams[label];
+            }
+
             const double sigma2 = sigma * sigma;
 
             // loop over neighbors
@@ -287,6 +335,14 @@ namespace pi {
                         double fk = c * (pi.x[k] - pj.x[k]);
                         fi.x[k] += fk / wsum[i];
                         fj.x[k] -= fk / wsum[j];
+
+                        if (fi.x[k] > 1e4) {
+                            cout << wsum[i] << endl;
+                            for (int m = 0; m < weights.size(); m++) {
+                                cout << weights[m] << ",";
+                            }
+                            cout << endl;
+                        }
                     }
                 }
             }
@@ -294,17 +350,23 @@ namespace pi {
     }
 
 
-    // update the particle dynamic equation
     void PxSubj::updateSystem(double dt) {
+        /// ---
         Px::Vector::iterator p = particles.begin();
         Px::Vector::iterator f = forces.begin();
         Px::Vector::iterator e = ensembleForces.begin();
         Px::Vector::iterator i = imageForces.begin();
 
-        for (; p != particles.end(); p++, f++, e++, i++) {
+        for (int j = 0; p != particles.end(); p++, f++, e++, i++, j++) {
             fordim (k) {
                 p->x[k] += (dt * (f->x[k] + e->x[k] + i->x[k]));
                 assert(!std::isnan(p->x[k]));
+                if (p->x[k] < 0 || p->x[k] > 512) {
+                    cout << (*p) << "; " << (*f) << "; " << (*e) << "; " << (*i) << endl;
+                }
+            }
+            if (j == 372) {
+                cout << (*p) << "; " << (*f) << "; " << (*e) << "; " << (*i) << endl;
             }
         }
     }
@@ -324,7 +386,7 @@ namespace pi {
         Px::Vector::iterator f = forces.begin();
         PxA::Vector::iterator a = attrs.begin();
         Px fn = 0;
-        for (; f != forces.end(); p++, a++, f++) {
+        for (int i = 0; f != forces.end(); p++, a++, f++, i++) {
             if (a->bound) {
                 if (regions[a->label].normalForce(*p, *f, fn)) {
                     assert(!fn.isnan());
@@ -374,8 +436,9 @@ namespace pi {
                 regions[i].labelmap->TransformIndexToPhysicalPoint(pixelIds[j], pts);
 
                 attrs[total].label = i;
-                particles[total].x[0] = pts[0];
-                particles[total].x[1] = pts[1];
+                fordim (d) {
+                    particles[total].x[d] = pts[d];
+                }
 
                 total ++;
             }
@@ -540,18 +603,16 @@ namespace pi {
         void setSampleRegion(RegionType& region, RealImage* reference);
 
         /// @brief sample image intensities from a given interpolator
-        /// @param interp ImageInterpolator
-        /// @param px particle locations at the original space
-        /// @param pz particle locations at the transformed space (actual sampling)
-        /// @param pxValue
-        void sampleValues(LinearImageInterpolatorType* interp, Px& px, Px& pz, double* pxValue);
+        /// @param interp A image interpolator
+        /// @param px A particle to sample
+        /// @param pxValue Output variable for the sampled intensity vectors
+        void sampleValues(LinearImageInterpolatorType* interp, Px& px,  double* pxValue);
 
-        /// @brief sample image gradients from a given interpolator
-        /// @param interp GradientInterpolator
-        /// @param px particle locations at the original space
-        /// @param pz particle locations at the transformed space (actual sampling)
-        /// @param pxGrad the gradient vectors
-        void sampleGradients(GradientInterpolatorType* interp, Px& px, Px& pz, Px::Vector& pxGrad);
+        /// @brief Sample image gradients of a local patch neary by a particle *px*
+        /// @param interp A gradient interpolator
+        /// @param px A particle to sample
+        /// @param pxGrad Output variable for the sampled gradient vectors
+        void sampleGradients(GradientInterpolatorType* interp, Px& px, Px::Vector& pxGrad);
 
         void createSampleIndexes2(IndexType& startIdx);
         void createSampleIndexes3(IndexType& startIdx);
@@ -572,32 +633,44 @@ namespace pi {
 
     }
 
-    void NeighborSampler::sampleValues(LinearImageInterpolatorType* interp, Px& px, Px& pz, double* pxValue) {
-        // sample intensity values from images
+    void NeighborSampler::sampleValues(LinearImageInterpolatorType* interp, Px& px, double* pxValue) {
+        /// ---
+        /// * Iterate over sample points with *k*
         for (int k = 0; k < _numberOfSamples; k++) {
+            /// * For each displacement vector at *px*
             PointType samplePoint = _points[k];
             fordim (l) {
                 // translate to the particle
-                samplePoint[l] += pz.x[l];
+                samplePoint[l] += px.x[l];
             }
-            if (interp->IsInsideBuffer(samplePoint)) {
-                pxValue[k] = interp->Evaluate(samplePoint);
-            } else {
-                IntIndex idx;
-                interp->GetInputImage()->TransformPhysicalPointToIndex(samplePoint, idx);
-                cout << "Out of region: " << idx << "; " << px.x[0] << ", " << px.x[1] << endl;
-                pxValue[k] = 0;
+
+            /// * Evaluate the intensity; This doesn't check if the point is inside. Should be careful if the patch is fully inside an image buffer.
+            if (true) {
+                if (interp->IsInsideBuffer(samplePoint)) {
+                    pxValue[k] = interp->Evaluate(samplePoint);
+                    if (pxValue[k] > 1e5) {
+                        cout << "Error" << endl;
+                    }
+                } else {
+                    /// * If the point is outside a buffer, then set to zero.
+                    IntIndex idx;
+                    interp->GetInputImage()->TransformPhysicalPointToIndex(samplePoint, idx);
+                    cout << "Out of region: " << idx << "; " << px.x[0] << ", " << px.x[1] << endl;
+                    pxValue[k] = 0;
+                }
             }
         }
     }
 
-    void NeighborSampler::sampleGradients(GradientInterpolatorType* interp, Px& px, Px& pz, Px::Vector& pxGrad) {
-        // sample intensity values from images
+    void NeighborSampler::sampleGradients(GradientInterpolatorType* interp, Px& px, Px::Vector& pxGrad) {
+        /// ---
+        /// * For each sampling point, sample the gradient values from images
+        /// * This does not check if the point is inside a buffer. Please be careful to use
         for (int k = 0; k < _numberOfSamples; k++) {
             PointType samplePoint = _points[k];
             fordim (l) {
                 // translate to the particle
-                samplePoint[l] += pz[l];
+                samplePoint[l] += px[l];
             }
             GradientPixel pix = interp->Evaluate(samplePoint);
             fordim (l) {
@@ -661,14 +734,14 @@ namespace pi {
 
         /// ---
         /// ### The entropy computation for image patch
-        /// * Prepare the entropy computer
-        EntropyComputer<double> comp(nsx, npx, 1);
+        /// * Prepare the entropy computer _(nSubj x nPatchElems)_
+        EntropyComputer<double> comp(nsx, nex, 1);
         comp.dataIter.FirstData();
 
         /// * Iterate every subject with *j*
-        ///   * Sample intensity values
+        ///   * Sample intensity values; The intensity sampled from the warped image
         for (int j = 0; j < nsx; j++) {
-            sampler->sampleValues(subjs[j].image.imageSampler, subjs[j].particles[i], subjs[j].affineAligned[i], comp.dataIter.sample);
+            sampler->sampleValues(subjs[j].warpedImage.imageSampler, subjs[j].particles[i], comp.dataIter.sample);
             comp.dataIter.NextData();
         }
 
@@ -692,7 +765,7 @@ namespace pi {
         ///   * Sample the gradient of each image by the chain rule
         ///   * Compute the gradient of entropy with respect to a particle \f$dH/dx\f$
         for (int j = 0; j < nsx; j++) {
-            sampler->sampleGradients(subjs[j].image.gradientSampler, subjs[j].particles[i], subjs[j].affineAligned[i], imageGradient);
+            sampler->sampleGradients(subjs[j].warpedImage.gradientSampler, subjs[j].particles[i], imageGradient);
             const double coeff = global->imageCoeff[subjs[j].attrs[i].label];
             fordim (d) {
                 subjs[j].imageForces[i][d] = 0;
@@ -727,6 +800,43 @@ namespace pi {
         }
     }
 
+
+#pragma mark PxBsplineDeformation Implementation
+    void PxBsplineDeformation::computeDeformationToAverage(PxSubj::Vector &subjs) {
+        /// ---
+        /// 1. Compute the average of particles
+        Px::Vector average;
+        average.resize(global->totalParticles);
+        for (int j = 0; j < global->totalParticles; j++) {
+            forfill(average[j].x, 0);
+            for (int i = 0; i < global->nsubjs; i++) {
+                fordim(d) {
+                    average[j].x[d] += subjs[i].particles[j].x[d];
+                }
+            }
+            fordim (d) {
+                average[j].x[d] /= global->nsubjs;
+            }
+        }
+
+        for (int i = 0; i < global->nsubjs; i++) {
+            /// 2. Compute the warp using ParticleWarp
+            ParticleWarp warp;
+            warp.controlSpacing = global->controlPointSpacing;
+            warp.reference = global->referenceImage;
+            warp.estimateBsplineWarp(subjs[i].particles, average);
+
+            /// 3. Compute the deformed images and its gradient
+            subjs[i].warpedImage.setImage(warp.warpImage(subjs[i].image.image));
+        }
+
+        const bool debugWarpedImages = false;
+        if (debugWarpedImages) {
+            subjs[0].warpedImage.write("warpedImage.0.nrrd");
+            subjs[0].warpedImage.writeGradient("gradientImage.0.nrrd");
+        }
+    }
+
 #pragma mark PxSystem Implementations
     void PxGlobal::load(ConfigFile& config) {
         nsubjs = config["particles.number-of-subjects"];
@@ -746,6 +856,9 @@ namespace pi {
         }
         totalParticles = std::accumulate(numParticles.begin(), numParticles.end(), 0);
 
+
+        /// Set parameters related optimization function
+        /// - particles.parameters
         Setting& params = config["particles.parameters"];
         repulsionCoeff.resize(nlabels);
         ensembleCoeff.resize(nlabels);
@@ -759,6 +872,24 @@ namespace pi {
             cutoffParams[i] = params[i][3];
             imageCoeff[i] = params[i][4];
         }
+
+        /// Set parameters related to the initial sampling process
+        /// - particles.initial-parameters
+        Setting& initialParams = config["particles.initial-parameters"];
+        initialSigmaParams.resize(nlabels);
+        initialCutoffParams.resize(nlabels);
+        for (int i = 0; i < initialParams.getLength(); i++) {
+            initialSigmaParams[i] = initialParams[i][0];
+            initialCutoffParams[i] = initialParams[i][1];
+        }
+
+
+        /// Set B-spline grid related parameters
+        /// - particles.referenceImage
+        /// - particles.controlPointSpacing
+        ImageIO<LabelImage> io;
+        referenceImage = io.ReadCastedImage(config["particles.bspline-reference-grid"]);
+        controlPointSpacing = config["particles.bspline-control-point-spacing"];
     }
 
     void PxSystem::setupNeighbors(const IntVector& numPx, PxSubj& subj) {
@@ -782,20 +913,27 @@ namespace pi {
 //        }
 //    }
 
-    // load data for particle system
     void PxSystem::loadSystem(ConfigFile& config) {
+        /// ---
+        /// 1. Load global parameters
         global.load(config);
 
+        /// 2. Initialization setup
         sampler.setGlobalConfig(&global);
         subjs.resize(global.nsubjs);
+
+        /// 3. Load subject parameters
         Setting& subjconfig = config["particles.subjects"];
         for (int i = 0; i < global.nsubjs; i++) {
             subjs[i].setGlobalConfig(&global);
             Setting& subjdata = subjconfig[i];
             subjs[i].regions.resize(global.nlabels);
+            /// 4. Load each label
             for (int j = 0; j < global.nlabels; j++) {
                 subjs[i].regions[j].load(subjdata["labels"][j]);
             }
+            /// 5. Load a intensity image
+            cout << "Loading image ..." << endl;
             subjs[i].image.load(subjdata["images"][0]);
         }
     }
@@ -945,11 +1083,11 @@ namespace pi {
         }
     }
 
-    // initial loop to distribute particles inside region
     void PxSystem::initialLoop() {
-        double t0 = _config["particles.sampler-time-steps.[0]"];
-        double dt = _config["particles.sampler-time-steps.[1]"];
-        double t1 = _config["particles.sampler-time-steps.[2]"];
+        /// The initialization is important to place particles near optimal. Assuming affine registrations are performed all subjects, each particle should be placed near the optimal only bearing non-linear deformation. This sampling step is iterated with the time steps given as __particles.initial-time-step__.
+        double t0 = _config["particles.initial-time-steps.[0]"];
+        double dt = _config["particles.initial-time-steps.[1]"];
+        double t1 = _config["particles.initial-time-steps.[2]"];
 
         ImageIO<LabelImage3> io;
         LabelImage::Pointer refImage = sampler.regions[0].labelmap;
@@ -958,25 +1096,30 @@ namespace pi {
         cout << sampler << endl;
 
         int m = 0;
+        /// #### Iteration process
         for (double t = t0; t <= t1; t += dt, m++) {
             cout << "t = " << t << endl;
+            /// - Clear previous forces
             sampler.clearForce();
+            /// - Move particles back inside the region
             sampler.constrainParticles();
 
-            // how to set repulsion paramter per region?
-            sampler.computeRepulsion(true);
+            /// - Compute the sampling term
+            sampler.computeSamplingTerm(true, false);
             sampler.constrainForces();
             sampler.updateSystem(dt);
 
-            for (int i = 0; i < sampler.particles.size(); i++) {
-                LabelImage::IndexType idx = sampler.getIndex(i);
-                LabelImage3::IndexType tx;
-                fordim (k) {
-                    tx[k] = idx[k];
-                }
-                tx[2] = m;
-                if (tracker->GetBufferedRegion().IsInside(tx)) {
-                    tracker->SetPixel(tx, 1);
+            if (__Dim == 2) {
+                for (int i = 0; i < sampler.particles.size(); i++) {
+                    LabelImage::IndexType idx = sampler.getIndex(i);
+                    LabelImage3::IndexType tx;
+                    fordim (k) {
+                        tx[k] = idx[k];
+                    }
+                    tx[2] = m;
+                    if (tracker->GetBufferedRegion().IsInside(tx)) {
+                        tracker->SetPixel(tx, 1);
+                    }
                 }
             }
         }
@@ -988,11 +1131,9 @@ namespace pi {
     }
 
 
-    /**
-     * registration loop
-     *
-     */
+
     void PxSystem::loop() {
+        /// Perform the optimization from *t0* to *t1* with the timestep *dt* as given in the configuration file at __particles.time-steps.[]__. The current implementation assumes regestering two dimensional images, and the particles at each time step is written into 3D volumes given in __particles.particle-images__. For the construction of neighborhood information, the adjacency matrix is constructed for every 10 time steps.
         double t0 = _config["particles.time-steps.[0]"];
         double dt = _config["particles.time-steps.[1]"];
         double t1 = _config["particles.time-steps.[2]"];
@@ -1021,37 +1162,53 @@ namespace pi {
                 setupNeighbors(global.numParticles, subjs[++s%2]);
             }
 
-            // compute internal forces
+            /// At each time step, it computes the gradient of _1) the sampling term, 2) the ensemble term, and 3) image term_.
+            /// #### Sampling Term
+            /// - Iterative every subject
+            /// - Clear the gradient values
+            /// - Move particles outside back to the inside of the region
+            /// - Evaluate the sampling gradient
             for (int i = 0; i < global.nsubjs; i++) {
                 subjs[i].clearForce();
                 subjs[i].constrainParticles();
-                // how to set repulsion paramter per region?
-                subjs[i].computeRepulsion();
+                subjs[i].computeSamplingTerm(false);
             }
 
-            // apply least-square based affine transform
+            /// Then, apply least-square based affine transform
             affineTransformParticles();
 
-            // now compute ensemble and intensity forces
+            /// #### Ensemble Term
+            /// The ensemble term is evaluated by PxEnsemble.
             if (global.useEnsembleForce) {
                 ensemble.computeAttraction(subjs);
             }
 
+            /// #### Image Deformation
+            /// The deformation is performed by PxBsplineDeformation
+            PxBsplineDeformation deformation(&global);
+            deformation.computeDeformationToAverage(subjs);
 
-            // compute pixel entropy
-            
-//            cout << subjs[0].ensembleForces << endl;
 
-            // update system
+            /// #### Image Term
+            /// The image iterm is evaluated by PxImageTerm after the B-spline deformation.
+            PxImageTerm imageTerm(&global);
+            DoubleVector entropyVector;
+            entropyVector.resize(global.totalParticles);
+            imageTerm.computeImageTerm(subjs, 17, entropyVector);
+
+            /// #### Update the system
+            /// The gradient evaluated is added with different weighting.
+            /// - Update forces to direct the inside
+            /// - Update the particle position
+            /// - Update particles outside into the inside
             for (int i = 0; i < global.nsubjs; i++ ) {
                 subjs[i].constrainForces();
                 subjs[i].updateSystem(dt);
                 subjs[i].constrainParticles();
             }
 
-
-
-            // mark each particle location at a tracker image
+            /// #### Debugging
+            /// Mark each particle location at a tracker image
             for (int i = 0; i < global.nsubjs; i++) {
                 for (int j = 0; j < subjs[0].particles.size(); j++) {
                     LabelImage::IndexType idx = subjs[i].getIndex(j);
@@ -1110,7 +1267,7 @@ namespace pi {
             cout << "Warping: " << src << " => " << dst << " : " << input << " => " << output << endl;
             LabelImage::Pointer inputImage = labelIO.ReadCastedImage(input);
             ParticleWarp warp;
-            warp.setParameters(_config);
+            warp.controlSpacing = global.controlPointSpacing;
             warp.reference = inputImage;
             warp.estimateBsplineWarp(subjs[src].particles, subjs[dst].particles);
             LabelImage::Pointer outputImage = warp.warpLabel(inputImage);
@@ -1221,10 +1378,11 @@ namespace pi {
 
         if (testMode) {
             args.clear();
-            args[0] = "/NIRAL/work/joohwi/c57/ResizedData/c57_07_uchar.nrrd";
-            args[1] = "/NIRAL/work/joohwi/c57/ResizedData/c57_11_uchar.nrrd";
-            args[2] = "/NIRAL/work/joohwi/c57/ResizedData/c57_02_uchar.nrrd";
-            args[3] = "/NIRAL/work/joohwi/c57/ResizedData/c57_15_uchar.nrrd";
+            args.resize(4);
+            args[0] = "/NIRAL/work/joohwi/c57/SliceData/07_slice.nrrd";
+            args[1] = "/NIRAL/work/joohwi/c57/SliceData/11_slice.nrrd";
+            args[2] = "/NIRAL/work/joohwi/c57/SliceData/12_slice.nrrd";
+            args[3] = "/NIRAL/work/joohwi/c57/SliceData/15_slice.nrrd";
             output = "/NIRAL/work/joohwi/c57/entropy_test.nrrd";
         } else {
             if (output == "" || args.size() < 2) {
@@ -1241,23 +1399,33 @@ namespace pi {
         PxSubj::Vector subjs;
         subjs.resize(args.size());
 
+        /// * Compute the image region by shrinking the region boundary
+        // perform only for the first subject
+        RealImage::RegionType region;
         for (int i = 0; i < args.size(); i++) {
             subjs[i].setGlobalConfig(&global);
             subjs[i].image.load(args[i]);
 
             /// * Create a list of particles to cover all voxels
             if (i == 0) {
-                // perform only for the first subject
-                global.totalParticles = subjs[i].image.image->GetPixelContainer()->Size();
-                subjs[i].resize(nvoxels);
-                RealImageIteratorType iter(subjs[i].image.image, subjs[i].image.image->GetBufferedRegion());
-                for (int j = 0; !iter.IsAtEnd(); iter++, j++) {
+                // shrink the region by the patch size
+                region = subjs[i].image.image->GetBufferedRegion();
+                region.ShrinkByRadius(5);
+
+                global.totalParticles = region.GetNumberOfPixels();
+                subjs[i].resize(global.totalParticles);
+
+                RealImageIteratorType iter(subjs[i].image.image, region);
+                for (int j = 0; !iter.IsAtEnd(); ++iter, j++) {
                     IntIndex idx = iter.GetIndex();
-                    ImagePoint point = subjs[i].image.image->TransformIndexToPhysicalPoint(idx, point);
+                    ImagePoint point;
+                    subjs[i].image.image->TransformIndexToPhysicalPoint(idx, point);
                     for (int d = 0; d < __Dim; d++) {
                         subjs[i].particles[j].x[d] = point[d];
                     }
                 }
+
+                cout << "total # of points: " << global.totalParticles << endl;
             } else {
                 // duplicate particles
                 subjs[i].resize(global.totalParticles);
@@ -1270,13 +1438,21 @@ namespace pi {
         entropyValues.resize(global.totalParticles);
 
         /// * Create an instance of PxImageTerm and call PxImageTerm::computeImageTerm
+        PxImageTerm imageTerm(&global);
+        imageTerm.global = &global;
         imageTerm.computeImageTerm(subjs, 5, entropyValues);
 
-        /// * Convert the entropyValues vector into an image
+        /// * Convert the entropyValues vector into an image after scaling
         ImageIO<RealImage> io;
         RealImage::Pointer outputImage = io.NewImage(subjs[0].image.image);
-        for (int i = 0; i < global.totalParticles; i++) {
-            outputImage->GetBufferPointer()[i] = entropyValues[i];
+
+        double minEntropy = *(std::min_element(entropyValues.begin(), entropyValues.end()));
+        double maxEntropy = *(std::max_element(entropyValues.begin(), entropyValues.end()));
+
+        RealImageIteratorType iter(outputImage, region);
+        for (int i = 0; !iter.IsAtEnd(); ++iter, ++i) {
+            RealImage::PixelType value = (10000*(entropyValues[i] - minEntropy) / maxEntropy);
+            outputImage->SetPixel(iter.GetIndex(), value);
         }
 
         /// * Write the output image

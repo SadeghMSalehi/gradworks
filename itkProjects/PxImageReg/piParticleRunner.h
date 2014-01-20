@@ -33,10 +33,17 @@ namespace pi {
         int nlabels;
         /// the total number of particles of a subject
         int totalParticles;
+
+        /// The control point spacing for Bpsline grid
+        int controlPointSpacing;
         
         bool useLocalRepulsion;
         bool useAffineTransform;
         bool useEnsembleForce;
+
+
+        /// A label image for the B-spline mesh and deformation fields.
+        LabelImage::Pointer referenceImage;
 
         PxGlobal(): nsubjs(0), nlabels(0), totalParticles(0), useLocalRepulsion(false), useAffineTransform(false), useEnsembleForce(true) {}
 
@@ -53,6 +60,13 @@ namespace pi {
         std::vector<double> ensembleCoeff;
         /// the image term weight
         std::vector<double> imageCoeff;
+
+
+        /// the sigma parameters used in the initial sampling process
+        std::vector<double> initialSigmaParams;
+
+        /// the cut-off parameters used in the initial sampling process
+        std::vector<double> initialCutoffParams;
 
 
         /// Type to represents the adjacency matrix
@@ -91,17 +105,27 @@ namespace pi {
         /// @brief Load an image file and generate a gradient image and their interpolators.
         /// @param file An input filename to load.
         void load(std::string file);
+
+        /// @brief Set an image, compute the gradient, and set interpolators
+        /// @param image RealImage type image
+        void setImage(RealImage::Pointer image);
+
+        /// @brief Write an image to file
+        /// @param file A filename
+        void write(std::string file);
+
+        /// @brief Write a gradient image to file. This will create a gradient magnitude image
+        /// @param file A filename
+        void writeGradient(std::string file);
     };
 
 
-    /// A class to represent a label region
+    /// @brief A class to represent a label region.
     /// A subset of particles is allowed move freely only in a given region
     /// This class abstracts such a region and provides information to constrain particles.
     /// For the constraint, it needs a label defined in the image domain,
     /// a distance map to relocate a particle into the closest boundary,
     /// and the gradient map to identify the boundary of the label.
-    /// @property subjId
-    /// @property label  which label is this
     class PxR {
     public:
         typedef std::vector<PxR> Vector;
@@ -119,7 +143,9 @@ namespace pi {
         typedef itk::VectorLinearInterpolateImageFunction<GradientImage> GradientImageInterpolatorType;
         GradientImageInterpolatorType::Pointer gradIntp;
 
-        bool isIn(Px& p);
+        /// @brief Test if the particle _p_ is inside the region. If _p_ is inside the image buffer and the label at which _p_ is located is equal to _p_'s membership. this returns true.
+        /// @param p A particle to test
+        bool isIn(Px& p, bool& isInsideBuffer);
         void computeNormal(Px& p, Px& nOut);
 
         bool projectParticle(Px& p);
@@ -136,10 +162,9 @@ namespace pi {
     class PxSubj;
 
     /// A class to estimate affine transformation between subjects
-    /// @property r a matrix store the transformation
     class PxAffine {
     public:
-        VNLDoubleMatrix r;
+        VNLDoubleMatrix r;  /// A matrix store the transformation
 
         PxAffine(Px::Vector* p, Px::Vector* q): _p(p), _q(q) {
             r.set_size(__Dim, __Dim);
@@ -166,7 +191,8 @@ namespace pi {
     public:
         typedef std::vector<PxSubj> Vector;
 
-        PxI image;
+        PxI image;  /// PxI instance to store the original image to be registered
+        PxI warpedImage; /// PxI instance to store the warped image with particles
 
         Px::Vector particles;           /// a vector of particles in the subject space
         Px::Vector affineAligned;       /// a vector of particles after the affine alignment
@@ -226,7 +252,8 @@ namespace pi {
         void sampleParticles(std::vector<int>& numParticles);
 
         /// compute the distribution of particles
-        void computeRepulsion(bool ignoreNeighbors = false);
+        /// @param isInitial True if this function is called in the initial step. This will decide which parameters are used.
+        void computeSamplingTerm(const bool isInitial, bool ignoreNeighbors = false);
 
         /// constrain particles into a label
         void constrainParticles();
@@ -234,7 +261,8 @@ namespace pi {
         /// constrain forces not to drive a particle toward outside
         void constrainForces();
 
-        /// update the system with the amount of time
+        /// @brief update the system with the amount of time
+        /// @param dt time step
         void updateSystem(double dt);
 
         /// save this system into a file
@@ -272,7 +300,7 @@ namespace pi {
         PxGlobal* global;
 
         /// constructor
-        PxImageTerm(): global(NULL) {}
+        PxImageTerm(PxGlobal* g): global(g) {}
 
         /// @brief Compute an entropy value for each particle. this function is repeated for every pixel in an image.
         /// @param i the index of a particle in a subject
@@ -294,6 +322,20 @@ namespace pi {
 
     };
 
+
+    /// A class computes the B-spline deformation with the current set of particles
+    class PxBsplineDeformation {
+    public:
+        /// A global configuration
+        PxGlobal* global;
+
+        /// The constructor requires a pointer to PxGlobal
+        PxBsplineDeformation(PxGlobal* g): global(g) {}
+
+        /// @brief Compute the deformation fields to the average
+        /// @param subjs A vector of subjects
+        void computeDeformationToAverage(PxSubj::Vector& subjs);
+    };
 
     /// A class represents the particle system
     class PxSystem {
@@ -320,13 +362,20 @@ namespace pi {
 
 
         void initialize(Options& opts, StringVector& args);
+
+
+        /// @brief Load the system configuration
+        /// @param config The config file instance (ConfigFile type)
         void loadSystem(ConfigFile& config);
+
         bool loadSampler(ConfigFile& config);
         bool loadParticles(ConfigFile& config);
         bool saveParticles(ConfigFile& config, std::string outputName);
 
         // create sampler
         void computeIntersection(LabelImageVector& regions);
+
+        /// @brief Perform the initial distribution of particles
         void initialLoop();
 
         /// construct particle neighbor structure
@@ -336,7 +385,7 @@ namespace pi {
         void transferParticles();
 
 
-        /// main particle registration loop
+        /// @brief The main particle registration loop
         void loop();
 
         /// affine transform particles
@@ -347,7 +396,7 @@ namespace pi {
         void warpImages(libconfig::Setting& data);
 
 
-        // auxilirary (unimportnat) member functions
+        /// auxilirary (unimportnat) member functions
         void print();
         void saveAdjacencyMatrix(std::string file);
 

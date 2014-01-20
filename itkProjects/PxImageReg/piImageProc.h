@@ -16,8 +16,9 @@
 
 namespace pi {
     /// compute distance map that contains an offset to the closest point
-    /// @bmap LabelImage a binary mask
-    VectorImage::Pointer ComputeDistanceMap(LabelImage::Pointer bmap);
+    /// @param bmap LabelImage a binary mask
+    /// @param magnitudeFile A filename to write the distance magnitude
+    VectorImage::Pointer ComputeDistanceMap(LabelImage::Pointer bmap, std::string magnitudeFile);
 
     /// compute gaussian gradient with sigma from a label image
     GradientImage::Pointer ComputeGaussianGradient(LabelImage::Pointer bmap, double sigma);
@@ -26,6 +27,10 @@ namespace pi {
     GradientImage::Pointer ComputeGaussianGradient(RealImage::Pointer img, double sigma);
 
 
+    /// @brief Compute the gradient magnitude
+    /// @param image A input image (GradientImage type)
+    RealImage::Pointer ComputeGradientMagnitude(GradientImage::Pointer image);
+    
     /// allocate three dimensional image to store multiple 2d images
     LabelImage3::Pointer CreateImage3(LabelImage::Pointer refImage, int m);
 
