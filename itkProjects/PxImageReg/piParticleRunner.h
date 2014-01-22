@@ -40,12 +40,13 @@ namespace pi {
         bool useLocalRepulsion;
         bool useAffineTransform;
         bool useEnsembleForce;
+        bool useImageTerm;
 
 
         /// A label image for the B-spline mesh and deformation fields.
         LabelImage::Pointer referenceImage;
 
-        PxGlobal(): nsubjs(0), nlabels(0), totalParticles(0), useLocalRepulsion(false), useAffineTransform(false), useEnsembleForce(true) {}
+        PxGlobal(): nsubjs(0), nlabels(0), totalParticles(0), useLocalRepulsion(false), useAffineTransform(false), useEnsembleForce(true), useImageTerm(true) {}
 
 
         /// a vector stores the number of particles for each label

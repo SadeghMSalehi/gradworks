@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
     opts.addOption("--sigma", "sigma value [double]", "--sigma 0.8", SO_REQ_SEP);
     opts.addOption("--entropyImage", "Compute an entropy image from a set of given images", "`--entropyImage -o output.nrrd input1.nrrd input2.nrrd ...`", SO_NONE);
     opts.addOption("--test", "Run in a test mode. The test mode is context sensitive depending on the given argument. For example, if `--entropyImage --test` is given, it will automatically provide a set of input images and produce an output into a specific directory.", SO_NONE);
-    opts.addOption("--distanceMap", "Compute the Danielsson's distance map", "--distanceMap input output-vector output-magnitude", SO_NONE);
+    opts.addOption("--distanceMap", "Compute the Danielsson's distance map. This will also generate distmag.nrrd, x.nrrd, y.nrrd, and z.nrrd that stores the component of the vector distance map for debugging purpose.", "--distanceMap input output-vector output-magnitude", SO_NONE);
     opts.addOption("--help", "print this message", SO_NONE);
 
     opts.ParseOptions(argc, argv, NULL);

@@ -90,7 +90,7 @@ SET( doxy_extra_files     ${CMAKE_CURRENT_SOURCE_DIR}/mainpage.dox    ) # Pasted
 CONFIGURE_FILE( ${doxyfile_in} ${doxyfile} @ONLY )
 
 ADD_CUSTOM_TARGET(doc ${DOXYGEN_EXECUTABLE} ${doxyfile} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-#ADD_CUSTOM_COMMAND( OUTPUT ${doxy_html_index_file} COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile}  MAIN_DEPENDENCY ${doxyfile} ${doxyfile_in}  DEPENDS prun2 ${doxy_extra_files} COMMENT "Generating HTML documentation")
+#ADD_CUSTOM_COMMAND( OUTPUT ${doxy_html_index_file} COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile}  MAIN_DEPENDENCY ${doxyfile} ${doxyfile_in}  DEPENDS prun2 prun3 ${doxy_extra_files} COMMENT "Generating HTML documentation")
 
 
 

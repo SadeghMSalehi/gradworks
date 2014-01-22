@@ -1,4 +1,4 @@
-./prun2 with dimension = 2
+/Prime/Sources/PxImageRx-build/Debug/prun2d with dimension = 2
 ## ParticleRun Command Line Options
 * -o
 	* Specify a filename for an output image
@@ -35,5 +35,8 @@
 	* *ex)* `--entropyImage -o output.nrrd input1.nrrd input2.nrrd ...`
 * --test
 	* Run in a test mode. The test mode is context sensitive depending on the given argument. For example, if `--entropyImage --test` is given, it will automatically provide a set of input images and produce an output into a specific directory.
+* --distanceMap
+	* Compute the Danielsson's distance map. This will also generate distmag.nrrd, x.nrrd, y.nrrd, and z.nrrd that stores the component of the vector distance map for debugging purpose.
+	* *ex)* --distanceMap input output-vector output-magnitude
 * --help
 	* print this message

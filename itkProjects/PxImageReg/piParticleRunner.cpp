@@ -202,9 +202,6 @@ namespace pi {
         LinearVectorImageInterpolatorType::OutputType dx = distIntp->EvaluateAtIndex(ix);
         fordim (k) {
             newIx[k] += dx[k];
-            if (newIx[k] < 0) {
-                cout << "Error in distance map! " << ix << " => " << newIx << endl;
-            }
         }
         labelmap->TransformIndexToPhysicalPoint(newIx, px);
         fordim (k) {
@@ -335,14 +332,6 @@ namespace pi {
                         double fk = c * (pi.x[k] - pj.x[k]);
                         fi.x[k] += fk / wsum[i];
                         fj.x[k] -= fk / wsum[j];
-
-                        if (fi.x[k] > 1e4) {
-                            cout << wsum[i] << endl;
-                            for (int m = 0; m < weights.size(); m++) {
-                                cout << weights[m] << ",";
-                            }
-                            cout << endl;
-                        }
                     }
                 }
             }
@@ -361,11 +350,8 @@ namespace pi {
             fordim (k) {
                 p->x[k] += (dt * (f->x[k] + e->x[k] + i->x[k]));
                 assert(!std::isnan(p->x[k]));
-                if (p->x[k] < 0 || p->x[k] > 512) {
-                    cout << (*p) << "; " << (*f) << "; " << (*e) << "; " << (*i) << endl;
-                }
             }
-            if (j == 372) {
+            if (j == 0) {
                 cout << (*p) << "; " << (*f) << "; " << (*e) << "; " << (*i) << endl;
             }
         }
@@ -850,6 +836,10 @@ namespace pi {
 
         useEnsembleForce = true;
         config["particles"].lookupValue("use-ensemble-force", useEnsembleForce);
+
+        useImageTerm = true;
+        config["particles"].lookupValue("use-image-term", useImageTerm);
+
         Setting& settingNumParticles = config["particles.number-of-particles"];
         for (int i = 0; i < settingNumParticles.getLength(); i++) {
             numParticles.push_back(settingNumParticles[i]);
@@ -1183,18 +1173,20 @@ namespace pi {
                 ensemble.computeAttraction(subjs);
             }
 
-            /// #### Image Deformation
-            /// The deformation is performed by PxBsplineDeformation
-            PxBsplineDeformation deformation(&global);
-            deformation.computeDeformationToAverage(subjs);
+            if (global.useImageTerm) {
+                /// #### Image Deformation
+                /// The deformation is performed by PxBsplineDeformation. This image term can be turned off using 'particles.use-image-term = false'.
+                PxBsplineDeformation deformation(&global);
+                deformation.computeDeformationToAverage(subjs);
 
 
-            /// #### Image Term
-            /// The image iterm is evaluated by PxImageTerm after the B-spline deformation.
-            PxImageTerm imageTerm(&global);
-            DoubleVector entropyVector;
-            entropyVector.resize(global.totalParticles);
-            imageTerm.computeImageTerm(subjs, 17, entropyVector);
+                /// #### Image Term
+                /// The image iterm is evaluated by PxImageTerm after the B-spline deformation.
+                PxImageTerm imageTerm(&global);
+                DoubleVector entropyVector;
+                entropyVector.resize(global.totalParticles);
+                imageTerm.computeImageTerm(subjs, 17, entropyVector);
+            }
 
             /// #### Update the system
             /// The gradient evaluated is added with different weighting.
