@@ -153,8 +153,7 @@ int main(int argc, char* argv[]) {
 static void doMerge(Options& opts, StringVector& args) {
     string outputFile = opts.GetString("--imageMerge", "");
     if (outputFile == "") {
-        cout << "--imageMerge [output-image] [input1] [input2] ..." << endl;
-        exit(0);
+        return;
     }
 
     // first, create an empty image with the same x-y dimension with

@@ -49,7 +49,7 @@ namespace pi {
     class TransformParameterScalesEstimator {
     public:
         TransformParameterScalesEstimator() {
-            _smallParameterVariation = 0.01;
+            _smallParameterVariation = 0.001;
         }
 
         void estimateScales(ScalesType& scales);
@@ -585,7 +585,7 @@ namespace pi {
         // modify gradient so that the maximum displacement would not exceed the maximum step size
         rescaleGradient(gradient);
 
-        const bool printGradient = false;
+        const bool printGradient = true;
         const bool printParams = false;
         for (int i = 0; i < nImages; i++) {
             _movingImages[i].getTransform()->UpdateTransformParameters(gradient[i]);
@@ -625,7 +625,7 @@ namespace pi {
             } else {
                 _learningRate[i] = _maximumStepSizeInPhysicalUnit / stepScale;
             }
-            gradient[i] *= _learningRate[i];
+            gradient[i] *= (0.1 * _learningRate[i]);
         }
     }
 
@@ -1120,7 +1120,7 @@ namespace pi {
 
         // initialize the convergence function
         _convergenceFunction = itk::Function::WindowConvergenceMonitoringFunction<>::New();
-        _convergenceFunction->SetWindowSize(50);
+        _convergenceFunction->SetWindowSize(150);
 
         while (!_stop) {
             resumeOptimization();
