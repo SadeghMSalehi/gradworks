@@ -29,11 +29,14 @@
 #include <vtkStreamTracer.h>
 #include <vtkCellArray.h>
 #include <vtkCellData.h>
+#include <vtkLine.h>
+#include <vtkPolyLine.h>
 #include <vtkMath.h>
 
 #include <itkImage.h>
 #include "piImageIO.h"
 #include "kimage.h"
+#include "kstreamtracer.h"
 
 
 
@@ -84,16 +87,37 @@ void runImportScalars(Options& opts, StringVector& args) {
 }
 
 
-// export scalar values to a text file
+/// @brief export scalar values to a text file
 void runExportScalars(Options& opts, StringVector& args) {
     vtkIO io;
 
-    // read polydata
+    /// - Read polydata
     vtkPolyData* poly = io.readFile(args[0]);
+
+    /// - Check if file is loaded
+    if (poly == NULL) {
+        cout << "can't read file: " << args[0];
+        return;
+    }
+
+    bool isPointData = true;
+    /// - Find the scalar attribute given as '-scalarName'
     vtkDataArray* scalar = poly->GetPointData()->GetScalars(opts.GetString("-scalarName").c_str());
+    /// - Check if the scalar exists
+    if (scalar == NULL) {
+        /// - Try with cell arrays
+        scalar = poly->GetCellData()->GetScalars(opts.GetString("-scalarName").c_str());
+        if (scalar == NULL) {
+            cout << "can't find the scalar attribute: " << opts.GetString("-scalarName") << endl;
+            return;
+        }
+        isPointData = false;
+    }
 
     ofstream file(args[1].c_str());
-    for (int i = 0; i < poly->GetNumberOfPoints(); i++) {
+
+    int nScalars = scalar->GetNumberOfTuples();
+    for (int i = 0; i < nScalars; i++) {
         file << scalar->GetTuple1(i) << endl;
     }
     file.close();
@@ -101,8 +125,9 @@ void runExportScalars(Options& opts, StringVector& args) {
 
 
 
-// number of iterations and sigma affects the smoothing results
+/// @brief Perform smoothing on manifold by iterative averaging as used in FreeSurfer
 void runScalarSmoothing(Options& opts, StringVector& args) {
+    // number of iterations and sigma affects the smoothing results
     vtkIO io;
     vtkMath* math = vtkMath::New();
 
@@ -154,6 +179,7 @@ void runScalarSmoothing(Options& opts, StringVector& args) {
     poly->BuildLinks();
 
     for (int n = 0; n < numIters; n++) {
+        cout << "Iter: " << n << endl;
         for (int i = 0; i < poly->GetNumberOfPoints(); i++) {
             double center[3];
             poly->GetPoint(i, center);
@@ -307,10 +333,13 @@ void runStreamTracer(Options& opts, StringVector& args) {
     string inputVTUFile = args[0];
     string inputPointsFile = args[1];
     string outputVTKFile = args[2];
+    string outputPointFile = args[3];
+    bool zRotate = opts.GetBool("-zrotate", false);
 
 
     vtkDataSet* inputData;
 
+    // FIXME - create a dataset reader
     if (endswith(inputVTUFile, string(".vtu"))) {
         vtkXMLUnstructuredGridReader* reader = vtkXMLUnstructuredGridReader::New();
         reader->SetFileName(inputVTUFile.c_str());
@@ -332,23 +361,34 @@ void runStreamTracer(Options& opts, StringVector& args) {
     vtkPoints* points = inputPoints->GetPoints();
 
     /// - Converting the input points to the image coordinate
-    for (int i = 0; i < inputPoints->GetNumberOfPoints(); i++) {
+    const int nInputPoints = inputPoints->GetNumberOfPoints();
+    for (int i = 0; i < nInputPoints; i++) {
         double p[3];
         points->GetPoint(i, p);
         // FixMe: Do not use a specific scaling factor
-//        p[0] = -p[0];
-//        p[1] = -p[1];
-//        p[2] = p[2];
+        if (zRotate) {
+            p[0] = -p[0];
+            p[1] = -p[1];
+            p[2] = p[2];
+        }
         points->SetPoint(i, p);
     }
     inputPoints->SetPoints(points);
 
     /// - Set up tracer (Use RK45, both direction, initial step 0.05, maximum propagation 500
-    vtkStreamTracer* tracer = vtkStreamTracer::New();
+    StreamTracer* tracer = StreamTracer::New();
     tracer->SetInput(inputData);
     tracer->SetSource(inputPoints);
     tracer->SetIntegratorTypeToRungeKutta45();
-    tracer->SetIntegrationDirectionToBackward();
+
+    if (opts.GetString("-traceDirection") == "both") {
+        tracer->SetIntegrationDirectionToBoth();
+    } else if (opts.GetString("-traceDirection") == "backward") {
+        tracer->SetIntegrationDirectionToBackward();
+    } else {
+        tracer->SetIntegrationDirectionToForward();
+    }
+
     tracer->SetInterpolatorTypeToDataSetPointLocator();
     tracer->SetMaximumPropagation(500);
     tracer->SetInitialIntegrationStep(0.05);
@@ -356,45 +396,117 @@ void runStreamTracer(Options& opts, StringVector& args) {
 
     vtkPolyData* streamLines = tracer->GetOutput();
     // loop over the cell and compute the length
-    int nLines = streamLines->GetNumberOfLines();
-    cout << "# of lines: " << nLines << endl;
+    int nCells = streamLines->GetNumberOfCells();
+    cout << "# of cells: " << nCells << endl;
 
 
     /// - Prepare the output as a scalar array
     vtkDoubleArray* streamLineLength = vtkDoubleArray::New();
-    streamLineLength->SetNumberOfValues(nLines);
+    streamLineLength->SetNumberOfValues(nCells);
     streamLineLength->SetName("Length");
     streamLineLength->SetNumberOfComponents(1);
-    inputPoints->GetPointData()->SetScalars(streamLineLength);
+
 
     if (true) {
-
-        for (int i = 0; i < nLines; i++) {
-            vtkIdList* ids = vtkIdList::New();
-            streamLines->GetLines()->GetCell(i, ids);
-
-            /// - Compute the length of a stream line
+        cout << "Computing the length of each stream line ..." << endl;
+        for (int i = 0; i < nCells; i++) {
+            vtkPolyLine* polyLine = vtkPolyLine::SafeDownCast(streamLines->GetCell(i));
             double length = 0;
-            int previd = -1;
-            for (int j = 0; j < ids->GetNumberOfIds(); j++) {
-                int id = ids->GetId(j);
-                cout << id << " ";
-                if (j > 0) {
-                    double p1[3], p2[3];
-                    streamLines->GetPoint(previd, p1);
-                    streamLines->GetPoint(id, p2);
-                    length += sqrt(vtkMath::Distance2BetweenPoints(p1, p2));
+            if (polyLine) {
+                length = sqrt(polyLine->GetLength2());
+            } else {
+                vtkLine* line = vtkLine::SafeDownCast(streamLines->GetCell(i));
+                if (line) {
+                    length = sqrt(line->GetLength2());
+                } else {
+                    cout << "Can't find polyline: " << i << "; Type = " << streamLines->GetCell(i)->GetCellType() << endl;
                 }
-                previd = id;
+//                exit(0);
             }
-            cout << endl << endl;
             streamLineLength->SetValue(i, length);
         }
-        streamLines->GetCellData()->AddArray(streamLineLength);
+        streamLines->GetCellData()->SetScalars(streamLineLength);
     }
 
-//    vio.writeFile(outputVTKFile, inputPoints);
+
+    /// - Prepare the output for the input points
+    vtkDoubleArray* streamLineLengthPerPoint = vtkDoubleArray::New();
+    streamLineLengthPerPoint->SetNumberOfTuples(nInputPoints);
+    streamLineLengthPerPoint->SetName("Length");
+    streamLineLengthPerPoint->SetNumberOfComponents(1);
+    inputPoints->GetPointData()->SetScalars(streamLineLengthPerPoint);
+
+    cout << "Assigning a length to each source vertex ..." << endl;
+    vtkDataArray* seedIds = streamLines->GetCellData()->GetScalars("SeedId");
+    if (seedIds) {
+        for (int i = 0; i < nInputPoints; i++) {
+            streamLineLengthPerPoint->SetValue(i, -1);
+        }
+        for (int i = 0; i < seedIds->GetNumberOfTuples(); i++) {
+            int id = seedIds->GetTuple1(i);
+            if (id > nInputPoints) {
+                id = (id - nInputPoints);
+            }
+            double length2 = streamLineLength->GetValue(i);
+            double length1 = streamLineLengthPerPoint->GetValue(id);
+            if (length1 > 0) {
+                double maxlength = std::max(length1, length2);
+                streamLineLengthPerPoint->SetValue(id, maxlength);
+            } else {
+                streamLineLengthPerPoint->SetValue(id, length2);
+            }
+        }
+    } else {
+        cout << "Can't find SeedId" << endl;
+    }
+
+
+    vio.writeFile(outputPointFile, inputPoints);
     vio.writeXMLFile(outputVTKFile, streamLines);
+}
+
+/// @brief Apply a filter to each stream line
+void runFilterStream(Options& opts, StringVector& args) {
+    string inputStream = args[0];
+    string inputSeeds = args[1];
+    string outputStreamFile = args[2];
+    string scalarName = opts.GetString("-scalarName");
+
+    double lowThreshold = opts.GetStringAsReal("-thresholdMin", itk::NumericTraits<float>::min());
+    double highThreshold = opts.GetStringAsReal("-thresholdMax", itk::NumericTraits<float>::max());
+
+    vtkIO vio;
+    vtkPolyData* streamLines = vio.readFile(inputStream);
+    vtkPolyData* streamSeeds = vio.readFile(inputSeeds);
+
+    vtkPolyData* outputStream = vtkPolyData::New();
+    outputStream->SetPoints(streamLines->GetPoints());
+
+    /// - Lookup SeedId and a given scalar array
+    vtkDataArray* seedList = streamLines->GetCellData()->GetScalars("SeedId");
+    vtkDataArray* seedScalars = streamSeeds->GetPointData()->GetScalars(scalarName.c_str());
+    vtkCellArray* lines = vtkCellArray::New();
+    vtkDoubleArray* filteredScalars = vtkDoubleArray::New();
+    filteredScalars->SetName(scalarName.c_str());
+    filteredScalars->SetNumberOfComponents(1);
+
+    /// - Lookup a corresponding point scalar, apply threashold filter, and add to the new object
+    for (int i = 0; i < seedList->GetNumberOfTuples(); i++) {
+        int seedId = seedList->GetTuple1(i);
+        double value = seedScalars->GetTuple1(seedId);
+
+        if (lowThreshold <= value && value <= highThreshold) {
+            lines->InsertNextCell(streamLines->GetCell(i));
+            filteredScalars->InsertNextValue(value);
+        }
+    }
+
+    outputStream->SetLines(lines);
+    outputStream->GetCellData()->AddArray(filteredScalars);
+    outputStream->BuildCells();
+    outputStream->BuildLinks();
+
+    vio.writeFile(outputStreamFile, outputStream);
 }
 
 
@@ -414,7 +526,12 @@ int main(int argc, char * argv[])
     opts.addOption("-vti", "Convert an ITK image to VTI format (VTKImageData)", "-vti imageFile outputFile [-attrDim 3]", SO_NONE);
     opts.addOption("-vtu", "Convert an ITK image to VTU format (vtkUnstructuredGrid). This is useful when masking is needed.", "-vtu imageFile outputFile -maskImage maskImage", SO_NONE);
     opts.addOption("-maskImage", "A mask image for the use of -vtu", "-maskImage mask.nrrd", SO_REQ_SEP);
-    opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-vtu", SO_NONE);
+    opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-lines output-points", SO_NONE);
+    opts.addOption("-traceDirection", "Choose the direction of stream tracing (both, forward, backward)", "-traceStream ... -traceDirection (both|forward|backward)", SO_REQ_SEP);
+    opts.addOption("-zrotate", "Rotate all the points along the z-axis. Change the sign of x and y coordinate.", "-traceStream ... -zrotate", SO_NONE);
+    opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
+    opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
+    opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
     opts.addOption("-h", "print help message", SO_NONE);
     StringVector args = opts.ParseOptions(argc, argv, NULL);
 
@@ -437,6 +554,8 @@ int main(int argc, char * argv[])
         runConvertITK2VTU(opts, args);
     } else if (opts.GetBool("-traceStream")) {
         runStreamTracer(opts, args);
+    } else if (opts.GetBool("-filterStream")) {
+        runFilterStream(opts, args);
     }
     return 0;
 }

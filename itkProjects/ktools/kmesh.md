@@ -30,6 +30,21 @@
 	* *ex)* -maskImage mask.nrrd
 * -traceStream
 	* Trace a stream line from a given point set
-	* *ex)* -traceStream input-vtu-field input-vtk output-vtu
+	* *ex)* -traceStream input-vtu-field input-vtk output-lines output-points
+* -traceDirection
+	* Choose the direction of stream tracing (both, forward, backward)
+	* *ex)* -traceStream ... -traceDirection (both|forward|backward)
+* -zrotate
+	* Rotate all the points along the z-axis. Change the sign of x and y coordinate.
+	* *ex)* -traceStream ... -zrotate
+* -filterStream
+	* Filter out stream lines which are lower than a given threshold
+	* *ex)* -filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx
+* -thresholdMin
+	* Give a minimum threshold value for -filterStream
+	* *ex)* -threshold 10 (select a cell whose attriubte is greater than 10)
+* -thresholdMax
+	* Give a maximum threshold value for -filterStream
+	* *ex)* -threshold 10 (select a cell whose attriubte is lower than 10)
 * -h
 	* print help message
