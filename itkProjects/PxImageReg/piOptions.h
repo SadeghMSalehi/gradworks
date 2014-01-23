@@ -101,15 +101,26 @@ namespace pi {
 
 		void addOption(std::string name, int argType);
 		void addOption(std::string name, std::string help, int argType);
+		void addOption(std::string name, std::string help, std::string usage, int argType);
 
         /// return a help message for an option name
         /// \param name option name
         /// \return help message for a given option name
         std::string GetOptionHelp(std::string name);
 
+
+        /// return a usage for an option name
+        /// \param name option name
+        /// \return usage for a given option name
+        std::string GetOptionUsage(std::string name);
+
+
         /// return specNames
         /// \return a StringVector contains all option names
         StringVector& GetOptionNames();
+
+        /// print usage
+        void PrintUsage();
 
 
         /// main function for test
@@ -119,6 +130,7 @@ namespace pi {
         StringVector _specNames;
 		OptionSpecs _specs;
         StringMap _specHelpMessages;
+        StringMap _specUsage;
 
         BoolMap _boolMap;
         StringMap _stringMap;

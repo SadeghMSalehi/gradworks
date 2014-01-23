@@ -13,6 +13,8 @@
 #include "piImageDef.h"
 
 namespace pi {
+    /// A class represents a particle and implements mathematical operations between particles
+    /// @property x position in the subject space
     class Px {
     public:
         double x[__Dim];
@@ -74,6 +76,9 @@ namespace pi {
         typedef std::vector<Px> Vector;
     };
 
+    /// A class represents attributes for a particle
+    /// @property label gives a membership to a particle
+    /// @property bound ???
     class PxA {
     public:
         typedef std::vector<PxA> Vector;

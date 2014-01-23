@@ -16,28 +16,31 @@ ImageIO<ImageType> io;
 std::vector<ImageType::Pointer> inputImages;
 
 int main(int argc, char* argv[]) {
-    CSimpleOpt::SOption specs[] = {
-        { 0, "-o", SO_REQ_SEP },
-        { 1, "-e", SO_REQ_SEP },
-        { 2, "-2", SO_NONE },
-        SO_END_OF_OPTIONS
-    };
-
     Options argParser;
-    StringVector args = argParser.ParseOptions(argc, argv, specs);
+    argParser.addOption("-e", "The equation to compute each output pixel.", "-e (A+B)", SO_REQ_SEP);
+    argParser.addOption("-o", "output filename (the same data type with the last input)", "-o output.nrrd", SO_REQ_SEP);
+    argParser.addOption("-h", "print this message", SO_NONE);
+
+    StringVector args = argParser.ParseOptions(argc, argv, NULL);
     string eq = argParser.GetString("-e");
     string outputFilename = argParser.GetString("-o");
 
-    if (eq == "" || args.size() == 0 || outputFilename == "") {
-        cout << argv[0] << " [ -e equation ] [ -o output-file ] [input-1:A] [input-2:B] ... [input-5:E]" << endl;
-        cout << "       in the equation a pixel value from each input is represented by A,B,C,D,E" << endl;
-        cout << "       for example, -e 'A+B' will compute the addition of A and B image," << endl;
-        cout << "                    -e 'sqrt(A*A+B*B) will compute the magnitude of A and B," << endl;
-        cout << "                    -e 'A==1 ? 2:(B==1 ? 3:4) will combine A and B by replacing into 3 and 4 labels, respectively." << endl;
-        cout << "       -o will designate the output name" << endl;
-        cout << "       all values are internally casted to a given PIXEL_TYPE(float in default) in compilation, " << endl;
-        cout << "       and the output type will be casted to the pixel type of the last image." << endl << endl;
-        cout << "       Please refer to http://muparser.beltoforion.de/mup_features.html for functions and operators." << endl;
+    if (argParser.GetBool("-h") || eq == "" || args.size() == 0 || outputFilename == "") {
+        cout << "## kcalc usage \n"
+            "\tkcalc [-e equation] [-o output-file] input1:A input2:B ...\n\n"
+            "The kcalc performs a pixel-wise arithmetic. The pixel value of each input image is given as variables, A,B,C,D, and E. Several functions implemented in [MuParser](http://muparser.beltoforion.de/) includes +,-,*,/, and ? as well as trigonometric functions.\n\n"
+            "Also, there are the min, max values of each input image for the use of scaling and other purposes, which are given as AMIN, AMAX, BMIN, BMAX, and etc.\n\n"
+            "Note that the output data type is the same with the last input file. The order of images may produce different results, if images with different types are used.\n\n"
+            "Some examples are:\n"
+            "* **Addition**: kcalc -e \"(A+B)\" input1.nrrd input2.nrrd -o output.nrrd\n"
+            "* **Averaging**: kcalc -e \"(A+B)/2\" input1.nrrd input2.nrrd -o output.nrrd\n"
+            "* **Thresholding**: kcalc -e \"(A>10?1:0)\" input.nrrd -o output.nrrd\n"
+            "* **Scaling**: -e (A-AMIN)/AMAX*255\n"
+            "* **Masking**: -e (A==8?B:0)\n"
+            "* ...\n\n"
+            "### Options\n";
+        argParser.PrintUsage();
+        cout << endl;
         return 0;
     }
 

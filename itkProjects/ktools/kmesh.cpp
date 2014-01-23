@@ -1,3 +1,4 @@
+
 //
 //  kmesh.cpp
 //  ktools
@@ -20,6 +21,21 @@
 #include <vtkFloatArray.h>
 #include <vtkMath.h>
 #include <vtkAppendPolyData.h>
+#include <vtkXMLImageDataReader.h>
+#include <vtkXMLImageDataWriter.h>
+#include <vtkUnstructuredGrid.h>
+#include <vtkXMLUnstructuredGridReader.h>
+#include <vtkXMLUnstructuredGridWriter.h>
+#include <vtkStreamTracer.h>
+#include <vtkCellArray.h>
+#include <vtkCellData.h>
+#include <vtkMath.h>
+
+#include <itkImage.h>
+#include "piImageIO.h"
+#include "kimage.h"
+
+
 
 #include <vnl/vnl_vector.h>
 
@@ -208,10 +224,184 @@ void runScalarSmoothing(Options& opts, StringVector& args) {
     io.writeFile(args[1], poly);
 }
 
+
+
+/// @brief Convert an ITK image to a VTKImageData
+void runConvertITK2VTI(Options& opts, StringVector& args) {
+    if (args.size() < 2) {
+        cout << "requires input-image-file and output-vti-file" << endl;
+        return;
+    }
+    
+    int attrDim = opts.GetStringAsInt("-attrDim", 1);
+    string scalarName = opts.GetString("-scalarName", "Intensity");
+    
+    string input = args[0];
+    string output = args[1];
+    
+    /// - Read an image data
+    vtkImageData* outputData = vtkImageData::New();
+    if (attrDim == 1) {
+        ConvertImageT<ImageType>(input, outputData, scalarName.c_str(), 1);
+    } else if (attrDim == 3) {
+        ConvertImageT<VectorImageType>(input, outputData, scalarName.c_str(), attrDim);
+    }
+    
+    vtkXMLImageDataWriter* w = vtkXMLImageDataWriter::New();
+    w->SetFileName(output.c_str());
+    w->SetDataModeToAppended();
+    w->EncodeAppendedDataOff();
+    w->SetCompressorTypeToZLib();
+    w->SetDataModeToBinary();
+    
+    w->SetInput(outputData);
+    w->Write();
+}
+
+
+/// @brief Convert an itk image file to vtkUnstructuredGrid
+void runConvertITK2VTU(Options& opts, StringVector& args) {
+    if (args.size() < 2) {
+        cout << "requires input-image-file and output-vti-file" << endl;
+        return;
+    }
+
+    int attrDim = opts.GetStringAsInt("-attrDim", 1);
+    string scalarName = opts.GetString("-scalarName", "Intensity");
+
+    string input = args[0];
+    string output = args[1];
+
+    string maskImageFile = opts.GetString("-maskImage");
+
+    typedef itk::Image<ushort,3> MaskImageType;
+    ImageIO<MaskImageType> maskIO;
+    MaskImageType::Pointer maskImage = maskIO.ReadCastedImage(maskImageFile);
+
+    /// - Read an image data
+    vtkUnstructuredGrid* outputData = vtkUnstructuredGrid::New();
+    if (attrDim == 1) {
+        ConvertImageT<ImageType, MaskImageType>(input, outputData, maskImage, scalarName.c_str(), 1);
+    } else if (attrDim == 3) {
+        ConvertVectorImageT<VectorImageType, MaskImageType>(input, outputData, maskImage, scalarName.c_str(), attrDim);
+    }
+
+    vtkXMLUnstructuredGridWriter* w = vtkXMLUnstructuredGridWriter::New();
+    w->SetFileName(output.c_str());
+    w->SetDataModeToAppended();
+    w->EncodeAppendedDataOff();
+    w->SetCompressorTypeToZLib();
+    w->SetDataModeToBinary();
+
+    w->SetInput(outputData);
+    w->Write();
+}
+
+bool endswith(std::string str, std::string substr) {
+    size_t i = str.rfind(substr);
+    return (i != string::npos) && (i == (str.length() - substr.length()));
+}
+
+/// @brief Execute the stream tracer
+void runStreamTracer(Options& opts, StringVector& args) {
+    string inputVTUFile = args[0];
+    string inputPointsFile = args[1];
+    string outputVTKFile = args[2];
+
+
+    vtkDataSet* inputData;
+
+    if (endswith(inputVTUFile, string(".vtu"))) {
+        vtkXMLUnstructuredGridReader* reader = vtkXMLUnstructuredGridReader::New();
+        reader->SetFileName(inputVTUFile.c_str());
+        reader->Update();
+
+        vtkUnstructuredGrid* inputVTU = reader->GetOutput();
+        inputData = inputVTU;
+    } else if (endswith(inputVTUFile, ".vti")) {
+        vtkXMLImageDataReader* reader = vtkXMLImageDataReader::New();
+        reader->SetFileName(inputVTUFile.c_str());
+        reader->Update();
+
+        vtkImageData* inputVTI = reader->GetOutput();
+        inputData = inputVTI;
+    }
+
+    vtkIO vio;
+    vtkPolyData* inputPoints = vio.readFile(inputPointsFile);
+    vtkPoints* points = inputPoints->GetPoints();
+
+    /// - Converting the input points to the image coordinate
+    for (int i = 0; i < inputPoints->GetNumberOfPoints(); i++) {
+        double p[3];
+        points->GetPoint(i, p);
+        // FixMe: Do not use a specific scaling factor
+//        p[0] = -p[0];
+//        p[1] = -p[1];
+//        p[2] = p[2];
+        points->SetPoint(i, p);
+    }
+    inputPoints->SetPoints(points);
+
+    /// - Set up tracer (Use RK45, both direction, initial step 0.05, maximum propagation 500
+    vtkStreamTracer* tracer = vtkStreamTracer::New();
+    tracer->SetInput(inputData);
+    tracer->SetSource(inputPoints);
+    tracer->SetIntegratorTypeToRungeKutta45();
+    tracer->SetIntegrationDirectionToBackward();
+    tracer->SetInterpolatorTypeToDataSetPointLocator();
+    tracer->SetMaximumPropagation(500);
+    tracer->SetInitialIntegrationStep(0.05);
+    tracer->Update();
+
+    vtkPolyData* streamLines = tracer->GetOutput();
+    // loop over the cell and compute the length
+    int nLines = streamLines->GetNumberOfLines();
+    cout << "# of lines: " << nLines << endl;
+
+
+    /// - Prepare the output as a scalar array
+    vtkDoubleArray* streamLineLength = vtkDoubleArray::New();
+    streamLineLength->SetNumberOfValues(nLines);
+    streamLineLength->SetName("Length");
+    streamLineLength->SetNumberOfComponents(1);
+    inputPoints->GetPointData()->SetScalars(streamLineLength);
+
+    if (true) {
+
+        for (int i = 0; i < nLines; i++) {
+            vtkIdList* ids = vtkIdList::New();
+            streamLines->GetLines()->GetCell(i, ids);
+
+            /// - Compute the length of a stream line
+            double length = 0;
+            int previd = -1;
+            for (int j = 0; j < ids->GetNumberOfIds(); j++) {
+                int id = ids->GetId(j);
+                cout << id << " ";
+                if (j > 0) {
+                    double p1[3], p2[3];
+                    streamLines->GetPoint(previd, p1);
+                    streamLines->GetPoint(id, p2);
+                    length += sqrt(vtkMath::Distance2BetweenPoints(p1, p2));
+                }
+                previd = id;
+            }
+            cout << endl << endl;
+            streamLineLength->SetValue(i, length);
+        }
+        streamLines->GetCellData()->AddArray(streamLineLength);
+    }
+
+//    vio.writeFile(outputVTKFile, inputPoints);
+    vio.writeXMLFile(outputVTKFile, streamLines);
+}
+
+
 int main(int argc, char * argv[])
 {
     Options opts;
-    opts.addOption("-exportScalars", "Export scalar values to a text file [in-mesh] [scalar.txt]", SO_NONE);
+    opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
     opts.addOption("-importScalars", "Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
     opts.addOption("-appendData", "Append input meshes into a single data [output-mesh]", SO_REQ_SEP);
@@ -220,14 +410,18 @@ int main(int argc, char * argv[])
     opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
     opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
     opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
+    opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
+    opts.addOption("-vti", "Convert an ITK image to VTI format (VTKImageData)", "-vti imageFile outputFile [-attrDim 3]", SO_NONE);
+    opts.addOption("-vtu", "Convert an ITK image to VTU format (vtkUnstructuredGrid). This is useful when masking is needed.", "-vtu imageFile outputFile -maskImage maskImage", SO_NONE);
+    opts.addOption("-maskImage", "A mask image for the use of -vtu", "-maskImage mask.nrrd", SO_REQ_SEP);
+    opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-vtu", SO_NONE);
     opts.addOption("-h", "print help message", SO_NONE);
     StringVector args = opts.ParseOptions(argc, argv, NULL);
 
 
     if (opts.GetBool("-h")) {
-        for (uint i = 0; i < opts.GetOptionNames().size(); i++) {
-            cout << opts.GetOptionNames()[i] << "\t" << opts.GetOptionHelp(opts.GetOptionNames()[i]) << endl;
-        }
+        cout << "## *kmesh* Usage" << endl;
+        opts.PrintUsage();
         return 0;
     } else if (opts.GetBool("-smoothScalars")) {
         runScalarSmoothing(opts, args);
@@ -237,6 +431,12 @@ int main(int argc, char * argv[])
         runExportScalars(opts, args);
     } else if (opts.GetString("-appendData", "") != "") {
         runAppendData(opts, args);
+    } else if (opts.GetBool("-vti")) {
+        runConvertITK2VTI(opts, args);
+    } else if (opts.GetBool("-vtu")) {
+        runConvertITK2VTU(opts, args);
+    } else if (opts.GetBool("-traceStream")) {
+        runStreamTracer(opts, args);
     }
     return 0;
 }

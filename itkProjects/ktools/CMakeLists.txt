@@ -40,6 +40,7 @@ IF(${BUILD_KCALC})
 ADD_EXECUTABLE(kcalc kcalc.cpp piImageIO.h piOptions.cpp piOptions.h ${muparser_SRC} PixelMathImageFilter.h PixelMathImageFilter.hxx)
 SET_TARGET_PROPERTIES(kcalc PROPERTIES COMPILE_FLAGS "-DPIXEL_TYPE=float")
 TARGET_LINK_LIBRARIES(kcalc ${ITK_LIBRARIES})
+ADD_CUSTOM_COMMAND(TARGET kcalc POST_BUILD COMMAND kcalc -h > ${CMAKE_CURRENT_SOURCE_DIR}/../kcalc.md)
 ENDIF(${BUILD_KCALC})
 
 IF(${USE_VTK})
@@ -65,10 +66,12 @@ IF(${USE_VTK})
     
     ADD_EXECUTABLE(kmesh
         kmesh.h kmesh.cpp
+        kimage.h kimage.cpp
         piOptions.h piOptions.cpp
         vtkio.h vtkio.cpp
     )
     TARGET_LINK_LIBRARIES(kmesh ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+    ADD_CUSTOM_COMMAND(TARGET kmesh POST_BUILD COMMAND kmesh -h > ${CMAKE_CURRENT_SOURCE_DIR}/kmesh.md)
 ENDIF(${USE_VTK})
 
 IF(${BUILD_KMBRAIN})

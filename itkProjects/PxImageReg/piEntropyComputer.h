@@ -127,6 +127,7 @@ namespace pi {
 
         bool ComputeGradient();
 
+        /// @brief Compute the entropy; the determinant of covariance
         double ComputeEntropy();
 
     private:
@@ -300,9 +301,12 @@ namespace pi {
 
         inverseCovariance = vnl_matrix_inverse<T>(covariance);
         if (std::isnan(inverseCovariance[0][0])) {
+            std::cout << dataMatrix << std::endl;
             std::cout << "Covariance is NaN" << std::endl;
             std::cout << covariance << std::endl;
             inverseCovariance.set_identity();
+
+
             return false;
         }
         return true;
@@ -335,10 +339,11 @@ namespace pi {
         return true;
     }
 
-    // entropy computation
-    // the entropy is proportional to the determinant of covariance
+
+
     template <class T>
     double EntropyComputer<T>::ComputeEntropy() {
+        /// The determinant of the covariance is computed by *vnl_symmetric_eigensystem<>* class
         vnl_symmetric_eigensystem<double> eig(covariance);
         return eig.determinant();
     }

@@ -11,6 +11,7 @@
 
 #include <itkSignedDanielssonDistanceMapImageFilter.h>
 #include <itkExtractImageFilter.h>
+#include <itkVectorMagnitudeImageFilter.h>
 
 using namespace std;
 
@@ -35,7 +36,7 @@ namespace pi {
         }
     };
 
-    VectorImage::Pointer ComputeDistanceMap(LabelImage::Pointer img) {
+    VectorImage::Pointer ComputeDistanceMap(LabelImage::Pointer img, std::string magnitudeFile) {
         cout << "Computing distance map ..." << flush;
         LabelImage::Pointer binaryMap = img;
 
@@ -47,14 +48,28 @@ namespace pi {
         distmapFilter->Update();
         SignedDistanceMapFilterType::OutputImagePointer distmap = distmapFilter->GetDistanceMap();
 
-        typedef
-        itk::UnaryFunctorImageFilter<SignedDistanceMapFilterType::VectorImageType, VectorImage, OffsetToVector> OffsetToVectorCastFilterType;
+        if (magnitudeFile != "") {
+            ImageIO<SignedDistanceMapFilterType::OutputImageType> io;
+            io.WriteImage(magnitudeFile, distmap);
+        }
 
-        OffsetToVectorCastFilterType::Pointer caster = OffsetToVectorCastFilterType::New();
-        caster->SetInput(distmapFilter->GetVectorDistanceMap());
-        caster->Update();
-        cout << "done" << endl;
-        return caster->GetOutput();
+
+        /** Pointer Type for the vector distance image */
+        OffsetImage::Pointer distanceOffsetImage = distmapFilter->GetVectorDistanceMap();
+        ImageIO<VectorImage> io;
+        VectorImage::Pointer distanceVectorImage = io.NewImageS<LabelImage>(binaryMap);
+
+        const int nPixels = img->GetPixelContainer()->Size();
+
+        OffsetType* offsetPointer = distanceOffsetImage->GetBufferPointer();
+        VectorType* vectorPointer = distanceVectorImage->GetBufferPointer();
+
+        for (int i = 0; i < nPixels; i++) {
+            fordim (k) {
+                vectorPointer[i][k] = offsetPointer[i][k];
+            }
+        }
+        return distanceVectorImage;
     }
 
 
@@ -84,6 +99,15 @@ namespace pi {
         }
         gradientFilter->Update();
         return gradientFilter->GetOutput();
+    }
+
+
+    RealImage::Pointer ComputeGradientMagnitude(GradientImage::Pointer image) {
+        typedef itk::VectorMagnitudeImageFilter<GradientImage, RealImage> MagnitudeFilterType;
+        MagnitudeFilterType::Pointer magFilter = MagnitudeFilterType::New();
+        magFilter->SetInput(image);
+        magFilter->Update();
+        return magFilter->GetOutput();
     }
 
     LabelImage3::Pointer CreateImage3(LabelImage::Pointer refImage, int m) {
