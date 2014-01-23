@@ -14,11 +14,13 @@
 #include <vtkDoubleArray.h>
 #include <vtkPointData.h>
 #include <vtkImageData.h>
+#include <vtkUnstructuredGrid.h>
 #include <vtkDataArray.h>
 
 #include "piImageIO.h"
 
-typedef itk::VectorImage<float> VectorImageType;
+typedef itk::Image<float,3> ImageType;
+typedef itk::Image< itk::Vector<double,3>, 3 > VectorImageType;
 typedef VectorImageType::PixelType VectorType;
 
 void SetArrayTuple(vtkDataArray* a, int i, VectorType v);
@@ -27,7 +29,7 @@ void SetArrayTuple(vtkDataArray* a, int i, double v);
 template <class X>
 void ConvertImageT(std::string& imageFile, vtkImageData* imgData, const char* attrName, int numberOfComponents) {
     pi::ImageIO<X> itkIO;
-    typename X::Pointer srcImg = itkIO.ReadCastedImage(imageFile.c_str());
+    typename X::Pointer srcImg = itkIO.ReadImage(imageFile.c_str());
     typename X::SizeType srcSize = srcImg->GetRequestedRegion().GetSize();
     typename X::PointType srcOrigin = srcImg->GetOrigin();
     typename X::SpacingType srcSpacing = srcImg->GetSpacing();
@@ -75,6 +77,132 @@ void ConvertImageT(std::string& imageFile, vtkImageData* imgData, const char* at
             }
         }
     }
+}
+
+
+
+/// @brief Convert a vector-valued itk image to vtkUnstructuredGrid
+template <class X, class Y>
+void ConvertVectorImageT(std::string& imageFile, vtkUnstructuredGrid* imgData, typename Y::Pointer maskImage, const char* attrName, int numberOfComponents) {
+    pi::ImageIO<X> itkIO;
+    typename X::Pointer srcImg = itkIO.ReadImage(imageFile.c_str());
+
+
+    /// - Create an instance for the output grid
+    vtkUnstructuredGrid* imageData = imgData;
+    vtkPointData* pdata = imageData->GetPointData();
+
+    /// - Create a point set to store valid points
+    vtkPoints* pointSet = vtkPoints::New();
+
+    /// - Create an array to store the pixel data
+    vtkDoubleArray* attr = vtkDoubleArray::New();
+    attr->SetNumberOfComponents(numberOfComponents);
+    attr->SetName(attrName);
+
+
+    std::vector<double> tuple;
+    tuple.resize(numberOfComponents);
+
+    /// - Loop over the entire pixel of the mask
+    itk::ImageRegionIteratorWithIndex<Y> iter(maskImage, maskImage->GetBufferedRegion());
+    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+        if (iter.Get() > 0) {
+
+            typename X::PointType point;
+            srcImg->TransformIndexToPhysicalPoint(iter.GetIndex(), point);
+
+            /// - Add a point
+            pointSet->InsertNextPoint(point[0], point[1], point[2]);
+
+            typename X::PixelType pixel = srcImg->GetPixel(iter.GetIndex());
+            if (numberOfComponents > 1) {
+                for (int j = 0; j < numberOfComponents; j++) {
+                    tuple[j] = -pixel[j];
+                }
+                cout << pixel << endl;
+            }
+
+            /// - Add a pixel value (a scalar or a vector)
+            attr->InsertNextTupleValue(&tuple[0]);
+        }
+    }
+
+    switch (numberOfComponents) {
+        case 1:
+            pdata->SetScalars(attr);
+            break;
+        case 3:
+            pdata->SetVectors(attr);
+            break;
+        case 9:
+            pdata->SetTensors(attr);
+            break;
+        default:
+            pdata->AddArray(attr);
+            break;
+    }
+
+    imageData->SetPoints(pointSet);
+}
+
+
+/// @brief Convert a scalar-valued itk image to vtkUnstructuredGrid
+template <class X, class Y>
+void ConvertImageT(std::string& imageFile, vtkUnstructuredGrid* imgData, typename Y::Pointer maskImage, const char* attrName, int numberOfComponents) {
+    pi::ImageIO<X> itkIO;
+    typename X::Pointer srcImg = itkIO.ReadImage(imageFile.c_str());
+
+
+    /// - Create an instance for the output grid
+    vtkUnstructuredGrid* imageData = vtkUnstructuredGrid::New();
+    vtkPointData* pdata = imageData->GetPointData();
+
+    /// - Create a point set to store valid points
+    vtkPoints* pointSet = vtkPoints::New();
+
+    /// - Create an array to store the pixel data
+    vtkDoubleArray* attr = vtkDoubleArray::New();
+    attr->SetNumberOfComponents(numberOfComponents);
+    attr->SetName(attrName);
+
+
+    std::vector<double> tuple;
+    tuple.resize(numberOfComponents);
+
+    /// - Loop over the entire pixel of the mask
+    itk::ImageRegionIteratorWithIndex<Y> iter(maskImage, maskImage->GetBufferedRegion());
+    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+        if (iter.Get() > 0) {
+            typename X::PointType point;
+            srcImg->TransformIndexToPhysicalPoint(iter.GetIndex(), point);
+
+            /// - Add a point
+            pointSet->InsertNextPoint(point[0], point[1], point[2]);
+
+            typename X::PixelType pixel = srcImg->GetPixel(iter.GetIndex());
+            
+            /// - Add a pixel value (a scalar or a vector)
+            attr->InsertNextValue(pixel);
+        }
+    }
+
+    switch (numberOfComponents) {
+        case 1:
+            pdata->SetScalars(attr);
+            break;
+        case 3:
+            pdata->SetVectors(attr);
+            break;
+        case 9:
+            pdata->SetTensors(attr);
+            break;
+        default:
+            pdata->AddArray(attr);
+            break;
+    }
+    
+    imageData->SetPoints(pointSet);
 }
 
 #endif /* defined(__ktools__kimage__) */

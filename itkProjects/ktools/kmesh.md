@@ -21,6 +21,15 @@
 	* *ex)* -attrDim 3 (vector)
 * -vti
 	* Convert an ITK image to VTI format (VTKImageData)
-	* *ex)* -vti imageFile
+	* *ex)* -vti imageFile outputFile [-attrDim 3]
+* -vtu
+	* Convert an ITK image to VTU format (vtkUnstructuredGrid). This is useful when masking is needed.
+	* *ex)* -vtu imageFile outputFile -maskImage maskImage
+* -maskImage
+	* A mask image for the use of -vtu
+	* *ex)* -maskImage mask.nrrd
+* -traceStream
+	* Trace a stream line from a given point set
+	* *ex)* -traceStream input-vtu-field input-vtk output-vtu
 * -h
 	* print help message

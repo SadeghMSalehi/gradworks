@@ -17,6 +17,8 @@ class vtkIO {
 public:
     vtkPolyData* readFile(std::string file);
     void writeFile(std::string file, vtkPolyData* mesh);
+    void writeXMLFile(std::string file, vtkPolyData* mesh);
+
 };
 
 #endif /* defined(__ktools__vtkio__) */
