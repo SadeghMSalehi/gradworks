@@ -1,3 +1,4 @@
+
 //
 //  kmesh.cpp
 //  ktools
@@ -20,6 +21,15 @@
 #include <vtkFloatArray.h>
 #include <vtkMath.h>
 #include <vtkAppendPolyData.h>
+#include <vtkXMLImageDataWriter.h>
+
+#include <itkImage.h>
+#include "piImageIO.h"
+#include "kimage.h"
+
+typedef itk::Image<float,3> ImageType;
+typedef itk::VectorImage<float> VectorImageType;
+
 
 #include <vnl/vnl_vector.h>
 
@@ -208,6 +218,41 @@ void runScalarSmoothing(Options& opts, StringVector& args) {
     io.writeFile(args[1], poly);
 }
 
+
+
+/// @brief Convert an ITK image to a VTKImageData
+void runConvertITK2VTI(Options& opts, StringVector& args) {
+    if (args.size() < 2) {
+        cout << "requires input-image-file and output-vti-file" << endl;
+        return;
+    }
+    
+    int attrDim = opts.GetStringAsInt("-attrDim", 1);
+    string scalarName = opts.GetString("-scalarName", "Intensity");
+    
+    string input = args[0];
+    string output = args[1];
+    
+    /// - Read an image data
+    vtkImageData* outputData = vtkImageData::New();
+    if (attrDim == 1) {
+        ConvertImageT<ImageType>(input, outputData, scalarName.c_str(), 1);
+    } else if (attrDim == 3) {
+        ConvertImageT<VectorImageType>(input, outputData, scalarName.c_str(), attrDim);
+    }
+    
+    vtkXMLImageDataWriter* w = vtkXMLImageDataWriter::New();
+    w->SetFileName(output.c_str());
+    w->SetDataModeToAppended();
+    w->EncodeAppendedDataOff();
+    w->SetCompressorTypeToZLib();
+    w->SetDataModeToBinary();
+    
+    w->SetInput(outputData);
+    w->Write();
+}
+
+
 int main(int argc, char * argv[])
 {
     Options opts;
@@ -220,6 +265,8 @@ int main(int argc, char * argv[])
     opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
     opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
     opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
+    opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
+    opts.addOption("-vti", "Convert an ITK image to VTI format (VTKImageData)", "-vti imageFile", SO_NONE);
     opts.addOption("-h", "print help message", SO_NONE);
     StringVector args = opts.ParseOptions(argc, argv, NULL);
 
@@ -236,6 +283,8 @@ int main(int argc, char * argv[])
         runExportScalars(opts, args);
     } else if (opts.GetString("-appendData", "") != "") {
         runAppendData(opts, args);
+    } else if (opts.GetBool("-vti")) {
+        runConvertITK2VTI(opts, args);
     }
     return 0;
 }

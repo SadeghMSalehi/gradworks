@@ -16,5 +16,11 @@
 	* scalar name for output [string]
 * -iter
 	* number of iterations [int]
+* -attrDim
+	* The number of components of attribute
+	* *ex)* -attrDim 3 (vector)
+* -vti
+	* Convert an ITK image to VTI format (VTKImageData)
+	* *ex)* -vti imageFile
 * -h
 	* print help message

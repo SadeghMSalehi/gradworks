@@ -66,6 +66,7 @@ IF(${USE_VTK})
     
     ADD_EXECUTABLE(kmesh
         kmesh.h kmesh.cpp
+        kimage.h kimage.cpp
         piOptions.h piOptions.cpp
         vtkio.h vtkio.cpp
     )
