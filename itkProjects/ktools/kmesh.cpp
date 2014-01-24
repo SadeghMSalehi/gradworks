@@ -264,6 +264,13 @@ void runConvertITK2VTI(Options& opts, StringVector& args) {
     
     int attrDim = opts.GetStringAsInt("-attrDim", 1);
     string scalarName = opts.GetString("-scalarName", "Intensity");
+    string maskImageFile = opts.GetString("-maskImage");
+    
+    MaskImageType::Pointer maskImage;
+    if (maskImageFile != "") {
+        ImageIO<MaskImageType> io;
+        maskImage = io.ReadCastedImage(maskImageFile);
+    }
     
     string input = args[0];
     string output = args[1];
@@ -271,9 +278,9 @@ void runConvertITK2VTI(Options& opts, StringVector& args) {
     /// - Read an image data
     vtkImageData* outputData = vtkImageData::New();
     if (attrDim == 1) {
-        ConvertImageT<ImageType>(input, outputData, scalarName.c_str(), 1);
+        ConvertImageT<ImageType>(input, outputData, scalarName.c_str(), 1, maskImage);
     } else if (attrDim == 3) {
-        ConvertImageT<VectorImageType>(input, outputData, scalarName.c_str(), attrDim);
+        ConvertImageT<VectorImageType>(input, outputData, scalarName.c_str(), attrDim, maskImage);
     }
     
     vtkXMLImageDataWriter* w = vtkXMLImageDataWriter::New();
@@ -381,10 +388,10 @@ void runStreamTracer(Options& opts, StringVector& args) {
     /// - Set up tracer (Use RK45, both direction, initial step 0.05, maximum propagation 500
     StreamTracer* tracer = StreamTracer::New();
     tracer->SetInput(inputData);
-//    tracer->SetSource(inputPoints);
-    double seedPoint[3];
-    inputPoints->GetPoint(24745, seedPoint);
-    tracer->SetStartPosition(seedPoint);
+    tracer->SetSource(inputPoints);
+//    double seedPoint[3];
+ //   inputPoints->GetPoint(24745, seedPoint);
+ //   tracer->SetStartPosition(seedPoint);
     tracer->SetIntegratorTypeToRungeKutta45();
 
     if (opts.GetString("-traceDirection") == "both") {
@@ -605,7 +612,7 @@ int main(int argc, char * argv[])
     opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
     opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
     opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
-    opts.addOption("-vti", "Convert an ITK image to VTI format (VTKImageData)", "-vti imageFile outputFile [-attrDim 3]", SO_NONE);
+    opts.addOption("-vti", "Convert an ITK image to VTI format (VTKImageData)", "-vti imageFile outputFile [-attrDim 3] [-maskImage mask]", SO_NONE);
     opts.addOption("-vtu", "Convert an ITK image to VTU format (vtkUnstructuredGrid). This is useful when masking is needed.", "-vtu imageFile outputFile -maskImage maskImage", SO_NONE);
     opts.addOption("-maskImage", "A mask image for the use of -vtu", "-maskImage mask.nrrd", SO_REQ_SEP);
     opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-lines output-points", SO_NONE);

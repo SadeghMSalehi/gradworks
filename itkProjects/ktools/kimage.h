@@ -31,7 +31,7 @@ void SetArrayTuple(vtkDataArray* a, int i, VectorType v);
 void SetArrayTuple(vtkDataArray* a, int i, double v);
 
 template <class X>
-void ConvertImageT(std::string& imageFile, vtkImageData* imgData, const char* attrName, int numberOfComponents) {
+void ConvertImageT(std::string& imageFile, vtkImageData* imgData, const char* attrName, int numberOfComponents, MaskImageType::Pointer maskImage) {
     pi::ImageIO<X> itkIO;
     typename X::Pointer srcImg = itkIO.ReadImage(imageFile.c_str());
     typename X::SizeType srcSize = srcImg->GetRequestedRegion().GetSize();
@@ -76,7 +76,17 @@ void ConvertImageT(std::string& imageFile, vtkImageData* imgData, const char* at
                 idx[1] = y;
                 idx[2] = z;
                 typename X::PixelType v = srcImg->GetPixel(idx);
-                SetArrayTuple(attr, cnt, v);
+                if (maskImage->GetPixel(idx) > 0) {
+                    SetArrayTuple(attr, cnt, v);
+                } else {
+                    if (numberOfComponents == 1) {
+                        SetArrayTuple(attr, cnt, 0);
+                    } else if (numberOfComponents == 3){
+                        VectorType zero;
+                        zero.Fill(0);
+                        SetArrayTuple(attr, cnt, zero);
+                    }
+                }
                 cnt ++;
             }
         }
