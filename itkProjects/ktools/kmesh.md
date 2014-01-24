@@ -46,5 +46,8 @@
 * -thresholdMax
 	* Give a maximum threshold value for -filterStream
 	* *ex)* -threshold 10 (select a cell whose attriubte is lower than 10)
+* -fitting
+	* Fit a model into a binary image
+	* *ex)* -fitting input-model binary-image output-model
 * -h
 	* print help message

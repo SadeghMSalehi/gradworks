@@ -32,8 +32,11 @@
 #include <vtkLine.h>
 #include <vtkPolyLine.h>
 #include <vtkMath.h>
+#include <vtkSmoothPolyDataFilter.h>
+
 
 #include <itkImage.h>
+#include <itkVectorNearestNeighborInterpolateImageFunction.h>
 #include "piImageIO.h"
 #include "kimage.h"
 #include "kstreamtracer.h"
@@ -378,7 +381,10 @@ void runStreamTracer(Options& opts, StringVector& args) {
     /// - Set up tracer (Use RK45, both direction, initial step 0.05, maximum propagation 500
     StreamTracer* tracer = StreamTracer::New();
     tracer->SetInput(inputData);
-    tracer->SetSource(inputPoints);
+//    tracer->SetSource(inputPoints);
+    double seedPoint[3];
+    inputPoints->GetPoint(24745, seedPoint);
+    tracer->SetStartPosition(seedPoint);
     tracer->SetIntegratorTypeToRungeKutta45();
 
     if (opts.GetString("-traceDirection") == "both") {
@@ -393,6 +399,8 @@ void runStreamTracer(Options& opts, StringVector& args) {
     tracer->SetMaximumPropagation(500);
     tracer->SetInitialIntegrationStep(0.05);
     tracer->Update();
+
+
 
     vtkPolyData* streamLines = tracer->GetOutput();
     // loop over the cell and compute the length
@@ -510,6 +518,80 @@ void runFilterStream(Options& opts, StringVector& args) {
 }
 
 
+/// @brief Fit a model into a binary image
+void runFittingModel(Options& opts, StringVector& args) {
+    if (args.size() < 3) {
+        cout << "requires input-model input-image output-model" << endl;
+        return;
+    }
+    string inputModelFile = args[0];
+    string inputImageFile = args[1];
+    string outputModelFile = args[2];
+
+    vtkIO vio;
+    vtkPolyData* inputModel = vio.readFile(inputModelFile);
+    const int nPoints = inputModel->GetNumberOfPoints();
+
+    /// Apply z-rotation
+    for (int i = 0; i < nPoints; i++) {
+        double point[3];
+        inputModel->GetPoint(i, point);
+        if (opts.GetBool("-zrotate")) {
+            point[0] = -point[0];
+            point[1] = -point[1];
+        }
+        inputModel->GetPoints()->SetPoint(i, point);
+    }
+
+    ImageIO<MaskImageType> itkIO;
+    MaskImageType::Pointer maskImage = itkIO.ReadCastedImage(inputImageFile);
+
+    // for test, rescale 10 times
+    VectorImageType::SpacingType spacing = maskImage->GetSpacing();
+    for (int i = 0; i < 3; i++) {
+//        spacing[i] *= 10;
+    }
+    maskImage->SetSpacing(spacing);
+
+
+    // test
+    VectorImageType::Pointer distImage = ComputeDistanceMap(maskImage);
+    typedef itk::VectorNearestNeighborInterpolateImageFunction<VectorImageType> InterpolatorType;
+
+    ImageIO<VectorImageType> distIO;
+    distIO.WriteImage("dist.mha", distImage);
+
+    InterpolatorType::Pointer distInterp = InterpolatorType::New();
+    distInterp->SetInputImage(distImage);
+
+
+    // iterate over the input model and project to the boundary
+    const int nIters = 50;
+    for (int i = 0; i < nIters; i++) {
+        // Compute laplacian smoothing by taking iterative average
+
+        vtkSmoothPolyDataFilter* filter = vtkSmoothPolyDataFilter::New();
+        filter->SetInput(inputModel);
+        filter->SetNumberOfIterations(1);
+        filter->Update();
+        inputModel = filter->GetOutput();
+
+        // projection
+        for (int j = 0; j < nPoints; j++) {
+            VectorImageType::PointType point, nextPoint;
+            inputModel->GetPoint(j, point.GetDataPointer());
+            VectorType offset = distInterp->Evaluate(point);
+            for (int k = 0; k < 3; k++) {
+                nextPoint = point + offset[k] * spacing[k] * spacing[k];
+            }
+            cout << point << " => " << nextPoint << endl;
+            inputModel->GetPoints()->SetPoint(j, nextPoint.GetDataPointer());
+        }
+    }
+
+    vio.writeFile(outputModelFile, inputModel);
+}
+
 int main(int argc, char * argv[])
 {
     Options opts;
@@ -532,6 +614,7 @@ int main(int argc, char * argv[])
     opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
     opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
     opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
+    opts.addOption("-fitting", "Fit a model into a binary image", "-fitting input-model binary-image output-model", SO_NONE);
     opts.addOption("-h", "print help message", SO_NONE);
     StringVector args = opts.ParseOptions(argc, argv, NULL);
 
@@ -556,6 +639,8 @@ int main(int argc, char * argv[])
         runStreamTracer(opts, args);
     } else if (opts.GetBool("-filterStream")) {
         runFilterStream(opts, args);
+    } else if (opts.GetBool("-fitting")) {
+        runFittingModel(opts, args);
     }
     return 0;
 }

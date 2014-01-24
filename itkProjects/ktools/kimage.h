@@ -22,6 +22,10 @@
 typedef itk::Image<float,3> ImageType;
 typedef itk::Image< itk::Vector<double,3>, 3 > VectorImageType;
 typedef VectorImageType::PixelType VectorType;
+typedef itk::Image<short,3> MaskImageType;
+
+
+VectorImageType::Pointer ComputeDistanceMap(MaskImageType::Pointer maskImage);
 
 void SetArrayTuple(vtkDataArray* a, int i, VectorType v);
 void SetArrayTuple(vtkDataArray* a, int i, double v);
