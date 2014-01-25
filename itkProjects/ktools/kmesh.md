@@ -49,5 +49,11 @@
 * -fitting
 	* Fit a model into a binary image
 	* *ex)* -fitting input-model binary-image output-model
+* -ellipse
+	* Create an ellipse with parameters []
+	* *ex)* -ellipse 101 101 101 51 51 51 20 20 20 -o ellipse.nrrd
+* -o
+	* Specify a filename for output; used with other options
+	* *ex)* -o filename.nrrd
 * -h
 	* print help message

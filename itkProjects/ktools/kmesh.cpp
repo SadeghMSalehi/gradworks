@@ -37,6 +37,9 @@
 
 #include <itkImage.h>
 #include <itkVectorNearestNeighborInterpolateImageFunction.h>
+#include <itkEllipseSpatialObject.h>
+#include <itkSpatialObjectToImageFilter.h>
+
 #include "piImageIO.h"
 #include "kimage.h"
 #include "kstreamtracer.h"
@@ -261,20 +264,20 @@ void runConvertITK2VTI(Options& opts, StringVector& args) {
         cout << "requires input-image-file and output-vti-file" << endl;
         return;
     }
-    
+
     int attrDim = opts.GetStringAsInt("-attrDim", 1);
     string scalarName = opts.GetString("-scalarName", "Intensity");
     string maskImageFile = opts.GetString("-maskImage");
-    
+
     MaskImageType::Pointer maskImage;
     if (maskImageFile != "") {
         ImageIO<MaskImageType> io;
         maskImage = io.ReadCastedImage(maskImageFile);
     }
-    
+
     string input = args[0];
     string output = args[1];
-    
+
     /// - Read an image data
     vtkImageData* outputData = vtkImageData::New();
     if (attrDim == 1) {
@@ -282,14 +285,14 @@ void runConvertITK2VTI(Options& opts, StringVector& args) {
     } else if (attrDim == 3) {
         ConvertImageT<VectorImageType>(input, outputData, scalarName.c_str(), attrDim, maskImage);
     }
-    
+
     vtkXMLImageDataWriter* w = vtkXMLImageDataWriter::New();
     w->SetFileName(output.c_str());
     w->SetDataModeToAppended();
     w->EncodeAppendedDataOff();
     w->SetCompressorTypeToZLib();
     w->SetDataModeToBinary();
-    
+
     w->SetInput(outputData);
     w->Write();
 }
@@ -599,6 +602,72 @@ void runFittingModel(Options& opts, StringVector& args) {
     vio.writeFile(outputModelFile, inputModel);
 }
 
+
+MaskImageType::Pointer Ellipse(int* outputSize, double *center, double *radius) {
+    ImageType::SizeType size;    typedef itk::EllipseSpatialObject<3> EllipseType;
+    typedef itk::SpatialObjectToImageFilter<EllipseType, MaskImageType> SpatialObjectToImageFilterType;
+
+    SpatialObjectToImageFilterType::Pointer imageFilter = SpatialObjectToImageFilterType::New();
+
+    for (int k = 0; k < 3; k++) {
+        size[k] = outputSize[k];
+    }
+    imageFilter->SetSize(size);
+
+    EllipseType::Pointer ellipse = EllipseType::New();
+    ellipse->SetDefaultInsideValue(255);
+    ellipse->SetDefaultOutsideValue(0);
+
+    EllipseType::ArrayType axes;
+    for (int k = 0; k < 3; k++) {
+        axes[k] = radius[k];
+    }
+    ellipse->SetRadius(axes);
+
+    EllipseType::TransformType::Pointer transform = EllipseType::TransformType::New();
+    transform->SetIdentity();
+    EllipseType::TransformType::OutputVectorType translation;
+    for (int k = 0; k < 3; k++) {
+        translation[k] = center[k];
+    }
+    transform->Translate(translation, false);
+
+    ellipse->SetObjectToParentTransform(transform);
+    imageFilter->SetInput(ellipse);
+    imageFilter->SetUseObjectValue(true);
+    imageFilter->SetOutsideValue(0);
+    imageFilter->Update();
+    return imageFilter->GetOutput();
+}
+
+
+/// @brief Create an ellipse binary image
+void runEllipse(pi::Options &opts, StringVector &args) {
+    if (!opts.GetBool("--ellipse")) {
+        return;
+    }
+
+    if (args.size() < 3 * 3) {
+        cout << "--ellipse output-image [image-size] [ellipse-center] [ellipse-radius] " << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    int size[3];
+    double center[3], radius[3];
+    for (int k = 0; k < 3; k++) {
+        size[k] = atoi(args[k].c_str());
+        center[k] = atof(args[3*1 + k].c_str());
+        radius[k] = atof(args[3*2 + k].c_str());
+    }
+
+    MaskImageType::Pointer outputImage = Ellipse(size, center, radius);
+    ImageIO<MaskImageType> io;
+    string outputImageFile = opts.GetString("-o");
+    io.WriteImage(outputImageFile, outputImage);
+
+    exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char * argv[])
 {
     Options opts;
@@ -622,6 +691,8 @@ int main(int argc, char * argv[])
     opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
     opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
     opts.addOption("-fitting", "Fit a model into a binary image", "-fitting input-model binary-image output-model", SO_NONE);
+    opts.addOption("-ellipse", "Create an ellipse with parameters []", "-ellipse 101 101 101 51 51 51 20 20 20 -o ellipse.nrrd", SO_NONE);
+    opts.addOption("-o", "Specify a filename for output; used with other options", "-o filename.nrrd", SO_REQ_SEP);
     opts.addOption("-h", "print help message", SO_NONE);
     StringVector args = opts.ParseOptions(argc, argv, NULL);
 
@@ -648,6 +719,8 @@ int main(int argc, char * argv[])
         runFilterStream(opts, args);
     } else if (opts.GetBool("-fitting")) {
         runFittingModel(opts, args);
+    } else if (opts.GetBool("-ellipse")) {
+        runEllipse(opts, args);
     }
     return 0;
 }

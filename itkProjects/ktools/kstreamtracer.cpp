@@ -426,6 +426,7 @@ int StreamTracer::RequestData(
     vtkDataArray* seeds = 0;
     vtkIdList* seedIds = 0;
     vtkIntArray* integrationDirections = 0;
+
     this->InitializeSeeds(seeds, seedIds, integrationDirections, source);
 
     if (seeds)
@@ -950,8 +951,6 @@ void StreamTracer::Integrate(vtkDataSet *input0,
             break;
         }
 
-        cout << "RetVal: " << retVal << "; numPts: " << numPts << "; " << velocity[0] << "," << velocity[1] << "," << velocity[2] << endl;
-        cout << "Point1: " << point1[0] << "," << point1[1] << "," << point1[2] << "; " << point2[0] << "," << point2[1] << "," << point2[2] <<endl;
         if (numPts > 1)
         {
             outputLines->InsertNextCell(numPts);
@@ -1119,24 +1118,24 @@ void StreamTracer::SimpleIntegrate(double seed[3],
     double velocity[3];
     double speed;
     int    stepResult;
-    
+
     (void)seed; // Seed is not used
-    
+
     memcpy(point1, lastPoint, 3*sizeof(double));
-    
+
     // Create a new integrator, the type is the same as Integrator
     vtkInitialValueProblemSolver* integrator =
     this->GetIntegrator()->NewInstance();
     integrator->SetFunctionSet(func);
-    
+
     while ( 1 )
     {
-        
+
         if (numSteps++ > maxSteps)
         {
             break;
         }
-        
+
         // Calculate the next step using the integrator provided
         // Break if the next point is out of bounds.
         func->SetNormalizeVector( true );
@@ -1148,33 +1147,33 @@ void StreamTracer::SimpleIntegrate(double seed[3],
             memcpy( lastPoint, point2, 3 * sizeof(double) );
             break;
         }
-        
-        
+
+
         // This is the next starting point
         for(int i=0; i<3; i++)
         {
             point1[i] = point2[i];
         }
-        
+
         // Interpolate the velocity at the next point
         if ( !func->FunctionValues(point2, velocity) )
         {
             memcpy(lastPoint, point2, 3*sizeof(double));
             break;
         }
-        
+
         speed = vtkMath::Norm(velocity);
-        
+
         // Never call conversion methods if speed == 0
         if ( (speed == 0) || (speed <= this->TerminalSpeed) )
         {
             break;
         }
-        
+
         memcpy(point1, point2, 3*sizeof(double));
         // End Integration
     }
-    
+
     integrator->Delete();
 }
 
@@ -1200,23 +1199,23 @@ void StreamTracer::PrintSelf(ostream& os, vtkIndent indent)
     << this->StartPosition[1] << " "
     << this->StartPosition[2] << endl;
     os << indent << "Terminal speed: " << this->TerminalSpeed << endl;
-    
+
     os << indent << "Maximum propagation: " << this->MaximumPropagation
     << " unit: length." << endl;
-    
+
     os << indent << "Integration step unit: "
     << ( ( this->IntegrationStepUnit == LENGTH_UNIT )
         ? "length." : "cell length." ) << endl;
-    
+
     os << indent << "Initial integration step: "
     << this->InitialIntegrationStep << endl;
-    
+
     os << indent << "Minimum integration step: "
     << this->MinimumIntegrationStep << endl;
-    
+
     os << indent << "Maximum integration step: "
     << this->MaximumIntegrationStep << endl;
-    
+
     os << indent << "Integration direction: ";
     switch (this->IntegrationDirection)
     {
@@ -1231,7 +1230,7 @@ void StreamTracer::PrintSelf(ostream& os, vtkIndent indent)
             break;
     }
     os << endl;
-    
+
     os << indent << "Integrator: " << this->Integrator << endl;
     os << indent << "Maximum error: " << this->MaximumError << endl;
     os << indent << "Maximum number of steps: " << this->MaximumNumberOfSteps
