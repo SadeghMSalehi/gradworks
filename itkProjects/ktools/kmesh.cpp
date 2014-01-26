@@ -31,8 +31,11 @@
 #include <vtkCellData.h>
 #include <vtkLine.h>
 #include <vtkPolyLine.h>
+#include <vtkCleanPolyData.h>
 #include <vtkMath.h>
 #include <vtkSmoothPolyDataFilter.h>
+#include <vtkCellLocator.h>
+#include <vtkModifiedBSPTree.h>
 
 
 #include <itkImage.h>
@@ -82,9 +85,15 @@ void runImportScalars(Options& opts, StringVector& args) {
 
     ifstream file(args[1].c_str());
     for (int i = 0; i < poly->GetNumberOfPoints() && !file.eof(); i++) {
-        float value = 0;
-        file >> value;
-        scalar->SetValue(i, value);
+        string line;
+        file >> line;
+        cout << line << endl;
+        if (line == "nan") {
+            scalar->SetValue(i, NAN);
+        } else {
+            scalar->SetValue(i, atof(line.c_str()));
+        }
+
     }
 
     poly->GetPointData()->AddArray(scalar);
@@ -341,11 +350,99 @@ bool endswith(std::string str, std::string substr) {
     return (i != string::npos) && (i == (str.length() - substr.length()));
 }
 
+
+/// @brief perform a line clipping to fit within the object
+bool performLineClipping(vtkPolyData* streamLines, vtkModifiedBSPTree* tree, int lineId, vtkCell* lineToClip, vtkPolyData* object, vtkPoints* outputPoints, vtkCellArray* outputLines, double &length) {
+    /// - Iterate over all points in a line
+    vtkIdList* ids = lineToClip->GetPointIds();
+    /// - Identify a line segment included in the line
+
+    int nIntersections = 0;
+    bool foundEndpoint = false;
+    std::vector<vtkIdType> idList;
+    for (int j = 2; j < ids->GetNumberOfIds(); j++) {
+        double p1[3], p2[3];
+        streamLines->GetPoint(ids->GetId(j-1), p1);
+        streamLines->GetPoint(ids->GetId(j), p2);
+
+        // handle initial condition
+        if (j == 2) {
+            double p0[3];
+            streamLines->GetPoint(ids->GetId(0), p0);
+            idList.push_back(outputPoints->GetNumberOfPoints());
+            outputPoints->InsertNextPoint(p0);
+
+            idList.push_back(outputPoints->GetNumberOfPoints());
+            outputPoints->InsertNextPoint(p1);
+
+            length = sqrt(vtkMath::Distance2BetweenPoints(p0, p1));
+        }
+
+        int subId;
+        double x[3] = {-1,-1,-1};
+        double t = 0;
+
+        double pcoords[3] = { -1, };
+        int testLine = tree->IntersectWithLine(p1, p2, 0.01, t, x, pcoords, subId);
+        if (testLine) {
+            nIntersections ++;
+            if (nIntersections > 0) {
+                idList.push_back(outputPoints->GetNumberOfPoints());
+                outputPoints->InsertNextPoint(x);
+                length += sqrt(vtkMath::Distance2BetweenPoints(p1, x));
+                foundEndpoint = true;
+                break;
+            }
+        }
+//        cout << testLine << "; " << x[0] << "," << x[1] << "," << x[2] << endl;
+
+
+        idList.push_back(outputPoints->GetNumberOfPoints());
+        outputPoints->InsertNextPoint(p2);
+        length += sqrt(vtkMath::Distance2BetweenPoints(p1, p2));
+    }
+
+    if (foundEndpoint) {
+        outputLines->InsertNextCell(idList.size(), &idList[0]);
+        return true;
+    }
+    return false;
+}
+
+
+/// @brief Perform a line clipping task
+void runTraceClipping(Options& opts, StringVector& args) {
+    string inputStreamsFile = args[0];
+    string inputObjectFile = args[1];
+    string outputStreamsFile = args[2];
+
+    vtkIO vio;
+    vtkPolyData* inputStream = vio.readFile(inputStreamsFile);
+    vtkPolyData* inputObject = vio.readFile(inputObjectFile);
+    vtkPolyData* outputObject = vtkPolyData::New();
+
+
+    vtkCellArray* lines = inputStream->GetLines();
+    vtkModifiedBSPTree* tree = vtkModifiedBSPTree::New();
+    tree->SetDataSet(inputObject);
+    tree->BuildLocator();
+
+    vtkPoints* outputPoints = vtkPoints::New();
+    vtkCellArray* outputLines = vtkCellArray::New();
+
+    for (int i = 0; i < lines->GetNumberOfCells(); i++) {
+        vtkCell* line = inputStream->GetCell(i);
+        double length = 0;
+        performLineClipping(inputStream, tree, i, line, inputObject, outputPoints, outputLines, length);
+    }
+    vio.writeFile("test.vtp", outputObject);
+}
+
 /// @brief Execute the stream tracer
 void runStreamTracer(Options& opts, StringVector& args) {
     string inputVTUFile = args[0];
     string inputPointsFile = args[1];
-    string outputVTKFile = args[2];
+    string outputStreamFile = args[2];
     string outputPointFile = args[3];
     bool zRotate = opts.GetBool("-zrotate", false);
 
@@ -397,12 +494,18 @@ void runStreamTracer(Options& opts, StringVector& args) {
  //   tracer->SetStartPosition(seedPoint);
     tracer->SetIntegratorTypeToRungeKutta45();
 
+
+    bool isBothDirection = false;
     if (opts.GetString("-traceDirection") == "both") {
         tracer->SetIntegrationDirectionToBoth();
+        isBothDirection = true;
+        cout << "Forward/Backward Integration" << endl;
     } else if (opts.GetString("-traceDirection") == "backward") {
         tracer->SetIntegrationDirectionToBackward();
+        cout << "Backward Integration" << endl;
     } else {
         tracer->SetIntegrationDirectionToForward();
+        cout << "Forward Integration" << endl;
     }
 
     tracer->SetInterpolatorTypeToDataSetPointLocator();
@@ -413,74 +516,87 @@ void runStreamTracer(Options& opts, StringVector& args) {
 
 
     vtkPolyData* streamLines = tracer->GetOutput();
+
     // loop over the cell and compute the length
     int nCells = streamLines->GetNumberOfCells();
     cout << "# of cells: " << nCells << endl;
 
 
     /// - Prepare the output as a scalar array
-    vtkDoubleArray* streamLineLength = vtkDoubleArray::New();
-    streamLineLength->SetNumberOfValues(nCells);
-    streamLineLength->SetName("Length");
-    streamLineLength->SetNumberOfComponents(1);
-
-
-    if (true) {
-        cout << "Computing the length of each stream line ..." << endl;
-        for (int i = 0; i < nCells; i++) {
-            vtkPolyLine* polyLine = vtkPolyLine::SafeDownCast(streamLines->GetCell(i));
-            double length = 0;
-            if (polyLine) {
-                length = sqrt(polyLine->GetLength2());
-            } else {
-                vtkLine* line = vtkLine::SafeDownCast(streamLines->GetCell(i));
-                if (line) {
-                    length = sqrt(line->GetLength2());
-                } else {
-                    cout << "Can't find polyline: " << i << "; Type = " << streamLines->GetCell(i)->GetCellType() << endl;
-                }
-//                exit(0);
-            }
-            streamLineLength->SetValue(i, length);
-        }
-        streamLines->GetCellData()->SetScalars(streamLineLength);
-    }
-
+//    vtkDataArray* streamLineLength = streamLines->GetCellData()->GetScalars("Length");
 
     /// - Prepare the output for the input points
     vtkDoubleArray* streamLineLengthPerPoint = vtkDoubleArray::New();
     streamLineLengthPerPoint->SetNumberOfTuples(nInputPoints);
     streamLineLengthPerPoint->SetName("Length");
     streamLineLengthPerPoint->SetNumberOfComponents(1);
+    streamLineLengthPerPoint->FillComponent(0, 0);
+
+    vtkIntArray* lineCorrect = vtkIntArray::New();
+    lineCorrect->SetName("LineOK");
+    lineCorrect->SetNumberOfValues(nInputPoints);
+    lineCorrect->FillComponent(0, 0);
+
     inputPoints->GetPointData()->SetScalars(streamLineLengthPerPoint);
+    inputPoints->GetPointData()->AddArray(lineCorrect);
 
     cout << "Assigning a length to each source vertex ..." << endl;
     vtkDataArray* seedIds = streamLines->GetCellData()->GetScalars("SeedId");
     if (seedIds) {
-        for (int i = 0; i < nInputPoints; i++) {
-            streamLineLengthPerPoint->SetValue(i, -1);
-        }
-        for (int i = 0; i < seedIds->GetNumberOfTuples(); i++) {
-            int id = seedIds->GetTuple1(i);
-            if (id > nInputPoints) {
-                id = (id - nInputPoints);
+        // line clipping
+        vtkPoints* outputPoints = vtkPoints::New();
+        vtkCellArray* outputCells = vtkCellArray::New();
+
+        /// construct a tree locator
+        vtkModifiedBSPTree* tree = vtkModifiedBSPTree::New();
+        tree->SetDataSet(inputPoints);
+        tree->BuildLocator();
+
+
+        vtkDoubleArray* lengthArray = vtkDoubleArray::New();
+        lengthArray->SetName("Length");
+
+        vtkIntArray* pointIds = vtkIntArray::New();
+        pointIds->SetName("PointIds");
+
+        for (int i = 0; i < nCells; i++) {
+            int pid = seedIds->GetTuple1(i);
+            double length = 0;
+            if (pid > -1) {
+                vtkCell* line = streamLines->GetCell(i);
+                /// - Assume that a line starts from a point on the input mesh and must meet at the opposite surface of the starting point.
+                bool lineAdded = performLineClipping(streamLines, tree, i, line, inputPoints, outputPoints, outputCells, length);
+
+                if (lineAdded) {
+                    pointIds->InsertNextValue(pid);
+                    lengthArray->InsertNextValue(length);
+                    streamLineLengthPerPoint->SetValue(pid, length);
+                    lineCorrect->SetValue(pid, 1);
+                } else {
+                    lineCorrect->SetValue(pid, 2);
+                }
             }
-            double length2 = streamLineLength->GetValue(i);
-            double length1 = streamLineLengthPerPoint->GetValue(id);
-            if (length1 > 0) {
-                double maxlength = std::max(length1, length2);
-                streamLineLengthPerPoint->SetValue(id, maxlength);
-            } else {
-                streamLineLengthPerPoint->SetValue(id, length2);
-            }
         }
+
+        vtkPolyData* outputStreamLines = vtkPolyData::New();
+        outputStreamLines->SetPoints(outputPoints);
+        outputStreamLines->SetLines(outputCells);
+        outputStreamLines->GetCellData()->AddArray(pointIds);
+        outputStreamLines->GetCellData()->AddArray(lengthArray);
+
+
+        vtkCleanPolyData* cleaner = vtkCleanPolyData::New();
+        cleaner->SetInput(outputStreamLines);
+        cleaner->Update();
+        vio.writeFile(outputStreamFile, cleaner->GetOutput());
     } else {
         cout << "Can't find SeedId" << endl;
     }
 
-
+    cout << lineCorrect->GetNumberOfTuples() << endl;
+    cout << streamLineLengthPerPoint->GetNumberOfTuples() << endl;
     vio.writeFile(outputPointFile, inputPoints);
-    vio.writeXMLFile(outputVTKFile, streamLines);
+//    vio.writeXMLFile(outputVTKFile, streamLines);
 }
 
 /// @brief Apply a filter to each stream line
@@ -687,6 +803,7 @@ int main(int argc, char * argv[])
     opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-lines output-points", SO_NONE);
     opts.addOption("-traceDirection", "Choose the direction of stream tracing (both, forward, backward)", "-traceStream ... -traceDirection (both|forward|backward)", SO_REQ_SEP);
     opts.addOption("-zrotate", "Rotate all the points along the z-axis. Change the sign of x and y coordinate.", "-traceStream ... -zrotate", SO_NONE);
+    opts.addOption("-traceClipping", "Clip stream lines to fit with an object", "-traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp", SO_NONE);
     opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
     opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
     opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
@@ -721,6 +838,8 @@ int main(int argc, char * argv[])
         runFittingModel(opts, args);
     } else if (opts.GetBool("-ellipse")) {
         runEllipse(opts, args);
+    } else if (opts.GetBool("-traceClipping")) {
+        runTraceClipping(opts, args);
     }
     return 0;
 }

@@ -619,6 +619,11 @@ void StreamTracer::Integrate(vtkDataSet *input0,
     vtkDoubleArray* time = vtkDoubleArray::New();
     time->SetName("IntegrationTime");
 
+
+    // This will store the length of each stream line
+    vtkDoubleArray* length = vtkDoubleArray::New();
+    length->SetName("Length");
+
     // This array explains why the integration stopped
     vtkIntArray* retVals = vtkIntArray::New();
     retVals->SetName("ReasonForTermination");
@@ -953,13 +958,26 @@ void StreamTracer::Integrate(vtkDataSet *input0,
 
         if (numPts > 1)
         {
+#pragma mark Adding Cells
             outputLines->InsertNextCell(numPts);
-            for (i=numPtsTotal-numPts; i<numPtsTotal; i++)
+            double distSum = 0;
+            for (int j = 0, i=numPtsTotal-numPts; i<numPtsTotal; i++, j++)
             {
                 outputLines->InsertCellPoint(i);
+                if (j > 0) {
+                    double p1[3];
+                    double p2[3];
+                    outputPoints->GetPoint(i-1, p1);
+                    outputPoints->GetPoint(i, p2);
+                    double dist = sqrt(vtkMath::Distance2BetweenPoints(p1, p2));
+                    distSum += dist;
+                }
             }
+
+
             retVals->InsertNextValue(retVal);
             outputSeedIds->InsertNextValue(currentLine);
+            length->InsertNextValue(distSum);
         }
 
         // Initialize these to 0 before starting the next line.
@@ -977,6 +995,7 @@ void StreamTracer::Integrate(vtkDataSet *input0,
         // Create the output polyline
         output->SetPoints(outputPoints);
         outputPD->AddArray(time);
+
         if (vorticity)
         {
             outputPD->AddArray(vorticity);
@@ -996,6 +1015,9 @@ void StreamTracer::Integrate(vtkDataSet *input0,
 
             outputCD->AddArray(retVals);
             outputCD->AddArray(outputSeedIds);
+            outputCD->AddArray(length);
+
+            cout << "# of length: " << length->GetNumberOfTuples() << endl;
         }
     }
 

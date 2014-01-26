@@ -37,6 +37,9 @@
 * -zrotate
 	* Rotate all the points along the z-axis. Change the sign of x and y coordinate.
 	* *ex)* -traceStream ... -zrotate
+* -traceClipping
+	* Clip stream lines to fit with an object
+	* *ex)* -traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp
 * -filterStream
 	* Filter out stream lines which are lower than a given threshold
 	* *ex)* -filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx
