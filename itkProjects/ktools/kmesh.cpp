@@ -599,6 +599,56 @@ void runStreamTracer(Options& opts, StringVector& args) {
 //    vio.writeXMLFile(outputVTKFile, streamLines);
 }
 
+
+/// @brief Copy a scalar list from a seed object to a stream line object
+void runTraceScalarCombine(Options& opts, StringVector& args) {
+    if (args.size() < 3) {
+        cout << "requires input-seed input-stream output-stream-file" << endl;
+        return;
+    }
+
+    string inputSeedFile = args[0];
+    string inputStreamFile = args[1];
+    string outputStreamFile = args[2];
+    string scalarName = opts.GetString("-scalarName");
+
+    if (scalarName == "") {
+        cout << "requires -scalarName scalarName" << endl;
+        return;
+    }
+
+    vtkIO vio;
+    vtkPolyData* inputSeed = vio.readFile(inputSeedFile);
+    vtkPolyData* inputStream = vio.readFile(inputStreamFile);
+
+    vtkDataArray* pointIds = inputStream->GetCellData()->GetScalars("PointIds");
+    if (pointIds == NULL) {
+        cout << "Can't find PointIds" << endl;
+        return;
+    }
+    vtkDataArray* scalars = inputSeed->GetPointData()->GetScalars(scalarName.c_str());
+    if (scalars == NULL) {
+        cout << "Can't find scalars: " << scalarName << endl;
+        return;
+    }
+
+    vtkDoubleArray* outputScalars = vtkDoubleArray::New();
+    outputScalars->SetName(scalarName.c_str());
+    for (int i = 0; i < pointIds->GetNumberOfTuples(); i++) {
+        int ptId = pointIds->GetTuple1(i);
+        double value = scalars->GetTuple1(ptId);
+        outputScalars->InsertNextTuple1(value);
+    }
+    inputStream->GetCellData()->AddArray(outputScalars);
+
+    if (opts.GetBool("-zrotate")) {
+        cout << "The output is rotated!" << endl;
+        vio.zrotate(inputStream);
+    }
+    vio.writeFile(outputStreamFile, inputStream);
+}
+
+
 /// @brief Apply a filter to each stream line
 void runFilterStream(Options& opts, StringVector& args) {
     string inputStream = args[0];
@@ -804,6 +854,7 @@ int main(int argc, char * argv[])
     opts.addOption("-traceDirection", "Choose the direction of stream tracing (both, forward, backward)", "-traceStream ... -traceDirection (both|forward|backward)", SO_REQ_SEP);
     opts.addOption("-zrotate", "Rotate all the points along the z-axis. Change the sign of x and y coordinate.", "-traceStream ... -zrotate", SO_NONE);
     opts.addOption("-traceClipping", "Clip stream lines to fit with an object", "-traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp", SO_NONE);
+    opts.addOption("-traceScalarCombine", "Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.", "-traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied", SO_NONE);
     opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
     opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
     opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
@@ -840,6 +891,8 @@ int main(int argc, char * argv[])
         runEllipse(opts, args);
     } else if (opts.GetBool("-traceClipping")) {
         runTraceClipping(opts, args);
+    } else if (opts.GetBool("-traceScalarCombine")) {
+        runTraceScalarCombine(opts, args);
     }
     return 0;
 }
