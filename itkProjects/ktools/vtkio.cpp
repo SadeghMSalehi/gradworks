@@ -7,6 +7,7 @@
 //
 
 #include "vtkio.h"
+#include <vtkPoints.h>
 #include <vtkPolyData.h>
 #include <vtkPolyDataReader.h>
 #include <vtkPolyDataWriter.h>
@@ -19,6 +20,21 @@ static bool endswith(std::string file, std::string ext) {
         return false;
     }
     return file.rfind(ext) == epos;
+}
+
+void vtkIO::zrotate(vtkPolyData* p) {
+    int np = p->GetNumberOfPoints();
+    vtkPoints* points = p->GetPoints();
+    for (int i = 0; i < np; i++) {
+        double x[3];
+        points->GetPoint(i, x);
+//        cout << x[0] << "," << x[1] << "," << x[2] << endl;
+        x[0] = -x[0];
+        x[1] = -x[1];
+        points->SetPoint(i, x);
+//        cout << x[0] << "," << x[1] << "," << x[2] << endl;
+    }
+    p->SetPoints(points);
 }
 
 
