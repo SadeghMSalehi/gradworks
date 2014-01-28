@@ -7,11 +7,13 @@
 //
 
 #include "vtkio.h"
+#include <vtkDataSet.h>
 #include <vtkPolyData.h>
 #include <vtkPolyDataReader.h>
 #include <vtkPolyDataWriter.h>
 #include <vtkXMLPolyDataReader.h>
 #include <vtkXMLPolyDataWriter.h>
+#include <vtkXMLUnstructuredGridWriter.h>
 
 static bool endswith(std::string file, std::string ext) {
     int epos = file.length() - ext.length();
@@ -38,7 +40,7 @@ vtkPolyData* vtkIO::readFile(std::string file) {
 }
 
 /// @brief Write a vtk/vtp file. The file's type is automatically determined by its extension.
-void vtkIO::writeFile(std::string file, vtkPolyData *mesh) {
+void vtkIO::writeFile(std::string file, vtkDataSet *mesh) {
     if (endswith(file, ".vtp")) {
         vtkXMLPolyDataWriter* w = vtkXMLPolyDataWriter::New();
         w->SetInput(mesh);
@@ -47,6 +49,12 @@ void vtkIO::writeFile(std::string file, vtkPolyData *mesh) {
         w->Delete();
     } else if (endswith(file, ".vtk")) {
         vtkPolyDataWriter* w = vtkPolyDataWriter::New();
+        w->SetInput(mesh);
+        w->SetFileName(file.c_str());
+        w->Write();
+        w->Delete();
+    } else if (endswith(file, ".vtu")) {
+        vtkXMLUnstructuredGridWriter* w = vtkXMLUnstructuredGridWriter::New();
         w->SetInput(mesh);
         w->SetFileName(file.c_str());
         w->Write();

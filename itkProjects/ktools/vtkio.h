@@ -12,11 +12,12 @@
 #include <iostream>
 
 class vtkPolyData;
+class vtkDataSet;
 
 class vtkIO {
 public:
     vtkPolyData* readFile(std::string file);
-    void writeFile(std::string file, vtkPolyData* mesh);
+    void writeFile(std::string file, vtkDataSet* mesh);
     void writeXMLFile(std::string file, vtkPolyData* mesh);
 
 };

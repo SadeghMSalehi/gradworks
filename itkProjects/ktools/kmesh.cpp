@@ -35,13 +35,19 @@
 #include <vtkMath.h>
 #include <vtkSmoothPolyDataFilter.h>
 #include <vtkCellLocator.h>
+#include <vtkKdTreePointLocator.h>
 #include <vtkModifiedBSPTree.h>
+#include <vtkCurvatures.h>
+#include <vtkPolyDataToImageStencil.h>
+#include <vtkMetaImageWriter.h>
+#include <vtkImageStencil.h>
 
 
 #include <itkImage.h>
 #include <itkVectorNearestNeighborInterpolateImageFunction.h>
 #include <itkEllipseSpatialObject.h>
 #include <itkSpatialObjectToImageFilter.h>
+#include <itkNearestNeighborInterpolateImageFunction.h>
 
 #include "piImageIO.h"
 #include "kimage.h"
@@ -54,6 +60,65 @@
 
 using namespace std;
 using namespace pi;
+
+/// @brief Convert a cartesian coordinate point to a spherical coordinate point
+/// @param v a input point in the cartesian coordinate
+/// @param phi output parameter for phi
+/// @param theta output parameter for theta
+static void cart2sph(const float *v, float *phi, float *theta) {
+    // phi: azimuth, theta: elevation
+    float d = v[0] * v[0] + v[1] * v[1];
+    *phi = (d == 0) ? 0: atan2(v[1], v[0]);
+    *theta = (v[2] == 0) ? 0: atan2(v[2], sqrt(d));
+}
+
+
+/// @brief Compute the factorial from x to y
+static double factorial(double x, double y) {
+    double f = 1;
+    for (; x >= y; x--) {
+        f *= x;
+    }
+    return f;
+}
+
+/// @brief Compute the basis function for spherical harmonics
+static void basis(int degree, float *p, float *Y) {
+    // real spherical harmonics basis functions
+    // polar coordinate
+    float phi, theta;
+    cart2sph(p, &phi, &theta);
+    theta = M_PI_2 - theta;  // convert to interval [0, PI]
+    float *Pm = new float[degree + 1];
+
+    // square root of 2
+    const float sqr2 = sqrt(2.0f);
+
+    const int yCount = (degree - 1) * (degree - 1);
+
+    for (int l = 0; l <= degree; l++)
+    {
+        // legendre part
+//        Series::legendre(l, cos(theta), Pm);
+        float lconstant = sqrt((2 * l + 1) / (4 * M_PI));
+
+        int center = (l + 1) * (l + 1) - l - 1;
+
+        Y[center] = lconstant * Pm[0];
+
+        for (int m = 1; m <= l; m++)
+        {
+            const double f = factorial(l+m, l-m+1);
+            float precoeff = lconstant * (float)sqrt(1 / f);
+
+            if (m % 2 == 1) precoeff = -precoeff;
+            Y[center + m] = sqr2 * precoeff * Pm[m] * cos(m * phi);
+            Y[center - m] = sqr2 * precoeff * Pm[m] * sin(m * phi);
+        }
+    }
+
+    delete [] Pm;
+}
 
 
 // append polydatas into one
@@ -75,10 +140,15 @@ void runAppendData(Options& opts, StringVector& args) {
 
 // add scalar value to a mesh
 void runImportScalars(Options& opts, StringVector& args) {
+    cout << "importing scalars from " << args[0] << " to " << args[2] << endl;
     vtkIO io;
 
     // read polydata
     vtkPolyData* poly = io.readFile(args[0]);
+    if (poly == NULL) {
+        cout << "can't read " << args[0] << endl;
+        return;
+    }
     vtkFloatArray* scalar = vtkFloatArray::New();
     scalar->SetNumberOfValues(poly->GetNumberOfPoints());
     scalar->SetName(opts.GetString("-scalarName").c_str());
@@ -136,6 +206,20 @@ void runExportScalars(Options& opts, StringVector& args) {
         file << scalar->GetTuple1(i) << endl;
     }
     file.close();
+}
+
+
+/// @brief Copy a scalar list to another object
+void runCopyScalars(Options& opts, StringVector& args) {
+    vtkIO vio;
+    string inputModelFile = args[0];
+    string inputModelFile2 = args[1];
+
+    vtkPolyData* inputModel = vio.readFile(inputModelFile);
+    vtkPolyData* inputModel2 = vio.readFile(inputModelFile2);
+    vtkDataArray* scalars = inputModel->GetPointData()->GetScalars(opts.GetString("-scalarName").c_str());
+    inputModel2->GetPointData()->AddArray(scalars);
+    vio.writeFile(args[2], inputModel2);
 }
 
 
@@ -784,19 +868,385 @@ void runEllipse(pi::Options &opts, StringVector &args) {
     exit(EXIT_SUCCESS);
 }
 
+/// @brief Sample pixel values from an image for a input model
+void runSampleImage(Options& opts, StringVector& args) {
+    vtkIO vio;
+
+    string inputImageFile = args[0];
+    string inputModelFile = args[1];
+    string outputModelFile = args[2];
+
+    ImageIO<ImageType> io;
+    ImageType::Pointer inputImage = io.ReadCastedImage(inputImageFile);
+    typedef itk::NearestNeighborInterpolateImageFunction<ImageType> ImageInterpolatorType;
+    ImageInterpolatorType::Pointer interp = ImageInterpolatorType::New();
+    interp->SetInputImage(inputImage);
+
+    cout << "Building a image data ..." << flush;
+    /// Create a vtu image
+    /// - Create an instance for the output grid
+    vtkUnstructuredGrid* imageData = vtkUnstructuredGrid::New();
+    vtkPointData* pdata = imageData->GetPointData();
+
+    /// - Create a point set to store valid points
+    vtkPoints* pointSet = vtkPoints::New();
+
+    /// - Create an array to store the pixel data
+    vtkDoubleArray* attr = vtkDoubleArray::New();
+    attr->SetNumberOfComponents(1);
+    attr->SetName("Pixels");
+
+    /// - Loop over the entire pixel of the mask
+    itk::ImageRegionIteratorWithIndex<ImageType> iter(inputImage, inputImage->GetBufferedRegion());
+    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+        double pixel = iter.Get();
+        /// - Only sample non-negative pixels
+        if (pixel > 0) {
+            ImageType::PointType point;
+            inputImage->TransformIndexToPhysicalPoint(iter.GetIndex(), point);
+
+            /// - Add a point
+            pointSet->InsertNextPoint(point[0], point[1], point[2]);
+
+            /// - Add a pixel value (a scalar or a vector)
+            attr->InsertNextValue(pixel);
+        }
+    }
+    imageData->SetPoints(pointSet);
+    pdata->AddArray(attr);
+
+    cout << " done" << endl;
+
+    /// FIXME: The number of points of the input should be greater than 0.
+    vtkKdTreePointLocator* locator = vtkKdTreePointLocator::New();
+    locator->SetDataSet(imageData);
+    locator->BuildLocator();
+
+
+    /// Now sample from the vtu
+    vtkPolyData* inputModel = vio.readFile(inputModelFile);
+
+    if (inputModel == NULL) {
+        cout << "Can't read " << inputModelFile << endl;
+        return;
+    }
+
+    vtkPoints* inputPoints = inputModel->GetPoints();
+    const int nPoints = inputPoints->GetNumberOfPoints();
+
+    vtkDoubleArray* pixels = vtkDoubleArray::New();
+    pixels->SetNumberOfTuples(nPoints);
+    pixels->SetName(opts.GetString("-outputScalarName", "PixelValue").c_str());
+    pixels->SetNumberOfComponents(1);
+
+
+    for (int i = 0; i < nPoints; i++) {
+        ImageType::PointType p;
+        inputPoints->GetPoint(i, p.GetDataPointer());
+
+        if (opts.GetBool("-zrotate")) {
+            p[0] = -p[0];
+            p[1] = -p[1];
+        }
+
+        int pid = locator->FindClosestPoint(p.GetDataPointer());
+        double pixel = attr->GetValue(pid);
+        pixels->SetValue(i, pixel);
+
+//        if (interp->IsInsideBuffer(p)) {
+//            ImageType::PixelType pixel = interp->Evaluate(p);
+//            pixels->SetValue(i, pixel);
+//        }
+    }
+
+    inputModel->GetPointData()->AddArray(pixels);
+    vio.writeFile(outputModelFile, inputModel);
+}
+
+
+/// @brief Compute the mean and Gaussian curvature for each point
+void runComputeCurvature(Options& opts, StringVector& args) {
+    vtkIO vio;
+
+    string inputModelFile = args[0];
+    string outputModelFile = args[1];
+
+    /// Now sample from the vtu
+    vtkPolyData* inputModel = vio.readFile(inputModelFile);
+
+    if (inputModel == NULL) {
+        cout << "Can't read " << inputModelFile << endl;
+        return;
+    }
+
+
+
+    vtkCurvatures* curv1 = vtkCurvatures::New();
+    curv1->SetInput(inputModel);
+    curv1->SetCurvatureTypeToGaussian();
+    curv1->Update();
+    vtkPolyData* gx = curv1->GetOutput();
+    inputModel->GetPointData()->AddArray(gx->GetPointData()->GetScalars("GAUSS_Curvature"));
+
+    vtkCurvatures* curv2 = vtkCurvatures::New();
+    curv2->SetInput(inputModel);
+    curv2->SetCurvatureTypeToMean();
+    curv2->Update();
+    vtkPolyData* mx = curv2->GetOutput();
+    inputModel->GetPointData()->AddArray(mx->GetPointData()->GetScalars("Mean_Curvature"));
+
+    vtkCurvatures* curv3 = vtkCurvatures::New();
+    curv3->SetInput(inputModel);
+    curv3->SetCurvatureTypeToMaximum();
+    curv3->Update();
+    vtkPolyData* mx2 = curv3->GetOutput();
+    inputModel->GetPointData()->AddArray(mx2->GetPointData()->GetScalars("Maximum_Curvature"));
+
+    vtkCurvatures* curv4 = vtkCurvatures::New();
+    curv4->SetInput(inputModel);
+    curv4->SetCurvatureTypeToMinimum();
+    curv4->Update();
+    vtkPolyData* mx3 = curv4->GetOutput();
+    inputModel->GetPointData()->AddArray(mx3->GetPointData()->GetScalars("Minimum_Curvature"));
+
+    vio.writeFile(outputModelFile, mx3);
+}
+
+
+/// @brief Compute the average of scalars
+void runAverageScalars(Options& opts, StringVector& args) {
+    vtkIO vio;
+    string outputFile = opts.GetString("-o");
+
+    std::vector<vtkPolyData*> inputs;
+    inputs.resize(args.size());
+
+    inputs[0] = vio.readFile(args[0]);
+
+    vtkDoubleArray* scalars = vtkDoubleArray::New();
+    scalars->SetName(opts.GetString("-outputScalarName").c_str());
+    scalars->SetNumberOfValues(inputs[0]->GetNumberOfPoints());
+
+    for (int i = 0; i < args.size(); i++) {
+        if (i == 0) {
+            vtkDataArray* inputScalars = inputs[i]->GetPointData()->GetScalars(opts.GetString("-scalarName").c_str());
+            for (int j = 0; j < scalars->GetNumberOfTuples(); j++) {
+                scalars->SetValue(j, inputScalars->GetTuple1(j));
+            }
+        } else {
+            inputs[i] = vio.readFile(args[i]);
+            vtkDataArray* inputScalars = inputs[i]->GetPointData()->GetScalars(opts.GetString("-scalarName").c_str());
+            for (int j = 0; j < scalars->GetNumberOfTuples(); j++) {
+                scalars->SetValue(j, scalars->GetValue(j) + inputScalars->GetTuple1(j));
+            }
+        }
+    }
+
+    for (int j = 0; j < scalars->GetNumberOfTuples(); j++) {
+        double v = scalars->GetValue(j) / args.size();
+        scalars->SetValue(j, v >= 0.5 ? 1 : 0);
+    }
+
+    for (int i = 0; i < args.size(); i++) {
+        inputs[i]->GetPointData()->AddArray(scalars);
+        cout << "Writing " << args[i] << endl;
+        vio.writeFile(args[i], inputs[i]);
+    }
+}
+
+/// @brief Compute the voronoi image from a surface model
+void runVoronoiImage(Options& opts, StringVector& args) {
+    string inputImageFile = args[0];
+    string inputModelFile = args[1];
+    string outputImageFile = args[2];
+
+    ImageIO<MaskImageType> io;
+    MaskImageType::Pointer maskImage = io.ReadCastedImage(inputImageFile);
+    itk::ImageRegionIteratorWithIndex<MaskImageType> iter(maskImage, maskImage->GetBufferedRegion());
+
+    vtkIO vio;
+    vtkPolyData* inputModel = vio.readFile(inputModelFile);
+    vtkKdTreePointLocator* locator = vtkKdTreePointLocator::New();
+    locator->SetDataSet(inputModel);
+    locator->BuildLocator();
+
+    vtkDataArray* scalars = inputModel->GetPointData()->GetScalars(opts.GetString("-scalarName").c_str());
+
+    const bool zrotate = opts.GetBool("-zrotate");
+    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+        MaskImageType::PointType voxelPoint;
+        maskImage->TransformIndexToPhysicalPoint(iter.GetIndex(), voxelPoint);
+
+        if (zrotate) {
+            voxelPoint[0] = -voxelPoint[0];
+            voxelPoint[1] = -voxelPoint[1];
+        }
+
+        int pid = locator->FindClosestPoint(voxelPoint.GetDataPointer());
+        double value = scalars->GetTuple1(pid);
+        iter.Set(value);
+    }
+
+    io.WriteImage(outputImageFile, maskImage);
+}
+
+
+/// @brief perform scan conversion
+/// [input-vtk] [reference-image] [output-image]
+///
+int runScanConversion(pi::Options& opts, pi::StringVector& args) {
+    vtkIO vio;
+    string inputModelFile = args[0];
+    string inputImageFile = args[1];
+    string outputImageFile = args[2];
+
+    vtkPolyData* pd = vio.readFile(inputModelFile);
+
+    bool zrotate = opts.GetBool("-zrotate");
+
+    // point flipping
+    for (int i = 0; i < pd->GetNumberOfPoints(); i++) {
+        double p[3];
+        pd->GetPoint(i, p);
+        if (zrotate) {
+            p[0] = -p[0];
+            p[1] = -p[1];
+            pd->GetPoints()->SetPoint(i, p);
+        }
+    }
+
+    vtkSmartPointer<vtkImageData> whiteImage = vtkSmartPointer<vtkImageData>::New();
+
+    ImageIO<MaskImageType> imageIO;
+    MaskImageType::Pointer refImage = imageIO.ReadImage(inputImageFile);
+
+
+    // compute bounding box
+    MaskImageType::RegionType region = refImage->GetBufferedRegion();
+    MaskImageType::IndexType lowerIndex = region.GetIndex();
+    MaskImageType::IndexType upperIndex = region.GetUpperIndex();
+
+    MaskImageType::PointType lowerPoint, upperPoint;
+    refImage->TransformIndexToPhysicalPoint(lowerIndex, lowerPoint);
+    refImage->TransformIndexToPhysicalPoint(upperIndex, upperPoint);
+
+    // mesh bounds
+    double bounds[6];
+
+    // image bounds
+    bounds[0] = lowerPoint[0];
+    bounds[1] = upperPoint[0];
+    bounds[2] = lowerPoint[1];
+    bounds[3] = upperPoint[1];
+    bounds[4] = lowerPoint[2];
+    bounds[5] = upperPoint[2];
+
+
+    // make the same spacing as refImage
+    double spacing[3]; // desired volume spacing
+    double origin[3];
+    for (int i = 0; i < 3; i++) {
+        spacing[i] = refImage->GetSpacing()[i];
+        origin[i] = refImage->GetOrigin()[i];
+    }
+    whiteImage->SetSpacing(spacing);
+    whiteImage->SetOrigin(origin);
+
+    // compute dimensions
+    int dim[3];
+    for (int i = 0; i < 3; i++)
+    {
+        dim[i] = static_cast<int>(ceil((bounds[i * 2 + 1] - bounds[i * 2]) / spacing[i])) + 1;
+    }
+    whiteImage->SetDimensions(dim);
+    whiteImage->SetExtent(0, dim[0] - 1, 0, dim[1] - 1, 0, dim[2] - 1);
+
+//    double origin[3];
+//    origin[0] = bounds[0] + spacing[0] / 2;
+//    origin[1] = bounds[2] + spacing[1] / 2;
+//    origin[2] = bounds[4] + spacing[2] / 2;
+//    whiteImage->SetOrigin(origin);
+
+#if VTK_MAJOR_VERSION <= 5
+    whiteImage->SetScalarTypeToUnsignedChar();
+    whiteImage->AllocateScalars();
+#else
+    whiteImage->AllocateScalars(VTK_UNSIGNED_CHAR,1);
+#endif
+    // fill the image with foreground voxels:
+    unsigned char inval = 255;
+    unsigned char outval = 0;
+    vtkIdType count = whiteImage->GetNumberOfPoints();
+    for (vtkIdType i = 0; i < count; ++i)
+    {
+        whiteImage->GetPointData()->GetScalars()->SetTuple1(i, inval);
+    }
+
+    // polygonal data --> image stencil:
+    vtkSmartPointer<vtkPolyDataToImageStencil> pol2stenc = vtkSmartPointer<vtkPolyDataToImageStencil>::New();
+#if VTK_MAJOR_VERSION <= 5
+    pol2stenc->SetInput(pd);
+#else
+    pol2stenc->SetInputData(pd);
+#endif
+    pol2stenc->SetOutputOrigin(origin);
+    pol2stenc->SetOutputSpacing(spacing);
+    pol2stenc->SetOutputWholeExtent(whiteImage->GetExtent());
+    pol2stenc->Update();
+
+    // cut the corresponding white image and set the background:
+    vtkSmartPointer<vtkImageStencil> imgstenc = vtkSmartPointer<vtkImageStencil>::New();
+#if VTK_MAJOR_VERSION <= 5
+    imgstenc->SetInput(whiteImage);
+    imgstenc->SetStencil(pol2stenc->GetOutput());
+#else
+    imgstenc->SetInputData(whiteImage);
+    imgstenc->SetStencilConnection(pol2stenc->GetOutputPort());
+#endif
+    imgstenc->ReverseStencilOff();
+    imgstenc->SetBackgroundValue(outval);
+    imgstenc->Update();
+
+    vtkSmartPointer<vtkMetaImageWriter> writer = vtkSmartPointer<vtkMetaImageWriter>::New();
+    writer->SetFileName(outputImageFile.c_str());
+#if VTK_MAJOR_VERSION <= 5
+    writer->SetInput(imgstenc->GetOutput());
+#else
+    writer->SetInputData(imgstenc->GetOutput());
+#endif
+    writer->Write();
+
+    return EXIT_SUCCESS;
+}
+
+
 int main(int argc, char * argv[])
 {
     Options opts;
+    // general options
+    opts.addOption("-o", "Specify a filename for output; used with other options", "-o filename.nrrd", SO_REQ_SEP);
+    opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
+    opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
+    opts.addOption("-sigma", "sigma value [double]", SO_REQ_SEP);
+    opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
+    opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
+
+    // scalar array handling
     opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
     opts.addOption("-importScalars", "Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
-    opts.addOption("-appendData", "Append input meshes into a single data [output-mesh]", SO_REQ_SEP);
+    opts.addOption("-copyScalars", "Copy a scalar array of the input model to the output model", "-copyScalars input-model1 input-model2 output-model -scalarName name", SO_NONE);
+    opts.addOption("-averageScalars", "Compute the average of scalars across given inputs", "-averageScalars -o output-vtk input1-vtk input2-vtk ... ", SO_NONE);
 
-    opts.addOption("-sigma", "sigma value [double]", SO_REQ_SEP);
-    opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
-    opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
-    opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
-    opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
+    // sampling from an image
+    opts.addOption("-sampleImage", "Sample pixels for each point of a given model. Currently, only supported image type is a scalar", "-sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName", SO_NONE);
+    opts.addOption("-voronoiImage", "Compute the voronoi image from a given data set. A reference image should be given.", "-voronoiImage input-dataset ref-image output-image.nrrd -scalarName voxelLabel", SO_NONE);
+    opts.addOption("-scanConversion", "Compute a binary image from a surface model", "-scanConversion input-surface input-image.nrrd output-image.nrrd", SO_NONE);
+
+    // mesh processing
+    opts.addOption("-appendData", "Append input meshes into a single data [output-mesh]", SO_REQ_SEP);
+    opts.addOption("-computeCurvature", "Compute curvature values for each point", "-computeCurvature input-vtk output-vtk", SO_NONE);
+
     opts.addOption("-vti", "Convert an ITK image to VTI format (VTKImageData)", "-vti imageFile outputFile [-attrDim 3] [-maskImage mask]", SO_NONE);
     opts.addOption("-vtu", "Convert an ITK image to VTU format (vtkUnstructuredGrid). This is useful when masking is needed.", "-vtu imageFile outputFile -maskImage maskImage", SO_NONE);
     opts.addOption("-maskImage", "A mask image for the use of -vtu", "-maskImage mask.nrrd", SO_REQ_SEP);
@@ -809,7 +1259,7 @@ int main(int argc, char * argv[])
     opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
     opts.addOption("-fitting", "Fit a model into a binary image", "-fitting input-model binary-image output-model", SO_NONE);
     opts.addOption("-ellipse", "Create an ellipse with parameters []", "-ellipse 101 101 101 51 51 51 20 20 20 -o ellipse.nrrd", SO_NONE);
-    opts.addOption("-o", "Specify a filename for output; used with other options", "-o filename.nrrd", SO_REQ_SEP);
+
     opts.addOption("-h", "print help message", SO_NONE);
     StringVector args = opts.ParseOptions(argc, argv, NULL);
 
@@ -824,8 +1274,18 @@ int main(int argc, char * argv[])
         runImportScalars(opts, args);
     } else if (opts.GetBool("-exportScalars")) {
         runExportScalars(opts, args);
+    } else if (opts.GetBool("-copyScalars")) {
+        runCopyScalars(opts, args);
+    } else if (opts.GetBool("-averageScalars")) {
+        runAverageScalars(opts, args);
     } else if (opts.GetString("-appendData", "") != "") {
         runAppendData(opts, args);
+    } else if (opts.GetBool("-sampleImage")) {
+        runSampleImage(opts, args);
+    } else if (opts.GetBool("-voronoiImage")) {
+        runVoronoiImage(opts, args);
+    } else if (opts.GetBool("-scanConversion")) {
+        runScanConversion(opts, args);
     } else if (opts.GetBool("-vti")) {
         runConvertITK2VTI(opts, args);
     } else if (opts.GetBool("-vtu")) {
@@ -840,6 +1300,8 @@ int main(int argc, char * argv[])
         runEllipse(opts, args);
     } else if (opts.GetBool("-traceClipping")) {
         runTraceClipping(opts, args);
+    } else if (opts.GetBool("-computeCurvature")) {
+        runComputeCurvature(opts, args);
     }
     return 0;
 }

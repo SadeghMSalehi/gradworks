@@ -1,4 +1,18 @@
 ## *kmesh* Usage
+* -o
+	* Specify a filename for output; used with other options
+	* *ex)* -o filename.nrrd
+* -scalarName
+	* scalar name [string]
+* -outputScalarName
+	* scalar name for output [string]
+* -sigma
+	* sigma value [double]
+* -iter
+	* number of iterations [int]
+* -attrDim
+	* The number of components of attribute
+	* *ex)* -attrDim 3 (vector)
 * -exportScalars
 	* Export scalar values to a text file
 	* *ex)* -exportScalars [in-mesh] [scalar.txt]
@@ -6,19 +20,26 @@
 	* Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]
 * -smoothScalars
 	* Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]
+* -copyScalars
+	* Copy a scalar array of the input model to the output model
+	* *ex)* -copyScalars input-model1 input-model2 output-model -scalarName name
+* -averageScalars
+	* Compute the average of scalars across given inputs
+	* *ex)* -averageScalars -o output-vtk input1-vtk input2-vtk ... 
+* -sampleImage
+	* Sample pixels for each point of a given model. Currently, only supported image type is a scalar
+	* *ex)* -sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName
+* -voronoiImage
+	* Compute the voronoi image from a given data set. A reference image should be given.
+	* *ex)* -voronoiImage input-dataset ref-image output-image.nrrd -scalarName voxelLabel
+* -scanConversion
+	* Compute a binary image from a surface model
+	* *ex)* -scanConversion input-surface input-image.nrrd output-image.nrrd
 * -appendData
 	* Append input meshes into a single data [output-mesh]
-* -sigma
-	* sigma value [double]
-* -scalarName
-	* scalar name [string]
-* -outputScalarName
-	* scalar name for output [string]
-* -iter
-	* number of iterations [int]
-* -attrDim
-	* The number of components of attribute
-	* *ex)* -attrDim 3 (vector)
+* -computeCurvature
+	* Compute curvature values for each point
+	* *ex)* -computeCurvature input-vtk output-vtk
 * -vti
 	* Convert an ITK image to VTI format (VTKImageData)
 	* *ex)* -vti imageFile outputFile [-attrDim 3] [-maskImage mask]
@@ -55,8 +76,5 @@
 * -ellipse
 	* Create an ellipse with parameters []
 	* *ex)* -ellipse 101 101 101 51 51 51 20 20 20 -o ellipse.nrrd
-* -o
-	* Specify a filename for output; used with other options
-	* *ex)* -o filename.nrrd
 * -h
 	* print help message
