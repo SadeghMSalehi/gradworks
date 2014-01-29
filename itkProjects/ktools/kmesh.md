@@ -8,6 +8,8 @@
 	* scalar name for output [string]
 * -sigma
 	* sigma value [double]
+* -threshold
+	* Threshold value [double]
 * -iter
 	* number of iterations [int]
 * -attrDim
@@ -31,7 +33,7 @@
 	* *ex)* -sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName
 * -voronoiImage
 	* Compute the voronoi image from a given data set. A reference image should be given.
-	* *ex)* -voronoiImage input-dataset ref-image output-image.nrrd -scalarName voxelLabel
+	* *ex)* -voronoiImage ref-image.nrrd input-dataset output-image.nrrd -scalarName voxelLabel
 * -scanConversion
 	* Compute a binary image from a surface model
 	* *ex)* -scanConversion input-surface input-image.nrrd output-image.nrrd
@@ -61,6 +63,9 @@
 * -traceClipping
 	* Clip stream lines to fit with an object
 	* *ex)* -traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp
+* -traceScalarCombine
+	* Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.
+	* *ex)* -traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied
 * -filterStream
 	* Filter out stream lines which are lower than a given threshold
 	* *ex)* -filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx

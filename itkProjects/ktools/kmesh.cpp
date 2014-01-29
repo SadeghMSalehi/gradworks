@@ -683,6 +683,56 @@ void runStreamTracer(Options& opts, StringVector& args) {
 //    vio.writeXMLFile(outputVTKFile, streamLines);
 }
 
+
+/// @brief Copy a scalar list from a seed object to a stream line object
+void runTraceScalarCombine(Options& opts, StringVector& args) {
+    if (args.size() < 3) {
+        cout << "requires input-seed input-stream output-stream-file" << endl;
+        return;
+    }
+
+    string inputSeedFile = args[0];
+    string inputStreamFile = args[1];
+    string outputStreamFile = args[2];
+    string scalarName = opts.GetString("-scalarName");
+
+    if (scalarName == "") {
+        cout << "requires -scalarName scalarName" << endl;
+        return;
+    }
+
+    vtkIO vio;
+    vtkPolyData* inputSeed = vio.readFile(inputSeedFile);
+    vtkPolyData* inputStream = vio.readFile(inputStreamFile);
+
+    vtkDataArray* pointIds = inputStream->GetCellData()->GetScalars("PointIds");
+    if (pointIds == NULL) {
+        cout << "Can't find PointIds" << endl;
+        return;
+    }
+    vtkDataArray* scalars = inputSeed->GetPointData()->GetScalars(scalarName.c_str());
+    if (scalars == NULL) {
+        cout << "Can't find scalars: " << scalarName << endl;
+        return;
+    }
+
+    vtkDoubleArray* outputScalars = vtkDoubleArray::New();
+    outputScalars->SetName(scalarName.c_str());
+    for (int i = 0; i < pointIds->GetNumberOfTuples(); i++) {
+        int ptId = pointIds->GetTuple1(i);
+        double value = scalars->GetTuple1(ptId);
+        outputScalars->InsertNextTuple1(value);
+    }
+    inputStream->GetCellData()->AddArray(outputScalars);
+
+    if (opts.GetBool("-zrotate")) {
+        cout << "The output is rotated!" << endl;
+        vio.zrotate(inputStream);
+    }
+    vio.writeFile(outputStreamFile, inputStream);
+}
+
+
 /// @brief Apply a filter to each stream line
 void runFilterStream(Options& opts, StringVector& args) {
     string inputStream = args[0];
@@ -1042,9 +1092,17 @@ void runAverageScalars(Options& opts, StringVector& args) {
         }
     }
 
+    const double thresholdValue = opts.GetStringAsReal("-threshold", -1);
+    const bool useThreshold =  thresholdValue != -1;
+
+    cout << "Thresholding at " << thresholdValue << endl;
     for (int j = 0; j < scalars->GetNumberOfTuples(); j++) {
         double v = scalars->GetValue(j) / args.size();
-        scalars->SetValue(j, v >= 0.5 ? 1 : 0);
+        if (useThreshold) {
+            scalars->SetValue(j, v < thresholdValue ? 1 : 2);
+        } else {
+            scalars->SetValue(j, v);
+        }
     }
 
     for (int i = 0; i < args.size(); i++) {
@@ -1062,6 +1120,10 @@ void runVoronoiImage(Options& opts, StringVector& args) {
 
     ImageIO<MaskImageType> io;
     MaskImageType::Pointer maskImage = io.ReadCastedImage(inputImageFile);
+    if (maskImage.IsNull()) {
+        cout << "Can't read " << inputImageFile << endl;
+        return;
+    }
     itk::ImageRegionIteratorWithIndex<MaskImageType> iter(maskImage, maskImage->GetBufferedRegion());
 
     vtkIO vio;
@@ -1228,6 +1290,7 @@ int main(int argc, char * argv[])
     opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
     opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
     opts.addOption("-sigma", "sigma value [double]", SO_REQ_SEP);
+    opts.addOption("-threshold", "Threshold value [double]", SO_REQ_SEP);
     opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
     opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
 
@@ -1240,7 +1303,7 @@ int main(int argc, char * argv[])
 
     // sampling from an image
     opts.addOption("-sampleImage", "Sample pixels for each point of a given model. Currently, only supported image type is a scalar", "-sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName", SO_NONE);
-    opts.addOption("-voronoiImage", "Compute the voronoi image from a given data set. A reference image should be given.", "-voronoiImage input-dataset ref-image output-image.nrrd -scalarName voxelLabel", SO_NONE);
+    opts.addOption("-voronoiImage", "Compute the voronoi image from a given data set. A reference image should be given.", "-voronoiImage ref-image.nrrd input-dataset output-image.nrrd -scalarName voxelLabel", SO_NONE);
     opts.addOption("-scanConversion", "Compute a binary image from a surface model", "-scanConversion input-surface input-image.nrrd output-image.nrrd", SO_NONE);
 
     // mesh processing
@@ -1254,6 +1317,7 @@ int main(int argc, char * argv[])
     opts.addOption("-traceDirection", "Choose the direction of stream tracing (both, forward, backward)", "-traceStream ... -traceDirection (both|forward|backward)", SO_REQ_SEP);
     opts.addOption("-zrotate", "Rotate all the points along the z-axis. Change the sign of x and y coordinate.", "-traceStream ... -zrotate", SO_NONE);
     opts.addOption("-traceClipping", "Clip stream lines to fit with an object", "-traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp", SO_NONE);
+    opts.addOption("-traceScalarCombine", "Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.", "-traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied", SO_NONE);
     opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
     opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
     opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
@@ -1302,6 +1366,8 @@ int main(int argc, char * argv[])
         runTraceClipping(opts, args);
     } else if (opts.GetBool("-computeCurvature")) {
         runComputeCurvature(opts, args);
+    } else if (opts.GetBool("-traceScalarCombine")) {
+        runTraceScalarCombine(opts, args);
     }
     return 0;
 }

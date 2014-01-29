@@ -16,6 +16,10 @@ class vtkDataSet;
 
 class vtkIO {
 public:
+    /// @brief Rotate the object around z-axis. Change the sign of x and y coordinates. This works in place.
+    void zrotate(vtkPolyData* p);
+
+
     vtkPolyData* readFile(std::string file);
     void writeFile(std::string file, vtkDataSet* mesh);
     void writeXMLFile(std::string file, vtkPolyData* mesh);

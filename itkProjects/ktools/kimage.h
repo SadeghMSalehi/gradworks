@@ -76,7 +76,6 @@ void ConvertImageT(std::string& imageFile, vtkImageData* imgData, const char* at
                 idx[1] = y;
                 idx[2] = z;
                 typename X::PixelType v = srcImg->GetPixel(idx);
-
                 /// If the mask image is not provided, copy the entire pixels
                 /// Otherwise, copy only the masked region will be copied.
                 if (maskImage.IsNull() || maskImage->GetPixel(idx) > 0) {
