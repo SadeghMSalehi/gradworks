@@ -41,6 +41,9 @@
 #include <vtkPolyDataToImageStencil.h>
 #include <vtkMetaImageWriter.h>
 #include <vtkImageStencil.h>
+#include <vtkPCAAnalysisFilter.h>
+#include <vtkProcrustesAlignmentFilter.h>
+#include <vtkLandmarkTransform.h>
 
 
 #include <itkImage.h>
@@ -1282,6 +1285,54 @@ int runScanConversion(pi::Options& opts, pi::StringVector& args) {
 }
 
 
+
+/// @brief Run PCA analysis
+void runPCA(Options& opts, StringVector& args) {
+    vtkIO vio;
+    std::vector<vtkPolyData*> inputs;
+    inputs.resize(args.size());
+    /// - Read a series of vtk files
+    for (int i = 0; i < args.size(); i++) {
+        inputs[i] = vio.readFile(args[i]);
+    }
+
+    vtkPCAAnalysisFilter* pcaFilter = vtkPCAAnalysisFilter::New();
+    pcaFilter->SetNumberOfInputs(args.size());
+    for (int i = 0; i < args.size(); i++) {
+        pcaFilter->SetInput(i, inputs[i]);
+    }
+    pcaFilter->Update();
+    vtkFloatArray* eigenValues = pcaFilter->GetEvals();
+    for (int i = 0; i < eigenValues->GetNumberOfTuples(); i++) {
+        cout << eigenValues->GetValue(i) << endl;
+    }
+
+    if (opts.GetString("-pcaMeanOut") != "") {
+        vtkFloatArray* array = vtkFloatArray::New();
+        pcaFilter->GetParameterisedShape(array, inputs[0]);
+        vio.writeFile(opts.GetString("-pcaMeanOut"), inputs[0]);
+    }
+}
+
+/// @brief Perform Procrustes alignment
+void runProcrustes(Options& opts, StringVector& args) {
+    int nInputs = args.size() / 2;
+
+    vtkIO vio;
+    vtkProcrustesAlignmentFilter* pros = vtkProcrustesAlignmentFilter::New();
+    pros->SetNumberOfInputs(nInputs);
+    for (int i = 0; i < nInputs; i++) {
+        pros->SetInput(i, vio.readFile(args[i]));
+    }
+    pros->GetLandmarkTransform()->SetModeToSimilarity();
+    pros->Update();
+
+    for (int i = nInputs; i < args.size(); i++) {
+        vio.writeFile(args[i], pros->GetOutput(i-nInputs));
+    }
+
+}
+
 int main(int argc, char * argv[])
 {
     Options opts;
@@ -1306,9 +1357,13 @@ int main(int argc, char * argv[])
     opts.addOption("-voronoiImage", "Compute the voronoi image from a given data set. A reference image should be given.", "-voronoiImage ref-image.nrrd input-dataset output-image.nrrd -scalarName voxelLabel", SO_NONE);
     opts.addOption("-scanConversion", "Compute a binary image from a surface model", "-scanConversion input-surface input-image.nrrd output-image.nrrd", SO_NONE);
 
+
     // mesh processing
     opts.addOption("-appendData", "Append input meshes into a single data [output-mesh]", SO_REQ_SEP);
     opts.addOption("-computeCurvature", "Compute curvature values for each point", "-computeCurvature input-vtk output-vtk", SO_NONE);
+    opts.addOption("-pca", "Perform PCA analysis", "-pca input1-vtk input2-vtk ... -o output.txt", SO_NONE);
+    opts.addOption("-pcaMeanOut", "A filename for PCA mean output", "-pca ... -pcaMeanOut file.vtk", SO_REQ_SEP);
+    opts.addOption("-procrustes", "Perform Procrustes alignment", "-procrustes input1.vtk input2.vtk ... output1.vtk output2.vtk ...", SO_NONE);
 
     opts.addOption("-vti", "Convert an ITK image to VTI format (VTKImageData)", "-vti imageFile outputFile [-attrDim 3] [-maskImage mask]", SO_NONE);
     opts.addOption("-vtu", "Convert an ITK image to VTU format (vtkUnstructuredGrid). This is useful when masking is needed.", "-vtu imageFile outputFile -maskImage maskImage", SO_NONE);
@@ -1368,6 +1423,10 @@ int main(int argc, char * argv[])
         runComputeCurvature(opts, args);
     } else if (opts.GetBool("-traceScalarCombine")) {
         runTraceScalarCombine(opts, args);
+    } else if (opts.GetBool("-pca")) {
+        runPCA(opts, args);
+    } else if (opts.GetBool("-procrustes")) {
+        runProcrustes(opts, args);
     }
     return 0;
 }

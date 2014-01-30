@@ -42,6 +42,15 @@
 * -computeCurvature
 	* Compute curvature values for each point
 	* *ex)* -computeCurvature input-vtk output-vtk
+* -pca
+	* Perform PCA analysis
+	* *ex)* -pca input1-vtk input2-vtk ... -o output.txt
+* -pcaMeanOut
+	* A filename for PCA mean output
+	* *ex)* -pca ... -pcaMeanOut file.vtk
+* -procrustes
+	* Perform Procrustes alignment
+	* *ex)* -procrustes input1.vtk input2.vtk ... output1.vtk output2.vtk ...
 * -vti
 	* Convert an ITK image to VTI format (VTKImageData)
 	* *ex)* -vti imageFile outputFile [-attrDim 3] [-maskImage mask]
