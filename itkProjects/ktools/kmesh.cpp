@@ -51,10 +51,12 @@
 #include <itkEllipseSpatialObject.h>
 #include <itkSpatialObjectToImageFilter.h>
 #include <itkNearestNeighborInterpolateImageFunction.h>
+#include <vnl/vnl_matrix.h>
 
 #include "piImageIO.h"
 #include "kimage.h"
 #include "kstreamtracer.h"
+
 
 
 
@@ -68,7 +70,7 @@ using namespace pi;
 /// @param v a input point in the cartesian coordinate
 /// @param phi output parameter for phi
 /// @param theta output parameter for theta
-static void cart2sph(const float *v, float *phi, float *theta) {
+static void cart2sph(const double *v, double *phi, double *theta) {
     // phi: azimuth, theta: elevation
     float d = v[0] * v[0] + v[1] * v[1];
     *phi = (d == 0) ? 0: atan2(v[1], v[0]);
@@ -86,10 +88,10 @@ static double factorial(double x, double y) {
 }
 
 /// @brief Compute the basis function for spherical harmonics
-static void basis(int degree, float *p, float *Y) {
+static void spharm_basis(int degree, double *p, double *Y) {
     // real spherical harmonics basis functions
     // polar coordinate
-    float phi, theta;
+    double phi, theta;
     cart2sph(p, &phi, &theta);
     theta = M_PI_2 - theta;  // convert to interval [0, PI]
     float *Pm = new float[degree + 1];
@@ -123,6 +125,39 @@ static void basis(int degree, float *p, float *Y) {
     delete [] Pm;
 }
 
+void runSPHARMCoeff(Options& opts, StringVector& args) {
+    string inputFile = args[0];
+
+    vtkIO vio;
+    vtkPolyData* input = vio.readFile(inputFile);
+    const unsigned int nPoints = input->GetNumberOfPoints();
+
+    vtkDataArray* scalars = input->GetPointData()->GetScalars(opts.GetString("-scalarName").c_str());
+
+    int degree = 10;
+
+
+    /// Prepare values
+    vnl_vector<double> values;
+    values.set_size(scalars->GetNumberOfTuples());
+    for (int i = 0; i < nPoints; i++) {
+        values[i] = scalars->GetTuple1(i);
+    }
+
+    /// Prepare the vandermonde matrix from spharm basis
+    vnl_matrix<double> bases;
+    bases.set_size(nPoints, (degree-1)*(degree-1));
+
+    for (uint i = 0; i < nPoints; i++) {
+        double p[3];
+        input->GetPoints()->GetPoint(i,p);
+        spharm_basis(degree, p, bases[i]);
+    }
+
+
+
+    return;
+}
 
 // append polydatas into one
 void runAppendData(Options& opts, StringVector& args) {
@@ -1373,6 +1408,9 @@ int main(int argc, char * argv[])
     opts.addOption("-zrotate", "Rotate all the points along the z-axis. Change the sign of x and y coordinate.", "-traceStream ... -zrotate", SO_NONE);
     opts.addOption("-traceClipping", "Clip stream lines to fit with an object", "-traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp", SO_NONE);
     opts.addOption("-traceScalarCombine", "Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.", "-traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied", SO_NONE);
+
+    opts.addOption("-spharmCoeff", "Compute SPHARM coefficients", "-spharmCoeff input-vtk output-txt -scalarName scalarValueToEvaluate", SO_NONE);
+
     opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
     opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
     opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
@@ -1427,6 +1465,8 @@ int main(int argc, char * argv[])
         runPCA(opts, args);
     } else if (opts.GetBool("-procrustes")) {
         runProcrustes(opts, args);
+    } else if (opts.GetBool("-spharmCoeff")) {
+        runSPHARMCoeff(opts, args);
     }
     return 0;
 }
