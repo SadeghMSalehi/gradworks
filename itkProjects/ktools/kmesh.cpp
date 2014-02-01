@@ -886,6 +886,28 @@ void runFilterStream(Options& opts, StringVector& args) {
     vio.writeFile(outputStreamFile, outputStream);
 }
 
+/// @brief Rescale the streamline with a given length
+void runRescaleStream(Options& opts, StringVector& args) {
+    string inputStreamFile = args[0];
+    string inputDataFile = args[1];
+    string scalarName = opts.GetString("-scalarName");
+    
+    vtkIO vio;
+    vtkPolyData* inputStream = vio.readFile(inputStreamFile);
+    vtkPolyData* inputData = vio.readFile(inputDataFile);
+    vtkDataArray* inputScalars = inputData->GetPointData()->GetScalars(scalarName.c_str());
+    
+    for (int i = 0; i < inputStream->GetNumberOfLines(); i++) {
+        double length = inputScalars->GetTuple1(i);
+        vtkPolyLine* line = vtkPolyLine::SafeDownCast(inputStream->GetCell(i));
+        if (line == NULL) {
+            vtkLine* aline = vtkLine::SafeDownCast(inputStream->GetCell(i));
+        } else {
+            // reduce length
+        }
+    }
+}
+
 
 /// @brief Fit a model into a binary image
 void runFittingModel(Options& opts, StringVector& args) {
@@ -1479,6 +1501,7 @@ int main(int argc, char * argv[])
     opts.addOption("-zrotate", "Rotate all the points along the z-axis. Change the sign of x and y coordinate.", "-traceStream ... -zrotate", SO_NONE);
     opts.addOption("-traceClipping", "Clip stream lines to fit with an object", "-traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp", SO_NONE);
     opts.addOption("-traceScalarCombine", "Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.", "-traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied", SO_NONE);
+    opts.addOption("-rescaleStream", "Rescale streamlines to fit with given lengths", "-rescaleStream input-stream-lines length.txt or input.vtp -scalarName scalarname", SO_NONE);
 
     opts.addOption("-spharmCoeff", "Compute SPHARM coefficients", "-spharmCoeff input-vtk output-txt -scalarName scalarValueToEvaluate", SO_NONE);
 
@@ -1522,6 +1545,8 @@ int main(int argc, char * argv[])
         runStreamTracer(opts, args);
     } else if (opts.GetBool("-filterStream")) {
         runFilterStream(opts, args);
+    } else if (opts.GetBool("-rescaleStream")) {
+        runRescaleStream(opts, args);
     } else if (opts.GetBool("-fitting")) {
         runFittingModel(opts, args);
     } else if (opts.GetBool("-ellipse")) {
