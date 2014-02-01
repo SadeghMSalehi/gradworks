@@ -75,6 +75,9 @@
 * -traceScalarCombine
 	* Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.
 	* *ex)* -traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied
+* -spharmCoeff
+	* Compute SPHARM coefficients
+	* *ex)* -spharmCoeff input-vtk output-txt -scalarName scalarValueToEvaluate
 * -filterStream
 	* Filter out stream lines which are lower than a given threshold
 	* *ex)* -filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx

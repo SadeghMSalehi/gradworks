@@ -51,7 +51,12 @@
 #include <itkEllipseSpatialObject.h>
 #include <itkSpatialObjectToImageFilter.h>
 #include <itkNearestNeighborInterpolateImageFunction.h>
+
 #include <vnl/vnl_matrix.h>
+#include <vnl/vnl_sparse_matrix.h>
+#include <vnl/vnl_sparse_matrix_linear_system.h>
+#include <vnl/algo/vnl_lsqr.h>
+#include <vnl/algo/vnl_matrix_update.h>
 
 #include "piImageIO.h"
 #include "kimage.h"
@@ -87,6 +92,53 @@ static double factorial(double x, double y) {
     return f;
 }
 
+
+static void legendre(int n, float x, float* Y) {
+    if (n < 0) return;
+
+    float **P = new float*[n + 1];
+    for (int i = 0; i <= n; i++) P[i] = new float[n + 1];
+    float factor = -sqrt(1.0 - pow(x,2));
+
+    // Init legendre
+    P[0][0] = 1.0;        // P_0,0(x) = 1
+    if (n == 0)
+    {
+        Y[0] = P[0][0];
+        return;
+    }
+
+    // Easy values
+    P[1][0] = x;      // P_1,0(x) = x
+    P[1][1] = factor;     // P_1,1(x) = −sqrt(1 − x^2)
+    if (n == 1)
+    {
+        Y[0] = P[1][0];
+        Y[1] = P[1][1];
+        return;
+    }
+
+    for (int l = 2; l <= n; l++)
+    {
+        for (int m = 0; m < l - 1 ; m++)
+        {
+            // P_l,m = (2l-1)*x*P_l-1,m - (l+m-1)*x*P_l-2,m / (l-k)
+            P[l][m] = ((float)(2 * l - 1) * x * P[l - 1][m] - (float)(l + m - 1) * P[l - 2][m]) / (float)(l - m);
+        }
+        // P_l,l-1 = (2l-1)*x*P_l-1,l-1
+        P[l][l-1] = (float)(2 * l - 1) * x * P[l-1][l-1];
+        // P_l,l = (2l-1)*factor*P_l-1,l-1
+        P[l][l] = (float)(2 * l - 1) * factor * P[l-1][l-1];
+    }
+
+    for (int i = 0; i <= n; i++) Y[i] = P[n][i];
+
+    // release memory
+    for (int i = 0; i <= n; i++) delete [] P[i];
+    delete [] P;
+}
+
+
 /// @brief Compute the basis function for spherical harmonics
 static void spharm_basis(int degree, double *p, double *Y) {
     // real spherical harmonics basis functions
@@ -105,6 +157,7 @@ static void spharm_basis(int degree, double *p, double *Y) {
     {
         // legendre part
 //        Series::legendre(l, cos(theta), Pm);
+        legendre(l, cos(theta), Pm);
         float lconstant = sqrt((2 * l + 1) / (4 * M_PI));
 
         int center = (l + 1) * (l + 1) - l - 1;
@@ -133,8 +186,12 @@ void runSPHARMCoeff(Options& opts, StringVector& args) {
     const unsigned int nPoints = input->GetNumberOfPoints();
 
     vtkDataArray* scalars = input->GetPointData()->GetScalars(opts.GetString("-scalarName").c_str());
+    if (scalars == NULL) {
+        cout << "Can't read scalars: " << opts.GetString("-scalarName") << endl;
+        return;
+    }
 
-    int degree = 10;
+    int degree = 20;
 
 
     /// Prepare values
@@ -154,7 +211,21 @@ void runSPHARMCoeff(Options& opts, StringVector& args) {
         spharm_basis(degree, p, bases[i]);
     }
 
+    vnl_matrix_inverse<double> inv(bases);
+    vnl_vector<double> coeffs = inv.pinverse() * values;
 
+    vnl_vector<double> interpolated = bases * coeffs;
+    vtkDoubleArray* newScalars = vtkDoubleArray::New();
+    newScalars->SetName(opts.GetString("-outputScalarName", "NewScalars").c_str());
+    newScalars->SetNumberOfComponents(1);
+    newScalars->SetNumberOfTuples(nPoints);
+
+    for (int i = 0; i < nPoints; i++) {
+        newScalars->SetValue(i, interpolated[i]);
+    }
+    input->GetPointData()->AddArray(newScalars);
+
+    vio.writeFile(args[1], input);
 
     return;
 }
