@@ -31,6 +31,7 @@
 #include <vtkCellData.h>
 #include <vtkLine.h>
 #include <vtkPolyLine.h>
+#include <vtkTriangle.h>
 #include <vtkCleanPolyData.h>
 #include <vtkMath.h>
 #include <vtkSmoothPolyDataFilter.h>
@@ -44,6 +45,9 @@
 #include <vtkPCAAnalysisFilter.h>
 #include <vtkProcrustesAlignmentFilter.h>
 #include <vtkLandmarkTransform.h>
+#include <vtkPolyDataConnectivityFilter.h>
+#include <vtkThreshold.h>
+#include <vtkConnectivityFilter.h>
 
 
 #include <itkImage.h>
@@ -891,12 +895,12 @@ void runRescaleStream(Options& opts, StringVector& args) {
     string inputStreamFile = args[0];
     string inputDataFile = args[1];
     string scalarName = opts.GetString("-scalarName");
-    
+
     vtkIO vio;
     vtkPolyData* inputStream = vio.readFile(inputStreamFile);
     vtkPolyData* inputData = vio.readFile(inputDataFile);
     vtkDataArray* inputScalars = inputData->GetPointData()->GetScalars(scalarName.c_str());
-    
+
     for (int i = 0; i < inputStream->GetNumberOfLines(); i++) {
         double length = inputScalars->GetTuple1(i);
         vtkPolyLine* line = vtkPolyLine::SafeDownCast(inputStream->GetCell(i));
@@ -1461,6 +1465,155 @@ void runProcrustes(Options& opts, StringVector& args) {
 
 }
 
+
+static bool sortSecond(const std::pair<int,double> &left, const std::pair<int,double> &right) {
+    return left.second > right.second;
+}
+
+
+
+/// @brief Perform extraction of regions based on scalars. First, threshold with scalars.
+/// Second, compute the connected components. Third, compute the area of each region.
+/// Fourth, threshold each region with the computed area, exclude below 20%.
+void runConnectScalars(Options& opts, StringVector& args) {
+    string inputFile = args[0];
+    string scalarName = opts.GetString("-scalarName");
+
+    vtkIO vio;
+    vtkPolyData* inputData = vio.readFile(inputFile.c_str());
+
+    const int nPoints = inputData->GetNumberOfPoints();
+    const double tmin = opts.GetStringAsReal("-thresholdMin", itk::NumericTraits<double>::min());
+    const double tmax = opts.GetStringAsReal("-thresholdMax", itk::NumericTraits<double>::max());
+
+    inputData->GetPointData()->SetScalars(inputData->GetPointData()->GetScalars(scalarName.c_str()));
+
+    vtkIntArray* originalIds = vtkIntArray::New();
+    originalIds->SetName("OriginalId");
+    for (int i = 0; i < nPoints; i++) {
+        originalIds->InsertNextValue(i);
+    }
+    inputData->GetPointData()->AddArray(originalIds);
+
+    vtkThreshold* threshold = vtkThreshold::New();
+    threshold->SetInput(inputData);
+    threshold->ThresholdBetween(tmin, tmax);
+    threshold->Update();
+
+    vtkConnectivityFilter* conn = vtkConnectivityFilter::New();
+    conn->SetInputConnection(threshold->GetOutputPort());
+    conn->ColorRegionsOn();
+    conn->SetExtractionModeToAllRegions();
+    conn->Update();
+
+    vtkUnstructuredGrid* connComp = conn->GetOutput();
+    int nCells = connComp->GetNumberOfCells();
+
+    vtkDataArray* regionIds = connComp->GetCellData()->GetScalars("RegionId");
+    double regionIdRange[2];
+    regionIds->GetRange(regionIdRange);
+    int maxId = regionIdRange[1];
+
+    /// Compute the area of each region
+    typedef std::pair<int, double> IntPair;
+    std::vector<IntPair> regionAreas;
+    regionAreas.resize(maxId + 1);
+    IntPair zero(0,0);
+    std::fill(regionAreas.begin(), regionAreas.end(), zero);
+
+    for (int i = 0; i < nCells; i++) {
+        vtkCell* cell = connComp->GetCell(i);
+        vtkTriangle* tri = vtkTriangle::SafeDownCast(cell);
+        if (tri == NULL) {
+            cout << "Non-triangle cell" << endl;
+            continue;
+        }
+        double area = tri->ComputeArea();
+        regionAreas[regionIds->GetTuple1(i)].first = regionIds->GetTuple1(i);
+        regionAreas[regionIds->GetTuple1(i)].second += area;
+    }
+
+    /// Propagate areas to each cell
+    vtkDoubleArray* cellArea = vtkDoubleArray::New();
+    cellArea->SetName("RegionArea");
+    cellArea->SetNumberOfTuples(nCells);
+
+    for (int i = 0; i < nCells; i++) {
+        int regionId = regionIds->GetTuple1(i);
+        cellArea->SetTuple1(i, regionAreas[regionId].second);
+    }
+    connComp->GetCellData()->AddArray(cellArea);
+
+
+    std::sort(regionAreas.begin(), regionAreas.end(), sortSecond);
+    double totalArea = 0;
+    for (int i = 0; i < maxId; i++) {
+        totalArea += regionAreas[i].second;
+    }
+
+    /// Re-label regionIds in the decreasing order of its area
+    std::vector<int> regionRanking;
+    regionRanking.resize(regionAreas.size());
+
+    for (int i = 0; i < regionRanking.size(); i++) {
+        regionRanking[regionAreas[i].first] = i;
+    }
+
+    /// Update region Ids for every cell
+    for (int i = 0; i < nCells; i++) {
+        int regionId = regionIds->GetTuple1(i);
+        regionIds->SetTuple1(i, regionRanking[regionId]);
+    }
+    /// Remove the RegionId in the point data
+
+
+    /// Compute the 90% percentile
+    double totalPer = 0, areaMin = 0;
+    for (int i = 0; i < maxId; i++) {
+        totalPer += (regionAreas[i].second / totalArea);
+        if (totalPer > 0.90) {
+            areaMin = regionAreas[i].second;
+            break;
+        }
+    }
+
+    cout << "Minimum Region Area for 90%: " << areaMin << endl;
+
+    /// Threshold each cell with area
+    vtkThreshold* areaThresholder = vtkThreshold::New();
+    areaThresholder->SetInput(connComp);
+    areaThresholder->ThresholdByUpper(areaMin);
+    areaThresholder->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_CELLS, "RegionArea");
+    areaThresholder->Update();
+    vtkUnstructuredGrid* areaOutput = areaThresholder->GetOutput();
+
+    vio.writeFile(args[1], areaOutput);
+
+
+//    vtkDataArray* scalars = inputData->GetPointData()->GetScalars(scalarName.c_str());
+//    for (int i = 0; i < nPoints; i++) {
+//        double value = scalars->GetTuple1(i);
+//        if (value < tmin || value > tmax) {
+//            value = std::numeric_limits<double>::quiet_NaN();
+//        }
+//    }
+
+
+//    vtkPolyDataConnectivityFilter* conf = vtkPolyDataConnectivityFilter::New();
+//    conf->SetInput(inputData);
+//    conf->ScalarConnectivityOn();
+//    conf->SetExtractionModeToAllRegions();
+//    conf->FullScalarConnectivityOn();
+//    conf->ColorRegionsOn();
+//    conf->SetScalarRange(0, 0.05);
+//    conf->Update();
+
+//    vtkPolyData* output = conf->GetOutput();
+//    vio.writeFile(args[1], output);
+
+
+}
+
 int main(int argc, char * argv[])
 {
     Options opts;
@@ -1472,6 +1625,9 @@ int main(int argc, char * argv[])
     opts.addOption("-threshold", "Threshold value [double]", SO_REQ_SEP);
     opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
     opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
+    opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream, -connectScalars", "-thresholdMin 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
+    opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream -connectScalars", "-thresholdMax 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
+
 
     // scalar array handling
     opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
@@ -1479,6 +1635,7 @@ int main(int argc, char * argv[])
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
     opts.addOption("-copyScalars", "Copy a scalar array of the input model to the output model", "-copyScalars input-model1 input-model2 output-model -scalarName name", SO_NONE);
     opts.addOption("-averageScalars", "Compute the average of scalars across given inputs", "-averageScalars -o output-vtk input1-vtk input2-vtk ... ", SO_NONE);
+    opts.addOption("-connectScalars", "Compute the connected components based on scalars", "-connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max", SO_NONE);
 
     // sampling from an image
     opts.addOption("-sampleImage", "Sample pixels for each point of a given model. Currently, only supported image type is a scalar", "-sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName", SO_NONE);
@@ -1506,8 +1663,6 @@ int main(int argc, char * argv[])
     opts.addOption("-spharmCoeff", "Compute SPHARM coefficients", "-spharmCoeff input-vtk output-txt -scalarName scalarValueToEvaluate", SO_NONE);
 
     opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
-    opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
-    opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
     opts.addOption("-fitting", "Fit a model into a binary image", "-fitting input-model binary-image output-model", SO_NONE);
     opts.addOption("-ellipse", "Create an ellipse with parameters []", "-ellipse 101 101 101 51 51 51 20 20 20 -o ellipse.nrrd", SO_NONE);
 
@@ -1529,6 +1684,8 @@ int main(int argc, char * argv[])
         runCopyScalars(opts, args);
     } else if (opts.GetBool("-averageScalars")) {
         runAverageScalars(opts, args);
+    } else if (opts.GetBool("-connectScalars")) {
+        runConnectScalars(opts, args);
     } else if (opts.GetString("-appendData", "") != "") {
         runAppendData(opts, args);
     } else if (opts.GetBool("-sampleImage")) {

@@ -15,6 +15,12 @@
 * -attrDim
 	* The number of components of attribute
 	* *ex)* -attrDim 3 (vector)
+* -thresholdMin
+	* Give a minimum threshold value for -filterStream, -connectScalars
+	* *ex)* -thresholdMin 10 (select a cell whose attriubte is greater than 10)
+* -thresholdMax
+	* Give a maximum threshold value for -filterStream -connectScalars
+	* *ex)* -thresholdMax 10 (select a cell whose attriubte is lower than 10)
 * -exportScalars
 	* Export scalar values to a text file
 	* *ex)* -exportScalars [in-mesh] [scalar.txt]
@@ -28,6 +34,9 @@
 * -averageScalars
 	* Compute the average of scalars across given inputs
 	* *ex)* -averageScalars -o output-vtk input1-vtk input2-vtk ... 
+* -connectScalars
+	* Compute the connected components based on scalars
+	* *ex)* -connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max
 * -sampleImage
 	* Sample pixels for each point of a given model. Currently, only supported image type is a scalar
 	* *ex)* -sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName
@@ -84,12 +93,6 @@
 * -filterStream
 	* Filter out stream lines which are lower than a given threshold
 	* *ex)* -filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx
-* -thresholdMin
-	* Give a minimum threshold value for -filterStream
-	* *ex)* -threshold 10 (select a cell whose attriubte is greater than 10)
-* -thresholdMax
-	* Give a maximum threshold value for -filterStream
-	* *ex)* -threshold 10 (select a cell whose attriubte is lower than 10)
 * -fitting
 	* Fit a model into a binary image
 	* *ex)* -fitting input-model binary-image output-model
