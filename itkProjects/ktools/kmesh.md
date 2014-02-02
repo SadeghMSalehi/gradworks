@@ -2,6 +2,9 @@
 * -o
 	* Specify a filename for output; used with other options
 	* *ex)* -o filename.nrrd
+* -n
+	* Specify n (integer number) for an operation. Refer related options
+	* *ex)* -n integer
 * -scalarName
 	* scalar name [string]
 * -outputScalarName
@@ -15,6 +18,14 @@
 * -attrDim
 	* The number of components of attribute
 	* *ex)* -attrDim 3 (vector)
+* -thresholdMin
+	* Give a minimum threshold value for -filterStream
+	* *ex)* -threshold 10 (select a cell whose attriubte is greater than 10)
+* -thresholdMax
+	* Give a maximum threshold value for -filterStream
+	* *ex)* -threshold 10 (select a cell whose attriubte is lower than 10)
+* -test
+	* Run test code
 * -exportScalars
 	* Export scalar values to a text file
 	* *ex)* -exportScalars [in-mesh] [scalar.txt]
@@ -81,15 +92,12 @@
 * -spharmCoeff
 	* Compute SPHARM coefficients
 	* *ex)* -spharmCoeff input-vtk output-txt -scalarName scalarValueToEvaluate
+* -detectRidge
+	* Run ridge detection
+	* *ex)* -n nRings -detectRidge input.vtk output.vtk
 * -filterStream
 	* Filter out stream lines which are lower than a given threshold
 	* *ex)* -filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx
-* -thresholdMin
-	* Give a minimum threshold value for -filterStream
-	* *ex)* -threshold 10 (select a cell whose attriubte is greater than 10)
-* -thresholdMax
-	* Give a maximum threshold value for -filterStream
-	* *ex)* -threshold 10 (select a cell whose attriubte is lower than 10)
 * -fitting
 	* Fit a model into a binary image
 	* *ex)* -fitting input-model binary-image output-model

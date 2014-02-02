@@ -44,6 +44,9 @@
 #include <vtkPCAAnalysisFilter.h>
 #include <vtkProcrustesAlignmentFilter.h>
 #include <vtkLandmarkTransform.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkTransform.h>
+
 
 
 #include <itkImage.h>
@@ -57,6 +60,7 @@
 #include <vnl/vnl_sparse_matrix_linear_system.h>
 #include <vnl/algo/vnl_lsqr.h>
 #include <vnl/algo/vnl_matrix_update.h>
+#include <vnl/algo/vnl_symmetric_eigensystem.h>
 
 #include "piImageIO.h"
 #include "kimage.h"
@@ -1098,7 +1102,10 @@ void runSampleImage(Options& opts, StringVector& args) {
 
     cout << " done" << endl;
 
-    /// FIXME: The number of points of the input should be greater than 0.
+    if (pointSet->GetNumberOfPoints() < 1) {
+        cout << "# of points should be greater than 0" << endl;
+        return;
+    }
     vtkKdTreePointLocator* locator = vtkKdTreePointLocator::New();
     locator->SetDataSet(imageData);
     locator->BuildLocator();
@@ -1461,17 +1468,254 @@ void runProcrustes(Options& opts, StringVector& args) {
 
 }
 
+
+/// @brief Find neighbors of a point
+void extractNeighbors(std::vector<int>& ids, vtkPolyData* data, std::set<int>& neighbors, int nRing) {
+    /// for every id in ids
+    for (int i = 0; i < ids.size(); i++) {
+        int id = ids[i];
+
+        /// if id is found in neighbors
+        if (neighbors.find(id) == neighbors.end()) {
+            /// add to neighbors
+            neighbors.insert(id);
+        }
+
+        if (nRing > 0) {
+            /// find every neighboring cells
+            vtkIdList* cellIds = vtkIdList::New();
+            data->GetPointCells(id, cellIds);
+
+
+            std::vector<int> idSet;
+            for (int j = 0; j < cellIds->GetNumberOfIds(); j++) {
+                const int cellId = cellIds->GetId(j);
+                vtkIdList* pointIds = vtkIdList::New();
+                data->GetCellPoints(cellId, pointIds);
+                for (int k = 0; k < pointIds->GetNumberOfIds(); k++) {
+                    int newId = pointIds->GetId(k);
+                    if (id == 110) {
+//                        cout << newId << endl;
+                    }
+                    /// if id is found in neighbors, proceed to next point
+                    if (neighbors.find(newId) == neighbors.end()) {
+                        idSet.push_back(newId);
+                    }
+                }
+                pointIds->Delete();
+            }
+            cellIds->Delete();
+
+            extractNeighbors(idSet, data, neighbors, nRing - 1);
+        }
+    }
+}
+
+/// @brief perform ridge detection
+void runDetectRidge(Options& opts, StringVector& args) {
+    vtkIO vio;
+    string inputFile = args[0];
+    const int nRing = opts.GetStringAsInt("-n", 2);
+
+    vtkPolyData* inputData = vio.readFile(inputFile);
+    vtkPoints* inputPoints = inputData->GetPoints();
+    const int nPoints = inputData->GetNumberOfPoints();
+
+    vtkPolyDataNormals* normalFilter = vtkPolyDataNormals::New();
+    normalFilter->SetInput(inputData);
+    normalFilter->ComputePointNormalsOn();
+    normalFilter->ConsistencyOn();
+    normalFilter->GetAutoOrientNormals();
+    normalFilter->Update();
+    vtkFloatArray* normals = vtkFloatArray::SafeDownCast(normalFilter->GetOutput()->GetPointData()->GetScalars("Normals"));
+    if (normals == NULL) {
+        cout << "Can't compute point normals" << endl;
+        return;
+    }
+
+    cout << "# points: " << nPoints << endl;
+    cout << "# rings (neighbor degrees): " << nRing << endl;
+
+    vtkDoubleArray* gaussianCurv = vtkDoubleArray::New();
+    gaussianCurv->SetNumberOfTuples(nPoints);
+    gaussianCurv->SetName("GaussianCurvature");
+
+    vtkDoubleArray* e1 = vtkDoubleArray::New();
+    e1->SetNumberOfTuples(nPoints);
+    e1->SetName("CurvatureExtreme1");
+
+    vtkDoubleArray* e2 = vtkDoubleArray::New();
+    e2->SetNumberOfTuples(nPoints);
+    e2->SetName("CurvatureExtreme2");
+
+    vtkDoubleArray* shapeOperator = vtkDoubleArray::New();
+    shapeOperator->SetNumberOfComponents(3);
+    shapeOperator->SetNumberOfTuples(nPoints);
+    shapeOperator->SetName("ShapeOperator");
+
+    /// Loop over all points
+
+    for (int i = 0; i < nPoints; i++) {
+        /// Find the center
+        double x[3];
+        inputPoints->GetPoint(i, x);
+
+        /// Extract neighbor points
+        std::set<int> neighbors;
+        std::vector<int> ids;
+        ids.push_back(i);
+        extractNeighbors(ids, inputData, neighbors, nRing);
+
+
+        /// Compute the point normal
+        double normal[3];
+        normals->GetTuple(i, normal);
+
+        /// Compute the rotation matrix
+        const double northPole[3] = { 0, 0, 1 };
+
+        vnl_matrix<double> rotation(3,3);
+        vio.rotateVector(normal, northPole, rotation);
+
+        int nNeighbors = neighbors.size();
+
+        vnl_matrix<double> U(3*nNeighbors, 7);
+        vnl_vector<double> d(3*nNeighbors);
+
+        std::set<int>::iterator iter = neighbors.begin();
+        for (int j = 0; iter != neighbors.end(); j++, iter++) {
+            int nbrId = *iter;
+            double p[3];
+
+            inputPoints->GetPoint(nbrId, p);
+
+            vnl_vector<double> px(3), pn(3);
+            vtkMath::Subtract(p, x, px.data_block());
+            normals->GetTuple(nbrId, pn.data_block());
+
+            /// Rotate the neighbor to the north pole
+            vnl_vector<double> q = rotation * px;
+            vnl_vector<double> qn = rotation * pn;
+
+//            double k2 = sqrt(2/q[0]*q[0] + q[1]*q[1]);
+//
+//            if (isnan(k2)) {
+//                k2 = 0;
+//            }
+//
+//            q[0] *= k2;
+//            q[1] *= k2;
+//            q[2] *= k2;
+
+            U[3*j][0] = 0.5 * q[0]*q[0];
+            U[3*j][1] = q[0]*q[1];
+            U[3*j][2] = 0.5 * q[1]*q[1];
+            U[3*j][3] = q[0]*q[0]*q[0];
+            U[3*j][4] = q[0]*q[0]*q[1];
+            U[3*j][5] = q[0]*q[1]*q[1];
+            U[3*j][6] = q[1]*q[1]*q[1];
+            d[3*j] = q[2];
+
+            U[3*j+1][0] = q[0];
+            U[3*j+1][1] = q[1];
+            U[3*j+1][2] = 0;
+            U[3*j+1][3] = 3*q[0]*q[0];
+            U[3*j+1][4] = 2*q[0]*q[1];
+            U[3*j+1][5] = q[1]*q[1];
+            U[3*j+1][6] = 0;
+
+            if (qn[2] == 0) {
+                d[3*j+1] = 0;
+            } else {
+                d[3*j+1] = -qn[0] / qn[2];
+            }
+
+            U[3*j+2][0] = 0;
+            U[3*j+2][1] = q[0];
+            U[3*j+2][2] = q[1];
+            U[3*j+2][3] = 0;
+            U[3*j+2][4] = q[0]*q[0];
+            U[3*j+2][5] = 2*q[0]*q[1];
+            U[3*j+2][6] = 3*q[1]*q[1];
+
+            if (qn[2] == 0) {
+                d[3*j+2] = 0;
+            } else {
+                d[3*j+2] = -qn[1] / qn[2];
+            }
+        }
+
+        vnl_matrix_inverse<double> Uinv(U);
+        vnl_vector<double> coeff = Uinv.pinverse() * d;
+        vnl_matrix<double> W(2,2);
+
+        W[0][0] = coeff[0];
+        W[0][1] = W[1][0] = coeff[1];
+        W[1][1] = coeff[2];
+
+        vnl_symmetric_eigensystem<double> Weigen(W);
+
+
+        double gk = Weigen.get_eigenvalue(1)*Weigen.get_eigenvalue(0);
+        double e[2] = { 0, 0 };
+        for (int k = 0; k < 2; k++) {
+            double t1 = Weigen.get_eigenvector(k)[0];
+            double t2 = Weigen.get_eigenvector(k)[1];
+            e[k] = t1*(t1*t1*coeff[3] + t2*t2*coeff[5]/3.0) + t2*(t1*t1*coeff[4]/3.0 + t2*t2*coeff[6]);
+        }
+        e[0] = e[0]*e[0] + e[1]*e[1];
+//        cout << e[0] << "," << e[1] << endl;
+
+        gaussianCurv->SetValue(i, gk);
+        shapeOperator->SetTuple3(i, W[0][0], W[0][1], W[1][1]);
+        e1->SetValue(i, e[0]);
+        e2->SetValue(i, e[1]);
+    }
+
+    inputData->GetPointData()->AddArray(gaussianCurv);
+    inputData->GetPointData()->AddArray(shapeOperator);
+    inputData->GetPointData()->AddArray(e1);
+    inputData->GetPointData()->AddArray(e2);
+
+    vio.writeFile(args[1], inputData);
+}
+
+
+/// @brief run a test code
+void runTest(Options& opts, StringVector& args) {
+    vtkIO io;
+
+    double v1[3] = {0, 0, 5 };
+    double v2[3] = { 0, 1, 0 };
+    vnl_matrix<double> rotation;
+
+    io.rotateVector(v1, v2, rotation);
+
+    vnl_vector<double> vv(3);
+    vv.set_size(3);
+    vv.copy_in(v1);
+    cout << vv << endl;
+    cout << rotation << endl;
+    cout << rotation * vv << endl;
+
+}
+
 int main(int argc, char * argv[])
 {
     Options opts;
     // general options
     opts.addOption("-o", "Specify a filename for output; used with other options", "-o filename.nrrd", SO_REQ_SEP);
+    opts.addOption("-n", "Specify n (integer number) for an operation. Refer related options", "-n integer",SO_REQ_SEP);
     opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
     opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
     opts.addOption("-sigma", "sigma value [double]", SO_REQ_SEP);
     opts.addOption("-threshold", "Threshold value [double]", SO_REQ_SEP);
     opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
     opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
+    opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
+    opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
+
+    opts.addOption("-test", "Run test code", SO_NONE);
 
     // scalar array handling
     opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
@@ -1503,11 +1747,15 @@ int main(int argc, char * argv[])
     opts.addOption("-traceScalarCombine", "Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.", "-traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied", SO_NONE);
     opts.addOption("-rescaleStream", "Rescale streamlines to fit with given lengths", "-rescaleStream input-stream-lines length.txt or input.vtp -scalarName scalarname", SO_NONE);
 
+
+    /// Compute SPHARM smoothing
     opts.addOption("-spharmCoeff", "Compute SPHARM coefficients", "-spharmCoeff input-vtk output-txt -scalarName scalarValueToEvaluate", SO_NONE);
 
+    /// Mesh operation
+    opts.addOption("-detectRidge", "Run ridge detection", "-n nRings -detectRidge input.vtk output.vtk", SO_NONE);
+
     opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
-    opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
-    opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream", "-threshold 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
+
     opts.addOption("-fitting", "Fit a model into a binary image", "-fitting input-model binary-image output-model", SO_NONE);
     opts.addOption("-ellipse", "Create an ellipse with parameters []", "-ellipse 101 101 101 51 51 51 20 20 20 -o ellipse.nrrd", SO_NONE);
 
@@ -1563,6 +1811,10 @@ int main(int argc, char * argv[])
         runProcrustes(opts, args);
     } else if (opts.GetBool("-spharmCoeff")) {
         runSPHARMCoeff(opts, args);
+    } else if (opts.GetBool("-detectRidge")) {
+        runDetectRidge(opts, args);
+    } else if (opts.GetBool("-test")) {
+        runTest(opts, args);
     }
     return 0;
 }
