@@ -1070,7 +1070,7 @@ void runSampleImage(Options& opts, StringVector& args) {
     ImageInterpolatorType::Pointer interp = ImageInterpolatorType::New();
     interp->SetInputImage(inputImage);
 
-    cout << "Building a image data ..." << flush;
+    cout << "Building an image data for sampling ..." << flush;
     /// Create a vtu image
     /// - Create an instance for the output grid
     vtkUnstructuredGrid* imageData = vtkUnstructuredGrid::New();
@@ -1555,6 +1555,7 @@ void runConnectScalars(Options& opts, StringVector& args) {
     double totalArea = 0;
     for (int i = 0; i < maxId; i++) {
         totalArea += regionAreas[i].second;
+        cout << totalArea << endl;
     }
 
     /// Re-label regionIds in the decreasing order of its area
@@ -1562,7 +1563,7 @@ void runConnectScalars(Options& opts, StringVector& args) {
     regionRanking.resize(regionAreas.size());
 
     for (int i = 0; i < regionRanking.size(); i++) {
-        regionRanking[regionAreas[i].first] = i;
+        regionRanking[regionAreas[i].first] = (i+1);
     }
 
     /// Update region Ids for every cell
@@ -1570,7 +1571,13 @@ void runConnectScalars(Options& opts, StringVector& args) {
         int regionId = regionIds->GetTuple1(i);
         regionIds->SetTuple1(i, regionRanking[regionId]);
     }
-    /// Remove the RegionId in the point data
+
+    /// Update the RegionId in point data
+    vtkDataArray* regionIds2 = connComp->GetPointData()->GetScalars("RegionId");
+    for (int i = 0; i < regionIds2->GetNumberOfTuples(); i++) {
+        int regionId = regionIds2->GetTuple1(i);
+        regionIds2->SetTuple1(i, regionRanking[regionId]);
+    }
 
 
     /// Compute the 90% percentile
@@ -1593,7 +1600,27 @@ void runConnectScalars(Options& opts, StringVector& args) {
     areaThresholder->Update();
     vtkUnstructuredGrid* areaOutput = areaThresholder->GetOutput();
 
-    vio.writeFile(args[1], areaOutput);
+
+
+    /// New RegonId array
+    vtkIntArray* pointRegionIds = vtkIntArray::New();
+    pointRegionIds->SetName("RegionIds");
+    pointRegionIds->SetNumberOfTuples(nPoints);
+    for (int i = 0; i < pointRegionIds->GetNumberOfTuples(); i++) {
+        pointRegionIds->SetTuple1(i, 0);
+    }
+
+    vtkDataArray* areaRegionIds = areaOutput->GetPointData()->GetScalars("RegionId");
+    vtkDataArray* pointIds = areaOutput->GetPointData()->GetScalars("OriginalId");
+    for (int i = 0; i < pointIds->GetNumberOfTuples(); i++) {
+        int ptid = pointIds->GetTuple1(i);
+        int regionId = areaRegionIds->GetTuple1(i);
+
+        pointRegionIds->SetTuple1(ptid, regionId);
+    }
+
+    inputData->GetPointData()->AddArray(pointRegionIds);
+    vio.writeFile(args[1], inputData);
 
 
 //    vtkDataArray* scalars = inputData->GetPointData()->GetScalars(scalarName.c_str());
@@ -1702,6 +1729,27 @@ void runDetectRidge(Options& opts, StringVector& args) {
     shapeOperator->SetNumberOfTuples(nPoints);
     shapeOperator->SetName("ShapeOperator");
 
+    vtkDoubleArray* majorDirection = vtkDoubleArray::New();
+    majorDirection->SetNumberOfComponents(3);
+    majorDirection->SetNumberOfTuples(nPoints);
+    majorDirection->SetName("MajorDirection");
+
+    vtkDoubleArray* minorDirection = vtkDoubleArray::New();
+    minorDirection->SetNumberOfComponents(3);
+    minorDirection->SetNumberOfTuples(nPoints);
+    minorDirection->SetName("MinorDirection");
+
+    vtkDoubleArray* kappa1 = vtkDoubleArray::New();
+    kappa1->SetNumberOfComponents(1);
+    kappa1->SetNumberOfTuples(nPoints);
+    kappa1->SetName("Kappa1");
+
+    vtkDoubleArray* kappa2 = vtkDoubleArray::New();
+    kappa2->SetNumberOfComponents(1);
+    kappa2->SetNumberOfTuples(nPoints);
+    kappa2->SetName("Kappa2");
+
+
     /// Loop over all points
 
     for (int i = 0; i < nPoints; i++) {
@@ -1805,15 +1853,42 @@ void runDetectRidge(Options& opts, StringVector& args) {
         vnl_symmetric_eigensystem<double> Weigen(W);
 
 
-        double gk = Weigen.get_eigenvalue(1)*Weigen.get_eigenvalue(0);
+        double k1 = Weigen.get_eigenvalue(1);
+        double k2 = Weigen.get_eigenvalue(0);
+        double gk = k1 * k2;
+
         double e[2] = { 0, 0 };
         for (int k = 0; k < 2; k++) {
-            double t1 = Weigen.get_eigenvector(k)[0];
-            double t2 = Weigen.get_eigenvector(k)[1];
+            double t1 = Weigen.get_eigenvector(k)[1];
+            double t2 = Weigen.get_eigenvector(k)[0];
             e[k] = t1*(t1*t1*coeff[3] + t2*t2*coeff[5]/3.0) + t2*(t1*t1*coeff[4]/3.0 + t2*t2*coeff[6]);
         }
         e[0] = e[0]*e[0] + e[1]*e[1];
 //        cout << e[0] << "," << e[1] << endl;
+
+        kappa1->SetValue(i, k1);
+        kappa2->SetValue(i, k2);
+
+        vnl_matrix<double> rotation_inv = rotation.transpose();
+        vnl_vector<double> majorDir(3);
+        majorDir[0] = Weigen.get_eigenvector(1)[0];
+        majorDir[1] = Weigen.get_eigenvector(1)[1];
+        majorDir[2] = 0;
+        majorDir = rotation_inv * majorDir;
+
+        vnl_vector<double> minorDir(3);
+        minorDir[0] = Weigen.get_eigenvector(0)[0];
+        minorDir[1] = Weigen.get_eigenvector(0)[1];
+        minorDir[2] = 0;
+        minorDir = rotation_inv * minorDir;
+
+
+//        cout << k1 << "," << k2 << endl;
+//        cout << Weigen.get_eigenvector(1) << " => " << majorDir << ";" << endl;
+//        cout << Weigen.get_eigenvector(0) << " => " << minorDir << ";" << endl;
+
+        majorDirection->SetTuple(i, majorDir.data_block());
+        minorDirection->SetTuple(i, minorDir.data_block());
 
         gaussianCurv->SetValue(i, gk);
         shapeOperator->SetTuple3(i, W[0][0], W[0][1], W[1][1]);
@@ -1825,6 +1900,10 @@ void runDetectRidge(Options& opts, StringVector& args) {
     inputData->GetPointData()->AddArray(shapeOperator);
     inputData->GetPointData()->AddArray(e1);
     inputData->GetPointData()->AddArray(e2);
+    inputData->GetPointData()->AddArray(kappa1);
+    inputData->GetPointData()->AddArray(kappa2);
+    inputData->GetPointData()->AddArray(majorDirection);
+    inputData->GetPointData()->AddArray(minorDirection);
 
     vio.writeFile(args[1], inputData);
 }
@@ -1870,7 +1949,7 @@ int main(int argc, char * argv[])
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
     opts.addOption("-copyScalars", "Copy a scalar array of the input model to the output model", "-copyScalars input-model1 input-model2 output-model -scalarName name", SO_NONE);
     opts.addOption("-averageScalars", "Compute the average of scalars across given inputs", "-averageScalars -o output-vtk input1-vtk input2-vtk ... ", SO_NONE);
-    opts.addOption("-connectScalars", "Compute the connected components based on scalars", "-connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max", SO_NONE);
+    opts.addOption("-connectScalars", "Compute the connected components based on scalars and assign region ids", "-connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max", SO_NONE);
 
     // sampling from an image
     opts.addOption("-sampleImage", "Sample pixels for each point of a given model. Currently, only supported image type is a scalar", "-sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName", SO_NONE);

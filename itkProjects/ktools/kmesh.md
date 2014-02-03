@@ -40,7 +40,7 @@
 	* Compute the average of scalars across given inputs
 	* *ex)* -averageScalars -o output-vtk input1-vtk input2-vtk ... 
 * -connectScalars
-	* Compute the connected components based on scalars
+	* Compute the connected components based on scalars and assign region ids
 	* *ex)* -connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max
 * -sampleImage
 	* Sample pixels for each point of a given model. Currently, only supported image type is a scalar
