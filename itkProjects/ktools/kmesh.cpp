@@ -325,6 +325,99 @@ void runExportScalars(Options& opts, StringVector& args) {
 }
 
 
+/// @brief Import vector values
+void runImportVectors(Options& opts, StringVector& args) {
+    string inputDataFile = args[0];
+    string vectorDataFile = args[1];
+    string outputDataFile = args[2];
+
+    vtkIO vio;
+    vtkPolyData* inputData = vio.readFile(inputDataFile);
+    vtkFloatArray* vectorArray = vtkFloatArray::New();
+    vectorArray->SetName(opts.GetString("-scalarName", "VectorValues").c_str());
+
+    char buff[1024];
+    ifstream fin(vectorDataFile);
+
+    int nCols = 0;
+    int nRows = 0;
+    while (fin.is_open() && !fin.eof()) {
+        fin.getline(buff, sizeof(buff));
+        stringstream ss(buff);
+        if (!fin.eof()) {
+            nCols = 0;
+            std::vector<float> rows;
+            while (ss.good()) {
+                float value;
+                ss >> value;
+                rows.push_back(value);
+                ++ nCols;
+            }
+            if (nRows == 0) {
+                vectorArray->SetNumberOfComponents(nCols);
+            }
+            vectorArray->InsertNextTupleValue(&rows[0]);
+            nRows ++;
+        }
+    }
+    fin.close();
+
+    cout << nRows << " x " << nCols << endl;
+    if (nRows != inputData->GetNumberOfPoints()) {
+        cout << "# of data is different from # of points." << endl;
+        return;
+    }
+
+    inputData->GetPointData()->AddArray(vectorArray);
+    vio.writeFile(outputDataFile, inputData);
+}
+
+
+/// @brief Export vector values
+void runExportVectors(Options& opts, StringVector& args) {
+    string inputDataFile = args[0];
+    string vectorDataFile = args[1];
+
+    vtkIO vio;
+    vtkPolyData* inputData = vio.readFile(inputDataFile);
+
+    int nArr = inputData->GetPointData()->GetNumberOfArrays();
+    vtkDataArray* vectorArray = NULL;
+
+    for (int j = 0; j < nArr; j++) {
+        if (opts.GetString("-scalarName", "VectorValues") == inputData->GetPointData()->GetArrayName(j)) {
+            vectorArray = inputData->GetPointData()->GetArray(j);
+            break;
+        }
+    }
+
+    if (vectorArray == NULL) {
+        cout << "Can't find the vector values : " << opts.GetString("-scalarName", "VectorValues") << endl;
+        return;
+    }
+
+    const int nCols = vectorArray->GetNumberOfComponents();
+    const int nRows = vectorArray->GetNumberOfTuples();
+
+    ofstream out(vectorDataFile);
+    std::vector<double> row;
+    row.resize(nCols);
+    for (int i = 0; i < nRows; i++) {
+        vectorArray->GetTuple(i, &row[0]);
+        for (int j = 0; j < nCols; j++) {
+            if (j > 0) {
+                out << "\t";
+            }
+            out << row[j];
+        }
+        out << endl;
+    }
+    out.close();
+
+    return;
+}
+
+
 /// @brief Copy a scalar list to another object
 void runCopyScalars(Options& opts, StringVector& args) {
     vtkIO vio;
@@ -1645,6 +1738,8 @@ void runConnectScalars(Options& opts, StringVector& args) {
 //    vio.writeFile(args[1], output);
 }
 
+
+
 /// @brief Find neighbors of a point
 void extractNeighbors(std::vector<int>& ids, vtkPolyData* data, std::set<int>& neighbors, int nRing) {
     /// for every id in ids
@@ -1671,7 +1766,7 @@ void extractNeighbors(std::vector<int>& ids, vtkPolyData* data, std::set<int>& n
                 for (int k = 0; k < pointIds->GetNumberOfIds(); k++) {
                     int newId = pointIds->GetId(k);
                     if (id == 110) {
-//                        cout << newId << endl;
+                        //                        cout << newId << endl;
                     }
                     /// if id is found in neighbors, proceed to next point
                     if (neighbors.find(newId) == neighbors.end()) {
@@ -1685,6 +1780,162 @@ void extractNeighbors(std::vector<int>& ids, vtkPolyData* data, std::set<int>& n
             extractNeighbors(idSet, data, neighbors, nRing - 1);
         }
     }
+}
+
+
+/// @brief Perform correlation-based clustering
+void runCorrelationClustering(Options& opts, StringVector& args) {
+    string inputDataFile = args[0];
+    string inputVectorName = opts.GetString("-scalarName", "VectorValues");
+    string outputScalarName = opts.GetString("-outScalarName", "CorrClusters");
+    string outputDataFile = args[1];
+
+    vtkIO vio;
+    vtkPolyData* inputData = vio.readFile(inputDataFile);
+    const int nPoints = inputData->GetNumberOfPoints();
+
+    int nArr = inputData->GetPointData()->GetNumberOfArrays();
+    vtkDataArray* vectorArray = NULL;
+
+    for (int j = 0; j < nArr; j++) {
+        if (opts.GetString("-scalarName", "VectorValues") == inputData->GetPointData()->GetArrayName(j)) {
+            vectorArray = inputData->GetPointData()->GetArray(j);
+            break;
+        }
+    }
+
+    /// # of tuples
+    const int nCols = vectorArray->GetNumberOfComponents();
+
+    /// storage for vector data
+    std::vector<double> idata;
+    idata.resize(vectorArray->GetNumberOfComponents());
+
+    std::vector<double> jdata;
+    jdata.resize(vectorArray->GetNumberOfComponents());
+
+
+    /// Compute the mean and stdev for each vector
+    std::vector<double> dataMean, dataStd;
+    for (int i = 0; i < nPoints; i++) {
+        vectorArray->GetTuple(i, &idata[0]);
+        double sum = 0;
+        double sum2 = 0;
+        for (int j = 0; j < nCols; j++) {
+            double val = idata[j];
+            cout << val << "\t";
+            sum += val;
+            sum2 += val * val;
+        }
+        cout << endl;
+        double avg = sum / nCols;
+        double var = sum2/nCols - avg*avg;
+        double std = sqrt(var);
+
+        dataMean.push_back(avg);
+        dataStd.push_back(std);
+
+        cout << std << endl;
+    }
+
+
+
+    /// Iterate over all points and compute the maximum correlation between neighbors
+    vtkIntArray* maxCorrNeighbor = vtkIntArray::New();
+    maxCorrNeighbor->SetName("CorrNeighbors");
+    maxCorrNeighbor->SetNumberOfValues(nPoints);
+
+    for (int i = 0; i < nPoints; i++) {
+        // set up for neighbor finding
+        std::set<int> neighbors;
+        std::vector<int> ids;
+        ids.push_back(i);
+
+        vectorArray->GetTuple(i, &idata[0]);
+        double imean = dataMean[i];
+        double istd = dataStd[i];
+
+        extractNeighbors(ids, inputData, neighbors, 1);
+        std::set<int>::iterator iter = neighbors.begin();
+
+        int maxNeighbor = -1;
+        double maxCorr = -10;
+
+        for (; iter != neighbors.end(); iter++) {
+            int j = *iter;
+            if (j == i) {
+                continue;
+            }
+            vectorArray->GetTuple(j, &jdata[0]);
+
+            /// Compute the cross correlation
+            double jmean = dataMean[j];
+            double jstd = dataStd[j];
+
+            double corr = 0;
+            for (int k = 0; k < nCols; k++) {
+                corr += ((idata[k] - imean) * (jdata[k] - jmean));
+            }
+            corr /= (istd * jstd);
+//            cout << corr << ",";
+            if (corr > maxCorr) {
+                maxCorr = corr;
+                maxNeighbor = j;
+            }
+        }
+//        cout << endl;
+        maxCorrNeighbor->SetValue(i, maxNeighbor);
+    }
+
+    /// connected components with maxCorrNeighbors
+    /// Loop over all points and mark its region
+    /// If it encounters previously marked region, then stop and mark its region to the previous region
+    std::vector<int> markups;
+    markups.resize(nPoints);
+    std::fill(markups.begin(), markups.end(), -1);
+
+    std::vector<int> curRegion;
+
+    int regionCounter = 0;
+    for (int i = 0; i < nPoints; i++) {
+        bool cont = markups[i] < 0;
+        if (!cont) {
+            continue;
+        }
+
+        int j = i;
+
+        curRegion.clear();
+        curRegion.push_back(j);
+        while (true) {
+            j = maxCorrNeighbor->GetValue(j);
+            int jMark = markups[j];
+            cont = jMark < 0;
+            if (!cont && jMark == regionCounter) {
+                regionCounter++;
+                break;
+            } else if (!cont && jMark < regionCounter) {
+                // replace all regionCounter into jMark
+                for (int k = 0; k < curRegion.size(); k++) {
+                    markups[curRegion[k]] = jMark;
+                }
+                break;
+            } else {
+                markups[j] = regionCounter;
+            }
+            curRegion.push_back(j);
+        }
+    }
+
+    vtkIntArray* regionArray = vtkIntArray::New();
+    regionArray->SetName(outputScalarName.c_str());
+    regionArray->SetNumberOfValues(markups.size());
+    for (int i = 0; i < markups.size(); i++) {
+        regionArray->SetValue(i, markups[i]);
+    }
+    inputData->GetPointData()->AddArray(regionArray);
+    inputData->GetPointData()->AddArray(maxCorrNeighbor);
+    vio.writeFile(outputDataFile, inputData);
 }
 
 /// @brief perform ridge detection
@@ -1947,9 +2198,12 @@ int main(int argc, char * argv[])
     opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
     opts.addOption("-importScalars", "Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
+    opts.addOption("-importVectors", "Add vector values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
+    opts.addOption("-exportVectors", "Export vector values to a mesh [in-mesh] [scalar.txt]", SO_NONE);
     opts.addOption("-copyScalars", "Copy a scalar array of the input model to the output model", "-copyScalars input-model1 input-model2 output-model -scalarName name", SO_NONE);
     opts.addOption("-averageScalars", "Compute the average of scalars across given inputs", "-averageScalars -o output-vtk input1-vtk input2-vtk ... ", SO_NONE);
     opts.addOption("-connectScalars", "Compute the connected components based on scalars and assign region ids", "-connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max", SO_NONE);
+    opts.addOption("-corrClustering", "Compute correlational clusters -corrClustering input-vtk -scalarName values-to-compute-correlation -outScalarName clusterId", SO_NONE);
 
     // sampling from an image
     opts.addOption("-sampleImage", "Sample pixels for each point of a given model. Currently, only supported image type is a scalar", "-sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName", SO_NONE);
@@ -1999,12 +2253,18 @@ int main(int argc, char * argv[])
         runImportScalars(opts, args);
     } else if (opts.GetBool("-exportScalars")) {
         runExportScalars(opts, args);
+    } else if (opts.GetBool("-importVectors")) {
+        runImportVectors(opts, args);
+    } else if (opts.GetBool("-exportVectors")) {
+        runExportVectors(opts, args);
     } else if (opts.GetBool("-copyScalars")) {
         runCopyScalars(opts, args);
     } else if (opts.GetBool("-averageScalars")) {
         runAverageScalars(opts, args);
     } else if (opts.GetBool("-connectScalars")) {
         runConnectScalars(opts, args);
+    } else if (opts.GetBool("-corrClustering")) {
+        runCorrelationClustering(opts, args);
     } else if (opts.GetString("-appendData", "") != "") {
         runAppendData(opts, args);
     } else if (opts.GetBool("-sampleImage")) {
