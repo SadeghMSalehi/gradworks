@@ -34,9 +34,12 @@
 * -smoothScalars
 	* Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]
 * -importVectors
-	* Add vector values to a mesh [in-mesh] [scalar.txt] [out-mesh]
+	* Add vector values to a mesh [in-mesh] [scalar.txt] [out-mesh] [-computeVectorStats]
 * -exportVectors
 	* Export vector values to a mesh [in-mesh] [scalar.txt]
+* -computeVectorStats
+	* Compute mean and std for a vector attribute
+	* *ex)* -importVectors ... [-computeVectorStats]
 * -copyScalars
 	* Copy a scalar array of the input model to the output model
 	* *ex)* -copyScalars input-model1 input-model2 output-model -scalarName name

@@ -6,6 +6,9 @@ using namespace std;
 
 class A {
 public:
+    int id;
+    string name;
+    double height;
 
 
 private:
@@ -110,9 +113,15 @@ void run_scope_test() {
     dog.wow();
 }
 
+void run_init_test() {
+    A a = { 172, "name", 3.0 };
+    
+}
+
 int main(int argc, char* argv[]) {
     run_friend_test();
     run_virtual_test();
     run_scope_test();
+    run_init_test();
     return 0;
 }

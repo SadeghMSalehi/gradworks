@@ -11,6 +11,7 @@
 
 #include <set>
 #include <iostream>
+#include <algorithm>
 
 #include "piOptions.h"
 #include "vtkio.h"
@@ -331,13 +332,14 @@ void runImportVectors(Options& opts, StringVector& args) {
     string vectorDataFile = args[1];
     string outputDataFile = args[2];
 
+    string attributeName = opts.GetString("-scalarName", "VectorValues");
     vtkIO vio;
     vtkPolyData* inputData = vio.readFile(inputDataFile);
     vtkFloatArray* vectorArray = vtkFloatArray::New();
-    vectorArray->SetName(opts.GetString("-scalarName", "VectorValues").c_str());
+    vectorArray->SetName(attributeName.c_str());
 
     char buff[1024];
-    ifstream fin(vectorDataFile);
+    ifstream fin(vectorDataFile.c_str());
 
     int nCols = 0;
     int nRows = 0;
@@ -366,6 +368,31 @@ void runImportVectors(Options& opts, StringVector& args) {
     if (nRows != inputData->GetNumberOfPoints()) {
         cout << "# of data is different from # of points." << endl;
         return;
+    }
+
+
+    /// Optionally, compute vector stats
+    if (opts.GetBool("-computeVectorStats")) {
+        vtkDoubleArray* meanValues = vtkDoubleArray::New();
+        meanValues->SetName((attributeName + "_Avg").c_str());
+        meanValues->SetNumberOfValues(nRows);
+
+        vtkDoubleArray* stdValues = vtkDoubleArray::New();
+        stdValues->SetName((attributeName + "_Std").c_str());
+        stdValues->SetNumberOfValues(nRows);
+
+        for (int i = 0; i < nRows; i++) {
+            vector<double> values(nCols);
+            vectorArray->GetTuple(i, &values[0]);
+            MeanStd<double> meanStd;
+            meanStd = for_each(values.begin(), values.end(), meanStd);
+
+            meanValues->SetValue(i, meanStd.mean());
+            stdValues->SetValue(i, meanStd.std());
+        }
+
+        inputData->GetPointData()->AddArray(meanValues);
+        inputData->GetPointData()->AddArray(stdValues);
     }
 
     inputData->GetPointData()->AddArray(vectorArray);
@@ -399,7 +426,7 @@ void runExportVectors(Options& opts, StringVector& args) {
     const int nCols = vectorArray->GetNumberOfComponents();
     const int nRows = vectorArray->GetNumberOfTuples();
 
-    ofstream out(vectorDataFile);
+    ofstream out(vectorDataFile.c_str());
     std::vector<double> row;
     row.resize(nCols);
     for (int i = 0; i < nRows; i++) {
@@ -2198,8 +2225,10 @@ int main(int argc, char * argv[])
     opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
     opts.addOption("-importScalars", "Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
-    opts.addOption("-importVectors", "Add vector values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
+    opts.addOption("-importVectors", "Add vector values to a mesh [in-mesh] [scalar.txt] [out-mesh] [-computeVectorStats]", SO_NONE);
     opts.addOption("-exportVectors", "Export vector values to a mesh [in-mesh] [scalar.txt]", SO_NONE);
+    opts.addOption("-computeVectorStats", "Compute mean and std for a vector attribute", "-importVectors ... [-computeVectorStats]", SO_NONE);
+
     opts.addOption("-copyScalars", "Copy a scalar array of the input model to the output model", "-copyScalars input-model1 input-model2 output-model -scalarName name", SO_NONE);
     opts.addOption("-averageScalars", "Compute the average of scalars across given inputs", "-averageScalars -o output-vtk input1-vtk input2-vtk ... ", SO_NONE);
     opts.addOption("-connectScalars", "Compute the connected components based on scalars and assign region ids", "-connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max", SO_NONE);
