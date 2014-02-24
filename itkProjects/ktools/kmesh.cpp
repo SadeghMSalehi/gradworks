@@ -335,6 +335,11 @@ void runImportVectors(Options& opts, StringVector& args) {
     string attributeName = opts.GetString("-scalarName", "VectorValues");
     vtkIO vio;
     vtkPolyData* inputData = vio.readFile(inputDataFile);
+
+    if (inputData == NULL) {
+        cout << "Can't read " << inputDataFile << endl;
+        return;
+    }
     vtkFloatArray* vectorArray = vtkFloatArray::New();
     vectorArray->SetName(attributeName.c_str());
 
@@ -399,6 +404,96 @@ void runImportVectors(Options& opts, StringVector& args) {
     vio.writeFile(outputDataFile, inputData);
 }
 
+
+/// @brief Indirect import scalar values
+void runIndirectImportScalars(Options& opts, StringVector& args) {
+
+    /// input arguments
+    string inputDataFile = args[0];
+    string vectorDataFile = args[1];
+    string outputDataFile = args[2];
+
+    /// default attribute name to establish mapping
+    string attributeName = opts.GetString("-scalarName", "MappingAttribute");
+
+    /// read input vtk file
+    vtkIO vio;
+    vtkPolyData* inputData = vio.readFile(inputDataFile);
+    if (inputData == NULL) {
+        cout << "Can't read " << inputDataFile << endl;
+        return;
+    }
+
+    const int nPoints = inputData->GetNumberOfPoints();
+    vtkDataArray* mappingAttrs = inputData->GetPointData()->GetArray(attributeName.c_str());
+
+    if (mappingAttrs == NULL) {
+        cout << "Can't find the attribute: " << mappingAttrs << endl;
+        return;
+    }
+
+
+    /// read data file into an array
+    vtkFloatArray* vectorArray = vtkFloatArray::New();
+    vectorArray->SetName(attributeName.c_str());
+
+    char buff[1024];
+    ifstream fin(vectorDataFile.c_str());
+
+    int nCols = 0;
+    int nRows = 0;
+    while (fin.is_open() && !fin.eof()) {
+        fin.getline(buff, sizeof(buff));
+        stringstream ss(buff);
+        if (!fin.eof()) {
+            nCols = 0;
+            std::vector<float> rows;
+            while (ss.good()) {
+                float value;
+                ss >> value;
+                rows.push_back(value);
+                ++ nCols;
+            }
+            if (nRows == 0) {
+                vectorArray->SetNumberOfComponents(nCols);
+            }
+            vectorArray->InsertNextTupleValue(&rows[0]);
+            nRows ++;
+        }
+    }
+    fin.close();
+
+    cout << nRows << " x " << nCols << endl;
+
+    /// assume the line no is an index to mapping
+    vector<double> data;
+
+    /// must have fixed elements per line
+    data.resize(nCols);
+
+
+
+    /// Copy the file data into an attribute array
+    string importedAttributeName = opts.GetString("-outputScalarName", "ImportedAttribute");
+
+    vtkFloatArray* importedArray = vtkFloatArray::New();
+    importedArray->SetName(importedAttributeName.c_str());
+    importedArray->SetNumberOfComponents(nCols);
+    importedArray->SetNumberOfValues(nPoints);
+
+    for (int i = 0; i < nPoints; i++) {
+        int mappedId = (int) mappingAttrs->GetTuple1(i);
+        vectorArray->GetTuple(mappedId, &data[0]);
+
+        /// copy into new array
+        importedArray->SetTuple(i, &data[0]);
+    }
+
+    inputData->GetPointData()->AddArray(importedArray);
+
+    vio.writeFile(outputDataFile, inputData);
+
+}
 
 /// @brief Export vector values
 void runExportVectors(Options& opts, StringVector& args) {
@@ -1809,12 +1904,18 @@ void extractNeighbors(std::vector<int>& ids, vtkPolyData* data, std::set<int>& n
     }
 }
 
+template <class T1, class T2>
+struct SecondComp {
+    bool operator()(const pair<T1,T2>& p1, const pair<T1,T2>& p2) {
+        return p1.second < p2.second;
+    }
+};
 
 /// @brief Perform correlation-based clustering
 void runCorrelationClustering(Options& opts, StringVector& args) {
     string inputDataFile = args[0];
     string inputVectorName = opts.GetString("-scalarName", "VectorValues");
-    string outputScalarName = opts.GetString("-outScalarName", "CorrClusters");
+    string outputScalarName = opts.GetString("-outputScalarName", "CorrClusters");
     string outputDataFile = args[1];
 
     vtkIO vio;
@@ -1850,11 +1951,11 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
         double sum2 = 0;
         for (int j = 0; j < nCols; j++) {
             double val = idata[j];
-            cout << val << "\t";
+//            cout << val << "\t";
             sum += val;
             sum2 += val * val;
         }
-        cout << endl;
+//        cout << endl;
         double avg = sum / nCols;
         double var = sum2/nCols - avg*avg;
         double std = sqrt(var);
@@ -1862,7 +1963,7 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
         dataMean.push_back(avg);
         dataStd.push_back(std);
 
-        cout << std << endl;
+//        cout << std << endl;
     }
 
 
@@ -1936,6 +2037,7 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
         curRegion.push_back(j);
         while (true) {
             j = maxCorrNeighbor->GetValue(j);
+            cout << j << " ";
             int jMark = markups[j];
             cont = jMark < 0;
             if (!cont && jMark == regionCounter) {
@@ -1952,6 +2054,7 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
             }
             curRegion.push_back(j);
         }
+        cout << ":" << regionCounter << endl;
     }
 
     vtkIntArray* regionArray = vtkIntArray::New();
@@ -1963,6 +2066,67 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
     inputData->GetPointData()->AddArray(regionArray);
     inputData->GetPointData()->AddArray(maxCorrNeighbor);
     vio.writeFile(outputDataFile, inputData);
+
+
+    /// output separation
+    /// will create two files: control & experimental
+    /// Assume that the offset is given
+    typedef pair<int, int> IdValuePair;
+    typedef std::vector<IdValuePair> IdValueVector;
+
+    IdValueVector idValues;
+    for (int i = 0; i < nPoints; i++) {
+        idValues.push_back(make_pair(i, regionArray->GetValue(i)));
+    }
+
+    /// sort idValues by the second element
+    sort(idValues.begin(), idValues.end(), SecondComp<int, int>());
+    int prevRegionId = -1;
+
+
+    /// print data files
+    string data1 = args[2];
+    string data2 = args[3];
+
+    /// file handle for two data files
+    ofstream of1(data1.c_str()), of2(data2.c_str());
+
+    /// need change to use the option
+    const int nControls = 8;
+    int pointPerRegion = 0;
+    for (int i = 0; i < nPoints; i++) {
+        int pointId = idValues[i].first;
+        int regionId = idValues[i].second;
+        pointPerRegion++;
+
+        if (i > 0 && regionId != prevRegionId) {
+            // handle previous region
+            of1 << endl;
+            of2 << endl;
+
+            /// Prepare for the next region
+            pointPerRegion = 1;
+
+            /// process next region
+        }
+
+
+        double* data = vectorArray->GetTuple(pointId);
+        for (int j = 0; j < nCols; j++) {
+            if (j < nControls) {
+                of1 << data[j] << " ";
+            } else {
+                of2 << data[j] << " ";
+            }
+        }
+
+        prevRegionId = regionId;
+    }
+    of1 << endl;
+    of2 << endl;
+
+    of1.close();
+    of2.close();
 }
 
 /// @brief perform ridge detection
@@ -2224,6 +2388,7 @@ int main(int argc, char * argv[])
     // scalar array handling
     opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
     opts.addOption("-importScalars", "Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
+    opts.addOption("-indirectImportScalars", "Import scalar values indirectly via another mapping attribute", "-indirectImportScalars in-vtk in-txt out-vtk -scalarName mapping-attribute -outputScalarName imported-attribute", SO_NONE);
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
     opts.addOption("-importVectors", "Add vector values to a mesh [in-mesh] [scalar.txt] [out-mesh] [-computeVectorStats]", SO_NONE);
     opts.addOption("-exportVectors", "Export vector values to a mesh [in-mesh] [scalar.txt]", SO_NONE);
@@ -2232,7 +2397,7 @@ int main(int argc, char * argv[])
     opts.addOption("-copyScalars", "Copy a scalar array of the input model to the output model", "-copyScalars input-model1 input-model2 output-model -scalarName name", SO_NONE);
     opts.addOption("-averageScalars", "Compute the average of scalars across given inputs", "-averageScalars -o output-vtk input1-vtk input2-vtk ... ", SO_NONE);
     opts.addOption("-connectScalars", "Compute the connected components based on scalars and assign region ids", "-connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max", SO_NONE);
-    opts.addOption("-corrClustering", "Compute correlational clusters -corrClustering input-vtk -scalarName values-to-compute-correlation -outScalarName clusterId", SO_NONE);
+    opts.addOption("-corrClustering", "Compute correlational clusters -corrClustering input-vtk -scalarName values-to-compute-correlation -outputScalarName clusterId", SO_NONE);
 
     // sampling from an image
     opts.addOption("-sampleImage", "Sample pixels for each point of a given model. Currently, only supported image type is a scalar", "-sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName", SO_NONE);
@@ -2280,6 +2445,8 @@ int main(int argc, char * argv[])
         runScalarSmoothing(opts, args);
     } else if (opts.GetBool("-importScalars")) {
         runImportScalars(opts, args);
+    } else if (opts.GetBool("-indirectImportScalars")) {
+        runIndirectImportScalars(opts, args);
     } else if (opts.GetBool("-exportScalars")) {
         runExportScalars(opts, args);
     } else if (opts.GetBool("-importVectors")) {

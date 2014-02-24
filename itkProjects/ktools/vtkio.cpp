@@ -16,6 +16,7 @@
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkXMLUnstructuredGridWriter.h>
 #include <vtkMath.h>
+#include <vtkPointData.h>
 
 static bool endswith(std::string file, std::string ext) {
     int epos = file.length() - ext.length();
@@ -131,3 +132,16 @@ void vtkIO::writeXMLFile(std::string file, vtkPolyData *mesh) {
     w->Write();
     w->Delete();
 }
+//
+//vtkDataArray* vtkIO::getPointArray(vtkDataSet* ds) {
+//    if (ds == NULL) {
+//        return NULL;
+//    }
+//
+//    vtkDataArray* da = NULL;
+//    for (int i = 0; i < ds->GetPointData()->GetNumberOfArrays(); i++) {
+//        ds->GetPointData()->GetArray(<#const char *arrayName#>)
+//    }
+//
+//    return da;
+//}

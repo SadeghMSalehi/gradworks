@@ -31,6 +31,9 @@
 	* *ex)* -exportScalars [in-mesh] [scalar.txt]
 * -importScalars
 	* Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]
+* -indirectImportScalars
+	* Import scalar values indirectly via another mapping attribute
+	* *ex)* -indirectImportScalars in-vtk in-txt out-vtk -scalarName mapping-attribute -outputScalarName imported-attribute
 * -smoothScalars
 	* Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]
 * -importVectors
@@ -50,7 +53,7 @@
 	* Compute the connected components based on scalars and assign region ids
 	* *ex)* -connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max
 * -corrClustering
-	* Compute correlational clusters -corrClustering input-vtk -scalarName values-to-compute-correlation -outScalarName clusterId
+	* Compute correlational clusters -corrClustering input-vtk -scalarName values-to-compute-correlation -outputScalarName clusterId
 * -sampleImage
 	* Sample pixels for each point of a given model. Currently, only supported image type is a scalar
 	* *ex)* -sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName

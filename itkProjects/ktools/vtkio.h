@@ -14,6 +14,7 @@
 
 class vtkPolyData;
 class vtkDataSet;
+class vtkDataArray;
 
 class vtkIO {
 public:
@@ -27,6 +28,7 @@ public:
     vtkPolyData* readFile(std::string file);
     void writeFile(std::string file, vtkDataSet* mesh);
     void writeXMLFile(std::string file, vtkPolyData* mesh);
+//    vtkDataArray* getPointArray(vtkDataSet* ds);
 
 };
 
