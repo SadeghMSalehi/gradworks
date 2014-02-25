@@ -2037,9 +2037,9 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
         curRegion.push_back(j);
         while (true) {
             j = maxCorrNeighbor->GetValue(j);
-            cout << j << " ";
+//            cout << j << " ";
             int jMark = markups[j];
-            cont = jMark < 0;
+            cont = (jMark < 0);
             if (!cont && jMark == regionCounter) {
                 regionCounter++;
                 break;
@@ -2054,7 +2054,7 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
             }
             curRegion.push_back(j);
         }
-        cout << ":" << regionCounter << endl;
+//        cout << ":" << regionCounter << endl;
     }
 
     vtkIntArray* regionArray = vtkIntArray::New();
@@ -2104,6 +2104,8 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
             of1 << endl;
             of2 << endl;
 
+            cout << prevRegionId << "\t" << pointPerRegion << endl;
+            
             /// Prepare for the next region
             pointPerRegion = 1;
 
