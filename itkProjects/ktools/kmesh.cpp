@@ -2024,37 +2024,39 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
 
     std::vector<int> curRegion;
 
+    cout << nPoints << endl;
     int regionCounter = 0;
     for (int i = 0; i < nPoints; i++) {
-        bool cont = markups[i] < 0;
-        if (!cont) {
+        if (markups[i] >= 0) {
             continue;
         }
 
         int j = i;
-
         curRegion.clear();
         curRegion.push_back(j);
+        markups[j] = regionCounter;
+
         while (true) {
             j = maxCorrNeighbor->GetValue(j);
-            cout << j << " ";
+//            cout << j << " ";
             int jMark = markups[j];
-            cont = jMark < 0;
-            if (!cont && jMark == regionCounter) {
+
+            bool keepConnecting = (jMark < 0);
+            if (keepConnecting) {
+                markups[j] = regionCounter;
+                curRegion.push_back(j);
+            } else if (jMark == regionCounter) {
                 regionCounter++;
                 break;
-            } else if (!cont && jMark < regionCounter) {
+            } else if (jMark < regionCounter) {
                 // replace all regionCounter into jMark
                 for (int k = 0; k < curRegion.size(); k++) {
                     markups[curRegion[k]] = jMark;
                 }
                 break;
-            } else {
-                markups[j] = regionCounter;
             }
-            curRegion.push_back(j);
         }
-        cout << ":" << regionCounter << endl;
+//        cout << ":" << regionCounter << endl;
     }
 
     vtkIntArray* regionArray = vtkIntArray::New();
@@ -2062,10 +2064,16 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
     regionArray->SetNumberOfValues(markups.size());
     for (int i = 0; i < markups.size(); i++) {
         regionArray->SetValue(i, markups[i]);
+//        cout << markups[i] << " ";
     }
+//    cout << endl;
+
     inputData->GetPointData()->AddArray(regionArray);
     inputData->GetPointData()->AddArray(maxCorrNeighbor);
     vio.writeFile(outputDataFile, inputData);
+
+
+//    if (true) return;
 
 
     /// output separation
