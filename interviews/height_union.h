@@ -11,4 +11,7 @@
 
 #include <iostream>
 
+
+void height_union();
+
 #endif /* defined(__interviews__gl__) */
