@@ -434,6 +434,327 @@ void fill_test() {
     print_matrix(matrix, 5, 5);
 }
 
+
+
+template <class T>
+struct listnode {
+    T data;
+    listnode* next;
+
+    listnode(T d): data(d), next(NULL) {}
+
+    listnode* remove_next() {
+        if (next == NULL) {
+            return;
+        }
+        listnode* oldNext = next;
+        next = this->next->next;
+        return oldNext;
+    }
+
+    void append(listnode* l) {
+        if (l == NULL) {
+            return;
+        }
+        if (next == NULL) {
+            next = l;
+        } else {
+            listnode *p = l;
+            while (p->next != NULL) {
+                p = p->next;
+            }
+            p->next = this->next;
+            this->next = l;
+        }
+    }
+};
+
+
+template <class T>
+struct qlist {
+    typedef listnode<T> nodetype;
+
+    qlist(): _head(NULL), _tail(NULL) {}
+
+    virtual ~qlist() {
+        // delete every listnode
+    }
+
+    nodetype* head() {
+        return _head;
+    }
+
+    nodetype* tail() {
+        return _tail;
+    }
+
+    template <class U>
+    void find_all(U u, qlist<T>* l) {
+        nodetype* iter = _head;
+
+        while (iter != NULL) {
+            if (u(iter->data)) {
+                l->push_back(iter->data);
+            }
+            iter = iter->next;
+        }
+    }
+
+    void push_front(T t) {
+        if (_head == NULL && _tail == NULL) {
+            _head = _tail = new nodetype(t);
+        } else {
+            nodetype* n = new nodetype(t);
+            n->next = _head;
+            _head = n;
+        }
+    }
+
+    void push_back(T t) {
+        if (_tail == NULL) {
+            _head = _tail = new nodetype(t);
+        } else {
+            _tail->next = new nodetype(t);
+            _tail = _tail->next;
+        }
+    }
+
+    void push_front(qlist<T>* l) {
+        if (l->_tail == NULL) {
+            return;
+        }
+
+        // keep the old head to connect later
+        nodetype* oldhead = _head;
+
+        // prepare to copy the given list
+        nodetype* srcIter = l->_head;
+
+        // create a new head to begin
+        _head = new nodetype(srcIter->data);
+
+        // set up a temporary tail pointer
+        nodetype* tmptail = _head;
+
+        // proceed the src iterator
+        srcIter = srcIter->next;
+
+        // prepare a new iterator
+        nodetype* iter = _head;
+
+        // while the srcIter doesn't reach at the end
+
+        while (srcIter != NULL) {
+            iter->next = new nodetype(srcIter->data);
+            srcIter = srcIter->next;
+            tmptail = iter;
+            iter = iter->next;
+        }
+
+        // connect newly created list and the previous one;
+        tmptail->next = oldhead;
+    }
+
+    void push_back(qlist<T>* l) {
+        nodetype* srcIter = l->_head;
+        if (srcIter == NULL) {
+            // if a given list is empty, do nothing
+            return;
+        }
+
+        nodetype* thisIter = this->_tail;
+        if (thisIter == NULL) {
+            // if this list is empty, create a head node and copy the head from anohter list.
+            this->_head = this->_tail = new nodetype(srcIter->data);
+        }
+
+        srcIter = srcIter->next;
+        while (srcIter != NULL) {
+            // now both srcIter and thisIter is not null
+            // copy the current srcIter to this iter's next
+            thisIter->next = new nodetype(srcIter->data);
+
+            // proceed this->tail
+            this->_tail = thisIter->next;
+
+            // process srcIter
+            srcIter = srcIter->next;
+        }
+    }
+    
+
+    T pop_front() {
+        if (_head == NULL) {
+            return NULL;
+        }
+
+        nodetype* oldhead = _head;
+        T v = _head->data;
+        _head = _head->next;
+        if (_head == NULL) {
+            _tail = NULL;
+        }
+
+        delete oldhead;
+        return v;
+    }
+
+
+    void remove(nodetype* node) {
+        nodetype* iter = _head;
+        if (iter == NULL) {
+            return;
+        }
+        if (node == iter) {
+            _head = iter->next;
+            return;
+        }
+        while (iter != NULL && node != iter->next) {
+            iter = iter->next;
+        }
+        if (iter == NULL) {
+            // no node found
+            return;
+        }
+        iter->next = iter->next->next;
+        return;
+    }
+
+    bool is_empty() {
+        return _head == NULL && _tail == NULL;
+    }
+    
+
+private:
+    nodetype* _head;
+    nodetype* _tail;
+};
+
+
+template <class T>
+struct treenode {
+    treenode* parent;
+    qlist<treenode*> children;
+    T data;
+
+    treenode<T>(T t): parent(NULL), data(t) {};
+};
+
+
+struct info {
+    string name;
+    int id;
+    int pid;
+
+    info(string n, int i, int p): name(n), id(i), pid(p) {}
+};
+
+
+struct pidcomp {
+    int pid ;
+
+    pidcomp(int p): pid(p) {
+    }
+
+    bool operator()(treenode<info>* node) {
+        return node->data.pid == pid;
+    }
+};
+
+struct infotree {
+public:
+    typedef treenode<info> infonode;
+
+    infotree(): _root(NULL) {}
+
+    infonode* find_by_id(int id) {
+        qlist<treenode<info>*> queue;
+
+        // always check the initial condition
+        if (_root == NULL) {
+            return NULL;
+        }
+        queue.push_back(_root);
+
+        // pop the first
+        while (!queue.is_empty()) {
+            treenode<info>* n = queue.pop_front();
+
+            // process n
+            if (n->data.id == id) {
+                return n;
+            }
+
+            // add n's children to queue
+            queue.push_front(&(n->children));
+        }
+
+        return NULL;
+    }
+
+    void add_info(string name, int id, int pid) {
+        infonode* newinfo = new infonode(info(name, id, pid));
+
+        infonode* parent = find_by_id(pid);
+        if (parent == NULL) {
+            // add to reserve node
+            tmpnodes.push_back(newinfo);
+        } else {
+            parent->children.push_back(newinfo);
+        }
+
+        // find available children from tmpnodes
+        qlist<infonode*> children;
+        tmpnodes.find_all(pidcomp(id), &children);
+
+        // iterate over qlist and make its parent to the newinfo
+        listnode<infonode*>* iter = children.head();
+
+        while (iter != NULL) {
+            // make these as children of the newinfo
+            newinfo->children.push_back(iter->data);
+            iter->data->parent = newinfo;
+            tmpnodes.remove(iter);
+            listnode<infonode*>* delnode = iter;
+            iter = iter->next;
+            cout << delnode->data->data.name << endl;
+            delete delnode;
+        }
+
+        if (newinfo->data.pid == 0) {
+            _root = newinfo;
+        }
+    }
+
+    void print_tree() {
+        
+    }
+
+private:
+    infonode* _root;
+    qlist<infonode*> tmpnodes;
+};
+
+
+void n_tree_test() {
+    infotree tree;
+    tree.add_info("Tom", 60, 10);
+    tree.add_info("Jack", 65, 10);
+    tree.add_info("Boss", 10, 0);
+    tree.add_info("John", 100, 60);
+}
+
+
+void exception_test() {
+    try {
+        cout << "Hello!";
+        return;
+    } catch (...) {
+        cout << " World!" << endl;
+    }
+    cout << "Done.." << endl;
+}
+
 int main(int argc, char* argv[]) {
 //    bst_test();
 //    string_permutation_test();
@@ -444,5 +765,8 @@ int main(int argc, char* argv[]) {
 //    big_sum();
 //    find_loop();
 //    sort_test();
-    fill_test();
+//    fill_test();
+    n_tree_test();
+//    n_tree_test2();
+//    exception_test();
 }
