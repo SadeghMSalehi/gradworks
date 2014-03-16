@@ -6,11 +6,12 @@
 //
 //
 
-#include "gl.h"
+#include "height_union.h"
 #include <algorithm>
 #include <queue>
 #include <vector>
 #include <list>
+#include <stack>
 
 using namespace std;
 
@@ -57,7 +58,7 @@ void processClosing(AptHeap& currents, Apt& a) {
 }
 
 
-int main(int argc, char* argv[]) {
+void height_union2() {
     double data[3*7] = { 0, 10, 3, 9, 11, 0.5, 2, 7, 8, 3, 4, 1, 3.5, 4, 18, 3.7, 8, 12, 5, 10, 7 };
 
     deque<Apt> apts1, apts2;
@@ -109,5 +110,97 @@ int main(int argc, char* argv[]) {
 //            handleClosing(apts1, apts2);
         }
     }
+}
 
+
+struct Rect {
+    double s;
+    double e;
+    double h;
+};
+
+struct RectCompS {
+    bool operator()(const Rect* a, const Rect* b) {
+        return a->s <= b->s;
+    }
+};
+
+struct RectCompE {
+    bool operator()(const Rect* a, const Rect* b) {
+        return a->e <= b->e;
+    }
+};
+
+struct RectCompH {
+    bool operator()(const Rect* a, const Rect* b) {
+        return a->h > b->h;
+    }
+};
+
+struct RectPrinter {
+    void operator()(const Rect* a) {
+        cout << a->s << ", " << a->e << ": " << a->h << endl;
+    }
+};
+
+void triggerStartingEvent(const Rect* e) {
+    cout << e->s << ": " << e->h << endl;
+}
+
+void triggerEndingEvent(const Rect* e) {
+    cout << e->e << ": " << e->h << endl;
+}
+
+void height_union() {
+    using namespace std;
+
+    Rect data[7] = {
+        { 0, 10, 3 },
+        { 9, 11, 0.5 },
+        { 2, 7, 8 },
+        { 3, 4, 1 },
+        { 3.5, 4, 18 },
+        { 3.7, 8, 12 },
+        { 5, 10, 7 }
+    };
+
+    std::vector<Rect*> startingPos, endingPos;
+    for (int i = 0; i < 7; i++) {
+        startingPos.push_back(&data[i]);
+        endingPos.push_back(&data[i]);
+    }
+
+    std::sort(startingPos.begin(), startingPos.end(), RectCompS());
+    std::sort(endingPos.begin(), endingPos.end(), RectCompE());
+
+    cout << "Input1: " << endl;
+    std::for_each(startingPos.begin(), startingPos.end(), RectPrinter());
+    cout << "Input2: " << endl;
+    std::for_each(endingPos.begin(), endingPos.end(), RectPrinter());
+
+    stack<Rect*, vector<Rect*> > startingStack(startingPos);
+    stack<Rect*, vector<Rect*> > endingStack(endingPos);
+    priority_queue<Rect*, vector<Rect*>, RectCompH> openIntervalStack;
+
+    while (!endingStack.empty()) {
+        if (startingStack.top()->s < endingStack.top()->e) {
+            Rect* rect = startingStack.top();
+            if (rect->h > openIntervalStack.top()->h) {
+                triggerStartingEvent(rect);
+            }
+            openIntervalStack.push(rect);
+            startingStack.pop();
+        } else {
+            Rect* rect = endingStack.top();
+            if (rect->h == openIntervalStack.top()->h) {
+                if (rect == openIntervalStack.top()) {
+                    triggerEndingEvent(rect);
+                    openIntervalStack.pop();
+                }
+            } else {
+//                openIntervalStack.remove(rect);
+            }
+            endingStack.pop();
+        }
+    }
 }
