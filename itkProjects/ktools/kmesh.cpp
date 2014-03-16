@@ -2062,14 +2062,19 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
     vtkIntArray* regionArray = vtkIntArray::New();
     regionArray->SetName(outputScalarName.c_str());
     regionArray->SetNumberOfValues(markups.size());
+    vtkIntArray* regionModArray = vtkIntArray::New();
+    regionModArray->SetName((outputScalarName + "Mod").c_str());
+    regionModArray->SetNumberOfValues(markups.size());
     for (int i = 0; i < markups.size(); i++) {
         regionArray->SetValue(i, markups[i]);
+        regionModArray->SetValue(i, markups[i] / 10);
 //        cout << markups[i] << " ";
     }
 //    cout << endl;
 
     inputData->GetPointData()->AddArray(regionArray);
     inputData->GetPointData()->AddArray(maxCorrNeighbor);
+    inputData->GetPointData()->AddArray(regionModArray);
     vio.writeFile(outputDataFile, inputData);
 
 
@@ -2089,7 +2094,7 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
 
     /// sort idValues by the second element
     sort(idValues.begin(), idValues.end(), SecondComp<int, int>());
-    int prevRegionId = -1;
+
 
 
     /// print data files
@@ -2102,6 +2107,8 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
     /// need change to use the option
     const int nControls = 8;
     int pointPerRegion = 0;
+    int prevRegionId = -1;
+
     for (int i = 0; i < nPoints; i++) {
         int pointId = idValues[i].first;
         int regionId = idValues[i].second;
@@ -2112,6 +2119,8 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
             of1 << endl;
             of2 << endl;
 
+            cout << prevRegionId << "\t" << (pointPerRegion - 1) << endl;
+            
             /// Prepare for the next region
             pointPerRegion = 1;
 
@@ -2130,6 +2139,8 @@ void runCorrelationClustering(Options& opts, StringVector& args) {
 
         prevRegionId = regionId;
     }
+    cout << prevRegionId << "\t" << (pointPerRegion) << endl;
+
     of1 << endl;
     of2 << endl;
 
