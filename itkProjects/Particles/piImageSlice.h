@@ -394,7 +394,7 @@ namespace pi {
             InvalidateCaches();
         }
 
-        void SetAffineTransform(TransformType::TransformBase::Pointer baseTransform) {
+        void SetAffineTransform(itk::TransformBase::Pointer baseTransform) {
             if (m_SourceImage.IsNull()) {
                 return;
             }

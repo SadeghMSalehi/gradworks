@@ -18,11 +18,11 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Check if environment variable QTDIR is set.
 # Extra security for windows environment as well.
-if (DEFINED ENV{QTDIR})
-    set(CMAKE_PREFIX_PATH $ENV{QTDIR} ${CMAKE_PREFIX_PATH})
-else ()
-    message (FATAL_ERROR "ERROR: Environment variable QTDIR is not set. Please locate your Qt folder MY_QT5_DIR.")
-endif ()
+#if (DEFINED ENV{QTDIR})
+#    set(CMAKE_PREFIX_PATH $ENV{QTDIR} ${CMAKE_PREFIX_PATH})
+#else ()
+#    message (FATAL_ERROR "ERROR: Environment variable QTDIR is not set. Please locate your Qt folder MY_QT5_DIR.")
+#endif ()
 
 
 SET (BUILD_2D False CACHE BOOL "Compile 2d version")
@@ -59,7 +59,6 @@ SET(Armadillo_LIBRARIES '')
 
 INCLUDE(${USE_ITK_FILE})
 #SET(QT_USE_QTOPENGL TRUE)
-#INCLUDE(${QT_USE_FILE})
 INCLUDE(${USE_VTK_FILE})
 #INCLUDE_DIRECTORIES(${ARMADILLO_INCLUDE_DIRS})
 
@@ -73,10 +72,6 @@ INCLUDE(${USE_VTK_FILE})
 #qt4_wrap_cpp(QT_PLUTO_MOC_HEADERS ${QT_PLUTO_HEADERS})
 #qt4_wrap_ui(QT_PLUTO_UI_FILES plutowindow.ui)
 
-SET (QT_PSIM2_HEADERS piSimul2.h piSimulCore.h piGroupSimul.h myQGraphicsView.h QGraphicsRectWidget.h QGraphicsZoomView.h qcustomplot.h qfileacceptbutton.h)
-SET (QT_PSIM2_SOURCES piSimul2.cpp piSimulCore.cpp piGroupSimul.cpp myQGraphicsView.cpp QGraphicsRectWidget.cpp QGraphicsZoomView.cpp qcustomplot.cpp qfileacceptbutton.cpp)
-QT5_WRAP_UI(QT_PSIM2_UIS simul2d.ui)
-QT5_ADD_RESOURCES(QT_PSIM2_RCC simul2d.qrc)
 #qt4_wrap_cpp(QT_PSIM2_MOC_HEADERS ${QT_PSIM2_HEADERS})
 #qt4_wrap_ui(QT_PSIM2_UI_FILES simul2d.ui)
 #QT4_ADD_RESOURCES(QT_PSIM2_RCC simul2d.qrc)
@@ -87,11 +82,6 @@ QT5_ADD_RESOURCES(QT_PSIM2_RCC simul2d.qrc)
 #QT4_WRAP_UI(QT_PVIEW_UI_FILES pviewAIRWindow.ui testDialog.ui)
 #QT4_ADD_RESOURCES(QT_PVIEW_RCC pviewAIRWindow.qrc)
 
-#SET (QT_BVIEW_HEADERS bigViewWindow.h myQGraphicsView.h qcustomplot.h qdualslider.h qgraphicsvolumeview.h simpleSliceViewer.h dualImageViewer.h)
-#SET (QT_BVIEW_SOURCES bigViewWindow.cpp myQGraphicsView.cpp qcustomplot.cpp qdualslider.cpp qgraphicsvolumeview.cpp simpleSliceViewer.cpp dualImageViewer.cpp)
-#QT4_WRAP_CPP(QT_BVIEW_MOC_HEADERS ${QT_BVIEW_HEADERS})
-#QT4_WRAP_UI(QT_BVIEW_UI_FILES bigViewWindow.ui simpleSliceViewer.ui dualImageViewer.ui)
-#QT4_ADD_RESOURCES(QT_BVIEW_RCC bigViewWindow.qrc simpleSliceViewer.qrc)
 
 add_definitions(${QT_DEFINITIONS})
 
@@ -131,6 +121,12 @@ TARGET_LINK_LIBRARIES(prun2 ${ITK_LIBRARIES} ${VTK_LIBRARIES} nlopt ${LOCAL_DIR}
 
 SET (BUILD_GUI 1)
 IF (${BUILD_GUI})
+	#INCLUDE(${QT_USE_FILE})
+
+	SET (QT_PSIM2_HEADERS piSimul2.h piSimulCore.h piGroupSimul.h myQGraphicsView.h QGraphicsRectWidget.h QGraphicsZoomView.h qcustomplot.h qfileacceptbutton.h)
+	SET (QT_PSIM2_SOURCES piSimul2.cpp piSimulCore.cpp piGroupSimul.cpp myQGraphicsView.cpp QGraphicsRectWidget.cpp QGraphicsZoomView.cpp qcustomplot.cpp qfileacceptbutton.cpp)
+	QT5_WRAP_UI(QT_PSIM2_UIS simul2d.ui)
+	QT5_ADD_RESOURCES(QT_PSIM2_RCC simul2d.qrc)
     ADD_EXECUTABLE(psim simul2main.cpp ${QT_PSIM2_HEADERS} ${QT_PSIM2_SOURCES} ${QT_PSIM2_RCC} piImageDef.h piImageIO.h piImageSlice.h piImageSlice.cpp piImagePatch.h piImagePatch.cpp piPatchTracking.h piPatchTracking.cpp piImageEntropyComputer.h piImageEntropyComputer.cpp piImageRegistration.h piImageRegistration.cpp ${MY_PARTICLE_WORKS_SOURCES} qutils.h qutils.cpp itkSIFTImageFilter.h itkSIFTImageFilter.cpp itkARGBColorFunction.h itkScalarToARGBColormapImageFilter.h QParticlesGraphicsItem.cpp QParticlesGraphicsItem.h QGraphicsDirectionItem.h QGraphicsDirectionItem.cpp QGraphicsImageItem.h QGraphicsImageItem.cpp QGraphicsParticleItems.h QGraphicsParticleItems.cpp QGraphicsPatchItem.h QGraphicsPatchItem.cpp QGraphicsEventItem.h QGraphicsEventItem.cpp itkEntropyImageToImageMetricv4.h itkEntropyImageToImageMetricv4.hxx itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.h itkEntropyImageToImageMetricv4GetValueAndDerivativeThreader.hxx itkEntropyImageToImageMetricv4HelperThreader.h itkEntropyImageToImageMetricv4HelperThreader.hxx ${QT_PSIM2_UIS})
 #${QT_PSIM2_MOC_HEADERS} ${QT_PSIM2_UI_FILES}  ${MY_Qt_EXTENSIONS} ${QT_PSIM2_RCC})
 	SET_TARGET_PROPERTIES(psim PROPERTIES DEBUG_POSTFIX "d")
@@ -142,27 +138,35 @@ IF (${BUILD_GUI})
 #	SET_TARGET_PROPERTIES(pluto PROPERTIES COMPILE_FLAGS "-DDIMENSIONS=2")
 #    TARGET_LINK_LIBRARIES(pluto ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES})
 
-#	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp
-#        piImageDef.h piImageIO.h piMacros.h piParticle.h piParticle.cpp
-#		piImagePatch.h piParticleTracker.h piParticleTracker.cpp piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h
-#        piFitCurve.h piFitCurve.cpp piParticleCore.h piParticleCore.cpp piParticleTrace.h piParticleTrace.cpp
-#        piParticleForces.h piParticleForces.cpp piParticleSystemSolver.h piParticleSystemSolver.cpp
-#        piEntropyComputer.h piEntropyComputer.cpp piParticleCollision.h piParticleCollision.cpp
-#        piTimer.h piTimer.cpp piParticleBSpline.h piParticleBSpline.cpp piContourSystem.h piContourSystem.cpp
-#        piBSplineBasis.h piBSplineBasis.cpp piImageHistogram.cpp piImageHistogram.h qtypedef.h qutils.h qutils.cpp
-#        airImageAlgorithm.cpp airImageAlgorithm.h airCLI.h airCLI.cpp
-#		${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES} ${QT_PVIEW_RCC})
-#	TARGET_LINK_LIBRARIES(airview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+	ADD_EXECUTABLE(airview pview.cpp piOptions.cpp piOptions.h piVTK.h piVTK.cpp
+        piImageDef.h piImageIO.h piMacros.h piParticle.h piParticle.cpp
+		piImagePatch.h piParticleTracker.h piParticleTracker.cpp piImageSlice.h piImageSlice.cpp piImageProcessing.cpp piImageProcessing.h
+        piFitCurve.h piFitCurve.cpp piParticleCore.h piParticleCore.cpp piParticleTrace.h piParticleTrace.cpp
+        piParticleForces.h piParticleForces.cpp piParticleSystemSolver.h piParticleSystemSolver.cpp
+        piEntropyComputer.h piEntropyComputer.cpp piParticleCollision.h piParticleCollision.cpp
+        piTimer.h piTimer.cpp piParticleBSpline.h piParticleBSpline.cpp piContourSystem.h piContourSystem.cpp
+        piBSplineBasis.h piBSplineBasis.cpp piImageHistogram.cpp piImageHistogram.h qtypedef.h qutils.h qutils.cpp
+        airImageAlgorithm.cpp airImageAlgorithm.h airCLI.h airCLI.cpp
+		${QT_PVIEW_HEADERS} ${QT_PVIEW_SOURCES} ${QT_PVIEW_MOC_HEADERS} ${QT_PVIEW_UI_FILES} ${QT_PVIEW_RCC})
+	TARGET_LINK_LIBRARIES(airview ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 
-#	ADD_EXECUTABLE(Lemon bigview.cpp piImageDef.h
-#		piImageIO.h piOptions.h piOptions.cpp piImageSlice.h piImageSlice.cpp piVolumeDisplay.h
-#		itkARGBSliceExtractImageFilter.h itkARGBSliceExtractImageFilter.cpp
-#		qtypedef.h qutils.h qutils.cpp
-#		${QT_BVIEW_HEADERS} ${QT_BVIEW_SOURCES} ${QT_BVIEW_MOC_HEADERS} ${QT_BVIEW_UI_FILES} ${QT_BVIEW_RCC})
-#	TARGET_LINK_LIBRARIES(Lemon ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
-#
-##	ADD_EXECUTABLE(pani3 piParticleAniMain.cpp piParticleAniMain.h ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS} piVTK.cpp piVTK.h)
-##	TARGET_LINK_LIBRARIES(pani3 ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+	SET (QT_BVIEW_HEADERS bigViewWindow.h myQGraphicsView.h qcustomplot.h qdualslider.h qgraphicsvolumeview.h simpleSliceViewer.h dualImageViewer.h)
+	SET (QT_BVIEW_SOURCES bigViewWindow.cpp myQGraphicsView.cpp qcustomplot.cpp qdualslider.cpp qgraphicsvolumeview.cpp simpleSliceViewer.cpp dualImageViewer.cpp)
+	#QT4_WRAP_CPP(QT_BVIEW_MOC_HEADERS ${QT_BVIEW_HEADERS})
+	#QT4_WRAP_UI(QT_BVIEW_UI_FILES bigViewWindow.ui simpleSliceViewer.ui dualImageViewer.ui)
+	#QT4_ADD_RESOURCES(QT_BVIEW_RCC bigViewWindow.qrc simpleSliceViewer.qrc)
+	QT5_WRAP_UI(QT_Lemon_UIS bigViewWindow.ui simpleSliceViewer.ui dualImageViewer.ui)
+	QT5_ADD_RESOURCES(QT_Lemon_RCC bigViewWindow.qrc simpleSliceViewer.qrc)
+	ADD_EXECUTABLE(Lemon bigview.cpp piImageDef.h
+		piImageIO.h piOptions.h piOptions.cpp piImageSlice.h piImageSlice.cpp piVolumeDisplay.h
+		itkARGBSliceExtractImageFilter.h itkARGBSliceExtractImageFilter.cpp
+		qtypedef.h qutils.h qutils.cpp
+		${QT_BVIEW_HEADERS} ${QT_BVIEW_SOURCES} ${QT_Lemon_UIS} ${QT_Lemon_RCC})
+	QT5_USE_MODULES(Lemon Widgets PrintSupport Concurrent)
+	TARGET_LINK_LIBRARIES(Lemon ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+
+	ADD_EXECUTABLE(pani3 piParticleAniMain.cpp piParticleAniMain.h ${QT_PI_HEADERS} ${QT_PI_SOURCES} ${QT_PI_MOC_HEADERS} ${QT_PI_UI_FILES} ${MY_PARTICLE_WORKS_SOURCES} ${MY_Qt_EXTENSIONS} piVTK.cpp piVTK.h)
+	TARGET_LINK_LIBRARIES(pani3 ${ITK_LIBRARIES} ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
 ENDIF (${BUILD_GUI})
 #
 #

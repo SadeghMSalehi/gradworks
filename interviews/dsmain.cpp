@@ -8,6 +8,7 @@
 
 #include "dsmain.h"
 #include "bst.h"
+#include "trie.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -766,7 +767,8 @@ int main(int argc, char* argv[]) {
 //    find_loop();
 //    sort_test();
 //    fill_test();
-    n_tree_test();
+//    n_tree_test();
 //    n_tree_test2();
 //    exception_test();
+    trie_test();
 }

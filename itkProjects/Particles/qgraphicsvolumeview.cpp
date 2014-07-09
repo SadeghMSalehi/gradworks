@@ -19,6 +19,7 @@
 #include <QGraphicsRectItem>
 #include <QtAlgorithms>
 #include <QPolygonF>
+#include <QMimeData>
 #include "qtypedef.h"
 
 using namespace pi;

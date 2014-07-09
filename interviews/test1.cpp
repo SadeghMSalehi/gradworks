@@ -100,6 +100,8 @@ namespace animal {
         void say() {
             Dog d;
 //            d.say();
+            cout << "hello";
+            
         }
     };
 }
@@ -114,7 +116,7 @@ void run_scope_test() {
 }
 
 void run_init_test() {
-    A a = { 172, "name", 3.0 };
+//    A a = { 172, "name", 3.0 };
     
 }
 
