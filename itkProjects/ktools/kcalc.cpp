@@ -12,11 +12,12 @@ using namespace pi;
 
 typedef itk::Image<PIXEL_TYPE,3> ImageType;
 typedef itk::Image<PIXEL_TYPE,2> Image2D;
-ImageIO<ImageType> io;
+ImageIO<ImageType> imgIo;
 std::vector<ImageType::Pointer> inputImages;
 
 int main(int argc, char* argv[]) {
     Options argParser;
+    argParser.addOption("-i", "print image information as ImageStat --info option", SO_NONE);
     argParser.addOption("-e", "The equation to compute each output pixel.", "-e (A+B)", SO_REQ_SEP);
     argParser.addOption("-o", "output filename (the same data type with the last input)", "-o output.nrrd", SO_REQ_SEP);
     argParser.addOption("-h", "print this message", SO_NONE);
@@ -24,6 +25,16 @@ int main(int argc, char* argv[]) {
     StringVector args = argParser.ParseOptions(argc, argv, NULL);
     string eq = argParser.GetString("-e");
     string outputFilename = argParser.GetString("-o");
+    
+    if (argParser.GetBool("-i") && args.size() > 0) {
+        ImageInfo lastImageInfo;
+        imgIo.ReadCastedImage(args[0], lastImageInfo);
+        printf("Filename: %s\n", args[0].c_str());
+        printf("Dims: %d %d %d\n", lastImageInfo.dimensions[0], lastImageInfo.dimensions[1], lastImageInfo.dimensions[2]);
+        printf("Pixdims: %.2f %.2f %.2f\n", lastImageInfo.spacing[0], lastImageInfo.spacing[1], lastImageInfo.spacing[2]);
+        printf("Origins: %.2f %.2f %.2f\n", lastImageInfo.origin[0], lastImageInfo.origin[1], lastImageInfo.origin[2]);
+        return 0;
+    }
 
     if (argParser.GetBool("-h") || eq == "" || args.size() == 0 || outputFilename == "") {
         cout << "## kcalc usage \n"
@@ -64,7 +75,7 @@ int main(int argc, char* argv[]) {
         PixelMathImageFilter<ImageType, ImageType>::Pointer pixelFilter = PixelMathImageFilter<ImageType, ImageType>::New();
         pixelFilter->SetEquation(eq);
         for (int i = 0; i < args.size(); i++) {
-            pixelFilter->PushBackInput(io.ReadCastedImage(args[i], lastImageInfo));
+            pixelFilter->PushBackInput(imgIo.ReadCastedImage(args[i], lastImageInfo));
         }
         try {
             pixelFilter->Update();
@@ -72,7 +83,7 @@ int main(int argc, char* argv[]) {
             cout << e.what() << endl;
         }
 
-        io.WriteCastedImage(outputFilename, pixelFilter->GetOutput(), lastImageInfo.componenttype);
+        imgIo.WriteCastedImage(outputFilename, pixelFilter->GetOutput(), lastImageInfo.componenttype);
     }
     return 0;
 }
