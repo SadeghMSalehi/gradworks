@@ -26,6 +26,15 @@
 	* *ex)* -thresholdMax 10 (select a cell whose attriubte is lower than 10)
 * -test
 	* Run test code
+* -exportPoints
+	* Save points into a text file
+	* *ex)* -exportPoints [in-mesh] -o [out-txt]
+* -importPoints
+	* Read points in a text file into a vtk file
+	* *ex)* -importPoints [in-mesh] [txt] -o [out-vtk]
+* -translatePoints
+	* Translate points by adding given tuples
+	* *ex)* -translatePoints=x,y,z [in-vtk] [out-vtk]
 * -exportScalars
 	* Export scalar values to a text file
 	* *ex)* -exportScalars [in-mesh] [scalar.txt]
@@ -63,6 +72,15 @@
 * -scanConversion
 	* Compute a binary image from a surface model
 	* *ex)* -scanConversion input-surface input-image.nrrd output-image.nrrd
+* -indexToPoint
+	* Transform an index to a physical point with a given image
+	* *ex)* -indexToPoint=i,j,k [image-file]
+* -pointToIndex
+	* Transform a physical point to an index
+	* *ex)* -pointToIndex=x,y,z [image-file]
+* -imageInfo
+	* Print out basic image inforation like ImageStat
+	* *ex)* -imageInfo [image1] [image2] ...
 * -appendData
 	* Append input meshes into a single data [output-mesh]
 * -computeCurvature
@@ -104,6 +122,9 @@
 * -rescaleStream
 	* Rescale streamlines to fit with given lengths
 	* *ex)* -rescaleStream input-stream-lines length.txt or input.vtp -scalarName scalarname
+* -tpsWarp
+	* Run TPS warping
+	* *ex)* -tpsWarp [source-landmark] [target-landmark] [input0] [output0] [input1] [output1] ...
 * -spharmCoeff
 	* Compute SPHARM coefficients
 	* *ex)* -spharmCoeff input-vtk output-txt -scalarName scalarValueToEvaluate
