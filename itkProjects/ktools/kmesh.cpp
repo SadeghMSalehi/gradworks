@@ -71,10 +71,8 @@
 #include "kstreamtracer.h"
 
 
-
-
 #include <vnl/vnl_vector.h>
-
+#define UNUSED(x) (void)(x)
 
 using namespace std;
 using namespace pi;
@@ -160,7 +158,7 @@ static void spharm_basis(int degree, double *p, double *Y) {
     const float sqr2 = sqrt(2.0f);
 
     const int yCount = (degree - 1) * (degree - 1);
-
+    UNUSED(yCount);
     for (int l = 0; l <= degree; l++)
     {
         // legendre part
@@ -216,7 +214,7 @@ void runExportPoints(Options& opts, StringVector& args) {
         return;
     }
     
-    ofstream fout(outputText);
+    ofstream fout(outputText.c_str());
     for (unsigned int j = 0; j < nPoints; j++) {
         double* p = input->GetPoint(j);
         for (int k = 0; k < 3; k++) {
@@ -330,7 +328,7 @@ void runSPHARMCoeff(Options& opts, StringVector& args) {
     /// Prepare values
     vnl_vector<double> values;
     values.set_size(scalars->GetNumberOfTuples());
-    for (int i = 0; i < nPoints; i++) {
+    for (unsigned int i = 0; i < nPoints; i++) {
         values[i] = scalars->GetTuple1(i);
     }
 
@@ -353,7 +351,7 @@ void runSPHARMCoeff(Options& opts, StringVector& args) {
     newScalars->SetNumberOfComponents(1);
     newScalars->SetNumberOfTuples(nPoints);
 
-    for (int i = 0; i < nPoints; i++) {
+    for (unsigned int i = 0; i < nPoints; i++) {
         newScalars->SetValue(i, interpolated[i]);
     }
     input->GetPointData()->AddArray(newScalars);
@@ -893,6 +891,8 @@ bool endswith(std::string str, std::string substr) {
 
 /// @brief perform a line clipping to fit within the object
 bool performLineClipping(vtkPolyData* streamLines, vtkModifiedBSPTree* tree, int lineId, vtkCell* lineToClip, vtkPolyData* object, vtkPoints* outputPoints, vtkCellArray* outputLines, double &length) {
+    UNUSED(lineId);
+    UNUSED(object);
     /// - Iterate over all points in a line
     vtkIdList* ids = lineToClip->GetPointIds();
     /// - Identify a line segment included in the line
@@ -952,6 +952,8 @@ bool performLineClipping(vtkPolyData* streamLines, vtkModifiedBSPTree* tree, int
 
 /// @brief Perform a line clipping task
 void runTraceClipping(Options& opts, StringVector& args) {
+    UNUSED(opts);
+    
     string inputStreamsFile = args[0];
     string inputObjectFile = args[1];
     string outputStreamsFile = args[2];
@@ -987,7 +989,7 @@ void runStreamTracer(Options& opts, StringVector& args) {
     bool zRotate = opts.GetBool("-zrotate", false);
 
 
-    vtkDataSet* inputData;
+    vtkDataSet* inputData = NULL;
 
     // FIXME - create a dataset reader
     if (endswith(inputVTUFile, string(".vtu"))) {
@@ -1235,24 +1237,29 @@ void runFilterStream(Options& opts, StringVector& args) {
 
 /// @brief Rescale the streamline with a given length
 void runRescaleStream(Options& opts, StringVector& args) {
-    string inputStreamFile = args[0];
-    string inputDataFile = args[1];
-    string scalarName = opts.GetString("-scalarName");
-
-    vtkIO vio;
-    vtkPolyData* inputStream = vio.readFile(inputStreamFile);
-    vtkPolyData* inputData = vio.readFile(inputDataFile);
-    vtkDataArray* inputScalars = inputData->GetPointData()->GetScalars(scalarName.c_str());
-
-    for (int i = 0; i < inputStream->GetNumberOfLines(); i++) {
-        double length = inputScalars->GetTuple1(i);
-        vtkPolyLine* line = vtkPolyLine::SafeDownCast(inputStream->GetCell(i));
-        if (line == NULL) {
-            vtkLine* aline = vtkLine::SafeDownCast(inputStream->GetCell(i));
-        } else {
-            // reduce length
-        }
-    }
+//    string inputStreamFile = args[0];
+//    string inputDataFile = args[1];
+//    string scalarName = opts.GetString("-scalarName");
+//
+//    vtkIO vio;
+//    vtkPolyData* inputStream = vio.readFile(inputStreamFile);
+//    vtkPolyData* inputData = vio.readFile(inputDataFile);
+//    vtkDataArray* inputScalars = inputData->GetPointData()->GetScalars(scalarName.c_str());
+//
+//    for (int i = 0; i < inputStream->GetNumberOfLines(); i++) {
+//        double length = inputScalars->GetTuple1(i);
+//        UNUSED(length);
+//        vtkPolyLine* line = vtkPolyLine::SafeDownCast(inputStream->GetCell(i));
+//        if (line == NULL) {
+//            vtkLine* aline = vtkLine::SafeDownCast(inputStream->GetCell(i));
+//            UNUSED(aline);
+//        } else {
+//            // reduce length
+//        }
+//    }
+    UNUSED(opts);
+    UNUSED(args);
+    cout << "not implemented yet" << endl;
 }
 
 
@@ -1497,6 +1504,7 @@ void runSampleImage(Options& opts, StringVector& args) {
 
 /// @brief Compute the mean and Gaussian curvature for each point
 void runComputeCurvature(Options& opts, StringVector& args) {
+    UNUSED(opts);
     vtkIO vio;
 
     string inputModelFile = args[0];
@@ -1770,7 +1778,7 @@ int runIndexToPoint(Options& opts, StringVector& args) {
     cout << "Input Index: " << inputIdx << endl;
     StringVector values = split(inputIdx, ',');
     ImageType::IndexType idx;
-    for (int j = 0; j < values.size(); j++) {
+    for (unsigned int j = 0; j < values.size(); j++) {
         idx[j] = atoi(values[j].c_str());
     }
 
@@ -1791,12 +1799,12 @@ int runPointToIndex(Options& opts, StringVector& args) {
     StringVector values = split(inputPoint, ',');
     ImageType::PointType point;
 
-    for (int j = 0; j < values.size(); j++) {
+    for (unsigned int j = 0; j < values.size(); j++) {
         point[j] = atof(values[j].c_str());
     }
     
     
-    itk::ContinuousIndex<float,3> idx;
+    itk::ContinuousIndex<double,3> idx;
     ImageIO<ImageType> imgIO;
     ImageType::Pointer img = imgIO.ReadCastedImage(args[0]);
     img->TransformPhysicalPointToContinuousIndex(point, idx);
@@ -1807,6 +1815,8 @@ int runPointToIndex(Options& opts, StringVector& args) {
 
 
 int runImageInfo(Options& opts, StringVector& args) {
+    UNUSED(opts);
+    UNUSED(args);
     ImageInfo lastImageInfo;
     ImageIO<ImageType> imgIo;
     imgIo.ReadCastedImage(args[0], lastImageInfo);
@@ -1848,6 +1858,7 @@ void runPCA(Options& opts, StringVector& args) {
 
 /// @brief Perform Procrustes alignment
 void runProcrustes(Options& opts, StringVector& args) {
+    UNUSED(opts);
     int nInputs = args.size() / 2;
 
     vtkIO vio;
@@ -1961,7 +1972,7 @@ void runConnectScalars(Options& opts, StringVector& args) {
     }
 
     /// Update region Ids for every cell
-    for (unsigned int i = 0; i < nCells; i++) {
+    for (int i = 0; i < nCells; i++) {
         int regionId = regionIds->GetTuple1(i);
         regionIds->SetTuple1(i, regionRanking[regionId]);
     }
@@ -2552,12 +2563,15 @@ void runDetectRidge(Options& opts, StringVector& args) {
 
 /// @brief run TPS warping
 void runTPSWarp(Options& opts, StringVector& args) {
-    
+    UNUSED(opts);
+    UNUSED(args);
 }
 
 
 /// @brief run a test code
 void runTest(Options& opts, StringVector& args) {
+    UNUSED(opts);
+    UNUSED(args);
     vtkIO io;
 
     double v1[3] = {0, 0, 5 };
