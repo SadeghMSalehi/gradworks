@@ -35,11 +35,17 @@
 * -translatePoints
 	* Translate points by adding given tuples
 	* *ex)* -translatePoints=x,y,z [in-vtk] [out-vtk]
+* -meshInfo
+	* Print information about meshes
+	* *ex)* -meshInfo [in-vtk1] [in-vtk2] ...
 * -exportScalars
 	* Export scalar values to a text file
 	* *ex)* -exportScalars [in-mesh] [scalar.txt]
 * -importScalars
 	* Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]
+* -importCSV
+	* Add scalar values from a csv file into a given mesh
+	* *ex)* [-importCSV csv-file] [in-vtk] [out-vtk]
 * -indirectImportScalars
 	* Import scalar values indirectly via another mapping attribute
 	* *ex)* -indirectImportScalars in-vtk in-txt out-vtk -scalarName mapping-attribute -outputScalarName imported-attribute
@@ -56,8 +62,8 @@
 	* Copy a scalar array of the input model to the output model
 	* *ex)* -copyScalars input-model1 input-model2 output-model -scalarName name
 * -averageScalars
-	* Compute the average of scalars across given inputs
-	* *ex)* -averageScalars -o output-vtk input1-vtk input2-vtk ... 
+	* Compute the average of scalars across given inputs and add the average as a new scalar array, and save into with the same name
+	* *ex)* -averageScalars input1-vtk input2-vtk ... 
 * -connectScalars
 	* Compute the connected components based on scalars and assign region ids
 	* *ex)* -connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max
@@ -81,6 +87,9 @@
 * -imageInfo
 	* Print out basic image inforation like ImageStat
 	* *ex)* -imageInfo [image1] [image2] ...
+* -labelInfo
+	* Print out label information bounding box, volumes, etc
+	* *ex)* -labelInfo=l1,l2,...,l3 [image-file]
 * -appendData
 	* Append input meshes into a single data [output-mesh]
 * -computeCurvature
@@ -140,5 +149,9 @@
 * -ellipse
 	* Create an ellipse with parameters []
 	* *ex)* -ellipse 101 101 101 51 51 51 20 20 20 -o ellipse.nrrd
+* -verbose
+	* Print verbose information
+* -use-header
+	* Option to use header values (-importCSV)
 * -h
 	* print help message

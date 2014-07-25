@@ -382,6 +382,27 @@ namespace pi {
         return Split(val, tok);
     }
 
+    
+    IntVector Options::GetSplitIntVector(std::string name, std::string tok) {
+        StringVector data = GetSplitString(name, tok);
+        IntVector intVector;
+        for (int i = 0; i < data.size(); i++) {
+            intVector.push_back(atoi(data[i].c_str()));
+        }
+        return intVector;
+    }
+
+
+    DoubleVector Options::GetSplitDoubleVector(std::string name, std::string tok) {
+        StringVector data = GetSplitString(name, tok);
+        DoubleVector doubleVector;
+        for (int i = 0; i < data.size(); i++) {
+            doubleVector.push_back(atof(data[i].c_str()));
+        }
+        return doubleVector;
+    }
+
+    
     IntVector Options::GetStringAsIntVector(std::string name) {
         StringVector data = GetSplitString(name, ",");
         IntVector intVector;
@@ -493,5 +514,27 @@ namespace pi {
         }
         return data;
     }
+    
+    
+    IntVector Options::SplitAsInt(std::string str, char tok) {
+        IntVector data;
+        istringstream is(str);
+        string part;
+        while (getline(is, part, tok)) {
+            data.push_back(atoi(part.c_str()));
+        }
+        return data;
+    }
+
+    DoubleVector Options::SplitAsDouble(std::string str, char tok) {
+        DoubleVector data;
+        istringstream is(str);
+        string part;
+        while (getline(is, part, tok)) {
+            data.push_back(atof(part.c_str()));
+        }
+        return data;
+    }
+    
 }
 
