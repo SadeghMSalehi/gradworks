@@ -70,10 +70,10 @@ IF(${USE_VTK})
         kimage.h kimage.cpp
         piOptions.h piOptions.cpp
         vtkio.h vtkio.cpp
-		cvs_parser.h cvs_parser.cpp
+	csv_parser.h csv_parser.cpp
     )
     TARGET_LINK_LIBRARIES(kmesh ${ITK_LIBRARIES} ${VTK_LIBRARIES})
-    ADD_CUSTOM_COMMAND(TARGET kmesh POST_BUILD COMMAND kmesh -h > ${CMAKE_CURRENT_SOURCE_DIR}/kmesh.md)
+	#ADD_CUSTOM_COMMAND(TARGET kmesh POST_BUILD COMMAND kmesh -h > ${CMAKE_CURRENT_SOURCE_DIR}/kmesh.md)
 ENDIF(${USE_VTK})
 
 IF(${BUILD_KMBRAIN})

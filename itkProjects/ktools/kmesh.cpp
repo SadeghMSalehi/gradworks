@@ -1511,6 +1511,32 @@ void runEllipse(pi::Options &opts, StringVector &args) {
     exit(EXIT_SUCCESS);
 }
 
+
+/// @brief Check whether image is empty
+int runEmptyImageCheck(Options& opts, StringVector& args) {
+    string inputImageFile = args[0];
+    double thresholdMin = opts.GetReal("-thresholdMin", 0);
+    
+    ImageIO<ImageType> io;
+    ImageType::Pointer inputImage = io.ReadCastedImage(inputImageFile);
+    itk::ImageRegionConstIterator<ImageType> iter(inputImage, inputImage->GetBufferedRegion());
+    
+    int pixelCount = 0;
+    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+        if (iter.Get() >= thresholdMin) {
+            pixelCount ++;
+        }
+    }
+    
+    if (pixelCount > 0) {
+        cout << "NONEMPTY" << endl;
+        return 0;
+    } else {
+        cout << "EMPTY" << endl;
+        return 255;
+    }
+}
+
 /// @brief Sample pixel values from an image for a input model
 void runSampleImage(Options& opts, StringVector& args) {
     vtkIO vio;
@@ -1539,6 +1565,8 @@ void runSampleImage(Options& opts, StringVector& args) {
     attr->SetNumberOfComponents(1);
     attr->SetName("Pixels");
 
+    int pixelCount = 0;
+    
     /// - Loop over the entire pixel of the mask
     itk::ImageRegionIteratorWithIndex<ImageType> iter(inputImage, inputImage->GetBufferedRegion());
     for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
@@ -1553,6 +1581,8 @@ void runSampleImage(Options& opts, StringVector& args) {
 
             /// - Add a pixel value (a scalar or a vector)
             attr->InsertNextValue(pixel);
+            
+            pixelCount++;
         }
     }
     imageData->SetPoints(pointSet);
@@ -1561,7 +1591,11 @@ void runSampleImage(Options& opts, StringVector& args) {
     cout << " done" << endl;
 
     if (pointSet->GetNumberOfPoints() < 1) {
-        cout << "# of points should be greater than 0" << endl;
+        if (pixelCount == 0) {
+            cout << "empty image? " << inputImageFile << endl;
+        } else {
+            cout << "# of points should be greater than 0" << endl;
+        }
         return;
     }
     vtkKdTreePointLocator* locator = vtkKdTreePointLocator::New();
@@ -2759,8 +2793,8 @@ int main(int argc, char * argv[])
     opts.addOption("-threshold", "Threshold value [double]", SO_REQ_SEP);
     opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
     opts.addOption("-attrDim", "The number of components of attribute", "-attrDim 3 (vector)", SO_REQ_SEP);
-    opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream, -connectScalars", "-thresholdMin 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
-    opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream -connectScalars", "-thresholdMax 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
+    opts.addOption("-thresholdMin", "Give a minimum threshold value for -filterStream, -connectScalars -emptyImageCheck", "-thresholdMin 10 (select a cell whose attriubte is greater than 10)", SO_REQ_SEP);
+    opts.addOption("-thresholdMax", "Give a maximum threshold value for -filterStream -connectScalars -emptyImageCheck", "-thresholdMax 10 (select a cell whose attriubte is lower than 10)", SO_REQ_SEP);
     opts.addOption("-test", "Run test code", SO_NONE);
 
     // points handling
@@ -2785,6 +2819,9 @@ int main(int argc, char * argv[])
     opts.addOption("-connectScalars", "Compute the connected components based on scalars and assign region ids", "-connectScalars input.vtk output.vtk -scalarName scalar -thresholdMin min -thresholdMax max", SO_NONE);
     opts.addOption("-corrClustering", "Compute correlational clusters -corrClustering input-vtk -scalarName values-to-compute-correlation -outputScalarName clusterId", SO_NONE);
 
+    
+    // empty image check
+    opts.addOption("-emptyImageCheck", "Check whether a given image is empty using thresholdMin option", "-emptyImageCheck image.nrrd -thresholdMin=[1]", SO_NONE);
     // sampling from an image
     opts.addOption("-sampleImage", "Sample pixels for each point of a given model. Currently, only supported image type is a scalar", "-sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName", SO_NONE);
     opts.addOption("-voronoiImage", "Compute the voronoi image from a given data set. A reference image should be given.", "-voronoiImage ref-image.nrrd input-dataset output-image.nrrd -scalarName voxelLabel", SO_NONE);
@@ -2871,6 +2908,8 @@ int main(int argc, char * argv[])
         runCorrelationClustering(opts, args);
     } else if (opts.GetString("-appendData", "") != "") {
         runAppendData(opts, args);
+    } else if (opts.GetString("-emptyImageChcek") != "") {
+        return runEmptyImageCheck(opts, args);
     } else if (opts.GetBool("-sampleImage")) {
         runSampleImage(opts, args);
     } else if (opts.GetBool("-voronoiImage")) {
