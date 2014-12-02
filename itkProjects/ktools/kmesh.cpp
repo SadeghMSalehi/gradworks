@@ -2753,6 +2753,35 @@ void runDetectRidge(Options& opts, StringVector& args) {
 }
 
 
+/// @brief run Bspline Sampling
+void runBsplineSample(Options& opts, StringVector& args) {
+    string controlPointsFile = args[0];
+    string inputPointsFile = args[1];
+    string outputPointsFile = args[2];
+    
+    csv_parser csv;
+    csv.init(controlPointsFile.c_str());
+    csv.set_enclosed_char('"', ENCLOSURE_OPTIONAL);
+    csv.set_field_term_char(',');
+    csv.set_line_term_char('\n');
+    
+    for (int j = 0; csv.has_more_rows(); j++) {
+        csv_row row = csv.get_row();
+        for (int k = 0; k < row.size(); k++) {
+            float f = atof(row.at(k).c_str());
+            cout << f << " ";
+        }
+        cout << endl;
+    }
+}
+
+
+/// @brief run TPS Sampling
+void runTPSSample(Options& opts, StringVector& args) {
+    
+}
+
+
 
 /// @brief run TPS warping
 void runTPSWarp(Options& opts, StringVector& args) {
@@ -2847,6 +2876,8 @@ int main(int argc, char * argv[])
     opts.addOption("-traceClipping", "Clip stream lines to fit with an object", "-traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp", SO_NONE);
     opts.addOption("-traceScalarCombine", "Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.", "-traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied", SO_NONE);
     opts.addOption("-rescaleStream", "Rescale streamlines to fit with given lengths", "-rescaleStream input-stream-lines length.txt or input.vtp -scalarName scalarname", SO_NONE);
+    opts.addOption("-bsplineSample", "Apply b-spline transform", "-bsplineSample control-point-csv input-points-csv output-points-csv", SO_NONE);
+    opts.addOption("-tpsSample", "Apply thin-plate-spline transform", "-tpsSample source-landmark-csv target-landmark-csv input-points-csv output-points-csv", SO_NONE);
     
     
     /// TPS warping
@@ -2934,6 +2965,10 @@ int main(int argc, char * argv[])
         runFilterStream(opts, args);
     } else if (opts.GetBool("-rescaleStream")) {
         runRescaleStream(opts, args);
+    } else if (opts.GetBool("-bsplineSample")) {
+        runBsplineSample(opts, args);
+    } else if (opts.GetBool("-tpsSample")) {
+        runTPSSample(opts, args);
     } else if (opts.GetBool("-fitting")) {
         runFittingModel(opts, args);
     } else if (opts.GetBool("-ellipse")) {
