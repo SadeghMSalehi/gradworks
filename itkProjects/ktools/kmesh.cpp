@@ -16,6 +16,7 @@
 #include "piOptions.h"
 #include "vtkio.h"
 
+#include <vtkPoints.h>
 #include <vtkPolyData.h>
 #include <vtkPointData.h>
 #include <vtkIdList.h>
@@ -59,6 +60,11 @@
 #include <itkSpatialObjectToImageFilter.h>
 #include <itkNearestNeighborInterpolateImageFunction.h>
 #include <itkLabelStatisticsImageFilter.h>
+#include <itkBSplineTransform.h>
+#include <itkBSplineScatteredDataPointSetToImageFilter.h>
+#include <itkDisplacementFieldTransform.h>
+#include <itkPointSet.h>
+
 
 #include <vnl/vnl_matrix.h>
 #include <vnl/vnl_sparse_matrix.h>
@@ -2753,8 +2759,46 @@ void runDetectRidge(Options& opts, StringVector& args) {
 }
 
 
+void csv_to_vtkPoints(vtkPoints* points, csv_parser& csv) {
+    for (int j = 0; csv.has_more_rows(); j++) {
+        csv_row row = csv.get_row();
+        double p[3] = { 0, };
+        for (int k = 0; k < row.size(); k++) {
+            p[k] = atof(row.at(k).c_str());
+        }
+        points->InsertNextPoint(p);
+    }
+}
+
+void vtkPointsToCSV(vtkPoints* points, std::fstream& fout) {
+    for (int j = 0; j < points->GetNumberOfPoints(); j++) {
+        double p[3] = { 0, };
+        points->GetPoint(j, p);
+        fout << p[0] << "," << p[1] << "," << p[2] << endl;
+    }
+}
+
+
+void csv_to_vtkDoubleArray(vtkDoubleArray* array, csv_parser& csv) {
+    vector<double> temp;
+    for (int j = 0; csv.has_more_rows(); j++) {
+        csv_row row = csv.get_row();
+        if (j == 0) {
+            array->Initialize();
+            array->SetNumberOfTuples(row.size());
+        }
+        for (int k = 0; k < row.size(); k++) {
+            temp.push_back(atof(row.at(k).c_str()));
+        }
+        array->InsertNextTupleValue(&temp[0]);
+    }
+}
+
+
 /// @brief run Bspline Sampling
 void runBsplineSample(Options& opts, StringVector& args) {
+    using namespace itk;
+    
     string controlPointsFile = args[0];
     string inputPointsFile = args[1];
     string outputPointsFile = args[2];
@@ -2765,14 +2809,69 @@ void runBsplineSample(Options& opts, StringVector& args) {
     csv.set_field_term_char(',');
     csv.set_line_term_char('\n');
     
-    for (int j = 0; csv.has_more_rows(); j++) {
-        csv_row row = csv.get_row();
-        for (int k = 0; k < row.size(); k++) {
-            float f = atof(row.at(k).c_str());
-            cout << f << " ";
+    vtkDoubleArray* controlPointsArray = vtkDoubleArray::New();
+    csv_to_vtkDoubleArray(controlPointsArray, csv);
+
+    csv_parser inputPointsCSV;
+    inputPointsCSV.init(inputPointsFile.c_str());
+    inputPointsCSV.set_enclosed_char('"', ENCLOSURE_OPTIONAL);
+    inputPointsCSV.set_field_term_char(',');
+    inputPointsCSV.set_line_term_char('\n');
+    
+    vtkPoints* inputPoints = vtkPoints::New();
+    csv_to_vtkPoints(inputPoints, inputPointsCSV);
+    
+    
+    typedef itk::Vector<double,2> VectorType;
+    typedef itk::PointSet<VectorType,2> DisplacementFieldPointSetType;
+    typedef itk::Image<VectorType,2> DisplacementFieldType;
+    
+    DisplacementFieldPointSetType::Pointer m_FieldPoints;
+
+    typedef itk::BSplineScatteredDataPointSetToImageFilter
+    <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
+    BSplineFilterType::Pointer bspliner = BSplineFilterType::New();
+    
+    // parameter type declarations
+    DisplacementFieldType::SizeType size;
+    DisplacementFieldType::PointType origin;
+    DisplacementFieldType::SpacingType spacing;
+    DisplacementFieldType::DirectionType direction;
+
+    // initial parameters
+    int nControlPoints = 10;
+    int nSplineOrder = 3;
+    BSplineFilterType::ArrayType numControlPoints;
+    numControlPoints.Fill(nControlPoints + nSplineOrder);
+    
+    // landmark setup
+    for (int i = 0; i < n; i++) {
+        DisplacementFieldType::PointType srcPoint;
+        DisplacementFieldType::PointType dstPoint;
+        /*
+        fordim(j) {
+            srcPoint[j] = caster.castSource(src[i],j);
+            dstPoint[j] = caster.castTarget(dst[i],j);
         }
-        cout << endl;
+        VectorType vector;
+        fordim(j) {
+            vector[j] = caster.castTarget(dst[i],j) - caster.castSource(src[i],j);
+        }
+        m_FieldPoints->SetPoint(i, srcPoint);
+        m_FieldPoints->SetPointData(i, vector);
+        */
     }
+    
+    bspliner->SetOrigin(origin);
+    bspliner->SetSpacing(spacing);
+    bspliner->SetSize(size);
+    bspliner->SetDirection(direction);
+    bspliner->SetGenerateOutputImage(true);
+    bspliner->SetNumberOfLevels(3);
+    bspliner->SetSplineOrder(3);
+    bspliner->SetNumberOfControlPoints(numControlPoints);
+    bspliner->SetInput(m_FieldPoints);
+
 }
 
 
