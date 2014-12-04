@@ -2893,13 +2893,22 @@ void print_vtkPoints(vtkPoints* pp) {
 
 
 /// @brief run Bspline Sampling
+/// read source and target landmarks and estimate bspline transformation to match those
+/// to use ITK's Bspline transform, a physical space coordinate must be defined, which is given as an image
+/// ITK's Bspline transform produces a displacement field that has the same properties as the above image.
 void runBsplineSample(Options& opts, StringVector& args) {
     using namespace itk;
     
+    if (args.size() < 5) {
+        cout << "-bsplineSample requires at least 5 parameters" << endl;
+        return;
+    }
+    
     string sourceLandmarks = args[0];
     string targetLandmarks = args[1];
-    string inputPointsFile = args[2];
-    string outputPointsFile = args[3];
+    string referenceImageFile = args[2];
+    string inputPointsFile = args[3];
+    string outputPointsFile = args[4];
     
     // reading landmark points
     csv_parser csv1;
@@ -2907,35 +2916,31 @@ void runBsplineSample(Options& opts, StringVector& args) {
     vtkPoints* sourceLandmarkPoints = vtkPoints::New();
     csv_to_vtkPoints(sourceLandmarkPoints, csv1);
     
-    
     csv_parser csv2;
     csv_ready(csv2, targetLandmarks);
     vtkPoints* targetLandmarkPoints = vtkPoints::New();
     csv_to_vtkPoints(targetLandmarkPoints, csv2);
     
+    csv_parser csv3;
+    csv_ready(csv3, targetLandmarks);
+    vtkPoints* inputPoints = vtkPoints::New();
+    csv_to_vtkPoints(inputPoints, csv3);
+    
+    
+    // load the refrerence image
+    ImageIO<ImageType> io;
+    ImageType::Pointer referenceImage = io.ReadImage(referenceImageFile);
     
     // set up bspline filter
-    typedef itk::Vector<double,2> VectorType;
-    typedef itk::PointSet<VectorType,2> DisplacementFieldPointSetType;
-    typedef itk::Image<VectorType,2> DisplacementFieldType;
+    typedef itk::Vector<float,3> VectorType;
+    typedef itk::PointSet<VectorType,3> DisplacementFieldPointSetType;
+    typedef itk::Image<VectorType,3> DisplacementFieldType;
     
     DisplacementFieldPointSetType::Pointer m_FieldPoints;
 
     typedef itk::BSplineScatteredDataPointSetToImageFilter
     <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
     BSplineFilterType::Pointer bspliner = BSplineFilterType::New();
-    
-    // parameter type declarations
-    DisplacementFieldType::SizeType size;
-    DisplacementFieldType::PointType origin;
-    DisplacementFieldType::SpacingType spacing;
-    DisplacementFieldType::DirectionType direction;
-
-    // need to be careful to size size
-    size[0] = 10; size[1] = 10;
-    origin.Fill(0);
-    spacing.Fill(1);
-    direction.SetIdentity();
     
     // control points set up giving a regular grid
     int nControlPoints = 10;
@@ -2960,10 +2965,10 @@ void runBsplineSample(Options& opts, StringVector& args) {
         m_FieldPoints->SetPointData(i, vector);
     }
     
-    bspliner->SetOrigin(origin);
-    bspliner->SetSpacing(spacing);
-    bspliner->SetSize(size);
-    bspliner->SetDirection(direction);
+    bspliner->SetOrigin(referenceImage->GetOrigin());
+    bspliner->SetSpacing(referenceImage->GetSpacing());
+    bspliner->SetSize(referenceImage->GetBufferedRegion().GetSize());
+    bspliner->SetDirection(referenceImage->GetDirection());
     bspliner->SetGenerateOutputImage(true);
     bspliner->SetNumberOfLevels(3);
     bspliner->SetSplineOrder(3);
@@ -2972,22 +2977,11 @@ void runBsplineSample(Options& opts, StringVector& args) {
     bspliner->Update();
     BSplineFilterType::OutputImagePointer output = bspliner->GetOutput();
     
-    typedef itk::DisplacementFieldTransform<double, 2> DisplacementFieldTransformType;
+    typedef itk::DisplacementFieldTransform<float,3> DisplacementFieldTransformType;
     DisplacementFieldTransformType::Pointer transform = DisplacementFieldTransformType::New();
     transform->SetDisplacementField(output);
     
-    
 
-    // reading input points
-    csv_parser inputPointsCSV;
-    inputPointsCSV.init(inputPointsFile.c_str());
-    inputPointsCSV.set_enclosed_char('"', ENCLOSURE_OPTIONAL);
-    inputPointsCSV.set_field_term_char(',');
-    inputPointsCSV.set_line_term_char('\n');
-    
-    vtkPoints* inputPoints = vtkPoints::New();
-    csv_to_vtkPoints(inputPoints, inputPointsCSV);
-    
     vtkPoints* outputPoints = vtkPoints::New();
     outputPoints->SetNumberOfPoints(inputPoints->GetNumberOfPoints());
     
@@ -2999,7 +2993,7 @@ void runBsplineSample(Options& opts, StringVector& args) {
         outputPoints->SetPoint(j, outputPoint[0], outputPoint[1], 0);
     }
     
-//    vtkPoints_to_csv(outputPoints, outputPointsFile);
+    print_vtkPoints(outputPoints);
 }
 
 
