@@ -15,6 +15,7 @@
 class vtkPolyData;
 class vtkDataSet;
 class vtkDataArray;
+class vtkStructuredGrid;
 
 class vtkIO {
 public:
@@ -28,6 +29,8 @@ public:
     vtkPolyData* readFile(std::string file);
     void writeFile(std::string file, vtkDataSet* mesh);
     void writeXMLFile(std::string file, vtkPolyData* mesh);
+    
+    void writeXMLFile(std::string file, vtkStructuredGrid* grid);
 //    vtkDataArray* getPointArray(vtkDataSet* ds);
 
 };

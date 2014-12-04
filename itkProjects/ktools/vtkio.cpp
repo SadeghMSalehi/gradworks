@@ -10,11 +10,13 @@
 #include <vtkDataSet.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
+#include <vtkStructuredGrid.h>
 #include <vtkPolyDataReader.h>
 #include <vtkPolyDataWriter.h>
 #include <vtkXMLPolyDataReader.h>
 #include <vtkXMLPolyDataWriter.h>
 #include <vtkXMLUnstructuredGridWriter.h>
+#include <vtkXMLStructuredGridWriter.h>
 #include <vtkMath.h>
 #include <vtkPointData.h>
 
@@ -113,6 +115,12 @@ void vtkIO::writeFile(std::string file, vtkDataSet *mesh) {
         w->Delete();
     } else if (endswith(file, ".vtu")) {
         vtkXMLUnstructuredGridWriter* w = vtkXMLUnstructuredGridWriter::New();
+        w->SetInput(mesh);
+        w->SetFileName(file.c_str());
+        w->Write();
+        w->Delete();
+    } else if (endswith(file, ".vts")) {
+        vtkXMLStructuredGridWriter* w = vtkXMLStructuredGridWriter::New();
         w->SetInput(mesh);
         w->SetFileName(file.c_str());
         w->Write();

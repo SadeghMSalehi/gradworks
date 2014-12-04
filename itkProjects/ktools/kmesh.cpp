@@ -53,6 +53,10 @@
 #include <vtkPolyDataNormals.h>
 #include <vtkTransform.h>
 #include <vtkBoundingBox.h>
+#include <vtkThinPlateSplineTransform.h>
+#include <vtkTransformPolyDataFilter.h>
+#include <vtkStructuredGrid.h>
+#include <vtkGeometryFilter.h>
 
 #include <itkImage.h>
 #include <itkVectorNearestNeighborInterpolateImageFunction.h>
@@ -342,6 +346,58 @@ void runMeshInfo(Options& opts, StringVector& args) {
     }
 }
 
+
+void runCreateGrid(Options& opts, StringVector& args, string outputFile) {
+    int xdim = atoi(args[0].c_str());
+    int ydim = atoi(args[1].c_str());
+    int zdim = atoi(args[2].c_str());
+    
+    float xspacing = 1.0;
+    float yspacing = 1.0;
+    float zspacing = 1.0;
+    
+    if (args.size() >= 6) {
+        xspacing = atof(args[3].c_str());
+        yspacing = atof(args[4].c_str());
+        zspacing = atof(args[5].c_str());
+    }
+    
+    int xcnt = (int) ceil(xdim / xspacing);
+    int ycnt = (int) ceil(ydim / yspacing);
+    int zcnt = (int) ceil(zdim / zspacing);
+    
+    cout << "point setting.." << endl;
+    vtkPoints* gridPoints = vtkPoints::New();
+    gridPoints->SetNumberOfPoints(xcnt*ycnt*zcnt);
+    int pid = 0;
+    for (int zd = 0; zd < zcnt; zd++) {
+        for (int yd = 0; yd < ycnt; yd++) {
+            for (int xd = 0; xd < xcnt; xd++) {
+                gridPoints->SetPoint(pid++, xd*xspacing, yd*yspacing, zd*zspacing);
+            }
+        }
+    }
+    
+    cout << "done.." << endl;
+    
+    vtkStructuredGrid* grid = vtkStructuredGrid::New();
+    grid->SetDimensions(xcnt, ycnt, zcnt);
+    grid->SetPoints(gridPoints);
+    grid->Update();
+    
+    cout << "grid update done.." << endl;
+    
+    vtkGeometryFilter* geom = vtkGeometryFilter::New();
+    geom->SetInput(grid);
+    geom->Update();
+    vtkPolyData* gridPoly = geom->GetOutput();
+    cout << "polygon conversion done.." << endl;
+    cout << "# of points: " << gridPoly->GetNumberOfPoints() << endl;
+
+    vtkIO io;
+    io.writeXMLFile(outputFile, gridPoly);
+    cout << "file writing done.." << endl;
+}
 
 
 void runSPHARMCoeff(Options& opts, StringVector& args) {
@@ -1542,6 +1598,30 @@ int runEmptyImageCheck(Options& opts, StringVector& args) {
         return 255;
     }
 }
+
+void runNewImage2(Options& opts, StringVector& args) {
+
+}
+
+void runNewImage3(Options& opts, StringVector& args) {
+    int xd = atoi(args[0].c_str());
+    int yd = atoi(args[1].c_str());
+    int zd = atoi(args[2].c_str());
+    
+    float spacing[3] = { 1, 1, 1 };
+    for (int j = 3; j < 6; j++) {
+        spacing[j-3] = atof(args[j].c_str());
+    }
+    
+    ImageIO<ImageType> io;
+    ImageType::Pointer newImage = io.NewImageT(xd, yd, zd);
+    newImage->SetSpacing(spacing);
+    newImage->Print(cout);
+    
+    string outputFile = opts.GetString("-o", "output.nrrd");
+    io.WriteImage(outputFile, newImage);
+}
+
 
 /// @brief Sample pixel values from an image for a input model
 void runSampleImage(Options& opts, StringVector& args) {
@@ -2759,6 +2839,13 @@ void runDetectRidge(Options& opts, StringVector& args) {
 }
 
 
+void csv_ready(csv_parser& csv, string filename) {
+    csv.init(filename.c_str());
+    csv.set_enclosed_char('"', ENCLOSURE_OPTIONAL);
+    csv.set_field_term_char(',');
+    csv.set_line_term_char('\n');
+}
+
 void csv_to_vtkPoints(vtkPoints* points, csv_parser& csv) {
     for (int j = 0; csv.has_more_rows(); j++) {
         csv_row row = csv.get_row();
@@ -2794,34 +2881,40 @@ void csv_to_vtkDoubleArray(vtkDoubleArray* array, csv_parser& csv) {
     }
 }
 
+void print_vtkPoints(vtkPoints* pp) {
+    if (pp == NULL) {
+        return;
+    }
+    for (int j = 0; j < pp->GetNumberOfPoints(); j++) {
+        cout << pp->GetPoint(j)[0] << "," << pp->GetPoint(j)[1] << endl;
+    }
+    cout << endl;
+}
+
 
 /// @brief run Bspline Sampling
 void runBsplineSample(Options& opts, StringVector& args) {
     using namespace itk;
     
-    string controlPointsFile = args[0];
-    string inputPointsFile = args[1];
-    string outputPointsFile = args[2];
+    string sourceLandmarks = args[0];
+    string targetLandmarks = args[1];
+    string inputPointsFile = args[2];
+    string outputPointsFile = args[3];
     
-    csv_parser csv;
-    csv.init(controlPointsFile.c_str());
-    csv.set_enclosed_char('"', ENCLOSURE_OPTIONAL);
-    csv.set_field_term_char(',');
-    csv.set_line_term_char('\n');
-    
-    vtkDoubleArray* controlPointsArray = vtkDoubleArray::New();
-    csv_to_vtkDoubleArray(controlPointsArray, csv);
-
-    csv_parser inputPointsCSV;
-    inputPointsCSV.init(inputPointsFile.c_str());
-    inputPointsCSV.set_enclosed_char('"', ENCLOSURE_OPTIONAL);
-    inputPointsCSV.set_field_term_char(',');
-    inputPointsCSV.set_line_term_char('\n');
-    
-    vtkPoints* inputPoints = vtkPoints::New();
-    csv_to_vtkPoints(inputPoints, inputPointsCSV);
+    // reading landmark points
+    csv_parser csv1;
+    csv_ready(csv1, sourceLandmarks);
+    vtkPoints* sourceLandmarkPoints = vtkPoints::New();
+    csv_to_vtkPoints(sourceLandmarkPoints, csv1);
     
     
+    csv_parser csv2;
+    csv_ready(csv2, targetLandmarks);
+    vtkPoints* targetLandmarkPoints = vtkPoints::New();
+    csv_to_vtkPoints(targetLandmarkPoints, csv2);
+    
+    
+    // set up bspline filter
     typedef itk::Vector<double,2> VectorType;
     typedef itk::PointSet<VectorType,2> DisplacementFieldPointSetType;
     typedef itk::Image<VectorType,2> DisplacementFieldType;
@@ -2838,28 +2931,33 @@ void runBsplineSample(Options& opts, StringVector& args) {
     DisplacementFieldType::SpacingType spacing;
     DisplacementFieldType::DirectionType direction;
 
-    // initial parameters
+    // need to be careful to size size
+    size[0] = 10; size[1] = 10;
+    origin.Fill(0);
+    spacing.Fill(1);
+    direction.SetIdentity();
+    
+    // control points set up giving a regular grid
     int nControlPoints = 10;
     int nSplineOrder = 3;
     BSplineFilterType::ArrayType numControlPoints;
     numControlPoints.Fill(nControlPoints + nSplineOrder);
     
     // landmark setup
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < sourceLandmarkPoints->GetNumberOfPoints(); i++) {
         DisplacementFieldType::PointType srcPoint;
         DisplacementFieldType::PointType dstPoint;
-        /*
-        fordim(j) {
-            srcPoint[j] = caster.castSource(src[i],j);
-            dstPoint[j] = caster.castTarget(dst[i],j);
+
+        for (int j = 0; j < 2; j++) {
+            srcPoint[j] = sourceLandmarkPoints->GetPoint(i)[j];
+            dstPoint[j] = targetLandmarkPoints->GetPoint(i)[j];
         }
         VectorType vector;
-        fordim(j) {
-            vector[j] = caster.castTarget(dst[i],j) - caster.castSource(src[i],j);
+        for (int j = 0; j < 2; j++) {
+            vector[j] = dstPoint[j] - srcPoint[j];
         }
         m_FieldPoints->SetPoint(i, srcPoint);
         m_FieldPoints->SetPointData(i, vector);
-        */
     }
     
     bspliner->SetOrigin(origin);
@@ -2871,13 +2969,77 @@ void runBsplineSample(Options& opts, StringVector& args) {
     bspliner->SetSplineOrder(3);
     bspliner->SetNumberOfControlPoints(numControlPoints);
     bspliner->SetInput(m_FieldPoints);
+    bspliner->Update();
+    BSplineFilterType::OutputImagePointer output = bspliner->GetOutput();
+    
+    typedef itk::DisplacementFieldTransform<double, 2> DisplacementFieldTransformType;
+    DisplacementFieldTransformType::Pointer transform = DisplacementFieldTransformType::New();
+    transform->SetDisplacementField(output);
+    
+    
 
+    // reading input points
+    csv_parser inputPointsCSV;
+    inputPointsCSV.init(inputPointsFile.c_str());
+    inputPointsCSV.set_enclosed_char('"', ENCLOSURE_OPTIONAL);
+    inputPointsCSV.set_field_term_char(',');
+    inputPointsCSV.set_line_term_char('\n');
+    
+    vtkPoints* inputPoints = vtkPoints::New();
+    csv_to_vtkPoints(inputPoints, inputPointsCSV);
+    
+    vtkPoints* outputPoints = vtkPoints::New();
+    outputPoints->SetNumberOfPoints(inputPoints->GetNumberOfPoints());
+    
+    for (int j = 0; j < inputPoints->GetNumberOfPoints(); j++) {
+        double* pointj = inputPoints->GetPoint(j);
+        DisplacementFieldType::PointType point;
+        point[0] = pointj[0]; point[1] = pointj[1];
+        DisplacementFieldType::PointType outputPoint = transform->TransformPoint(point);
+        outputPoints->SetPoint(j, outputPoint[0], outputPoint[1], 0);
+    }
+    
+//    vtkPoints_to_csv(outputPoints, outputPointsFile);
 }
 
 
 /// @brief run TPS Sampling
 void runTPSSample(Options& opts, StringVector& args) {
+    string sourceLandmarksCSVFile = args[0];
+    string targetLandmarksCSVFile = args[1];
+    string inputFile = args[2];
     
+    csv_parser sourceLandmarkCSV;
+    csv_ready(sourceLandmarkCSV, sourceLandmarksCSVFile);
+    vtkPoints* sourcePoints = vtkPoints::New();
+    csv_to_vtkPoints(sourcePoints, sourceLandmarkCSV);
+    print_vtkPoints(sourcePoints);
+    
+    csv_parser targetLandmarkCSV;
+    csv_ready(targetLandmarkCSV, targetLandmarksCSVFile);
+    vtkPoints* targetPoints = vtkPoints::New();
+    csv_to_vtkPoints(targetPoints, targetLandmarkCSV);
+    print_vtkPoints(targetPoints);
+    
+    vtkThinPlateSplineTransform* tps = vtkThinPlateSplineTransform::New();
+    tps->SetSourceLandmarks(sourcePoints);
+    tps->SetTargetLandmarks(targetPoints);
+    tps->SetBasisToR2LogR();
+    tps->SetSigma(10);
+    
+    
+    vtkIO io;
+    vtkPolyData* inputPolyData = io.readFile(inputFile);
+    print_vtkPoints(inputPolyData->GetPoints());
+
+    vtkTransformPolyDataFilter* transformer = vtkTransformPolyDataFilter::New();
+    transformer->SetTransform(tps);
+    transformer->SetInput(inputPolyData);
+    transformer->Update();
+    
+    vtkPolyData* output = transformer->GetOutput();
+    print_vtkPoints(output->GetPoints());
+    io.writeFile(args[3], output);
 }
 
 
@@ -2930,6 +3092,7 @@ int main(int argc, char * argv[])
     opts.addOption("-importPoints", "Read points in a text file into a vtk file", "-importPoints [in-mesh] [txt] -o [out-vtk]", SO_NONE);
     opts.addOption("-translatePoints", "Translate points by adding given tuples", "-translatePoints=x,y,z [in-vtk] [out-vtk]", SO_REQ_SEP);
     opts.addOption("-meshInfo", "Print information about meshes", "-meshInfo [in-vtk1] [in-vtk2] ...", SO_NONE);
+    opts.addOption("-createGrid", "create a structured grid for vtk", "-createGrid xdim ydim zdim -o output.vtk", SO_NONE);
     
     // scalar array handling
     opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
@@ -2950,6 +3113,9 @@ int main(int argc, char * argv[])
     
     // empty image check
     opts.addOption("-emptyImageCheck", "Check whether a given image is empty using thresholdMin option", "-emptyImageCheck image.nrrd -thresholdMin=[1]", SO_NONE);
+    
+    // new empty image creation
+    opts.addOption("-newImage3", "Create a new image with given image parameters (dimension and spacing)", "-newImage xdim ydim zdim xspacing yspacing zspacing -o ouptut-image", SO_NONE);
     // sampling from an image
     opts.addOption("-sampleImage", "Sample pixels for each point of a given model. Currently, only supported image type is a scalar", "-sampleImage image.nrrd model.vtp output.vtp -outputScalarName scalarName", SO_NONE);
     opts.addOption("-voronoiImage", "Compute the voronoi image from a given data set. A reference image should be given.", "-voronoiImage ref-image.nrrd input-dataset output-image.nrrd -scalarName voxelLabel", SO_NONE);
@@ -3014,6 +3180,9 @@ int main(int argc, char * argv[])
         runTranslatePoints(opts, args);
     } else if (opts.GetBool("-meshInfo")) {
         runMeshInfo(opts, args);
+    } else if (opts.GetBool("-createGrid")) {
+        string outputFile = opts.GetString("-o", "output.vtp");
+        runCreateGrid(opts, args, outputFile);
     } else if (opts.GetBool("-smoothScalars")) {
         runScalarSmoothing(opts, args);
     } else if (opts.GetBool("-importScalars")) {
@@ -3040,6 +3209,8 @@ int main(int argc, char * argv[])
         runAppendData(opts, args);
     } else if (opts.GetString("-emptyImageChcek") != "") {
         return runEmptyImageCheck(opts, args);
+    } else if (opts.GetBool("-newImage3")) {
+        runNewImage3(opts, args);
     } else if (opts.GetBool("-sampleImage")) {
         runSampleImage(opts, args);
     } else if (opts.GetBool("-voronoiImage")) {
