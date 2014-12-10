@@ -240,6 +240,35 @@ void runExportPoints(Options& opts, StringVector& args) {
 }
 
 
+void runExportPointsCSV(Options& opts, StringVector& args) {
+    string inputFile = args[0];
+    vtkIO vio;
+    vtkPolyData* input = vio.readFile(inputFile);
+    const unsigned int nPoints = input->GetNumberOfPoints();
+    
+    string outputText = opts.GetString("-o");
+    if (outputText == "") {
+        cout << "output file must be specified" << endl;
+        return;
+    }
+    
+    ofstream fout(outputText.c_str());
+    for (unsigned int j = 0; j < nPoints; j++) {
+        double* p = input->GetPoint(j);
+        for (int k = 0; k < 3; k++) {
+            if (k > 0) {
+                fout << ",";
+            }
+            float nearest = floorf(p[k] * 1e8 + 0.5) / 1e8;
+            fout << nearest;
+        }
+        fout << endl;
+    }
+    fout.close();
+}
+
+
+
 void runImportPoints(Options& opts, StringVector& args) {
     string inputFile = args[0];
     string txtFile = args[1];
@@ -2107,6 +2136,40 @@ int runLabelInfo(Options& opts, StringVector& args) {
 }
 
 
+/// @brief change image information like ImageMath
+void runChangeImageInfo(Options& opts, StringVector& args) {
+    
+    cout << opts.GetString("-imageOrigin") << endl;
+    DoubleVector origin = opts.GetSplitDoubleVector("-imageOrigin", ",");
+    for (int j = 0; j < origin.size(); j++) {
+        cout << origin[j] << endl;
+    }
+    
+    RealVector spacing = opts.GetRealVector("-imageSpacing");
+    if (opts.GetBool("-imageSpacing")) {
+        spacing = opts.GetRealVector("-imageSpacing");
+    }
+    
+    for (int j = 0; j < args.size(); j++) {
+        ImageIO<ImageType> imgIO;
+        ImageInfo imgType;
+        ImageType::Pointer img = imgIO.ReadCastedImage(args[j], imgType);
+        ImageType::SpacingType imgSpacing = img->GetSpacing();
+        ImageType::PointType imgOrigin = img->GetOrigin();
+        for (int k = 0; k < ImageType::GetImageDimension(); k++) {
+            if (origin.size() > k) {
+                imgOrigin[k] = origin[k];
+            }
+            if (spacing.size() > k) {
+                imgSpacing[k] = spacing[k];
+            }
+        }
+        img->SetSpacing(imgSpacing);
+        img->SetOrigin(imgOrigin);
+        imgIO.WriteCastedImage(opts.GetString("-o", "output.nrrd"), img, imgType.componenttype);
+    }
+}
+
 /// @brief Run PCA analysis
 void runPCA(Options& opts, StringVector& args) {
     vtkIO vio;
@@ -2915,28 +2978,39 @@ void runBsplineSample(Options& opts, StringVector& args) {
     csv_ready(csv1, sourceLandmarks);
     vtkPoints* sourceLandmarkPoints = vtkPoints::New();
     csv_to_vtkPoints(sourceLandmarkPoints, csv1);
+    if (0 == sourceLandmarkPoints->GetNumberOfPoints()) {
+        cout << "source landmark points is null" << endl;
+        return;
+    }
     
     csv_parser csv2;
     csv_ready(csv2, targetLandmarks);
     vtkPoints* targetLandmarkPoints = vtkPoints::New();
     csv_to_vtkPoints(targetLandmarkPoints, csv2);
+    if (0 == targetLandmarkPoints->GetNumberOfPoints()) {
+        cout << "target landmark points is null" << endl;
+        return;
+    }
+
+    vtkIO vio;
+    vtkPolyData* poly = vio.readFile(inputPointsFile);
+    vtkPoints* inputPoints = poly->GetPoints();
+    if (0 == inputPoints->GetNumberOfPoints()) {
+        cout << "input points is null" << endl;
+        return;
+    }
     
-    csv_parser csv3;
-    csv_ready(csv3, targetLandmarks);
-    vtkPoints* inputPoints = vtkPoints::New();
-    csv_to_vtkPoints(inputPoints, csv3);
-    
-    
+    static const int nDim = 2;
+    typedef itk::Image<float,nDim> ImageType;
+    typedef itk::Vector<float,nDim> VectorType;
+    typedef itk::PointSet<VectorType,nDim> DisplacementFieldPointSetType;
+    typedef itk::Image<VectorType,nDim> DisplacementFieldType;
+    typedef itk::DisplacementFieldTransform<float,nDim> DisplacementFieldTransformType;
     // load the refrerence image
     ImageIO<ImageType> io;
     ImageType::Pointer referenceImage = io.ReadImage(referenceImageFile);
     
-    // set up bspline filter
-    typedef itk::Vector<float,3> VectorType;
-    typedef itk::PointSet<VectorType,3> DisplacementFieldPointSetType;
-    typedef itk::Image<VectorType,3> DisplacementFieldType;
-    
-    DisplacementFieldPointSetType::Pointer m_FieldPoints;
+
 
     typedef itk::BSplineScatteredDataPointSetToImageFilter
     <DisplacementFieldPointSetType, DisplacementFieldType> BSplineFilterType;
@@ -2948,36 +3022,47 @@ void runBsplineSample(Options& opts, StringVector& args) {
     BSplineFilterType::ArrayType numControlPoints;
     numControlPoints.Fill(nControlPoints + nSplineOrder);
     
+    
+    DisplacementFieldPointSetType::Pointer fieldPoints = DisplacementFieldPointSetType::New();
     // landmark setup
     for (int i = 0; i < sourceLandmarkPoints->GetNumberOfPoints(); i++) {
         DisplacementFieldType::PointType srcPoint;
         DisplacementFieldType::PointType dstPoint;
 
-        for (int j = 0; j < 2; j++) {
+        for (int j = 0; j < nDim; j++) {
             srcPoint[j] = sourceLandmarkPoints->GetPoint(i)[j];
             dstPoint[j] = targetLandmarkPoints->GetPoint(i)[j];
         }
         VectorType vector;
-        for (int j = 0; j < 2; j++) {
+        for (int j = 0; j < nDim; j++) {
             vector[j] = dstPoint[j] - srcPoint[j];
         }
-        m_FieldPoints->SetPoint(i, srcPoint);
-        m_FieldPoints->SetPointData(i, vector);
+        fieldPoints->SetPoint(i, srcPoint);
+        fieldPoints->SetPointData(i, vector);
     }
     
     bspliner->SetOrigin(referenceImage->GetOrigin());
     bspliner->SetSpacing(referenceImage->GetSpacing());
     bspliner->SetSize(referenceImage->GetBufferedRegion().GetSize());
     bspliner->SetDirection(referenceImage->GetDirection());
-    bspliner->SetGenerateOutputImage(true);
+    bspliner->SetGenerateOutputImage(false);
     bspliner->SetNumberOfLevels(3);
     bspliner->SetSplineOrder(3);
     bspliner->SetNumberOfControlPoints(numControlPoints);
-    bspliner->SetInput(m_FieldPoints);
+    bspliner->SetInput(fieldPoints);
+//    bspliner->SetDebug(true);
+    
+    cout << "begin bspline update ..." << endl;
     bspliner->Update();
     BSplineFilterType::OutputImagePointer output = bspliner->GetOutput();
-    
-    typedef itk::DisplacementFieldTransform<float,3> DisplacementFieldTransformType;
+//    ImageRegionConstIteratorWithIndex<BSplineFilterType::OutputImageType> iter(output, output->GetBufferedRegion());
+//    
+//    for (iter.GoToBegin(); !iter.IsAtEnd(); ++iter) {
+//        BSplineFilterType::OutputImageType::PixelType vec = iter.Get();
+//        cout << iter.GetIndex() << ", " << vec << endl;
+//    }
+//    
+
     DisplacementFieldTransformType::Pointer transform = DisplacementFieldTransformType::New();
     transform->SetDisplacementField(output);
     
@@ -2993,7 +3078,8 @@ void runBsplineSample(Options& opts, StringVector& args) {
         outputPoints->SetPoint(j, outputPoint[0], outputPoint[1], 0);
     }
     
-    print_vtkPoints(outputPoints);
+    poly->SetPoints(outputPoints);
+    vio.writeXMLFile(outputPointsFile, poly);
 }
 
 
@@ -3083,6 +3169,7 @@ int main(int argc, char * argv[])
 
     // points handling
     opts.addOption("-exportPoints", "Save points into a text file", "-exportPoints [in-mesh] -o [out-txt]", SO_NONE);
+    opts.addOption("-exportPointsCSV", "Save points into a csv file", "-exportPointsCSV [in-mesh] -o [out-txt]", SO_NONE);
     opts.addOption("-importPoints", "Read points in a text file into a vtk file", "-importPoints [in-mesh] [txt] -o [out-vtk]", SO_NONE);
     opts.addOption("-translatePoints", "Translate points by adding given tuples", "-translatePoints=x,y,z [in-vtk] [out-vtk]", SO_REQ_SEP);
     opts.addOption("-meshInfo", "Print information about meshes", "-meshInfo [in-vtk1] [in-vtk2] ...", SO_NONE);
@@ -3118,6 +3205,11 @@ int main(int argc, char * argv[])
     opts.addOption("-pointToIndex", "Transform a physical point to an index", "-pointToIndex=x,y,z [image-file]", SO_REQ_SEP);
     opts.addOption("-imageInfo", "Print out basic image inforation like ImageStat", "-imageInfo [image1] [image2] ...", SO_NONE);
     opts.addOption("-labelInfo", "Print out label information bounding box, volumes, etc", "-labelInfo=l1,l2,...,l3 [image-file]", SO_REQ_SEP);
+    
+    // change image information
+    opts.addOption("-changeImageInfo", "Change image information such as image origin and spacing", "-changeImageInfo -imageOrigin=0,0,0 -imageSpacing=0.1,0.1,0.1", SO_NONE);
+    opts.addOption("-imageOrigin", "provide image origin info", "-origin=0,0,0", SO_REQ_CMB);
+    opts.addOption("-imageSpacing", "provide image spacing info", "-origin=0,0,0", SO_REQ_CMB);
 
     // mesh processing
     opts.addOption("-appendData", "Append input meshes into a single data [output-mesh]", SO_REQ_SEP);
@@ -3170,6 +3262,8 @@ int main(int argc, char * argv[])
         runImportPoints(opts, args);
     } else if (opts.GetBool("-exportPoints")) {
         runExportPoints(opts, args);
+    } else if (opts.GetBool("-exportPointsCSV")) {
+        runExportPointsCSV(opts, args);
     } else if (opts.GetString("-translatePoints") != "") {
         runTranslatePoints(opts, args);
     } else if (opts.GetBool("-meshInfo")) {
@@ -3219,6 +3313,8 @@ int main(int argc, char * argv[])
         return runImageInfo(opts, args);
     } else if (opts.GetString("-labelInfo") != "") {
         return runLabelInfo(opts, args);
+    } else if (opts.GetBool("-changeImageInfo")) {
+        runChangeImageInfo(opts, args);
     } else if (opts.GetBool("-vti")) {
         runConvertITK2VTI(opts, args);
     } else if (opts.GetBool("-vtu")) {

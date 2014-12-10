@@ -9,9 +9,8 @@ int main(int argc, char* argv[]) {
 	vtkMNIObjectReader* r = vtkMNIObjectReader::New();
 	r->SetFileName(argv[1]);
 	r->Update();
-	vtkPolyData* p = r->GetOutput();
 	vtkPolyDataWriter* w = vtkPolyDataWriter::New();
 	w->SetFileName(argv[2]);
-	w->SetInput(p);
+	w->SetInput(r->GetOutputPort());
 	w->Write();
 }

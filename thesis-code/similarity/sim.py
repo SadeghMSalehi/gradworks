@@ -1,7 +1,35 @@
 import Image
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, PowerNorm
+
+
+def two_scale(t, s1, s2, fname = ""):
+    plt.ticklabel_format(sytle='sci')
+    fig = plt.figure(figsize=(8,4))
+
+    ax1 = plt.gca()
+    ax1.plot(t, s1, 'b-')
+    ax1.set_xlabel('Translation')
+    # Make the y-axis label and tick labels match the line color.
+    ax1.set_ylabel('MI', color='b')
+    ax1.ticklabel_format(style='sci')
+    for tl in ax1.get_yticklabels():
+        tl.set_color('b')
+
+    ax2 = ax1.twinx()
+    ax2.plot(t, s2, 'r.')
+    ax2.set_ylabel('NMI', color='r')
+    ax2.ticklabel_format(style='sci')
+
+    for tl in ax2.get_yticklabels():
+        tl.set_color('r')
+
+    if fname == "":
+        plt.show()
+    else:
+        plt.savefig(fname)
+
 
 def ssd(r1, r2):
     rd = r1-r2
@@ -147,43 +175,69 @@ def compute_MI(data):
                 pxy = data[j,k]/hh
                 if (px>0 and py> 0 and pxy > 0):
                     mi += pxy * np.log(pxy/px*py)
-                    if np.isnan(mi):
+                    hh += -pxy*np.log(pxy)
+                    if np.isnan(mi) and np.isnan(hh):
                         print "NaN", mi
-    return mi
+    return (mi, mi/hh*1e5)
 
 
 def mi_test():
     img = Image.open("/Prime/Thesis-Data/SimilarityMetric/UNC_train_Case05_T1_sagittal_slice_0265.png").convert("L")
     arr = 1.0*np.array(img)
     (nx, ny) = arr.shape
-    values = []
+
+    t_values = []
+    mi_values = []
+    nmi_values = []
+
     j = 0
     r1 = arr[:, (nx/2-j):].flatten()
     r2 = arr[:, 0:(nx/2+j)].flatten()
     #histo2d(r1,r2)
-    nBins = 8
-    for j in range(1, nx/2, 8):
+    cm = plt.cm.get_cmap('RdYlBu_r')
+
+    jvalues = range(1, nx/2, 8)
+    nBins = 64
+    for j in jvalues:
         print j
         r1 = arr[:, (nx/2-j):].flatten()
         r2 = arr[:, 0:(nx/2+j)].flatten()
         (H, xedges, yedges) = np.histogram2d(r1, r2, bins=nBins)
-        mi = compute_MI(H)
-        print mi
-        values.append(mi)
+        mi, nmi = compute_MI(H)
+        print mi, nmi
+        t_values.append(j)
+        mi_values.append(mi)
+        nmi_values.append(nmi)
         if j == 1:
+            np.savetxt('/Prime/Thesis-Data/SimilarityMetric/mitest1.txt', np.array((r1,r2)))
             plt.figure()
-            plt.hist2d(r1, r2, bins=nBins, norm=LogNorm())
+            n, xedges, yedges, patches = plt.hist2d(r1, r2, bins=nBins, norm=LogNorm())
             plt.colorbar()
             plt.savefig("/Prime/Thesis-Data/SimilarityMetric/mitest1.pdf")
         if nx/2-j<8:
+            np.savetxt('/Prime/Thesis-Data/SimilarityMetric/mitest2.txt', np.array((r1,r2)))
             plt.figure()
             plt.hist2d(r1, r2, bins=nBins, norm=LogNorm())
             plt.colorbar()
             plt.savefig("/Prime/Thesis-Data/SimilarityMetric/mitest2.pdf")
-    values.extend(values[-2::-1])
-    plt.plot(values, 'g+')
-    plt.ylabel('MI')
-    plt.xlabel('Displacement')
+
+
+    #jvalues.extend(list(range(nx/2,nx,8)))
+
+    jvalues.extend(list(range(nx/2,nx-8,8)))
+    mi_values.extend(mi_values[-2::-1])
+    nmi_values.extend(nmi_values[-2::-1])
+
+    print len(jvalues), len(mi_values), len(nmi_values)
+
+    two_scale(jvalues, mi_values, nmi_values, "/Prime/Thesis-Data/SimilarityMetric/miplot.pdf")
+    #
+    # plt.figure()
+    # plt.plot(mi_values, 'g')
+    # plt.plot(nmi_values, 'b')
+    # plt.ylabel('MI')
+    # plt.xlabel('Displacement')
+    # plt.savefig("/Prime/Thesis-Data/SimilarityMetric/miplot.pdf")
 
 
 def main():
