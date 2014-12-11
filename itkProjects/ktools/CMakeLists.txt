@@ -64,13 +64,21 @@ IF(${USE_VTK})
     )
     TARGET_LINK_LIBRARIES(kvoxelizer ${ITK_LIBRARIES} ${VTK_LIBRARIES})
     
+    ADD_EXECUTABLE(kreg 
+        kreg.h kreg.cpp
+        kimage.h kimage.cpp
+		piImageIO.h
+        piOptions.h piOptions.cpp
+    )
+    TARGET_LINK_LIBRARIES(kreg ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+    
     ADD_EXECUTABLE(kmesh
         kmesh.h kmesh.cpp
         kstreamtracer.h kstreamtracer.cpp
         kimage.h kimage.cpp
         piOptions.h piOptions.cpp
         vtkio.h vtkio.cpp
-	csv_parser.h csv_parser.cpp
+		csv_parser.h csv_parser.cpp
     )
     TARGET_LINK_LIBRARIES(kmesh ${ITK_LIBRARIES} ${VTK_LIBRARIES})
 	#ADD_CUSTOM_COMMAND(TARGET kmesh POST_BUILD COMMAND kmesh -h > ${CMAKE_CURRENT_SOURCE_DIR}/kmesh.md)
