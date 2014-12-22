@@ -27,6 +27,7 @@ public:
 
 
     vtkPolyData* readFile(std::string file);
+    vtkDataArray* findFieldData(vtkPolyData* dataSet, std::string propertyName);
     void writeFile(std::string file, vtkDataSet* mesh);
     void writeXMLFile(std::string file, vtkPolyData* mesh);
     

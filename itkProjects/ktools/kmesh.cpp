@@ -19,6 +19,7 @@
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
 #include <vtkPointData.h>
+#include <vtkFieldData.h>
 #include <vtkIdList.h>
 #include <vtkFloatArray.h>
 #include <vtkMath.h>
@@ -49,6 +50,9 @@
 #include <vtkLandmarkTransform.h>
 #include <vtkPolyDataConnectivityFilter.h>
 #include <vtkThreshold.h>
+#include <vtkThresholdPoints.h>
+#include <vtkCellDataToPointData.h>
+#include <vtkPointDataToCellData.h>
 #include <vtkConnectivityFilter.h>
 #include <vtkPolyDataNormals.h>
 #include <vtkTransform.h>
@@ -647,6 +651,11 @@ void runExportScalars(Options& opts, StringVector& args) {
     file.close();
 }
 
+void runConvertPointScalars(Options& opts, StringVector& args) {
+    string inputDataFile = args[0];
+   string outputDataFile = args[2];
+}
+
 
 /// @brief Import vector values
 void runImportVectors(Options& opts, StringVector& args) {
@@ -861,6 +870,49 @@ void runExportVectors(Options& opts, StringVector& args) {
     return;
 }
 
+
+/// @brief Export field data values into csv format
+void runExportFieldData(Options& opts, StringVector& args) {
+    string inputDataFile = args[0];
+    string csvOutputFile = args[1];
+    string propertyName = opts.GetString("-inputProperty", "");
+    if (propertyName == "") {
+        cout << "-inputProperty must be given" << endl;
+        return;
+    }
+    
+    vtkIO vio;
+
+    cout << "reading " << inputDataFile << endl;
+    vtkPolyData* inputData = vio.readFile(inputDataFile);
+    cout << "seeking " << propertyName << endl;
+    vtkDataArray* fieldData = inputData->GetFieldData()->GetArray(propertyName.c_str());
+
+    
+    if (fieldData == NULL) {
+        cout << "Can't find the field data values: " << propertyName << endl;
+        return;
+    }
+    
+    const int nCols = fieldData->GetNumberOfComponents();
+    const int nRows = fieldData->GetNumberOfTuples();
+    
+    ofstream out(csvOutputFile.c_str());
+    std::vector<double> row;
+    row.resize(nCols);
+    for (int i = 0; i < nRows; i++) {
+        fieldData->GetTuple(i, &row[0]);
+        for (int j = 0; j < nCols; j++) {
+            if (j > 0) {
+                out << "\t";
+            }
+            out << row[j];
+        }
+        out << endl;
+    }
+    out.close();
+    return;
+}
 
 /// @brief Copy a scalar list to another object
 void runCopyScalars(Options& opts, StringVector& args) {
@@ -2230,7 +2282,9 @@ static bool sortSecond(const std::pair<int,double> &left, const std::pair<int,do
 /// Fourth, threshold each region with the computed area, exclude below 20%.
 void runConnectScalars(Options& opts, StringVector& args) {
     string inputFile = args[0];
+    string outputVTKFile = args[1];
     string scalarName = opts.GetString("-scalarName");
+    
 
     vtkIO vio;
     vtkPolyData* inputData = vio.readFile(inputFile.c_str());
@@ -2239,17 +2293,26 @@ void runConnectScalars(Options& opts, StringVector& args) {
     const double tmin = opts.GetStringAsReal("-thresholdMin", itk::NumericTraits<double>::min());
     const double tmax = opts.GetStringAsReal("-thresholdMax", itk::NumericTraits<double>::max());
 
-    inputData->GetPointData()->SetScalars(inputData->GetPointData()->GetScalars(scalarName.c_str()));
+    
+    /// Why is this necessary?
+    /// this is required to run vtkThreshold
+    vtkDataArray* scalarData = inputData->GetPointData()->GetScalars(scalarName.c_str());
+    inputData->GetPointData()->SetScalars(scalarData);
+    
+    vtkPointDataToCellData* converter = vtkPointDataToCellData::New();
+    converter->SetInput(inputData);
+    converter->PassPointDataOn();
+    vtkDataSet* inputDataSet = converter->GetOutput();
 
     vtkIntArray* originalIds = vtkIntArray::New();
     originalIds->SetName("OriginalId");
     for (int i = 0; i < nPoints; i++) {
         originalIds->InsertNextValue(i);
     }
-    inputData->GetPointData()->AddArray(originalIds);
+    inputDataSet->GetPointData()->AddArray(originalIds);
 
     vtkThreshold* threshold = vtkThreshold::New();
-    threshold->SetInput(inputData);
+    threshold->SetInput(inputDataSet);
     threshold->ThresholdBetween(tmin, tmax);
     threshold->Update();
 
@@ -2262,11 +2325,14 @@ void runConnectScalars(Options& opts, StringVector& args) {
     vtkUnstructuredGrid* connComp = conn->GetOutput();
     int nCells = connComp->GetNumberOfCells();
 
+    
+    /// Connectivity output assigns the region id for each cell
     vtkDataArray* regionIds = connComp->GetCellData()->GetScalars("RegionId");
     double regionIdRange[2];
     regionIds->GetRange(regionIdRange);
     int maxId = regionIdRange[1];
 
+    
     /// Compute the area of each region
     typedef std::pair<int, double> IntPair;
     std::vector<IntPair> regionAreas;
@@ -2282,20 +2348,23 @@ void runConnectScalars(Options& opts, StringVector& args) {
             continue;
         }
         double area = tri->ComputeArea();
-        regionAreas[regionIds->GetTuple1(i)].first = regionIds->GetTuple1(i);
-        regionAreas[regionIds->GetTuple1(i)].second += area;
+        int regionId = regionIds->GetTuple1(i);;
+        regionAreas[regionId].first = regionIds->GetTuple1(i);
+        regionAreas[regionId].second += area;
     }
+
+
 
     /// Propagate areas to each cell
-    vtkDoubleArray* cellArea = vtkDoubleArray::New();
-    cellArea->SetName("RegionArea");
-    cellArea->SetNumberOfTuples(nCells);
-
-    for (int i = 0; i < nCells; i++) {
-        int regionId = regionIds->GetTuple1(i);
-        cellArea->SetTuple1(i, regionAreas[regionId].second);
-    }
-    connComp->GetCellData()->AddArray(cellArea);
+//    vtkDoubleArray* cellArea = vtkDoubleArray::New();
+//    cellArea->SetName("RegionArea");
+//    cellArea->SetNumberOfTuples(nCells);
+//
+//    for (int i = 0; i < nCells; i++) {
+//        int regionId = regionIds->GetTuple1(i);
+//        cellArea->SetTuple1(i, regionAreas[regionId].second);
+//    }
+//    connComp->GetCellData()->AddArray(cellArea);
 
 
     std::sort(regionAreas.begin(), regionAreas.end(), sortSecond);
@@ -2308,9 +2377,8 @@ void runConnectScalars(Options& opts, StringVector& args) {
     /// Re-label regionIds in the decreasing order of its area
     std::vector<int> regionRanking;
     regionRanking.resize(regionAreas.size());
-
     for (unsigned int i = 0; i < regionRanking.size(); i++) {
-        regionRanking[regionAreas[i].first] = (i+1);
+        regionRanking[regionAreas[i].first] = i;
     }
 
     /// Update region Ids for every cell
@@ -2319,14 +2387,58 @@ void runConnectScalars(Options& opts, StringVector& args) {
         regionIds->SetTuple1(i, regionRanking[regionId]);
     }
 
+    
     /// Update the RegionId in point data
+    /// Collect scalar informations
     vtkDataArray* regionIds2 = connComp->GetPointData()->GetScalars("RegionId");
+    vtkDataArray* regionScalars = connComp->GetPointData()->GetArray(scalarName.c_str());
+    
+    std::vector<std::vector<double> > scalarCollection0;
+    std::vector<vnl_vector<double> > scalarCollection;
+    
+    scalarCollection0.resize(maxId+1);
+    scalarCollection.resize(maxId+1);
+    
     for (unsigned int i = 0; i < regionIds2->GetNumberOfTuples(); i++) {
         int regionId = regionIds2->GetTuple1(i);
         regionIds2->SetTuple1(i, regionRanking[regionId]);
+
+        /// collect scalar information per region
+        double scalarValue = regionScalars->GetTuple1(i);
+        if (scalarValue > tmax || scalarValue < tmin) {
+            cout << "error in scalar value" << scalarValue << endl;
+        }
+        scalarCollection0[regionId].push_back(scalarValue);
     }
-
-
+    
+    /// transform scalarCollection0 into scalarCollection
+    /// as it is convenient to compute statistics using vnl library
+    for (int j = 0; j < scalarCollection.size(); j++) {
+        scalarCollection[j].set_size(scalarCollection0[j].size());
+        scalarCollection[j].copy_in(&scalarCollection0[j][0]);
+    }
+    
+    
+    /// Construct a summary field data containing four components: area, minScalar, maxScalar, avgScalar
+    vtkDoubleArray* regionalInfo = vtkDoubleArray::New();
+    regionalInfo->SetName("RegionalSummary");
+    regionalInfo->SetNumberOfValues(regionAreas.size());
+    regionalInfo->SetNumberOfComponents(4);
+    for (int j = 0; j < regionAreas.size(); j++) {
+        double minValue = 0;
+        double maxValue = 0;
+        double meanValue = 0;
+        if (scalarCollection[j].size() > 0) {
+            minValue = scalarCollection[j].min_value();
+            maxValue = scalarCollection[j].max_value();
+            meanValue = scalarCollection[j].mean();
+        }
+        regionalInfo->SetTuple4(j, regionAreas[j].second, minValue, maxValue, meanValue);
+    }
+    inputData->GetFieldData()->AddArray(regionalInfo);
+    
+    
+    
     /// Compute the 90% percentile
     double totalPer = 0, areaMin = 0;
     for (int i = 0; i < maxId; i++) {
@@ -2338,58 +2450,37 @@ void runConnectScalars(Options& opts, StringVector& args) {
     }
 
     cout << "Minimum Region Area for 90%: " << areaMin << endl;
-
-    /// Threshold each cell with area
-    vtkThreshold* areaThresholder = vtkThreshold::New();
-    areaThresholder->SetInput(connComp);
-    areaThresholder->ThresholdByUpper(areaMin);
-    areaThresholder->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_CELLS, "RegionArea");
-    areaThresholder->Update();
-    vtkUnstructuredGrid* areaOutput = areaThresholder->GetOutput();
-
-
-
-    /// New RegonId array
-    vtkIntArray* pointRegionIds = vtkIntArray::New();
-    pointRegionIds->SetName("RegionIds");
-    pointRegionIds->SetNumberOfTuples(nPoints);
-    for (int i = 0; i < pointRegionIds->GetNumberOfTuples(); i++) {
-        pointRegionIds->SetTuple1(i, 0);
-    }
-
-    vtkDataArray* areaRegionIds = areaOutput->GetPointData()->GetScalars("RegionId");
-    vtkDataArray* pointIds = areaOutput->GetPointData()->GetScalars("OriginalId");
-    for (int i = 0; i < pointIds->GetNumberOfTuples(); i++) {
-        int ptid = pointIds->GetTuple1(i);
-        int regionId = areaRegionIds->GetTuple1(i);
-
-        pointRegionIds->SetTuple1(ptid, regionId);
-    }
-
-    inputData->GetPointData()->AddArray(pointRegionIds);
-    vio.writeFile(args[1], inputData);
-
-
-//    vtkDataArray* scalars = inputData->GetPointData()->GetScalars(scalarName.c_str());
-//    for (int i = 0; i < nPoints; i++) {
-//        double value = scalars->GetTuple1(i);
-//        if (value < tmin || value > tmax) {
-//            value = std::numeric_limits<double>::quiet_NaN();
-//        }
+//
+//    /// Threshold each cell with area
+//    vtkThreshold* areaThresholder = vtkThreshold::New();
+//    areaThresholder->SetInput(connComp);
+//    areaThresholder->ThresholdByUpper(areaMin);
+//    areaThresholder->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_CELLS, "RegionArea");
+//    areaThresholder->Update();
+//    vtkUnstructuredGrid* areaOutput = areaThresholder->GetOutput();
+//
+//
+//
+//    /// New RegonId array
+//    vtkIntArray* pointRegionIds = vtkIntArray::New();
+//    pointRegionIds->SetName("RegionIds");
+//    pointRegionIds->SetNumberOfTuples(nPoints);
+//    for (int i = 0; i < pointRegionIds->GetNumberOfTuples(); i++) {
+//        pointRegionIds->SetTuple1(i, 0);
+//    }
+//
+//    vtkDataArray* areaRegionIds = areaOutput->GetPointData()->GetScalars("RegionId");
+//    vtkDataArray* pointIds = areaOutput->GetPointData()->GetScalars("OriginalId");
+//    for (int i = 0; i < pointIds->GetNumberOfTuples(); i++) {
+//        int ptid = pointIds->GetTuple1(i);
+//        int regionId = areaRegionIds->GetTuple1(i);
+//
+//        pointRegionIds->SetTuple1(ptid, regionId);
 //    }
 
+//    inputData->GetPointData()->AddArray(pointRegionIds);
+    vio.writeFile(outputVTKFile, inputData);
 
-//    vtkPolyDataConnectivityFilter* conf = vtkPolyDataConnectivityFilter::New();
-//    conf->SetInput(inputData);
-//    conf->ScalarConnectivityOn();
-//    conf->SetExtractionModeToAllRegions();
-//    conf->FullScalarConnectivityOn();
-//    conf->ColorRegionsOn();
-//    conf->SetScalarRange(0, 0.05);
-//    conf->Update();
-
-//    vtkPolyData* output = conf->GetOutput();
-//    vio.writeFile(args[1], output);
 }
 
 
@@ -2446,9 +2537,10 @@ struct SecondComp {
 /// @brief Perform correlation-based clustering
 void runCorrelationClustering(Options& opts, StringVector& args) {
     string inputDataFile = args[0];
+    string outputDataFile = args[1];
+    
     string inputVectorName = opts.GetString("-scalarName", "VectorValues");
     string outputScalarName = opts.GetString("-outputScalarName", "CorrClusters");
-    string outputDataFile = args[1];
 
     vtkIO vio;
     vtkPolyData* inputData = vio.readFile(inputDataFile);
@@ -3159,6 +3251,7 @@ int main(int argc, char * argv[])
     opts.addOption("-n", "Specify n (integer number) for an operation. Refer related options", "-n integer",SO_REQ_SEP);
     opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
     opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
+    opts.addOption("-inputProperty", "scalar name, vector name, or equivalent property name", "-inputProperty propertyName", SO_REQ_SEP);
     opts.addOption("-sigma", "sigma value [double]", SO_REQ_SEP);
     opts.addOption("-threshold", "Threshold value [double]", SO_REQ_SEP);
     opts.addOption("-iter", "number of iterations [int]", SO_REQ_SEP);
@@ -3179,11 +3272,14 @@ int main(int argc, char * argv[])
     opts.addOption("-exportScalars", "Export scalar values to a text file", "-exportScalars [in-mesh] [scalar.txt]", SO_NONE);
     
     opts.addOption("-importScalars", "Add scalar values to a mesh [in-mesh] [scalar.txt] [out-mesh]", SO_NONE);
+    opts.addOption("-pointdata2celldata", "convert pointdata to celldata [in-mesh] [out-mesh]", SO_NONE);
     opts.addOption("-importCSV", "Add scalar values from a csv file into a given mesh", "[-importCSV csv-file] [in-vtk] [out-vtk]", SO_REQ_SEP);
     opts.addOption("-indirectImportScalars", "Import scalar values indirectly via another mapping attribute", "-indirectImportScalars in-vtk in-txt out-vtk -scalarName mapping-attribute -outputScalarName imported-attribute", SO_NONE);
     opts.addOption("-smoothScalars", "Gaussian smoothing of scalar values of a mesh. [in-mesh] [out-mesh]", SO_NONE);
     opts.addOption("-importVectors", "Add vector values to a mesh [in-mesh] [scalar.txt] [out-mesh] [-computeVectorStats]", SO_NONE);
     opts.addOption("-exportVectors", "Export vector values to a mesh [in-mesh] [scalar.txt]", SO_NONE);
+    opts.addOption("-exportFieldData", "Export field data to a csv format [in-mesh] [scalar.txt]", SO_NONE);
+
     opts.addOption("-computeVectorStats", "Compute mean and std for a vector attribute", "-importVectors ... [-computeVectorStats]", SO_NONE);
 
     opts.addOption("-copyScalars", "Copy a scalar array of the input model to the output model", "-copyScalars input-model1 input-model2 output-model -scalarName name", SO_NONE);
@@ -3281,10 +3377,14 @@ int main(int argc, char * argv[])
         runIndirectImportScalars(opts, args);
     } else if (opts.GetBool("-exportScalars")) {
         runExportScalars(opts, args);
+    } else if (opts.GetBool("-pointdata2celldata")) {
+        runConvertPointScalars(opts, args);
     } else if (opts.GetBool("-importVectors")) {
         runImportVectors(opts, args);
     } else if (opts.GetBool("-exportVectors")) {
         runExportVectors(opts, args);
+    } else if (opts.GetBool("-exportFieldData")) {
+        runExportFieldData(opts, args);
     } else if (opts.GetBool("-copyScalars")) {
         runCopyScalars(opts, args);
     } else if (opts.GetBool("-averageScalars")) {

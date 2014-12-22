@@ -9,7 +9,7 @@ def two_scale(t, s1, s2, fname = ""):
     fig = plt.figure(figsize=(8,4))
 
     ax1 = plt.gca()
-    ax1.plot(t, s1, 'b-')
+    ax1handle = ax1.plot(t, s1, 'b-', label="MI")
     ax1.set_xlabel('Translation')
     # Make the y-axis label and tick labels match the line color.
     ax1.set_ylabel('MI', color='b')
@@ -18,9 +18,12 @@ def two_scale(t, s1, s2, fname = ""):
         tl.set_color('b')
 
     ax2 = ax1.twinx()
-    ax2.plot(t, s2, 'r.')
+    ax2handle = ax2.plot(t, s2, 'r.',label="NMI")
     ax2.set_ylabel('NMI', color='r')
     ax2.ticklabel_format(style='sci')
+
+
+    plt.legend([ax1handle, (ax1handle, ax2handle)], ("MI", "NMI"))
 
     for tl in ax2.get_yticklabels():
         tl.set_color('r')
@@ -45,6 +48,7 @@ def ncc(r1, r2):
 
 
 def ssd_test():
+    # registration of identical images
     img = Image.open("/Prime/Thesis-Data/SimilarityMetric/UNC_train_Case05_T1_sagittal_slice_0265.png").convert("L")
     arr = 1.0*np.array(img)
     (nx, ny) = arr.shape
@@ -56,11 +60,15 @@ def ssd_test():
         values.append(ssd(r1, r2))
 
     values.extend(values[-2::-1])
-    plt.plot(np.arange(-255,254),values)
+    plt.figure(figsize=(6,4))
+    plt.plot(np.arange(-255,254),values, label="SSD")
     plt.ylabel('SSD')
     plt.xlabel('Displacement')
+    plt.legend()
+    plt.savefig("/Prime/Thesis-Data/SimilarityMetric/SSD_plot.pdf")
 
 def ssd_test2():
+    # registration of a T1 image and its inverse
     img = Image.open("/Prime/Thesis-Data/SimilarityMetric/UNC_train_Case05_T1_sagittal_slice_0265.png").convert("L")
     arr = 1.0*np.array(img)
     arr2 = -1.0*arr-2
@@ -72,9 +80,12 @@ def ssd_test2():
         r2 = np.squeeze(arr2[:, 0:(nx/2+j)])
         values.append(ssd(r1, r2))
     values.extend(values[-2::-1])
-    plt.plot(np.arange(-255,254),values, 'g')
+    plt.figure(figsize=(6,4))
+    plt.plot(np.arange(-255,254),values, 'g', label="SSD")
     plt.ylabel('SSD')
     plt.xlabel('Displacement')
+    plt.legend()
+    plt.savefig("/Prime/Thesis-Data/SimilarityMetric/SSD_plot_inverted.pdf")
 
 
 def ncc_test():
@@ -88,9 +99,12 @@ def ncc_test():
         r2 = np.squeeze(arr[:, 0:(nx/2+j)])
         values.append(-np.abs(ncc(r1,r2)))
     values.extend(values[-2::-1])
-    plt.plot(np.arange(-255,254), values, 'bo')
+    plt.figure(figsize=(6,4))
+    plt.plot(np.arange(-255,254), values, label="NCC")
     plt.ylabel('NCC')
     plt.xlabel('Displacement')
+    plt.legend()
+    plt.savefig("/Prime/Thesis-Data/SimilarityMetric/NCC_plot.pdf")
 
 
 def ncc_test2():
@@ -103,13 +117,18 @@ def ncc_test2():
     imgx.save("/Prime/Thesis-Data/SimilarityMetric/UNC_train_Case05_T1_sagittal_slice_0265_inv.png")
     values = []
     for j in range(1, nx/2, 1):
-        r1 = np.flatten(arr[:, (nx/2-j):])
-        r2 = np.flatten(arr2[:, 0:(nx/2+j)])
+        r1 = arr[:, (nx/2-j):]
+        r1.flatten()
+        r2 = arr2[:, 0:(nx/2+j)]
+        r2.flatten()
         values.append(-np.abs(ncc(r1,r2)))
     values.extend(values[-2::-1])
-    plt.plot(np.arange(-255,254),values, 'g+')
+    plt.figure(figsize=(6,4))
+    plt.plot(np.arange(-255,254), values, label="NCC")
     plt.ylabel('NCC')
     plt.xlabel('Displacement')
+    plt.legend()
+    plt.savefig("/Prime/Thesis-Data/SimilarityMetric/NCC_plot_inverted.pdf")
 
 
 def ssd_test_mm():
@@ -230,7 +249,17 @@ def mi_test():
 
     print len(jvalues), len(mi_values), len(nmi_values)
 
-    two_scale(jvalues, mi_values, nmi_values, "/Prime/Thesis-Data/SimilarityMetric/miplot.pdf")
+    plt.figure(figsize=(6,4))
+    plt.plot(jvalues, mi_values, label="MI")
+    plt.legend()
+    plt.savefig("/Prime/Thesis-Data/SimilarityMetric/miplot_MI.pdf")
+
+    plt.figure(figsize=(6,4))
+    plt.plot(jvalues, nmi_values, label="NMI")
+    plt.legend()
+    plt.savefig("/Prime/Thesis-Data/SimilarityMetric/miplot_NMI.pdf")
+
+    #two_scale(jvalues, mi_values, nmi_values, "/Prime/Thesis-Data/SimilarityMetric/miplot.pdf")
     #
     # plt.figure()
     # plt.plot(mi_values, 'g')
@@ -241,13 +270,14 @@ def mi_test():
 
 
 def main():
-    # ssd_test()
-    # ssd_test2()
+    #ssd_test()
+    #ssd_test2()
     # plt.savefig("/Prime/Thesis-Data/SimilarityMetric/ssdtest.pdf")
     # plt.figure()
-    # ncc_test()
-    mi_test()
-    plt.savefig("/Prime/Thesis-Data/SimilarityMetric/mitest.pdf")
+    ncc_test()
+    ncc_test2()
+    #mi_test()
+    #plt.savefig("/Prime/Thesis-Data/SimilarityMetric/mitest.pdf")
     # ssd_test_mm()
     # plt.savefig("/Prime/Thesis-Data/SimilarityMetric/ssdtest_mm.pdf")
     # plt.figure()

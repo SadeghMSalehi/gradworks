@@ -10,6 +10,7 @@
 #include <vtkDataSet.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
+#include <vtkFieldData.h>
 #include <vtkStructuredGrid.h>
 #include <vtkPolyDataReader.h>
 #include <vtkPolyDataWriter.h>
@@ -99,6 +100,26 @@ vtkPolyData* vtkIO::readFile(std::string file) {
     return NULL;
 }
 
+
+vtkDataArray* vtkIO::findFieldData(vtkPolyData* dataSet, std::string propertyName) {
+    vtkDataArray* dataArray = NULL;
+    int nArr = dataSet->GetFieldData()->GetNumberOfArrays();
+    
+    dataSet->Print(cout);
+
+    cout << "number of arrays found: " << nArr << endl;
+    for (int j = 0; j < nArr; j++) {
+        std::string arrayName(dataSet->GetFieldData()->GetArrayName(j));
+        std::cout << "found " << arrayName << std::endl;
+        if (propertyName == arrayName) {
+            dataArray = dataSet->GetPointData()->GetArray(j);
+            break;
+        }
+    }
+    return dataArray;
+}
+
+
 /// @brief Write a vtk/vtp file. The file's type is automatically determined by its extension.
 void vtkIO::writeFile(std::string file, vtkDataSet *mesh) {
     if (endswith(file, ".vtp")) {
@@ -148,7 +169,7 @@ void vtkIO::writeXMLFile(std::string file, vtkPolyData *mesh) {
 //
 //    vtkDataArray* da = NULL;
 //    for (int i = 0; i < ds->GetPointData()->GetNumberOfArrays(); i++) {
-//        ds->GetPointData()->GetArray(<#const char *arrayName#>)
+//        ds->GetPointData()->GetArray(const char *arrayName)
 //    }
 //
 //    return da;

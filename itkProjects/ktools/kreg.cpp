@@ -2,6 +2,7 @@
 #include "itkImage.h"
 #include "itkImageRegistrationMethod.h"
 #include "itkLinearInterpolateImageFunction.h"
+#include "itkNearestNeighborInterpolateImageFunction.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkMeanSquaresImageToImageMetric.h"
@@ -32,6 +33,7 @@ typedef itk::MeanSquaresImageToImageMetric<ImageType, ImageType> MetricType;
 //  Finally, the type of the interpolator is declared. The interpolator will
 //  evaluate the intensities of the moving image at non-grid positions.
 typedef itk:: LinearInterpolateImageFunction<ImageType, double> InterpolatorType;
+typedef itk::NearestNeighborInterpolateImageFunction<ImageType, double> NNInterpolatorType;
 
 
 int optimizeRegistration(ImageType::Pointer fixedImage, ImageType::Pointer movingImage, ImageType::Pointer outputImage) {
@@ -234,7 +236,7 @@ void generateMetricMap(ImageType::Pointer fixedImage, ImageType::Pointer movingI
 }
 
 
-void applyTransform(ImageType::Pointer inputImage, ImageType::Pointer& outputImage, pi::IntVector intParams) {
+void applyTransform(ImageType::Pointer inputImage, ImageType::Pointer& outputImage, pi::IntVector intParams, bool useNN) {
     typedef itk::ResampleImageFilter<ImageType, ImageType> ResampleFilterType;
     RigidTransformType::Pointer      transform     = RigidTransformType::New();
     RigidTransformType::ParametersType params;
@@ -252,6 +254,10 @@ void applyTransform(ImageType::Pointer inputImage, ImageType::Pointer& outputIma
     fixedParams[1] = 256;
     transform->SetFixedParameters(fixedParams);
     cout << "Txf Fixed Parameters: " << fixedParams << endl;
+    
+    
+    NNInterpolatorType::Pointer nn = NNInterpolatorType::New();
+    
 
 //    transform->SetFixedParameters(params);
 
@@ -281,7 +287,11 @@ void applyTransform(ImageType::Pointer inputImage, ImageType::Pointer& outputIma
     resampler->SetOutputOrigin(  inputImage->GetOrigin() );
     resampler->SetOutputSpacing( inputImage->GetSpacing() );
     resampler->SetOutputDirection( inputImage->GetDirection() );
+    if (useNN) {
+        resampler->SetInterpolator(nn);
+    }
     resampler->SetDefaultPixelValue( 255 );
+    
     
     //  The output of the filter is passed to a writer that will store the
     //  image in a file. An \doxygen{CastImageFilter} is used to convert the
@@ -307,6 +317,7 @@ int main(int argc, char* argv[]) {
     opts.addOption("--reg", "run registration", "fixed-image moving-image output-image", SO_NONE);
     opts.addOption("--mse", "generate meansquare error map", "fixed-image moving-image output-image", SO_NONE);
     opts.addOption("--txf", "generate transformed image", "moving-image --params=angle,tx,ty", SO_NONE);
+    opts.addOption("--nn", "use nearest neighbor interpolation for transformation", SO_NONE);
     opts.addOption("--params", "set parameter values", SO_REQ_SEP);
     
     pi::StringVector args = opts.ParseOptions(argc, argv, NULL);
@@ -330,7 +341,8 @@ int main(int argc, char* argv[]) {
         }
     } else if (opts.GetBool("--txf")) {
         pi::IntVector params = opts.GetStringAsIntVector("--params");
-        applyTransform(fixedImage, outputImage, params);
+        bool useNN = opts.GetBool("--nn", false);
+        applyTransform(fixedImage, outputImage, params, useNN);
         if (!outputImage.IsNull()) {
             imgIO.WriteImage(args[1], outputImage);
             cout << "writing done ..." << endl;
