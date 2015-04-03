@@ -2,7 +2,7 @@ __author__ = 'joohwi'
 
 import random,csv,glob
 
-root = "/Prime/Thesis-Data/Rodent-Thickness/RPV_Thickness/RPV1+3/RPV3_AIE_vs_RPV3_Control_Right/Statistical/Permtest"
+# permutation test result
 
 files = glob.glob("/Prime/Thesis-Data/Rodent-Thickness/RPV_Thickness/RPV1+3/RPV3_AIE_vs_RPV3_Control_Right/Statistical/Permtest/*_regions.txt")
 

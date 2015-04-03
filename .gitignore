@@ -57,3 +57,4 @@ _ReSharper*/
 
 # Office Temp Files
 ~$*
+.Rproj.user

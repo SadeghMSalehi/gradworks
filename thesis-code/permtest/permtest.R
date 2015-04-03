@@ -48,6 +48,8 @@ permhist = function(o2, pvalues, observed, ppvalue, count, total) {
   dev.off()
 }
 
+
+# actual permutation test
 permtest = function(f1,f2,o1,o2=NULL) {
   data1.input_df = read.table(f1)[,-1]
   data2.input_df = read.table(f2)[,-1]
@@ -75,6 +77,7 @@ permtest = function(f1,f2,o1,o2=NULL) {
     data1.random = combined[,indexes[,i]]
     data2.random = combined[,-indexes[,i]]
     
+    # average data comparison
     diff.random[i] = mean(c(data2.random)) - mean(c(data1.random))
     diff.pvalues[i] = t.test(c(data2.random), c(data1.random))$p.value
   }

@@ -48,6 +48,10 @@ permhist = function(o2, pvalues, observed, ppvalue, count, total) {
   dev.off()
 }
 
+
+
+# read f1 and f2 that contains thickness measurements for each group
+# perform combined t-test
 permtest = function(f1,f2) {
   data1.input_df = read.table(f1)[,-1]
   data2.input_df = read.table(f2)[,-1]

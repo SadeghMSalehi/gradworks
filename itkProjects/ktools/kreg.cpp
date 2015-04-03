@@ -6,6 +6,7 @@
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkMeanSquaresImageToImageMetric.h"
+#include "itkMattesMutualInformationImageToImageMetric.h"
 #include "itkRegularStepGradientDescentOptimizer.h"
 #include "itkResampleImageFilter.h"
 #include "itkRescaleIntensityImageFilter.h"
@@ -29,10 +30,11 @@ typedef itk::Rigid2DTransform<double> RigidTransformType;
 //  types are usually parameterized by the image types as it can be seen in
 //  the following type declaration.
 typedef itk::MeanSquaresImageToImageMetric<ImageType, ImageType> MetricType;
+typedef itk::MattesMutualInformationImageToImageMetric<ImageType, ImageType> MIMetricType;
 
 //  Finally, the type of the interpolator is declared. The interpolator will
 //  evaluate the intensities of the moving image at non-grid positions.
-typedef itk:: LinearInterpolateImageFunction<ImageType, double> InterpolatorType;
+typedef itk::LinearInterpolateImageFunction<ImageType, double> InterpolatorType;
 typedef itk::NearestNeighborInterpolateImageFunction<ImageType, double> NNInterpolatorType;
 
 
@@ -186,10 +188,12 @@ int optimizeRegistration(ImageType::Pointer fixedImage, ImageType::Pointer movin
 }
 
 
+/// Example Arguments
+/// --mse UNC_train_Case05_T1_sagittal_slice_0265.png CHB_train_Case03_MD_sagittal_slice_0265.png mat_mse_t1_md_10by10.mat
 void generateMetricMap(ImageType::Pointer fixedImage, ImageType::Pointer movingImage, string outputFile) {
-    MetricType::Pointer         metric        = MetricType::New();
-    RigidTransformType::Pointer      transform     = RigidTransformType::New();
-    InterpolatorType::Pointer   interpolator  = InterpolatorType::New();
+    MetricType::Pointer metric = MetricType::New();
+    RigidTransformType::Pointer transform = RigidTransformType::New();
+    InterpolatorType::Pointer interpolator = InterpolatorType::New();
     
     TransformType::ParametersType params;
     params.Initialize();
@@ -209,12 +213,12 @@ void generateMetricMap(ImageType::Pointer fixedImage, ImageType::Pointer movingI
     metric->SetTransform(transform);
     metric->SetInterpolator(interpolator);
     
-    const int N = 50;
+    const int N = 100;
     const int D = 30;
     vnl_matrix<double> mat(2*D+1, 2*N+1);
     mat.fill(0);
-    for (int j = -N; j <= N; j+=2) {
-        for (double k = -D; k <= D; k+=2.5) {
+    for (int j = -N; j <= N; j+=1) {
+        for (int k = -D; k <= D; k+=1) {
 
             params[0] = k * 3.141592/180.0;
             params[1] = j;
@@ -234,6 +238,60 @@ void generateMetricMap(ImageType::Pointer fixedImage, ImageType::Pointer movingI
     vnl_matlab_write(of, mat.data_array(), mat.rows(), mat.cols(), "MSE");
     of.close();
 }
+
+
+
+void generateMIMetricMap(ImageType::Pointer fixedImage, ImageType::Pointer movingImage, string outputFile) {
+    MetricType::Pointer metric = MetricType::New();
+    RigidTransformType::Pointer transform = RigidTransformType::New();
+    InterpolatorType::Pointer interpolator = InterpolatorType::New();
+    
+    TransformType::ParametersType params;
+    params.Initialize();
+    params.SetSize(3);
+    
+    
+    RigidTransformType::ParametersType fixedParams;
+    fixedParams.SetSize(2);
+    fixedParams[0] = 256;
+    fixedParams[1] = 256;
+    transform->SetFixedParameters(fixedParams);
+    
+    // set up metric with given arguments
+    metric->SetFixedImage(fixedImage);
+    metric->SetFixedImageRegion(fixedImage->GetBufferedRegion());
+    metric->SetMovingImage(movingImage);
+    metric->SetTransform(transform);
+    metric->SetInterpolator(interpolator);
+    
+    // translation
+    const int N = 50;
+    // degree
+    const int D = 20;
+    vnl_matrix<double> mat(2*D+1, 2*N+1);
+    mat.fill(0);
+    for (int j = -N; j <= N; j+=1) {
+        for (double k = -D; k <= D; k+=1) {
+            
+            params[0] = k * 3.141592/180.0;
+            params[1] = j;
+            params[2] = 0;
+            
+            metric->SetUseSequentialSampling(true);
+            metric->UseAllPixelsOn();
+            metric->Initialize();
+            
+            double value = metric->GetValue(params);
+            mat(k+D,j+N) = value;
+            cout << k << "(deg) ," << j << " (px) = " << value << endl;
+        }
+    }
+    
+    ofstream of(outputFile);
+    vnl_matlab_write(of, mat.data_array(), mat.rows(), mat.cols(), "MSE");
+    of.close();
+}
+
 
 
 void applyTransform(ImageType::Pointer inputImage, ImageType::Pointer& outputImage, pi::IntVector intParams, bool useNN) {
@@ -316,6 +374,8 @@ int main(int argc, char* argv[]) {
     // general options
     opts.addOption("--reg", "run registration", "fixed-image moving-image output-image", SO_NONE);
     opts.addOption("--mse", "generate meansquare error map", "fixed-image moving-image output-image", SO_NONE);
+    opts.addOption("--mi", "generate mutual information error map", "fixed-image moving-image output-image", SO_NONE);
+
     opts.addOption("--txf", "generate transformed image", "moving-image --params=angle,tx,ty", SO_NONE);
     opts.addOption("--nn", "use nearest neighbor interpolation for transformation", SO_NONE);
     opts.addOption("--params", "set parameter values", SO_REQ_SEP);
@@ -336,9 +396,9 @@ int main(int argc, char* argv[]) {
     } else if (opts.GetBool("--mse")) {
         cout << "generating MSE metric map" << endl;
         generateMetricMap(fixedImage, movingImage, args[2]);
-        if (!outputImage.IsNull()) {
-            imgIO.WriteImage(args[2], outputImage);
-        }
+    } else if (opts.GetBool("--mi")) {
+        cout << "generating MI metric map" << endl;
+        generateMIMetricMap(fixedImage, movingImage, args[2]);
     } else if (opts.GetBool("--txf")) {
         pi::IntVector params = opts.GetStringAsIntVector("--params");
         bool useNN = opts.GetBool("--nn", false);
