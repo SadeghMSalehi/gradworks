@@ -72,7 +72,8 @@
 #include <itkBSplineScatteredDataPointSetToImageFilter.h>
 #include <itkDisplacementFieldTransform.h>
 #include <itkPointSet.h>
-
+#include <itkMultiLabelSTAPLEImageFilter.h>
+#include <itkLabelVotingImageFilter.h>
 
 #include <vnl/vnl_matrix.h>
 #include <vnl/vnl_sparse_matrix.h>
@@ -2222,6 +2223,42 @@ void runChangeImageInfo(Options& opts, StringVector& args) {
     }
 }
 
+/// @brief Compute STAPLE-based label fusion
+void runSTAPLE(Options& opts, StringVector& args) {
+    typedef itk::MultiLabelSTAPLEImageFilter<MaskImageType> STAPLEFilterType;
+    
+    pi::ImageIO<MaskImageType> imgIO;
+    
+    STAPLEFilterType::Pointer filter = STAPLEFilterType::New();
+    for (uint j = 0; j < args.size(); j++) {
+        filter->PushBackInput(imgIO.ReadImage(args[j]));
+    }
+    
+    cout << "Running STAPLE ..." << endl;
+    filter->Update();
+    cout << "Done" << endl;
+    imgIO.WriteImage(opts.GetString("-o", "staple.nrrd"), filter->GetOutput());
+}
+
+
+/// @brief Compute Majority voting based label fusion
+void runMVfusion(Options& opts, StringVector& args) {
+    typedef itk::LabelVotingImageFilter<MaskImageType, MaskImageType> LabelVotingFilterType;
+    
+    pi::ImageIO<MaskImageType> imgIO;
+    
+    LabelVotingFilterType::Pointer filter = LabelVotingFilterType::New();
+    for (uint j = 0; j < args.size(); j++) {
+        filter->PushBackInput(imgIO.ReadImage(args[j]));
+    }
+    
+    cout << "Running Majority Voting ..." << endl;
+    filter->Update();
+    cout << "Done" << endl;
+    imgIO.WriteImage(opts.GetString("-o", "voting.nrrd"), filter->GetOutput());
+}
+
+
 /// @brief Run PCA analysis
 void runPCA(Options& opts, StringVector& args) {
     vtkIO vio;
@@ -3302,6 +3339,10 @@ int main(int argc, char * argv[])
     opts.addOption("-imageInfo", "Print out basic image inforation like ImageStat", "-imageInfo [image1] [image2] ...", SO_NONE);
     opts.addOption("-labelInfo", "Print out label information bounding box, volumes, etc", "-labelInfo=l1,l2,...,l3 [image-file]", SO_REQ_SEP);
     
+    // multi-label fusion
+    opts.addOption("-staple", "Generate multi-label image with STAPLE algorithm", "-staple 1.nrrd 2.nrrd ...", SO_NONE);
+    opts.addOption("-votingfusion", "Generate multi-label image with label voting algorithm", "-votingfusion 1.nrrd 2.nrrd ...", SO_NONE);
+    
     // change image information
     opts.addOption("-changeImageInfo", "Change image information such as image origin and spacing", "-changeImageInfo -imageOrigin=0,0,0 -imageSpacing=0.1,0.1,0.1", SO_NONE);
     opts.addOption("-imageOrigin", "provide image origin info", "-origin=0,0,0", SO_REQ_CMB);
@@ -3415,6 +3456,10 @@ int main(int argc, char * argv[])
         return runLabelInfo(opts, args);
     } else if (opts.GetBool("-changeImageInfo")) {
         runChangeImageInfo(opts, args);
+    } else if (opts.GetBool("-staple")) {
+        runSTAPLE(opts, args);
+    } else if (opts.GetBool("-votingfusion")) {
+        runMVfusion(opts, args);
     } else if (opts.GetBool("-vti")) {
         runConvertITK2VTI(opts, args);
     } else if (opts.GetBool("-vtu")) {
