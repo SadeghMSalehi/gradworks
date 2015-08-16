@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <vector>
+#include <algorithm>
 #include "stringhelper.h"
 
 struct Node {
@@ -26,6 +27,10 @@ struct Edge {
     double _w;
     
     Edge(int s, int e, double w): _s(s), _e(e), _w(w) {}
+    
+    static bool weight_comp(Edge& e1, Edge& e2) {
+        return e1._w < e2._w;
+    }
 };
 
 typedef std::vector<Node> NodeList;
@@ -59,6 +64,20 @@ struct Graph {
     EdgeList& getNeighbors(Node n) {
         return _edges[n._id];
     }
+    
+    void kruskal_mst() {
+        // sort edges in the increasing order
+        std::sort(_edges.begin(), _edges.end(), Edge::weight_comp);
+        
+        // collect edges without cycle
+        for (int j = 0; j < _edges.size(); j++) {
+            
+        }
+        
+    }
 };
+
+
+
 
 #endif /* defined(__interviews__graph__) */
