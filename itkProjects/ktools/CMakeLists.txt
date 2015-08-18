@@ -74,6 +74,7 @@ IF(${USE_VTK})
     
     ADD_EXECUTABLE(kmesh
         kmesh.h kmesh.cpp
+        vtkUtils.h vtkUtils.cpp
         kstreamtracer.h kstreamtracer.cpp
         kimage.h kimage.cpp
         piOptions.h piOptions.cpp
@@ -82,6 +83,14 @@ IF(${USE_VTK})
     )
     TARGET_LINK_LIBRARIES(kmesh ${ITK_LIBRARIES} ${VTK_LIBRARIES})
 	#ADD_CUSTOM_COMMAND(TARGET kmesh POST_BUILD COMMAND kmesh -h > ${CMAKE_CURRENT_SOURCE_DIR}/kmesh.md)
+
+	ADD_EXECUTABLE(ksurftool
+		ksurftool.h ksurftool.cpp
+		piOptions.h piOptions.cpp
+		vtkio.h vtkio.cpp
+		csv_parser.h csv_parser.cpp
+	)
+    TARGET_LINK_LIBRARIES(ksurftool ${VTK_LIBRARIES})
 ENDIF(${USE_VTK})
 
 IF(${BUILD_KMBRAIN})
