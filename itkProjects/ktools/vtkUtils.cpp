@@ -18,7 +18,7 @@
 #include <vtkPoints.h>
 #include <vtkNew.h>
 #include <vector>
-
+#include <unordered_set>
 #include "vtkio.h"
 
 using namespace std;
@@ -76,18 +76,21 @@ vtkDataArray* selectBoundaryPoints(vtkDataSet* data, std::string scalarName) {
     vtkIntArray* boundaryMarker = vtkIntArray::New();
     boundaryMarker->SetNumberOfComponents(1);
     boundaryMarker->SetNumberOfTuples(npts);
-    
+	boundaryMarker->FillComponent(0, 0);
+	
+
+	unordered_set<vtkIdType> nbrs;
     vtkNew<vtkIdList> cellIds;
-    vector<vtkIdType> nbrs(24);
+
     for (size_t j = 0; j < npts; j++) {
         if (interiorMaker->GetTuple1(j) != 1) {
             continue;
         }
         
         // iterate over neighbor cells and find neighbor points
+		nbrs.clear();
         cellIds->Reset();
         data->GetPointCells(j, cellIds.GetPointer());
-        size_t nNbrPts = 0;
         for (size_t k = 0; k < cellIds->GetNumberOfIds(); k++) {
             vtkCell* cell = data->GetCell(cellIds->GetId(k));
             for (size_t l = 0; l < cell->GetNumberOfEdges(); l++) {
@@ -95,28 +98,32 @@ vtkDataArray* selectBoundaryPoints(vtkDataSet* data, std::string scalarName) {
                 vtkIdType s = edge->GetPointId(0);
                 vtkIdType e = edge->GetPointId(1);
                 if (s == j) {
-                    nbrs[nNbrPts++] = e;
+					nbrs.insert(e);
                 } else if (e == j) {
-                    nbrs[nNbrPts++] = s;
+					nbrs.insert(s);
                 }
             }
         }
         
         // check neighbor points and find exterior points
         bool surfacePoint = false;
-        for (size_t k = 0; k < nNbrPts; k++) {
-            vtkIdType nbrId = nbrs[k];
+		unordered_set<vtkIdType>::const_iterator iter = nbrs.begin();
+		for (; iter != nbrs.end(); iter++) {
+			// if the neighbor is outside point
+			vtkIdType nbrId = *iter;
             if (interiorMaker->GetTuple1(nbrId) == 0) {
                 boundaryMarker->SetTuple1(nbrId, 3);
+				// then j is a surface point
                 surfacePoint = true;
             }
         }
         if (surfacePoint) {
             boundaryMarker->SetTuple1(j, 2);
         } else {
-            boundaryMarker->SetTuple1(j, 1);
+//            boundaryMarker->SetTuple1(j, 1);
         }
     }
+	
     boundaryMarker->SetName("BorderPoints");
     data->GetPointData()->AddArray(boundaryMarker);
     return boundaryMarker;
