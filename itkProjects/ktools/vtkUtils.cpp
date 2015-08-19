@@ -14,6 +14,8 @@
 #include <vtkCellLocator.h>
 #include <vtkCellTreeLocator.h>
 #include <vtkIntArray.h>
+#include <vtkPolyData.h>
+#include <vtkPoints.h>
 #include <vtkNew.h>
 #include <vector>
 
@@ -59,6 +61,69 @@ vtkIntArray* selectBoundaryCells(vtkDataSet* data, string scalarName) {
 }
 
 
+// mark surface boundary and find intersecting cells
+vtkDataArray* selectBoundaryPoints(vtkDataSet* data, std::string scalarName) {
+    
+
+    vtkDataArray* interiorMaker = data->GetPointData()->GetArray(scalarName.c_str());
+    if (interiorMaker == NULL) {
+        cout << "Can't find scalar values: " << scalarName << endl;
+        return NULL;
+    }
+    
+    const size_t npts = data->GetNumberOfPoints();
+    
+    vtkIntArray* boundaryMarker = vtkIntArray::New();
+    boundaryMarker->SetNumberOfComponents(1);
+    boundaryMarker->SetNumberOfTuples(npts);
+    
+    vtkNew<vtkIdList> cellIds;
+    vector<vtkIdType> nbrs(24);
+    for (size_t j = 0; j < npts; j++) {
+        if (interiorMaker->GetTuple1(j) != 1) {
+            continue;
+        }
+        
+        // iterate over neighbor cells and find neighbor points
+        cellIds->Reset();
+        data->GetPointCells(j, cellIds.GetPointer());
+        size_t nNbrPts = 0;
+        for (size_t k = 0; k < cellIds->GetNumberOfIds(); k++) {
+            vtkCell* cell = data->GetCell(cellIds->GetId(k));
+            for (size_t l = 0; l < cell->GetNumberOfEdges(); l++) {
+                vtkCell* edge = cell->GetEdge(l);
+                vtkIdType s = edge->GetPointId(0);
+                vtkIdType e = edge->GetPointId(1);
+                if (s == j) {
+                    nbrs[nNbrPts++] = e;
+                } else if (e == j) {
+                    nbrs[nNbrPts++] = s;
+                }
+            }
+        }
+        
+        // check neighbor points and find exterior points
+        bool surfacePoint = false;
+        for (size_t k = 0; k < nNbrPts; k++) {
+            vtkIdType nbrId = nbrs[k];
+            if (interiorMaker->GetTuple1(nbrId) == 0) {
+                boundaryMarker->SetTuple1(nbrId, 3);
+                surfacePoint = true;
+            }
+        }
+        if (surfacePoint) {
+            boundaryMarker->SetTuple1(j, 2);
+        } else {
+            boundaryMarker->SetTuple1(j, 1);
+        }
+    }
+    boundaryMarker->SetName("BorderPoints");
+    data->GetPointData()->AddArray(boundaryMarker);
+    return boundaryMarker;
+}
+
+
+
 // select intersecting cells of 'surf' with 'grid' that has a scalar value 1 of 'scalarName'
 vtkIntArray* selectIntersectingCells(vtkDataSet* surf, vtkDataSet* grid, std::string scalarName) {
 	
@@ -78,7 +143,8 @@ vtkIntArray* selectIntersectingCells(vtkDataSet* surf, vtkDataSet* grid, std::st
 
 
 void processVTKUtilsOptions(pi::Options& opts) {
-		opts.addOption("-markBorderCells", "Mark border cells of an input dataset. The border cells have 1 in BorderCells data", "-markBorderCells input-data output-data", SO_NONE);
+    opts.addOption("-markBorderCells", "Mark border cells of an input dataset. The border cells have 1 in BorderCells data", "-markBorderCells input-data output-data", SO_NONE);
+    opts.addOption("-markBorderPoints", "Mark border points of an input dataset. The border points will be marked as 2 and its exterior neighbors will be marked as 3.", "-markBorderPoints input-data output-data", SO_NONE);
 }
 
 
@@ -92,7 +158,14 @@ void processVTKUtils(pi::Options opts, pi::StringVector args) {
 		string scalarName = opts.GetString("-scalarName", "InteriorPoints");
 		selectBoundaryCells(data1, scalarName);
 		vio.writeFile(outputFile, data1);
-	}
+    } else if (opts.GetBool("-markBorderPoints")) {
+		input1File = args[0];
+		outputFile = args[1];
+        vtkDataSet* data1 = vio.readDataFile(input1File);
+        string scalarName = opts.GetString("-scalarName", "InteriorPoints");
+        selectBoundaryPoints(data1, scalarName);
+        vio.writeFile(outputFile, data1);
+    }
 	
 	
 }

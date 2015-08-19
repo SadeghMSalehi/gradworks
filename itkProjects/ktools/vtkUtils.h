@@ -12,14 +12,17 @@
 #include <stdio.h>
 #include <string>
 
-#include <vtkDataSet.h>
 
 #include "piOptions.h"
 
 
 class vtkIntArray;
+class vtkPolyData;
+class vtkDataArray;
+class vtkDataSet;
 
 vtkIntArray* selectBoundaryCells(vtkDataSet* data, std::string scalarName);
+vtkDataArray* selectBoundaryPoints(vtkDataSet* data, std::string scalarName);
 vtkIntArray* selectIntersectingCells(vtkDataSet* surf, vtkDataSet* grid, std::string scalarName);
 
 
