@@ -26,6 +26,7 @@ public:
     void rotateVector(const double* v1, const double* v2, vnl_matrix<double>& rotation);
 
 
+	vtkDataSet* readDataFile(std::string file);
     vtkPolyData* readFile(std::string file);
     vtkDataArray* findFieldData(vtkPolyData* dataSet, std::string propertyName);
     void writeFile(std::string file, vtkDataSet* mesh);

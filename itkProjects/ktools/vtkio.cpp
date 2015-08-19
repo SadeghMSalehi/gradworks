@@ -12,12 +12,17 @@
 #include <vtkPolyData.h>
 #include <vtkFieldData.h>
 #include <vtkStructuredGrid.h>
+#include <vtkUnstructuredGrid.h>
 #include <vtkPolyDataReader.h>
 #include <vtkPolyDataWriter.h>
 #include <vtkXMLPolyDataReader.h>
 #include <vtkXMLPolyDataWriter.h>
+#include <vtkXMLUnstructuredGridReader.h>
 #include <vtkXMLUnstructuredGridWriter.h>
+#include <vtkXMLStructuredGridReader.h>
 #include <vtkXMLStructuredGridWriter.h>
+#include <vtkMNIObjectReader.h>
+#include <vtkMNIObjectWriter.h>
 #include <vtkMath.h>
 #include <vtkPointData.h>
 
@@ -174,3 +179,39 @@ void vtkIO::writeXMLFile(std::string file, vtkPolyData *mesh) {
 //
 //    return da;
 //}
+
+
+
+
+
+vtkDataSet* vtkIO::readDataFile(std::string file) {
+	if (endswith(file, ".vtp")) {
+		vtkXMLPolyDataReader* r = vtkXMLPolyDataReader::New();
+		r->SetFileName(file.c_str());
+		r->Update();
+		return r->GetOutput();
+	} else if (endswith(file, ".vts")) {
+		vtkXMLStructuredGridReader* r = vtkXMLStructuredGridReader::New();
+		r->SetFileName(file.c_str());
+		r->Update();
+		return r->GetOutput();
+	} else if (endswith(file, ".vtu")) {
+		vtkXMLUnstructuredGridReader* r = vtkXMLUnstructuredGridReader::New();
+		r->SetFileName(file.c_str());
+		r->Update();
+		return r->GetOutput();
+	} else if (endswith(file, ".vtk")) {
+		vtkPolyDataReader* r = vtkPolyDataReader::New();
+		r->SetFileName(file.c_str());
+		r->Update();
+		return r->GetOutput();
+	} else if (endswith(file, ".obj")) {
+		vtkMNIObjectReader* r = vtkMNIObjectReader::New();
+		r->SetFileName(file.c_str());
+		r->Update();
+		return r->GetOutput();
+	}
+	cout << "Unknown file format: " << file << endl;
+	return NULL;
+}
+

@@ -89,6 +89,7 @@
 #include "kimage.h"
 #include "kstreamtracer.h"
 #include "csv_parser.h"
+#include "vtkUtils.h"
 
 #include <vnl/vnl_vector.h>
 #define UNUSED(x) (void)(x)
@@ -3599,6 +3600,7 @@ int main(int argc, char * argv[])
 	opts.addOption("-fillGrid", "Fill the inside of a polydata with a uniform grid (refer -twosided option)", "-fillGrid input.vtp output.vtp", SO_NONE);
 	opts.addOption("-dims", "x-y-z dimensions", "-dims 100", SO_REQ_SEP);
 	opts.addOption("-twosided", "An option to generate the filled uniform grid", "-fillGrid CSF_GM_surface.vtk GM_WM_surface.vtk output.vts -twosided", SO_NONE);
+
 	
 	
 	opts.addOption("-traceScalarCombine", "Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.", "-traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied", SO_NONE);
@@ -3624,6 +3626,9 @@ int main(int argc, char * argv[])
 	opts.addOption("-verbose", "Print verbose information", SO_NONE);
 	opts.addOption("-use-header", "Option to use header values (-importCSV)", SO_NONE);
 	opts.addOption("-h", "print help message", SO_NONE);
+	
+	processVTKUtilsOptions(opts);
+	
 	StringVector args = opts.ParseOptions(argc, argv, NULL);
 	
 	
@@ -3740,5 +3745,6 @@ int main(int argc, char * argv[])
 	} else if (opts.GetBool("-test")) {
 		runTest(opts, args);
 	}
+	processVTKUtils(opts, args);
 	return 0;
 }
