@@ -8,22 +8,42 @@
 
 #include "vtkUtils.h"
 
+#include <vtkNew.h>
+#include <vtkMath.h>
+
+#include <vtkPoints.h>
 #include <vtkPointData.h>
 #include <vtkCell.h>
+#include <vtkCellArray.h>
 #include <vtkCellData.h>
 #include <vtkCellLocator.h>
 #include <vtkCellTreeLocator.h>
+#include <vtkCellDerivatives.h>
+#include <vtkVectorNorm.h>
+
 #include <vtkIntArray.h>
 #include <vtkDoubleArray.h>
+#include <vtkIdTypeArray.h>
 #include <vtkPolyData.h>
-#include <vtkPoints.h>
-#include <vtkNew.h>
+#include <vtkCleanPolyData.h>
+#include <vtkModifiedBSPTree.h>
+
+
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
+//#include <vtkStreamTracer.h>
+#include "kstreamtracer.h"
 #include "vtkio.h"
 
 using namespace std;
+using namespace pi;
+
+
+static bool endswith(std::string str, std::string substr) {
+	size_t i = str.rfind(substr);
+	return (i != string::npos) && (i == (str.length() - substr.length()));
+}
 
 vtkIntArray* selectBoundaryCells(vtkDataSet* data, string scalarName) {
     const size_t nCells = data->GetNumberOfCells();
@@ -218,7 +238,8 @@ void sampleSurfaceScalar(vtkDataSet* grid, string markerScalar, vtkPolyData* sur
 }
 
 
-void findNeighborPoints(vtkDataSet* data, vtkIdType ptId, unordered_set<vtkIdType>& nbrs, vtkIdList* cellIds) {
+void findNeighborPoints(vtkDataSet* data, vtkIdType ptId, unordered_set<vtkIdType>& nbrs, vtkIdList* cellIds, vtkIdTypeArray* neighbors = NULL) {
+	nbrs.clear();
     cellIds->Reset();
     data->GetPointCells(ptId, cellIds);
     for (size_t k = 0; k < cellIds->GetNumberOfIds(); k++) {
@@ -227,11 +248,20 @@ void findNeighborPoints(vtkDataSet* data, vtkIdType ptId, unordered_set<vtkIdTyp
             vtkCell* edge = cell->GetEdge(l);
             vtkIdType s = edge->GetPointId(0);
             vtkIdType e = edge->GetPointId(1);
+			vtkIdType n = -1;
             if (s == ptId) {
-                nbrs.insert(e);
+				n = e;
             } else if (e == ptId) {
-                nbrs.insert(s);
+				n = s;
             }
+			if (n > -1) {
+				if (nbrs.find(n) == nbrs.end()) {
+					nbrs.insert(n);
+					if (neighbors != NULL) {
+						neighbors->SetComponent(ptId, nbrs.size() - 1, n);
+					}
+				}
+			}
         }
     }
 }
@@ -241,15 +271,27 @@ void buildAdjacencyList(vtkDataSet* surf, string roiLabel, vector<pair<vtkIdType
     // the roiArray extract the graph nodes within the ROI
     // Currently, I assume the roi is marked as -1 as I did in sampleSurfaceScalar
     vtkDataArray* roiArray = surf->GetPointData()->GetArray(roiLabel.c_str());
+	if (roiArray == NULL) {
+		cout << "Can't find an ROI array: " << roiLabel << endl;
+		return;
+	}
+
+	const size_t nPts = roiArray->GetNumberOfTuples();
+	
     graph.reserve(roiArray->GetNumberOfTuples());
     graph.clear();
-    
+	
+	vtkIdTypeArray* neighborIds = vtkIdTypeArray::New();
+	neighborIds->SetName("Neighbor6");
+	neighborIds->SetNumberOfComponents(6);
+	neighborIds->SetNumberOfTuples(nPts);
+	
     unordered_set<vtkIdType> nbrs;
     vtkNew<vtkIdList> cellIds;
-    for (size_t j = 0; j < roiArray->GetNumberOfTuples(); j++) {
+    for (size_t j = 0; j < nPts; j++) {
         if (roiArray->GetTuple1(j) == -1) {
             //  find the neighborhood of j
-            findNeighborPoints(surf, j, nbrs, cellIds.GetPointer());
+            findNeighborPoints(surf, j, nbrs, cellIds.GetPointer(), neighborIds);
             graph.push_back(make_pair(j, vector<vtkIdType>(nbrs.begin(), nbrs.end())));
         }
         if (j % 1000 == 1) {
@@ -257,41 +299,513 @@ void buildAdjacencyList(vtkDataSet* surf, string roiLabel, vector<pair<vtkIdType
         }
     }
     
-    for (size_t j = 0; j < graph.size(); j++) {
-        cout << graph[j].first << " : ";
-        for (size_t k = 0; k < graph[j].second.size(); k++) {
-            cout << graph[j].second[k] << " ";
-        }
-        cout << endl;
-    }
+	surf->GetPointData()->AddArray(neighborIds);
 }
 
 
-// select intersecting cells of 'surf' with 'grid' that has a scalar value 1 of 'scalarName'
-vtkIntArray* selectIntersectingCells(vtkDataSet* surf, vtkDataSet* grid, std::string scalarName) {
+
+
+// Compute Laplace PDE based on the adjacency list and border
+void computeLaplacePDE(vtkDataSet* data, string selectedPointsName, string neighborName, string boundaryCondName, const double low, const double high, const int nIters, const double dt) {
 	
-	vtkNew<vtkCellTreeLocator> cellLoc;
-	cellLoc->SetDataSet(surf);
-	cellLoc->AutomaticOn();
-	cellLoc->BuildLocator();
-	
-	vtkDataArray* scalars = grid->GetCellData()->GetArray(scalarName.c_str());
-	
-	for (size_t j = 0; j < scalars->GetNumberOfTuples(); j++) {
-		vtkCell* cell = grid->GetCell(j);
-        
-        
+	if (data == NULL) {
+		cout << "Data input is NULL" << endl;
+		return;
 	}
+	
+	// check interior points
+	vtkDataArray* selectedPoints = data->GetPointData()->GetArray(selectedPointsName.c_str());
+	if (selectedPoints == NULL) {
+		cout << "No scalar values for SelectedPoints" << endl;
+		return;
+	}
+	
+	// check boundary points
+	vtkDataArray* boundaryPoints = data->GetPointData()->GetArray(boundaryCondName.c_str());
+	if (boundaryPoints == NULL) {
+		cout << "No scalar values for BoundaryPoints" << endl;
+		return;
+	}
+	
+	// check boundary points
+	vtkDataArray* neighborIds = data->GetPointData()->GetArray(neighborName.c_str());
+	if (neighborIds == NULL) {
+		cout << "No scalar values for Neighbor IDs" << endl;
+		return;
+	}
+	
+
+	struct LaplaceGrid {
+		double low;
+		double high;
+		double dt;
+		
+		vector<vtkIdType> solutionDomain;
+		vtkDataArray* neighborIds;
+		vtkIntArray* boundaryCond;
+		
+		vtkDoubleArray* solution;
+		vtkDoubleArray* tmpSolution;
+		
+		LaplaceGrid(double l, double h, double d, vtkDataArray* sp, vtkDataArray* nids, vtkDataArray* bcond): low(l), high(h), dt(d) {
+			
+			extractSolutionDomain(sp);
+			neighborIds = nids;
+			boundaryCond = vtkIntArray::SafeDownCast(bcond);
+			
+			initializeSolution();
+		}
+		
+		void extractSolutionDomain(vtkDataArray* sp) {
+			for (size_t j = 0; j < sp->GetNumberOfTuples(); j++) {
+				if (sp->GetTuple1(j) == 1) {
+					// keep an interior point id
+					solutionDomain.push_back(j);
+				}
+			}
+			cout << "# of solution grids: " << solutionDomain.size() << endl;
+		}
+		
+		void initializeSolution() {
+			solution = vtkDoubleArray::New();
+			solution->SetName("LaplacianSolution");
+			solution->SetNumberOfComponents(1);
+			solution->SetNumberOfTuples(boundaryCond->GetNumberOfTuples());
+			solution->FillComponent(0, 0);
+
+			tmpSolution = vtkDoubleArray::New();
+			tmpSolution->SetNumberOfComponents(1);
+			tmpSolution->SetNumberOfTuples(boundaryCond->GetNumberOfTuples());
+
+			const size_t nPts = boundaryCond->GetNumberOfTuples();
+			for (size_t j = 0; j < nPts; j++) {
+				if (boundaryCond->GetValue(j) == 1) {
+					// high
+					solution->SetValue(j, high);
+				} else if (boundaryCond->GetValue(j) == 2){
+					// low
+					solution->SetValue(j, low);
+				} else {
+					solution->SetValue(j, 0);
+				}
+				tmpSolution->SetValue(j, solution->GetValue(j));
+			}
+		}
+		
+		void computeStep() {
+			const size_t nPts = solutionDomain.size();
+			for (size_t j = 0; j < nPts; j++) {
+				vtkIdType centerId = solutionDomain[j];
+				const double* nbrs = neighborIds->GetTuple(centerId);
+				double u = 0;
+				for (size_t k = 0; k < 6; k++) {
+					const vtkIdType kId = nbrs[k];
+					u += solution->GetValue(kId);
+				}
+				u = u/6.0;
+				tmpSolution->SetValue(centerId, u);
+			}
+			solution->DeepCopy(tmpSolution);
+		}
+		
+		
+		void computeNormals(vtkDataSet* data) {
+			data->GetPointData()->SetActiveScalars("LaplacianSolution");
+		
+			vtkNew<vtkCellDerivatives> deriv;
+			deriv->SetInput(data);
+			deriv->SetVectorModeToComputeGradient();
+			deriv->Update();
+			vtkDataSet* derivOut = deriv->GetOutput();
+			derivOut->GetCellData()->SetActiveVectors("ScalarGradient");
+			vtkDataArray* scalarGradient = deriv->GetOutput()->GetCellData()->GetArray("ScalarGradient");
+			scalarGradient->SetName("LaplacianGradient");
+			
+			
+			vtkDoubleArray* norms = vtkDoubleArray::New();
+			norms->SetName("LaplacianGradientNorm");
+			norms->SetNumberOfComponents(3);
+			norms->SetNumberOfTuples(scalarGradient->GetNumberOfTuples());
+			
+			const size_t nPts = norms->GetNumberOfTuples();
+			for (size_t j = 0; j < nPts; j++) {
+				double* vec = scalarGradient->GetTuple3(j);
+				vtkMath::Normalize(vec);
+				norms->SetTuple3(j, vec[0], vec[1], vec[2]);
+			}
+			
+			data->GetCellData()->AddArray(scalarGradient);
+			data->GetCellData()->AddArray(norms);
+		}
+	};
+	
+	
+	LaplaceGrid grid(low, high, dt, selectedPoints, neighborIds,boundaryPoints);
+
+	// main iteration loop
+	for (size_t i = 1; i <= nIters; i++) {
+		cout << "iteration: " << i << endl;
+		grid.computeStep();
+	}
+	
+	
+	// return the solution
+	data->GetPointData()->AddArray(grid.solution);
+	grid.computeNormals(data);
+}
+
+
+
+/// @brief perform a line clipping to fit within the object
+bool performLineClipping(vtkPolyData* streamLines, vtkModifiedBSPTree* tree, int lineId, vtkCell* lineToClip, vtkPolyData* object, vtkPoints* outputPoints, vtkCellArray* outputLines, double &length) {
+
+	/// - Iterate over all points in a line
+	vtkIdList* ids = lineToClip->GetPointIds();
+	/// - Identify a line segment included in the line
+	
+	int nIntersections = 0;
+	bool foundEndpoint = false;
+	std::vector<vtkIdType> idList;
+	for (int j = 2; j < ids->GetNumberOfIds(); j++) {
+		double p1[3], p2[3];
+		streamLines->GetPoint(ids->GetId(j-1), p1);
+		streamLines->GetPoint(ids->GetId(j), p2);
+		
+		// handle initial condition
+		if (j == 2) {
+			double p0[3];
+			streamLines->GetPoint(ids->GetId(0), p0);
+			idList.push_back(outputPoints->GetNumberOfPoints());
+			outputPoints->InsertNextPoint(p0);
+			
+			idList.push_back(outputPoints->GetNumberOfPoints());
+			outputPoints->InsertNextPoint(p1);
+			
+			length = sqrt(vtkMath::Distance2BetweenPoints(p0, p1));
+		}
+		
+		int subId;
+		double x[3] = {-1,-1,-1};
+		double t = 0;
+		
+		double pcoords[3] = { -1, };
+		int testLine = tree->IntersectWithLine(p1, p2, 0.01, t, x, pcoords, subId);
+		if (testLine) {
+			nIntersections ++;
+			if (nIntersections > 0) {
+				idList.push_back(outputPoints->GetNumberOfPoints());
+				outputPoints->InsertNextPoint(x);
+				length += sqrt(vtkMath::Distance2BetweenPoints(p1, x));
+				foundEndpoint = true;
+				break;
+			}
+		}
+		//        cout << testLine << "; " << x[0] << "," << x[1] << "," << x[2] << endl;
+		
+		
+		idList.push_back(outputPoints->GetNumberOfPoints());
+		outputPoints->InsertNextPoint(p2);
+		length += sqrt(vtkMath::Distance2BetweenPoints(p1, p2));
+	}
+	
+	if (foundEndpoint) {
+		outputLines->InsertNextCell(idList.size(), &idList[0]);
+		return true;
+	}
+	return false;
+}
+
+
+/// @brief Perform a line clipping task
+void runTraceClipping(Options& opts, StringVector& args) {
+	string inputStreamsFile = args[0];
+	string inputObjectFile = args[1];
+	string outputStreamsFile = args[2];
+	
+	vtkIO vio;
+	vtkPolyData* inputStream = vio.readFile(inputStreamsFile);
+	vtkPolyData* inputObject = vio.readFile(inputObjectFile);
+	vtkPolyData* outputObject = vtkPolyData::New();
+	
+	
+	vtkCellArray* lines = inputStream->GetLines();
+	vtkModifiedBSPTree* tree = vtkModifiedBSPTree::New();
+	tree->SetDataSet(inputObject);
+	tree->BuildLocator();
+	
+	vtkPoints* outputPoints = vtkPoints::New();
+	vtkCellArray* outputLines = vtkCellArray::New();
+	
+	for (int i = 0; i < lines->GetNumberOfCells(); i++) {
+		vtkCell* line = inputStream->GetCell(i);
+		double length = 0;
+		performLineClipping(inputStream, tree, i, line, inputObject, outputPoints, outputLines, length);
+	}
+	vio.writeFile("test.vtp", outputObject);
 }
 
 
 
 
+/// @brief Execute the stream tracer
+void runStreamTracer(Options& opts, StringVector& args) {
+	string inputVTUFile = args[0];
+	string inputPointsFile = args[1];
+	string outputStreamFile = args[2];
+	string outputPointFile = args[3];
+	bool zRotate = opts.GetBool("-zrotate", false);
+	
+	vtkIO vio;
+	vtkDataSet* inputData = vio.readDataFile(inputVTUFile);
+	
+	vtkPolyData* inputPoints = vio.readFile(inputPointsFile);
+	vtkPoints* points = inputPoints->GetPoints();
+	
+	/// - Converting the input points to the image coordinate
+	const int nInputPoints = inputPoints->GetNumberOfPoints();
+	for (int i = 0; i < nInputPoints; i++) {
+		double p[3];
+		points->GetPoint(i, p);
+		// FixMe: Do not use a specific scaling factor
+		if (zRotate) {
+			p[0] = -p[0];
+			p[1] = -p[1];
+			p[2] = p[2];
+		}
+		points->SetPoint(i, p);
+	}
+	inputPoints->SetPoints(points);
+	
+	/// - Set up tracer (Use RK45, both direction, initial step 0.05, maximum propagation 500
+	StreamTracer* tracer = StreamTracer::New();
+	tracer->SetInput(inputData);
+	tracer->SetSource(inputPoints);
+	//    double seedPoint[3];
+ //   inputPoints->GetPoint(24745, seedPoint);
+ //   tracer->SetStartPosition(seedPoint);
+	tracer->SetIntegratorTypeToRungeKutta45();
+	
+	
+	bool isBothDirection = false;
+	if (opts.GetString("-traceDirection") == "both") {
+		tracer->SetIntegrationDirectionToBoth();
+		isBothDirection = true;
+		cout << "Forward/Backward Integration" << endl;
+	} else if (opts.GetString("-traceDirection") == "backward") {
+		tracer->SetIntegrationDirectionToBackward();
+		cout << "Backward Integration" << endl;
+	} else {
+		tracer->SetIntegrationDirectionToForward();
+		cout << "Forward Integration" << endl;
+	}
+	
+	tracer->SetInterpolatorTypeToDataSetPointLocator();
+	tracer->SetMaximumPropagation(500);
+	tracer->SetInitialIntegrationStep(0.05);
+	tracer->Update();
+	
+	
+	
+	vtkPolyData* streamLines = tracer->GetOutput();
+	
+	// loop over the cell and compute the length
+	int nCells = streamLines->GetNumberOfCells();
+	cout << "# of cells: " << nCells << endl;
+	
+	
+	/// - Prepare the output as a scalar array
+	//    vtkDataArray* streamLineLength = streamLines->GetCellData()->GetScalars("Length");
+	
+	/// - Prepare the output for the input points
+	vtkDoubleArray* streamLineLengthPerPoint = vtkDoubleArray::New();
+	streamLineLengthPerPoint->SetNumberOfTuples(nInputPoints);
+	streamLineLengthPerPoint->SetName("Length");
+	streamLineLengthPerPoint->SetNumberOfComponents(1);
+	streamLineLengthPerPoint->FillComponent(0, 0);
+	
+	vtkIntArray* lineCorrect = vtkIntArray::New();
+	lineCorrect->SetName("LineOK");
+	lineCorrect->SetNumberOfValues(nInputPoints);
+	lineCorrect->FillComponent(0, 0);
+	
+	inputPoints->GetPointData()->SetScalars(streamLineLengthPerPoint);
+	inputPoints->GetPointData()->AddArray(lineCorrect);
+	
+	cout << "Assigning a length to each source vertex ..." << endl;
+	vtkDataArray* seedIds = streamLines->GetCellData()->GetScalars("SeedId");
+	if (seedIds) {
+		// line clipping
+		vtkPoints* outputPoints = vtkPoints::New();
+		vtkCellArray* outputCells = vtkCellArray::New();
+		
+		/// construct a tree locator
+		vtkModifiedBSPTree* tree = vtkModifiedBSPTree::New();
+		tree->SetDataSet(inputPoints);
+		tree->BuildLocator();
+		
+		
+		vtkDoubleArray* lengthArray = vtkDoubleArray::New();
+		lengthArray->SetName("Length");
+		
+		vtkIntArray* pointIds = vtkIntArray::New();
+		pointIds->SetName("PointIds");
+		
+		for (int i = 0; i < nCells; i++) {
+			int pid = seedIds->GetTuple1(i);
+			double length = 0;
+			if (pid > -1) {
+				vtkCell* line = streamLines->GetCell(i);
+				/// - Assume that a line starts from a point on the input mesh and must meet at the opposite surface of the starting point.
+				bool lineAdded = performLineClipping(streamLines, tree, i, line, inputPoints, outputPoints, outputCells, length);
+				
+				if (lineAdded) {
+					pointIds->InsertNextValue(pid);
+					lengthArray->InsertNextValue(length);
+					streamLineLengthPerPoint->SetValue(pid, length);
+					lineCorrect->SetValue(pid, 1);
+				} else {
+					lineCorrect->SetValue(pid, 2);
+				}
+			}
+		}
+		
+		vtkPolyData* outputStreamLines = vtkPolyData::New();
+		outputStreamLines->SetPoints(outputPoints);
+		outputStreamLines->SetLines(outputCells);
+		outputStreamLines->GetCellData()->AddArray(pointIds);
+		outputStreamLines->GetCellData()->AddArray(lengthArray);
+		
+		
+		vtkCleanPolyData* cleaner = vtkCleanPolyData::New();
+		cleaner->SetInput(outputStreamLines);
+		cleaner->Update();
+		vio.writeFile(outputStreamFile, cleaner->GetOutput());
+	} else {
+		cout << "Can't find SeedId" << endl;
+	}
+	
+	cout << lineCorrect->GetNumberOfTuples() << endl;
+	cout << streamLineLengthPerPoint->GetNumberOfTuples() << endl;
+	vio.writeFile(outputPointFile, inputPoints);
+	//    vio.writeXMLFile(outputVTKFile, streamLines);
+}
+
+
+/// @brief Copy a scalar list from a seed object to a stream line object
+void runTraceScalarCombine(Options& opts, StringVector& args) {
+	if (args.size() < 3) {
+		cout << "requires input-seed input-stream output-stream-file" << endl;
+		return;
+	}
+	
+	string inputSeedFile = args[0];
+	string inputStreamFile = args[1];
+	string outputStreamFile = args[2];
+	string scalarName = opts.GetString("-scalarName");
+	
+	if (scalarName == "") {
+		cout << "requires -scalarName scalarName" << endl;
+		return;
+	}
+	
+	vtkIO vio;
+	vtkPolyData* inputSeed = vio.readFile(inputSeedFile);
+	vtkPolyData* inputStream = vio.readFile(inputStreamFile);
+	
+	vtkDataArray* pointIds = inputStream->GetCellData()->GetScalars("PointIds");
+	if (pointIds == NULL) {
+		cout << "Can't find PointIds" << endl;
+		return;
+	}
+	vtkDataArray* scalars = inputSeed->GetPointData()->GetScalars(scalarName.c_str());
+	if (scalars == NULL) {
+		cout << "Can't find scalars: " << scalarName << endl;
+		return;
+	}
+	
+	vtkDoubleArray* outputScalars = vtkDoubleArray::New();
+	outputScalars->SetName(scalarName.c_str());
+	for (int i = 0; i < pointIds->GetNumberOfTuples(); i++) {
+		int ptId = pointIds->GetTuple1(i);
+		double value = scalars->GetTuple1(ptId);
+		outputScalars->InsertNextTuple1(value);
+	}
+	inputStream->GetCellData()->AddArray(outputScalars);
+	
+	if (opts.GetBool("-zrotate")) {
+		cout << "The output is rotated!" << endl;
+		vio.zrotate(inputStream);
+	}
+	vio.writeFile(outputStreamFile, inputStream);
+}
+
+
+/// @brief Apply a filter to each stream line
+void runFilterStream(Options& opts, StringVector& args) {
+	string inputStream = args[0];
+	string inputSeeds = args[1];
+	string outputStreamFile = args[2];
+	string scalarName = opts.GetString("-scalarName");
+	
+	double lowThreshold = opts.GetStringAsReal("-thresholdMin", 0);
+	double highThreshold = opts.GetStringAsReal("-thresholdMax", 1);
+	
+	vtkIO vio;
+	vtkPolyData* streamLines = vio.readFile(inputStream);
+	vtkPolyData* streamSeeds = vio.readFile(inputSeeds);
+	
+	vtkPolyData* outputStream = vtkPolyData::New();
+	outputStream->SetPoints(streamLines->GetPoints());
+	
+	/// - Lookup SeedId and a given scalar array
+	vtkDataArray* seedList = streamLines->GetCellData()->GetScalars("SeedId");
+	vtkDataArray* seedScalars = streamSeeds->GetPointData()->GetScalars(scalarName.c_str());
+	vtkCellArray* lines = vtkCellArray::New();
+	vtkDoubleArray* filteredScalars = vtkDoubleArray::New();
+	filteredScalars->SetName(scalarName.c_str());
+	filteredScalars->SetNumberOfComponents(1);
+	
+	/// - Lookup a corresponding point scalar, apply threashold filter, and add to the new object
+	for (int i = 0; i < seedList->GetNumberOfTuples(); i++) {
+		int seedId = seedList->GetTuple1(i);
+		double value = seedScalars->GetTuple1(seedId);
+		
+		if (lowThreshold <= value && value <= highThreshold) {
+			lines->InsertNextCell(streamLines->GetCell(i));
+			filteredScalars->InsertNextValue(value);
+		}
+	}
+	
+	outputStream->SetLines(lines);
+	outputStream->GetCellData()->AddArray(filteredScalars);
+	outputStream->BuildCells();
+	outputStream->BuildLinks();
+	
+	vio.writeFile(outputStreamFile, outputStream);
+}
+
+/// @brief Rescale the streamline with a given length
+void runRescaleStream(Options& opts, StringVector& args) {
+
+}
+
+
+
+//
 void processVTKUtilsOptions(pi::Options& opts) {
     opts.addOption("-markBorderCells", "Mark border cells of an input dataset. The border cells have 1 in BorderCells data", "-markBorderCells input-data output-data", SO_NONE);
     opts.addOption("-markBorderPoints", "Mark border points of an input dataset. The border points will be marked as 2 and its exterior neighbors will be marked as 3.", "-markBorderPoints input-data output-data", SO_NONE);
     opts.addOption("-sampleSurfaceScalars", "For each point marked as 3, sample the closest cell's majority scalar value.", "-sampleSurfaceScalars input-dataset input-surface output-dataset (-o output-surface)", SO_NONE);
     opts.addOption("-buildAdjacencyList", "Build an adjacency list for the input data and its point scalars", "-buildAdjacencyList input-data scalar-name", SO_NONE);
+	opts.addOption("-computeLaplacePDE", "Compute the Laplace PDE over the given domain", "-computeLaplacePDE input-data output-data selectedPointsScalarName, neighborIdScalarName, boundaryConditionScalarName", SO_NONE);
+	
+	opts.addOption("-traceScalarCombine", "Combine scalar values from a seed object to a stream line object. The stream line object must have PointIds for association. -zrotate option will produce the rotated output.", "-traceScalarCombine stream_seed.vtp stream_lines.vtp stream_lines_output.vtp -scalarName scalarToBeCopied", SO_NONE);
+	opts.addOption("-rescaleStream", "Rescale streamlines to fit with given lengths", "-rescaleStream input-stream-lines length.txt or input.vtp -scalarName scalarname", SO_NONE);
+	opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-lines output-points", SO_NONE);
+	opts.addOption("-traceDirection", "Choose the direction of stream tracing (both, forward, backward)", "-traceStream ... -traceDirection (both|forward|backward)", SO_REQ_SEP);
+	opts.addOption("-traceClipping", "Clip stream lines to fit with an object", "-traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp", SO_NONE);
+	opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
+	
 }
 
 
@@ -325,12 +839,35 @@ void processVTKUtils(pi::Options opts, pi::StringVector args) {
         }
     } else if (opts.GetBool("-buildAdjacencyList")) {
         input1File = args[0];
+		outputFile = args[1];
+		
         string scalarName = opts.GetString("-scalarName", "SampledSurfaceScalars");
         vtkDataSet* data1 = vio.readDataFile(input1File);
         
         vector<pair<vtkIdType, vector<vtkIdType> > > graph;
         buildAdjacencyList(data1, scalarName, graph);
-    }
-	
-	
+		
+		vio.writeFile(outputFile, data1);
+	} else if (opts.GetBool("-computeLaplacePDE")) {
+		input1File = args[0];
+		outputFile = args[1];
+
+		string selectedPointName = args[2];
+		string neighborIdName = args[3];
+		string boundaryCondName = args[4];
+		
+		vtkDataSet* data = vio.readDataFile(input1File);
+		computeLaplacePDE(data, selectedPointName, neighborIdName, boundaryCondName, 0, 10000, 2000, 0.065);
+		vio.writeFile(outputFile, data);
+	} else if (opts.GetBool("-traceStream")) {
+		runStreamTracer(opts, args);
+	} else if (opts.GetBool("-filterStream")) {
+		runFilterStream(opts, args);
+	} else if (opts.GetBool("-rescaleStream")) {
+		runRescaleStream(opts, args);
+	} else if (opts.GetBool("-traceClipping")) {
+		runTraceClipping(opts, args);
+	} else if (opts.GetBool("-traceScalarCombine")) {
+		runTraceScalarCombine(opts, args);
+	}
 }

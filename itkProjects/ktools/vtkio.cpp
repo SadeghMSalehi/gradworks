@@ -152,6 +152,7 @@ void vtkIO::writeFile(std::string file, vtkDataSet *mesh) {
         w->Write();
         w->Delete();
     }
+	cout << "Write " << file << " done ..." << endl;
 }
 
 
