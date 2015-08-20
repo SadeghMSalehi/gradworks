@@ -617,7 +617,7 @@ vtkPolyData* performStreamTracer(Options& opts, vtkDataSet* inputData, vtkPolyDa
 	
 	vtkPolyData* streamLines = tracer->GetOutput();
 	streamLines->Print(cout);
-	
+
 	// remove useless pointdata information
 	streamLines->GetPointData()->Reset();
 	
@@ -625,7 +625,10 @@ vtkPolyData* performStreamTracer(Options& opts, vtkDataSet* inputData, vtkPolyDa
 	// loop over the cell and compute the length
 	int nCells = streamLines->GetNumberOfCells();
 	cout << "# of cells: " << nCells << endl;
+
 	
+	vtkIO vio;
+	vio.writeFile("stream.vtp", streamLines);
 	
 	/// - Prepare the output as a scalar array
 	//    vtkDataArray* streamLineLength = streamLines->GetCellData()->GetScalars("Length");
