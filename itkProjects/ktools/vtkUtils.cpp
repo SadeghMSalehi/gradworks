@@ -547,22 +547,12 @@ void runTraceClipping(Options& opts, StringVector& args) {
 
 
 
-/// @brief Execute the stream tracer
-void runStreamTracer(Options& opts, StringVector& args) {
-	string inputVTUFile = args[0];
-	string inputPointsFile = args[1];
-	string outputStreamFile = args[2];
-	string outputPointFile = args[3];
-	bool zRotate = opts.GetBool("-zrotate", false);
-	
-	vtkIO vio;
-	vtkDataSet* inputData = vio.readDataFile(inputVTUFile);
-	
-	vtkPolyData* inputPoints = vio.readFile(inputPointsFile);
-	vtkPoints* points = inputPoints->GetPoints();
-	
+
+vtkPolyData* performStreamTracer(Options& opts, vtkDataSet* inputData, vtkPolyData* inputSeedPoints, bool zRotate = false) {
+    vtkPoints* points = inputSeedPoints->GetPoints();
+    
 	/// - Converting the input points to the image coordinate
-	const int nInputPoints = inputPoints->GetNumberOfPoints();
+	const int nInputPoints = inputSeedPoints->GetNumberOfPoints();
 	for (int i = 0; i < nInputPoints; i++) {
 		double p[3];
 		points->GetPoint(i, p);
@@ -574,12 +564,12 @@ void runStreamTracer(Options& opts, StringVector& args) {
 		}
 		points->SetPoint(i, p);
 	}
-	inputPoints->SetPoints(points);
+	inputSeedPoints->SetPoints(points);
 	
 	/// - Set up tracer (Use RK45, both direction, initial step 0.05, maximum propagation 500
 	StreamTracer* tracer = StreamTracer::New();
 	tracer->SetInput(inputData);
-	tracer->SetSource(inputPoints);
+	tracer->SetSource(inputSeedPoints);
 	//    double seedPoint[3];
  //   inputPoints->GetPoint(24745, seedPoint);
  //   tracer->SetStartPosition(seedPoint);
@@ -599,7 +589,8 @@ void runStreamTracer(Options& opts, StringVector& args) {
 		cout << "Forward Integration" << endl;
 	}
 	
-	tracer->SetInterpolatorTypeToDataSetPointLocator();
+//	tracer->SetInterpolatorTypeToDataSetPointLocator();
+    tracer->SetInterpolatorTypeToCellLocator();
 	tracer->SetMaximumPropagation(500);
 	tracer->SetInitialIntegrationStep(0.05);
 	tracer->Update();
@@ -607,6 +598,7 @@ void runStreamTracer(Options& opts, StringVector& args) {
 	
 	
 	vtkPolyData* streamLines = tracer->GetOutput();
+    vtkIO().writeFile("streamLines.vtp", streamLines);
 	
 	// loop over the cell and compute the length
 	int nCells = streamLines->GetNumberOfCells();
@@ -628,11 +620,11 @@ void runStreamTracer(Options& opts, StringVector& args) {
 	lineCorrect->SetNumberOfValues(nInputPoints);
 	lineCorrect->FillComponent(0, 0);
 	
-	inputPoints->GetPointData()->SetScalars(streamLineLengthPerPoint);
-	inputPoints->GetPointData()->AddArray(lineCorrect);
+	inputSeedPoints->GetPointData()->SetScalars(streamLineLengthPerPoint);
+	inputSeedPoints->GetPointData()->AddArray(lineCorrect);
 	
 	cout << "Assigning a length to each source vertex ..." << endl;
-	vtkDataArray* seedIds = streamLines->GetCellData()->GetScalars("SeedId");
+	vtkDataArray* seedIds = streamLines->GetCellData()->GetScalars("SeedIds");
 	if (seedIds) {
 		// line clipping
 		vtkPoints* outputPoints = vtkPoints::New();
@@ -640,7 +632,7 @@ void runStreamTracer(Options& opts, StringVector& args) {
 		
 		/// construct a tree locator
 		vtkModifiedBSPTree* tree = vtkModifiedBSPTree::New();
-		tree->SetDataSet(inputPoints);
+		tree->SetDataSet(inputSeedPoints);
 		tree->BuildLocator();
 		
 		
@@ -656,7 +648,7 @@ void runStreamTracer(Options& opts, StringVector& args) {
 			if (pid > -1) {
 				vtkCell* line = streamLines->GetCell(i);
 				/// - Assume that a line starts from a point on the input mesh and must meet at the opposite surface of the starting point.
-				bool lineAdded = performLineClipping(streamLines, tree, i, line, inputPoints, outputPoints, outputCells, length);
+				bool lineAdded = performLineClipping(streamLines, tree, i, line, inputSeedPoints, outputPoints, outputCells, length);
 				
 				if (lineAdded) {
 					pointIds->InsertNextValue(pid);
@@ -679,15 +671,35 @@ void runStreamTracer(Options& opts, StringVector& args) {
 		vtkCleanPolyData* cleaner = vtkCleanPolyData::New();
 		cleaner->SetInput(outputStreamLines);
 		cleaner->Update();
-		vio.writeFile(outputStreamFile, cleaner->GetOutput());
+        return cleaner->GetOutput();
 	} else {
 		cout << "Can't find SeedId" << endl;
 	}
 	
-	cout << lineCorrect->GetNumberOfTuples() << endl;
-	cout << streamLineLengthPerPoint->GetNumberOfTuples() << endl;
-	vio.writeFile(outputPointFile, inputPoints);
 	//    vio.writeXMLFile(outputVTKFile, streamLines);
+    return NULL;
+}
+
+
+/// @brief Execute the stream tracer
+void runStreamTracer(Options& opts, StringVector& args) {
+    string inputVTUFile = args[0];
+    string inputSeedPointsFile = args[1];
+    string outputStreamFile = args[2];
+    string outputPointFile = args[3];
+    bool zRotate = opts.GetBool("-zrotate", false);
+    
+    vtkIO vio;
+    vtkDataSet* inputData = vio.readDataFile(inputVTUFile);
+    vtkPolyData* inputSeedPoints = vio.readFile(inputSeedPointsFile);
+
+    vtkPolyData* outputStream = performStreamTracer(opts, inputData, inputSeedPoints, zRotate);
+    
+    cout << inputSeedPoints->GetPointData()->GetArray("LineOK")->GetNumberOfTuples() << endl;
+    cout << inputSeedPoints->GetPointData()->GetArray("Length")->GetNumberOfTuples() << endl;
+    
+    vio.writeFile(outputPointFile, inputSeedPoints);
+    vio.writeFile(outputStreamFile, outputStream);
 }
 
 
@@ -741,14 +753,14 @@ void runTraceScalarCombine(Options& opts, StringVector& args) {
 
 
 /// @brief Apply a filter to each stream line
-void runFilterStream(Options& opts, StringVector& args) {
+void runStreamLineThreshold(Options& opts, StringVector& args) {
 	string inputStream = args[0];
 	string inputSeeds = args[1];
 	string outputStreamFile = args[2];
 	string scalarName = opts.GetString("-scalarName");
 	
-	double lowThreshold = opts.GetStringAsReal("-thresholdMin", 0);
-	double highThreshold = opts.GetStringAsReal("-thresholdMax", 1);
+	double lowThreshold = opts.GetStringAsReal("-thresholdMin", DBL_MIN);
+	double highThreshold = opts.GetStringAsReal("-thresholdMax", DBL_MAX);
 	
 	vtkIO vio;
 	vtkPolyData* streamLines = vio.readFile(inputStream);
@@ -758,7 +770,7 @@ void runFilterStream(Options& opts, StringVector& args) {
 	outputStream->SetPoints(streamLines->GetPoints());
 	
 	/// - Lookup SeedId and a given scalar array
-	vtkDataArray* seedList = streamLines->GetCellData()->GetScalars("SeedId");
+	vtkDataArray* seedList = streamLines->GetCellData()->GetScalars("SeedIds");
 	vtkDataArray* seedScalars = streamSeeds->GetPointData()->GetScalars(scalarName.c_str());
 	vtkCellArray* lines = vtkCellArray::New();
 	vtkDoubleArray* filteredScalars = vtkDoubleArray::New();
@@ -790,6 +802,21 @@ void runRescaleStream(Options& opts, StringVector& args) {
 }
 
 
+void runMeasureThickness(Options& opts, StringVector& args) {
+    vtkIO vio;
+    string inputFile = args[0];
+    string inputSeedFile = args[1];
+    string outputStreamFile = args[2];
+    
+    vtkDataSet* data = vio.readDataFile(inputFile);
+    vtkPolyData* inputSeedPoints = vio.readFile(inputSeedFile);
+    computeLaplacePDE(data, "SelectedPoints", "Neighbor6", "SampledSurfaceScalars", 0, 10000, 2000, 0.065);
+    
+    vtkPolyData* outputStream = performStreamTracer(opts, data, inputSeedPoints);
+    vio.writeFile(outputStreamFile, outputStream);
+   
+}
+
 
 //
 void processVTKUtilsOptions(pi::Options& opts) {
@@ -804,8 +831,9 @@ void processVTKUtilsOptions(pi::Options& opts) {
 	opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-lines output-points", SO_NONE);
 	opts.addOption("-traceDirection", "Choose the direction of stream tracing (both, forward, backward)", "-traceStream ... -traceDirection (both|forward|backward)", SO_REQ_SEP);
 	opts.addOption("-traceClipping", "Clip stream lines to fit with an object", "-traceClipping stream_lines.vtp stream_object.vtp stream_lines_output.vtp", SO_NONE);
-	opts.addOption("-filterStream", "Filter out stream lines which are lower than a given threshold", "-filterStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
-	
+	opts.addOption("-thresholdStream", "Remove stream lines which are lower than a given threshold", "-thresholdStream stream-line-input stream-seed-input stream-line-output -scalarName scalar -threshold xx", SO_NONE);
+
+    opts.addOption("-measureThickness", "Measure the thickness of the solution domain via RK45 integration", "-measureThickness input-data", SO_NONE);
 }
 
 
@@ -861,13 +889,15 @@ void processVTKUtils(pi::Options opts, pi::StringVector args) {
 		vio.writeFile(outputFile, data);
 	} else if (opts.GetBool("-traceStream")) {
 		runStreamTracer(opts, args);
-	} else if (opts.GetBool("-filterStream")) {
-		runFilterStream(opts, args);
+	} else if (opts.GetBool("-thresholdStream")) {
+		runStreamLineThreshold(opts, args);
 	} else if (opts.GetBool("-rescaleStream")) {
 		runRescaleStream(opts, args);
 	} else if (opts.GetBool("-traceClipping")) {
 		runTraceClipping(opts, args);
 	} else if (opts.GetBool("-traceScalarCombine")) {
 		runTraceScalarCombine(opts, args);
-	}
+    } else if (opts.GetBool("-measureThickness")) {
+        runMeasureThickness(opts, args);
+    }
 }
