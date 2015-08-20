@@ -8,6 +8,7 @@
 //
 
 #include "kmesh.h"
+#include "kgeodesic.h"
 
 #include <set>
 #include <iostream>
@@ -3251,6 +3252,8 @@ int main(int argc, char * argv[])
 	opts.addOption("-h", "print help message", SO_NONE);
 	
 	processVTKUtilsOptions(opts);
+    processGeodesicOptions(opts);
+    
 	
 	StringVector args = opts.ParseOptions(argc, argv, NULL);
 	
@@ -3359,5 +3362,6 @@ int main(int argc, char * argv[])
 		runTest(opts, args);
 	}
 	processVTKUtils(opts, args);
+    processGeodesicCommands(opts, args);
 	return 0;
 }

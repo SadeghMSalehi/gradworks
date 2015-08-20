@@ -74,8 +74,10 @@ IF(${USE_VTK})
     
     ADD_EXECUTABLE(kmesh
         kmesh.h kmesh.cpp
+        vGraph.h vGraph.cpp
         vtkUtils.h vtkUtils.cpp
         kstreamtracer.h kstreamtracer.cpp
+        kgeodesic.h kgeodesic.cpp
         kimage.h kimage.cpp
         piOptions.h piOptions.cpp
         vtkio.h vtkio.cpp
