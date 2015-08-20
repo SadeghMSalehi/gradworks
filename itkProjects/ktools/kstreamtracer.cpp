@@ -516,6 +516,7 @@ int StreamTracer::CheckInputs(vtkAbstractInterpolatedVelocityField*& func,
         func = this->InterpolatorPrototype->NewInstance();
         func->CopyParameters(this->InterpolatorPrototype);
     }
+	iterP->GetCurrentDataObject()->Print(cout);
     vtkDataArray *vectors = this->GetInputArrayToProcess(
                                                          0,iterP->GetCurrentDataObject());
     if (!vectors)

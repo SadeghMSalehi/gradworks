@@ -3147,6 +3147,7 @@ int main(int argc, char * argv[])
 	opts.addOption("-o", "Specify a filename for output; used with other options", "-o filename.nrrd", SO_REQ_SEP);
 	opts.addOption("-n", "Specify n (integer number) for an operation. Refer related options", "-n integer",SO_REQ_SEP);
 	opts.addOption("-scalarName", "scalar name [string]", SO_REQ_SEP);
+	opts.addOption("-vectorName", "vector name [string]", SO_REQ_SEP);
 	opts.addOption("-outputScalarName", "scalar name for output [string]", SO_REQ_SEP);
 	opts.addOption("-inputProperty", "scalar name, vector name, or equivalent property name", "-inputProperty propertyName", SO_REQ_SEP);
 	opts.addOption("-sigma", "sigma value [double]", SO_REQ_SEP);

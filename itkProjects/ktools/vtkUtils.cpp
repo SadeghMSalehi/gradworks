@@ -19,12 +19,14 @@
 #include <vtkCellLocator.h>
 #include <vtkCellTreeLocator.h>
 #include <vtkCellDerivatives.h>
+#include <vtkGradientFilter.h>
 #include <vtkVectorNorm.h>
 
 #include <vtkIntArray.h>
 #include <vtkDoubleArray.h>
 #include <vtkIdTypeArray.h>
 #include <vtkPolyData.h>
+#include <vtkThresholdPoints.h>
 #include <vtkCleanPolyData.h>
 #include <vtkModifiedBSPTree.h>
 
@@ -358,7 +360,8 @@ void computeLaplacePDE(vtkDataSet* data, string selectedPointsName, string neigh
 		
 		void extractSolutionDomain(vtkDataArray* sp) {
 			for (size_t j = 0; j < sp->GetNumberOfTuples(); j++) {
-				if (sp->GetTuple1(j) == 1) {
+				const int domain = sp->GetTuple1(j);
+				if (domain == 1 || domain == 2) {
 					// keep an interior point id
 					solutionDomain.push_back(j);
 				}
@@ -410,8 +413,7 @@ void computeLaplacePDE(vtkDataSet* data, string selectedPointsName, string neigh
 		
 		
 		void computeNormals(vtkDataSet* data) {
-			data->GetPointData()->SetActiveScalars("LaplacianSolution");
-		
+			/*
 			vtkNew<vtkCellDerivatives> deriv;
 			deriv->SetInput(data);
 			deriv->SetVectorModeToComputeGradient();
@@ -420,7 +422,14 @@ void computeLaplacePDE(vtkDataSet* data, string selectedPointsName, string neigh
 			derivOut->GetCellData()->SetActiveVectors("ScalarGradient");
 			vtkDataArray* scalarGradient = deriv->GetOutput()->GetCellData()->GetArray("ScalarGradient");
 			scalarGradient->SetName("LaplacianGradient");
+			*/
 			
+			vtkNew<vtkGradientFilter> gradFilter;
+			gradFilter->SetInput(data);
+			gradFilter->SetInputScalars(vtkDataSet::FIELD_ASSOCIATION_POINTS, "LaplacianSolution");
+			gradFilter->SetResultArrayName("LaplacianGradient");
+			gradFilter->Update();
+			vtkDataArray* scalarGradient = gradFilter->GetOutput()->GetPointData()->GetArray("LaplacianGradient");
 			
 			vtkDoubleArray* norms = vtkDoubleArray::New();
 			norms->SetName("LaplacianGradientNorm");
@@ -434,8 +443,8 @@ void computeLaplacePDE(vtkDataSet* data, string selectedPointsName, string neigh
 				norms->SetTuple3(j, vec[0], vec[1], vec[2]);
 			}
 			
-			data->GetCellData()->AddArray(scalarGradient);
-			data->GetCellData()->AddArray(norms);
+			data->GetPointData()->AddArray(scalarGradient);
+			data->GetPointData()->SetVectors(norms);
 		}
 	};
 	
@@ -549,32 +558,42 @@ void runTraceClipping(Options& opts, StringVector& args) {
 
 
 vtkPolyData* performStreamTracer(Options& opts, vtkDataSet* inputData, vtkPolyData* inputSeedPoints, bool zRotate = false) {
-    vtkPoints* points = inputSeedPoints->GetPoints();
-    
+
+	// set active velocity field
+	inputData->GetPointData()->SetActiveVectors("LaplacianGradientNorm");
+
 	/// - Converting the input points to the image coordinate
+	vtkPoints* points = inputSeedPoints->GetPoints();
 	const int nInputPoints = inputSeedPoints->GetNumberOfPoints();
-	for (int i = 0; i < nInputPoints; i++) {
-		double p[3];
-		points->GetPoint(i, p);
-		// FixMe: Do not use a specific scaling factor
-		if (zRotate) {
-			p[0] = -p[0];
-			p[1] = -p[1];
-			p[2] = p[2];
+	if (zRotate) {
+		for (int i = 0; i < nInputPoints; i++) {
+			double p[3];
+			points->GetPoint(i, p);
+			// FixMe: Do not use a specific scaling factor
+			if (zRotate) {
+				p[0] = -p[0];
+				p[1] = -p[1];
+				p[2] = p[2];
+			}
+			points->SetPoint(i, p);
 		}
-		points->SetPoint(i, p);
+		inputSeedPoints->SetPoints(points);
 	}
-	inputSeedPoints->SetPoints(points);
+
+	inputSeedPoints->Print(cout);
 	
+	/// StreamTracer should have a point-wise gradient field
 	/// - Set up tracer (Use RK45, both direction, initial step 0.05, maximum propagation 500
 	StreamTracer* tracer = StreamTracer::New();
 	tracer->SetInput(inputData);
 	tracer->SetSource(inputSeedPoints);
+	tracer->SetComputeVorticity(false);
+	
 	//    double seedPoint[3];
  //   inputPoints->GetPoint(24745, seedPoint);
  //   tracer->SetStartPosition(seedPoint);
 	tracer->SetIntegratorTypeToRungeKutta45();
-	
+
 	
 	bool isBothDirection = false;
 	if (opts.GetString("-traceDirection") == "both") {
@@ -589,16 +608,19 @@ vtkPolyData* performStreamTracer(Options& opts, vtkDataSet* inputData, vtkPolyDa
 		cout << "Forward Integration" << endl;
 	}
 	
-//	tracer->SetInterpolatorTypeToDataSetPointLocator();
-    tracer->SetInterpolatorTypeToCellLocator();
+	tracer->SetInterpolatorTypeToDataSetPointLocator();
+//	tracer->SetInterpolatorTypeToCellLocator();
 	tracer->SetMaximumPropagation(500);
 	tracer->SetInitialIntegrationStep(0.05);
 	tracer->Update();
 	
 	
-	
 	vtkPolyData* streamLines = tracer->GetOutput();
-    vtkIO().writeFile("streamLines.vtp", streamLines);
+	streamLines->Print(cout);
+	
+	// remove useless pointdata information
+	streamLines->GetPointData()->Reset();
+	
 	
 	// loop over the cell and compute the length
 	int nCells = streamLines->GetNumberOfCells();
@@ -624,7 +646,7 @@ vtkPolyData* performStreamTracer(Options& opts, vtkDataSet* inputData, vtkPolyDa
 	inputSeedPoints->GetPointData()->AddArray(lineCorrect);
 	
 	cout << "Assigning a length to each source vertex ..." << endl;
-	vtkDataArray* seedIds = streamLines->GetCellData()->GetScalars("SeedIds");
+	vtkDataArray* seedIds = streamLines->GetCellData()->GetScalars("SeedId");
 	if (seedIds) {
 		// line clipping
 		vtkPoints* outputPoints = vtkPoints::New();
@@ -692,14 +714,27 @@ void runStreamTracer(Options& opts, StringVector& args) {
     vtkIO vio;
     vtkDataSet* inputData = vio.readDataFile(inputVTUFile);
     vtkPolyData* inputSeedPoints = vio.readFile(inputSeedPointsFile);
-
-    vtkPolyData* outputStream = performStreamTracer(opts, inputData, inputSeedPoints, zRotate);
+	
+	vtkNew<vtkThresholdPoints> selector;
+	selector->SetInput(inputData);
+	selector->ThresholdBetween(1.5, 2.5);
+	selector->SetInputArrayToProcess(0, 0, 0, vtkDataSet::FIELD_ASSOCIATION_POINTS, "SampledSurfaceScalars");
+	selector->Update();
+	vtkPolyData* selectedSeeds = selector->GetOutput();
+	vio.writeFile("selectedSeeds.vtp", selectedSeeds);
+	
+//	selectedSeeds->Print(cout);
+	
+    vtkPolyData* outputStream = performStreamTracer(opts, inputData, selectedSeeds, zRotate);
     
-    cout << inputSeedPoints->GetPointData()->GetArray("LineOK")->GetNumberOfTuples() << endl;
-    cout << inputSeedPoints->GetPointData()->GetArray("Length")->GetNumberOfTuples() << endl;
-    
-    vio.writeFile(outputPointFile, inputSeedPoints);
-    vio.writeFile(outputStreamFile, outputStream);
+    cout << selectedSeeds->GetPointData()->GetArray("LineOK")->GetNumberOfTuples() << endl;
+    cout << selectedSeeds->GetPointData()->GetArray("Length")->GetNumberOfTuples() << endl;
+	
+	
+    vio.writeFile(outputPointFile, selectedSeeds);
+	if (outputStream) {
+	    vio.writeFile(outputStreamFile, outputStream);
+	}
 }
 
 
@@ -770,7 +805,7 @@ void runStreamLineThreshold(Options& opts, StringVector& args) {
 	outputStream->SetPoints(streamLines->GetPoints());
 	
 	/// - Lookup SeedId and a given scalar array
-	vtkDataArray* seedList = streamLines->GetCellData()->GetScalars("SeedIds");
+	vtkDataArray* seedList = streamLines->GetCellData()->GetScalars("SeedId");
 	vtkDataArray* seedScalars = streamSeeds->GetPointData()->GetScalars(scalarName.c_str());
 	vtkCellArray* lines = vtkCellArray::New();
 	vtkDoubleArray* filteredScalars = vtkDoubleArray::New();
@@ -810,9 +845,18 @@ void runMeasureThickness(Options& opts, StringVector& args) {
     
     vtkDataSet* data = vio.readDataFile(inputFile);
     vtkPolyData* inputSeedPoints = vio.readFile(inputSeedFile);
+
+	vtkNew<vtkThresholdPoints> selector;
+	selector->SetInput(inputSeedPoints);
+	selector->ThresholdBetween(0.5, 1.5);
+	selector->SetInputArrayToProcess(0, 0, 0, vtkDataSet::FIELD_ASSOCIATION_POINTS, "SampledSurfaceScalars");
+	selector->Update();
+	vtkPolyData* selectedSeeds = selector->GetOutput();
+
+	
     computeLaplacePDE(data, "SelectedPoints", "Neighbor6", "SampledSurfaceScalars", 0, 10000, 2000, 0.065);
     
-    vtkPolyData* outputStream = performStreamTracer(opts, data, inputSeedPoints);
+    vtkPolyData* outputStream = performStreamTracer(opts, data, selectedSeeds);
     vio.writeFile(outputStreamFile, outputStream);
    
 }
