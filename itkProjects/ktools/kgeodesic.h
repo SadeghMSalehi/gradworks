@@ -12,8 +12,10 @@
 #include <stdio.h>
 
 #include "vGraph.h"
+#include <vtkPolygon.h>
 
 #include "piOptions.h"
+
 
 void processGeodesicOptions(pi::Options& opts);
 void processGeodesicCommands(pi::Options &opts, pi::StringVector &args);

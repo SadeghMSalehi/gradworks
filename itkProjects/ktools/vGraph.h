@@ -41,4 +41,5 @@ struct vGraph {
     void computeGeodesicDistance(vtkIdVector& source);
 };
 
+
 #endif /* defined(__ktools__vGraph__) */
