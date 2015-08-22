@@ -9,8 +9,12 @@
 #include "kgeodesic.h"
 #include "vtkio.h"
 
+#include <vtkFloatArray.h>
 #include <vtkDoubleArray.h>
 #include <vtkUnstructuredGrid.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkMath.h>
+#include <vtkTransform.h>
 
 #include <vector>
 #include <deque>
@@ -21,32 +25,140 @@ using namespace std;
 static vtkIO vio;
 
 
-void computeLocalTangentMap(vtkPolyData* g, vtkUnstructuredGrid* outputTangentMaps) {
-    const size_t nPts = g->GetNumberOfPoints();
+struct ExpLogMap {
+	vtkPoints* globalPoints;
+	vtkPoints* centerPoints;
+	vtkFloatArray* centerNormals;
+	vtkIdTypeArray* ringId;
+	
+	vtkNew<vtkTransform> transform;
+	
+	ExpLogMap(vtkPoints* p, vtkPoints* cp, vtkFloatArray* cn, vtkIdTypeArray* ri): globalPoints(p), centerPoints(cp), centerNormals(cn), ringId(ri) {}
+	
+	double computeAngle(const double v1[3], const double v2[3]) {
+		double cross[3] = { 0, };
+		vtkMath::Cross(v1, v2, cross);
+		double crossProdNorm = vtkMath::Norm(cross);
+		double dotProd = vtkMath::Dot(v1, v2);
+		return atan2(crossProdNorm, dotProd);
+	}
+	
+	void transformExp(vtkPolygon* local, vtkIdType centerPtId, bool translate = false) {
+		double centerPoint[3];
+		double centerNormal[3];
+		
+		centerPoints->GetPoint(centerPtId, centerPoint);
+		centerNormals->GetTuple(centerPtId, centerNormal);
+		
+		for (size_t j = 0; j < local->GetNumberOfPoints(); j++) {
+			vtkIdType qId = local->GetPointId(j);
+			vtkIdType gqId = ringId->GetValue(qId);
+			
+			// compute PQ vector
+			double qPts[3], pqVec[3], Tpq[3];
+			globalPoints->GetPoint(qId, qPts);
+			vtkMath::Subtract(qPts, centerPoint, pqVec);
+			
+			double* qNormal = centerNormals->GetTuple3(gqId);
+			double npDotNq = vtkMath::Dot(centerNormal, qNormal);
+			
+			// geodesic distance and angle
+			double angle = computeAngle(centerNormal, pqVec) - M_PI_2;
+//			angle = npDotNq < 0 ? M_PI - angle : angle;
+			
+			// map q to Tp
+			double pqN[3] = { 0, };
+			vtkMath::Cross(pqVec, centerNormal, pqN);
+			vtkMath::Normalize(pqN);
+			
+			transform->Identity();
+			transform->RotateWXYZ(vtkMath::DegreesFromRadians(angle), pqN);
+			
+			memcpy(Tpq, transform->TransformDoublePoint(pqVec), sizeof(Tpq));
+			
+			if (translate) {
+				vtkMath::Add(Tpq, centerPoint, Tpq);
+			}
+			
+			globalPoints->SetPoint(qId, Tpq);
+			
+		}
+	}
+};
 
-    // output data
-    vtkIdTypeArray* ringIds = vtkIdTypeArray::New();
-    ringIds->SetName("RingIDs");
+
+void computeLocalTangentMap(vtkPolyData* g, vtkUnstructuredGrid* outputTangentMaps) {
+	
+//	vtkNew<vtkTransform> txfm;
+//	
+//	for (double angle = 90; angle <= 360; angle += 90) {
+//		txfm->Identity();
+//		txfm->RotateWXYZ(angle, 0, 0, 1);
+//		
+//		double x[3] = { 1, 0, 0 };
+//		double *y = txfm->TransformDoublePoint(x);
+//		
+//		cout << angle << "; " << y[0] << "," << y[1] << "," << y[2] << endl;
+//	}
+//	
+//	if (1) { return; }
+	
+	vtkNew<vtkPolyDataNormals> normalFilter;
+	normalFilter->ComputePointNormalsOn();
+	normalFilter->ConsistencyOn();
+	normalFilter->SetInput(g);
+	normalFilter->Update();
+	g = normalFilter->GetOutput();
+	
+	const size_t nPts = g->GetNumberOfPoints();
+	
+
+    // the original points
+	vtkPoints* globalPoints = vtkPoints::New();
+	globalPoints->Allocate(nPts*5);
+	
+	vtkIdTypeArray* ringIds = vtkIdTypeArray::New();
+    ringIds->SetName("RingID");
     ringIds->SetNumberOfComponents(1);
-    
+	ringIds->Allocate(nPts*5);
+	
+	
+	// the cell array
     vtkCellArray* tangentMapArray = vtkCellArray::New();
     tangentMapArray->Allocate(nPts);
-    
-    vtkPoints* tangentPoints = vtkPoints::New();
-    tangentPoints->Allocate(nPts*6);
-    
-    
+	
+	vtkDoubleArray* centerPoints = vtkDoubleArray::New();
+	centerPoints->SetName("CenterPoint");
+	centerPoints->SetNumberOfComponents(3);
+	centerPoints->SetNumberOfTuples(nPts);
+
+	vtkFloatArray* centerNormals = vtkFloatArray::SafeDownCast(g->GetPointData()->GetNormals());
+	centerNormals->SetName("CenterNormal");
+	
+
+	// Exponential Mapping
+	ExpLogMap expMap(globalPoints, g->GetPoints(), centerNormals, ringIds);
+	
     // temporary data types
     vtkNew<vtkIdList> cellIds, ptIds;
     vector<deque<vtkIdType> > neighbors;
     for (size_t p = 0; p < nPts; p++) {
+		centerPoints->SetTupleValue(p, g->GetPoint(p));
+		
         cellIds->Reset();
         ptIds->Reset();
-        
-        
+		
         // inspect the neighbor cells of point p
         g->GetPointCells(p, cellIds.GetPointer());
+		neighbors.clear();
         neighbors.resize(cellIds->GetNumberOfIds());
+		
+		if (p == 60) {
+//			cout << cellIds->GetNumberOfIds() << endl;
+			for (size_t j = 0; j < cellIds->GetNumberOfIds(); j++) {
+				cout << cellIds->GetId(j) << endl;
+			}
+		}
         
         for (size_t j = 0; j < cellIds->GetNumberOfIds(); j++) {
             vtkIdType c = cellIds->GetId(j);
@@ -64,13 +176,13 @@ void computeLocalTangentMap(vtkPolyData* g, vtkUnstructuredGrid* outputTangentMa
         
         // construct a tangent plane with neighbor points
         vtkPolygon* tangentPlane = vtkPolygon::New();
-        
+		
         vtkIdType firstId = neighbors[0][1];
         vtkIdType lastId = -1;
         for (size_t j = 1; j < neighbors[0].size(); j++) {
             lastId = neighbors[0][j];
             ringIds->InsertNextValue(lastId);
-            vtkIdType pId = tangentPoints->InsertNextPoint(g->GetPoint(lastId));
+            vtkIdType pId = globalPoints->InsertNextPoint(g->GetPoint(lastId));
             tangentPlane->GetPointIds()->InsertNextId(pId);
         }
         
@@ -82,21 +194,28 @@ void computeLocalTangentMap(vtkPolyData* g, vtkUnstructuredGrid* outputTangentMa
                         break;
                     }
                     ringIds->InsertNextValue(lastId);
-                    vtkIdType pId = tangentPoints->InsertNextPoint(g->GetPoint(lastId));
+                    vtkIdType pId = globalPoints->InsertNextPoint(g->GetPoint(lastId));
                     tangentPlane->GetPointIds()->InsertNextId(pId);
                 }
             }
         }
-        
-        if (p % 100 == 0) {
-            cout << "Points processed: " << p << " ..." << endl;
-        }
-    }
+		
+		
+		// compute the exponential mapping and add into the grid
+		expMap.transformExp(tangentPlane, p, true);
+		tangentMapArray->InsertNextCell(tangentPlane);
 
+		
+		if (p % 1000 == 0) {
+			cout << "# of points processed: " << p << endl;
+		}
+    }
+	
     outputTangentMaps->SetCells(VTK_POLYGON, tangentMapArray);
-    outputTangentMaps->GetCellData()->AddArray(ringIds);
-    outputTangentMaps->SetPoints(tangentPoints);
-    
+    outputTangentMaps->GetPointData()->SetScalars(ringIds);
+    outputTangentMaps->SetPoints(globalPoints);
+	outputTangentMaps->GetCellData()->SetVectors(centerPoints);
+	outputTangentMaps->GetCellData()->AddArray(centerNormals);
 }
 
 
