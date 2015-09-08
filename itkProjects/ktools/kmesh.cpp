@@ -9,7 +9,10 @@
 
 #include "kmesh.h"
 #include "kgeodesic.h"
+#include "ktest1.h"
+#include "kvolume.h"
 
+#include <ctime>
 #include <set>
 #include <iostream>
 #include <algorithm>
@@ -1144,237 +1147,6 @@ bool endswith(std::string str, std::string substr) {
 	size_t i = str.rfind(substr);
 	return (i != string::npos) && (i == (str.length() - substr.length()));
 }
-
-
-void runExtractBorderline(Options& opts, StringVector& args) {
-	string inputFile = args[0];
-	string outputFile = args[1];
-	string scalarName = opts.GetString("-scalarName", "labels");
-	
-	vtkIO vio;
-	vtkPolyData* input = vio.readFile(inputFile);
-	input->BuildCells();
-	input->BuildLinks();
-	
-	cout << input->GetNumberOfPoints() << endl;
-	cout << input->GetNumberOfLines() << endl;
-	
-	vtkPoints* points = input->GetPoints();
-	vtkDataArray* scalar = input->GetPointData()->GetArray(scalarName.c_str());
-	
-	vector<pair<vtkIdType,vtkIdType> > edgeSet;
-	
-	for (size_t j = 0; j < input->GetNumberOfCells(); j++) {
-		vtkCell* cell = input->GetCell(j);
-		vtkIdType p[3]; int s[3];
-		p[0] = cell->GetPointId(0);
-		p[1] = cell->GetPointId(1);
-		p[2] = cell->GetPointId(2);
-		
-		s[0] = scalar->GetTuple1(p[0]);
-		s[1] = scalar->GetTuple1(p[1]);
-		s[2] = scalar->GetTuple1(p[2]);
-		
-		if (s[0] == s[1] && s[1] == s[2] && s[2] == s[0]) {
-			continue;
-		}
-		
-		vtkIdType p1, p2;
-		if (s[0] != s[1] && s[0] != s[2]) {
-			p1 = p[1];
-			p2 = p[2];
-		} else if (s[1] != s[2] && s[1] != s[0]) {
-			p1 = p[2];
-			p2 = p[0];
-		} else if (s[2] != s[0] && s[2] != s[1]) {
-			p1 = p[0];
-			p2 = p[1];
-		} else {
-			continue;
-		}
-		
-		edgeSet.push_back(make_pair(p1, p2));
-	}
-	
-	vtkPolyData* output = vtkPolyData::New();
-	output->SetPoints(points);
-	
-	vtkCellArray* lines = vtkCellArray::New();
-	for (size_t j = 0; j < edgeSet.size(); j++) {
-		vtkIdList* ids = vtkIdList::New();
-		ids->InsertNextId(edgeSet[j].first);
-		ids->InsertNextId(edgeSet[j].second);
-		lines->InsertNextCell(ids->GetNumberOfIds(), ids->GetPointer(0));
-		ids->Delete();
-	}
-	
-	output->SetLines(lines);
-	output->BuildCells();
-	
-	vio.writeFile(outputFile, output);
-	cout << "Length of Borderline: " << edgeSet.size() << endl;
-}
-
-
-// create a structured grid with the size of input
-// convert the grid to polydata
-// create the intersection between the grid and the polydata
-void runFillGrid(Options& opts, StringVector& args) {
-	if (opts.GetBool("-twosided")) {
-		string inputFileOut = args[0];
-		string inputFileIn = args[1];
-		string outputFile = args[2];
-		
-		vtkIO vio;
-		vtkPolyData* inputOut = vio.readFile(inputFileOut);
-		vtkPolyData* inputIn = vio.readFile(inputFileIn);
-		
-		// x1-x2, y1-y2, z1-z2
-		double* bounds = inputOut->GetBounds();
-		
-		cout << bounds[0] << "," << bounds[1] << endl;
-		cout << bounds[2] << "," << bounds[3] << endl;
-		cout << bounds[4] << "," << bounds[5] << endl;
-		
-		int dims = opts.GetStringAsInt("-dims", 100);
-		
-		double maxbound = max(bounds[1]-bounds[0], max(bounds[3]-bounds[2], bounds[5]-bounds[4]));
-		
-		double gridSpacing = maxbound / dims;
-
-		cout << "Grid Dimension: " << dims << "; Grid Spacing: " << gridSpacing << endl;
-
-		
-		size_t xdim = (bounds[1]-bounds[0])/gridSpacing;
-		size_t ydim = (bounds[3]-bounds[2])/gridSpacing;
-		size_t zdim = (bounds[5]-bounds[4])/gridSpacing;
-		
-		vtkStructuredGrid* grid = vtkStructuredGrid::New();
-		grid->SetDimensions(xdim + 2, ydim + 2, zdim + 2);
-		
-		vtkPoints* gridPoints = vtkPoints::New();
-		gridPoints->SetNumberOfPoints((xdim+2)*(ydim+2)*(zdim+2));
-		//    gridPoints->SetNumberOfPoints(101*101*101);
-		
-		
-		size_t u = 0;
-		double x =bounds[0], y = bounds[2], z = bounds[4];
-		for (int k = 0; k < zdim+2; k++) {
-			for (int j = 0; j < ydim+2; j++) {
-				for (int i = 0; i < xdim+2; i++) {
-					gridPoints->SetPoint(u, x, y, z);
-					x += gridSpacing;
-					u++;
-				}
-				y += gridSpacing;
-				x = bounds[0];
-			}
-			z += gridSpacing;
-			y = bounds[2];
-		}
-		
-		grid->SetPoints(gridPoints);
-		cout << "Grid construction done..." << endl;
-		
-		vtkSelectEnclosedPoints* encloserOut = vtkSelectEnclosedPoints::New();
-		encloserOut->SetInput(grid);
-		encloserOut->SetSurface(inputOut);
-		encloserOut->CheckSurfaceOn();
-		encloserOut->SetTolerance(0);
-		cout << "Outside surface processing ..." << endl;
-		encloserOut->Update();
-		
-		vtkDataArray* outLabel = encloserOut->GetOutput()->GetPointData()->GetArray("SelectedPoints");
-		
-		vtkSelectEnclosedPoints* encloserIn = vtkSelectEnclosedPoints::New();
-		encloserIn->SetInput(grid);
-		encloserIn->SetSurface(inputIn);
-		encloserIn->CheckSurfaceOn();
-		encloserIn->InsideOutOn();
-		encloserIn->SetTolerance(0);
-		cout << "Inside surface processing ..." << endl;
-		encloserIn->Update();
-		
-		vtkDataArray* inLabel = encloserIn->GetOutput()->GetPointData()->GetArray("SelectedPoints");
-		
-		vtkIntArray* inOutLabel = vtkIntArray::New();
-		inOutLabel->SetNumberOfComponents(1);
-		inOutLabel->SetNumberOfValues(inLabel->GetNumberOfTuples());
-		
-		size_t insideCount = 0;
-		cout << "Computing the intersection ..." << endl;
-		for (size_t j = 0; j < inOutLabel->GetNumberOfTuples(); j++) {
-			inOutLabel->SetValue(j, (outLabel->GetTuple1(j) == 1 && inLabel->GetTuple1(j) == 1) ? 1 : 0);
-			insideCount++;
-		}
-		
-		inOutLabel->SetName("InteriorPoints");
-		grid->GetPointData()->SetScalars(inOutLabel);
-		
-		vio.writeFile(outputFile, grid);
-		cout << "Inside Voxels: " << insideCount << endl;
-	} else {
-		string inputFile = args[0];
-		string outputFile = args[1];
-		
-		vtkIO vio;
-		vtkPolyData* input = vio.readFile(inputFile);
-		
-		// x1-x2, y1-y2, z1-z2
-		double* bounds = input->GetBounds();
-		
-		cout << bounds[0] << "," << bounds[1] << endl;
-		cout << bounds[2] << "," << bounds[3] << endl;
-		cout << bounds[4] << "," << bounds[5] << endl;
-		
-		int dims = opts.GetStringAsInt("-dims", 100);
-		cout << "Grid Dimension: " << dims << endl;
-		
-		vtkStructuredGrid* grid = vtkStructuredGrid::New();
-		grid->SetDimensions(dims + 2, dims + 2, dims + 2);
-		
-		vtkPoints* gridPoints = vtkPoints::New();
-		//    gridPoints->SetNumberOfPoints(101*101*101);
-		
-		for (int k = 0; k < dims + 2; k++) {
-			for (int j = 0; j < dims + 2; j++) {
-				for (int i = 0; i < dims + 2; i++) {
-					double x = bounds[0] + (i-1)*(bounds[1]-bounds[0])/dims;
-					double y = bounds[2] + (j-1)*(bounds[3]-bounds[2])/dims;
-					double z = bounds[4] + (k-1)*(bounds[5]-bounds[4])/dims;
-					
-					gridPoints->InsertNextPoint(x, y, z);
-				}
-			}
-		}
-		
-		grid->SetPoints(gridPoints);
-		
-		vtkSelectEnclosedPoints* encloser = vtkSelectEnclosedPoints::New();
-		encloser->SetInput(grid );
-		encloser->SetSurface(input);
-		encloser->CheckSurfaceOn();
-		if (opts.GetBool("-reverse")) {
-			cout << "Inside Out Mode" << endl;
-			encloser->InsideOutOn();
-		}
-		encloser->SetTolerance(0);
-		encloser->Update();
-		
-		size_t insideCount = 0;
-		vtkDataArray* selectedPoints = encloser->GetOutput()->GetPointData()->GetArray("SelectedPoints");
-		for (size_t j = 0; j < selectedPoints->GetNumberOfTuples(); j++) {
-			if (selectedPoints->GetTuple1(j) == 1) {
-				insideCount++;
-			}
-		}
-		
-		vio.writeFile(outputFile, encloser->GetOutput());
-		cout << "Inside Voxels: " << insideCount << endl;
-	}
-	
-}
-
 
 /// @brief Fit a model into a binary image
 void runFittingModel(Options& opts, StringVector& args) {
@@ -3143,6 +2915,7 @@ void runTest(Options& opts, StringVector& args) {
 
 int main(int argc, char * argv[])
 {
+    clock_t t1 = clock();
 	Options opts;
 	// general options
 	opts.addOption("-o", "Specify a filename for output; used with other options", "-o filename.nrrd", SO_REQ_SEP);
@@ -3222,12 +2995,6 @@ int main(int argc, char * argv[])
 	opts.addOption("-vtu", "Convert an ITK image to VTU format (vtkUnstructuredGrid). This is useful when masking is needed.", "-vtu imageFile outputFile -maskImage maskImage", SO_NONE);
 	opts.addOption("-maskImage", "A mask image for the use of -vtu", "-maskImage mask.nrrd", SO_REQ_SEP);
 	opts.addOption("-zrotate", "Rotate all the points along the z-axis. Change the sign of x and y coordinate.", "-traceStream ... -zrotate", SO_NONE);
-	opts.addOption("-extractBorderline", "Extract the borderlines between different labels", "-extractBorderline obj.vtp", SO_NONE);
-	opts.addOption("-fillGrid", "Fill the inside of a polydata with a uniform grid (refer -twosided option)", "-fillGrid input.vtp output.vtp", SO_NONE);
-	opts.addOption("-dims", "x-y-z dimensions", "-dims 100", SO_REQ_SEP);
-	opts.addOption("-twosided", "An option to generate the filled uniform grid", "-fillGrid CSF_GM_surface.vtk GM_WM_surface.vtk output.vts -twosided", SO_NONE);
-
-	
 	
 
 	opts.addOption("-bsplineSample", "Apply b-spline transform", "-bsplineSample control-point-csv input-points-csv output-points-csv", SO_NONE);
@@ -3253,7 +3020,8 @@ int main(int argc, char * argv[])
 	
 	processVTKUtilsOptions(opts);
     processGeodesicOptions(opts);
-    
+    processTest1Options(opts);
+    processVolumeOptions(opts);
 	
 	StringVector args = opts.ParseOptions(argc, argv, NULL);
 	
@@ -3342,10 +3110,6 @@ int main(int argc, char * argv[])
 		runFittingModel(opts, args);
 	} else if (opts.GetBool("-ellipse")) {
 		runEllipse(opts, args);
-	} else if (opts.GetBool("-extractBorderline")) {
-		runExtractBorderline(opts, args);
-	} else if (opts.GetBool("-fillGrid")) {
-		runFillGrid(opts, args);
 	} else if (opts.GetBool("-computeCurvature")) {
 		runComputeCurvature(opts, args);
 	} else if (opts.GetBool("-pca")) {
@@ -3363,5 +3127,11 @@ int main(int argc, char * argv[])
 	}
 	processVTKUtils(opts, args);
     processGeodesicCommands(opts, args);
+    processTest1Commands(opts, args);
+    processVolumeCommands(opts, args);
+    clock_t t2 = clock();
+    
+    cout << (double)(t2 - t1) / CLOCKS_PER_SEC * 1000 << " ms\n";
+
 	return 0;
 }

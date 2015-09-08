@@ -143,6 +143,8 @@ void vtkIO::writeFile(std::string file, vtkDataSet *mesh) {
         vtkXMLUnstructuredGridWriter* w = vtkXMLUnstructuredGridWriter::New();
         w->SetInput(mesh);
         w->SetFileName(file.c_str());
+        w->SetCompressorTypeToNone();
+        w->SetDataModeToAscii();
         w->Write();
         w->Delete();
     } else if (endswith(file, ".vts")) {

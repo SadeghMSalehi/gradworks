@@ -109,7 +109,7 @@ void vGraph::computeGeodesicDistance(vtkIdVector &source) {
             data->GetPoint(v, vPt);
             
             // compute the distance
-            const double uvdist = vtkMath::Distance2BetweenPoints(uPt, vPt);
+			const double uvdist = sqrt(vtkMath::Distance2BetweenPoints(uPt, vPt));
             
             // relaxation
             if (udist + uvdist < vdist) {
