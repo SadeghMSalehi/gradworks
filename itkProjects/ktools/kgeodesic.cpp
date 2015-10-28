@@ -15,6 +15,7 @@
 #include <vtkPolyDataNormals.h>
 #include <vtkMath.h>
 #include <vtkTransform.h>
+#include <vtkDijkstraGraphGeodesicPath.h>
 
 #include <vector>
 #include <deque>
@@ -153,13 +154,13 @@ void computeLocalTangentMap(vtkPolyData* g, vtkUnstructuredGrid* outputTangentMa
 		neighbors.clear();
         neighbors.resize(cellIds->GetNumberOfIds());
 		
-		if (p == 60) {
-//			cout << cellIds->GetNumberOfIds() << endl;
-			for (size_t j = 0; j < cellIds->GetNumberOfIds(); j++) {
-				cout << cellIds->GetId(j) << endl;
-			}
-		}
-        
+//		if (p == 60) {
+////			cout << cellIds->GetNumberOfIds() << endl;
+//			for (size_t j = 0; j < cellIds->GetNumberOfIds(); j++) {
+//				cout << cellIds->GetId(j) << endl;
+//			}
+//		}
+		
         for (size_t j = 0; j < cellIds->GetNumberOfIds(); j++) {
             vtkIdType c = cellIds->GetId(j);
             g->GetCellPoints(c, ptIds.GetPointer());
@@ -215,7 +216,25 @@ void computeLocalTangentMap(vtkPolyData* g, vtkUnstructuredGrid* outputTangentMa
     outputTangentMaps->GetPointData()->SetScalars(ringIds);
     outputTangentMaps->SetPoints(globalPoints);
 	outputTangentMaps->GetCellData()->SetVectors(centerPoints);
-	outputTangentMaps->GetCellData()->AddArray(centerNormals);
+	outputTan gentMaps->GetCellData()->AddArray(centerNormals);
+}
+
+
+void computeGeodesicPath(vtkPolyData* surf, vtkUnstructuredGrid* tangentMaps) {
+	vtkNew<vtkDijkstraGraphGeodesicPath> dijkstraFilter;
+	dijkstraFilter->SetInput(surf);
+	dijkstraFilter->SetStartVertex(0);
+	dijkstraFilter->SetEndVertex(17);
+	dijkstraFilter->Update();
+	surf = dijkstraFilter->GetOutput();
+	vio.writeFile("shortest_path.vtp", surf);
+	
+	vtkIdList* pathIdList = dijkstraFilter->GetIdList();
+	vGraph::vtkIdVector pathIds(pathIdList->GetPointer(0), pathIdList->GetPointer(0) + pathIdList->GetNumberOfIds());
+	reverse(pathIds.begin(), pathIds.end());
+	for (size_t j = 0; j < pathIds.size(); j++) {
+		cout << pathIds[j] << endl;
+	}
 }
 
 
@@ -252,6 +271,8 @@ void processGeodesicOptions(pi::Options& opts) {
     opts.addOption("-computeGeodesicDistance", "Compute geodesic distance to the set of points", "-computeGeodesicDistance input-data -scalarName destinationScalar", SO_NONE);
     
     opts.addOption("-computeLocalTangentMap", SO_NONE);
+	
+	opts.addOption("-computeGeodesicPath", "Compute a geodesic path from a vertex to the other vertex", "-computeGeodesicPath inputPoly inputTangentMap", SO_NONE);
 }
 
 void processGeodesicCommands(pi::Options& opts, pi::StringVector& args) {
@@ -281,5 +302,14 @@ void processGeodesicCommands(pi::Options& opts, pi::StringVector& args) {
         vtkUnstructuredGrid* ugrid = vtkUnstructuredGrid::New();
         computeLocalTangentMap(data, ugrid);
         vio.writeFile(outputFile, ugrid);
-    }
+	} else if (opts.GetBool("-computeGeodesicPath")) {
+		string input1File = args[0];
+		string input2File = args[1];
+//		string outputFile = args[2];
+		
+		vtkPolyData* data1 = vio.readFile(input1File);
+		vtkUnstructuredGrid* data2 = vtkUnstructuredGrid::SafeDownCast(vio.readDataFile(input2File));
+		
+		computeGeodesicPath(data1, data2);
+	}
 }
