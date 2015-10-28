@@ -7,6 +7,8 @@
 //
 
 #include "vtkio.h"
+#include <exception>
+
 #include <vtkDataSet.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
@@ -101,7 +103,14 @@ vtkPolyData* vtkIO::readFile(std::string file) {
         r->SetFileName(file.c_str());
         r->Update();
         return r->GetOutput();
-    }
+    } else if (endswith(file, ".obj")) {
+        vtkMNIObjectReader* r = vtkMNIObjectReader::New();
+        r->SetFileName(file.c_str());
+        r->Update();
+        return r->GetOutput();
+	} else {
+		throw std::runtime_error("file format not recognized by extesion");
+	}
     return NULL;
 }
 
@@ -143,6 +152,8 @@ void vtkIO::writeFile(std::string file, vtkDataSet *mesh) {
         vtkXMLUnstructuredGridWriter* w = vtkXMLUnstructuredGridWriter::New();
         w->SetInput(mesh);
         w->SetFileName(file.c_str());
+        w->SetCompressorTypeToNone();
+        w->SetDataModeToAscii();
         w->Write();
         w->Delete();
     } else if (endswith(file, ".vts")) {

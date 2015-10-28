@@ -36,11 +36,6 @@
 #include <vtkGenericCell.h>
 #include <vtkPolyDataNormals.h>
 #include <vtkInterpolatedVelocityField.h>
-#include <vtkSphereSource.h>
-#include <vtkTransform.h>
-#include <vtkTransformPolyDataFilter.h>
-
-
 
 #include <unordered_map>
 #include <unordered_set>
@@ -120,7 +115,7 @@ void runExtractBorderline(Options& opts, StringVector& args) {
     cout << "Length of Borderline: " << edgeSet.size() << endl;
 }
 
-vtkDataSet* createGridForSphereLikeObject(vtkPolyData* input, int& insideCount, int dims, bool insideOutOn) {
+vtkDataSet* createGridForSphereLikeObject(vtkPolyData* input, int& insideCount, int dims = 100, bool insideOutOn = false) {
     // x1-x2, y1-y2, z1-z2
     double* bounds = input->GetBounds();
     
@@ -128,11 +123,6 @@ vtkDataSet* createGridForSphereLikeObject(vtkPolyData* input, int& insideCount, 
     cout << bounds[2] << "," << bounds[3] << endl;
     cout << bounds[4] << "," << bounds[5] << endl;
     cout << "Grid Dimension: " << dims << endl;
-	
-	double center[3] = { 0, };
-	center[0] = (bounds[0] + bounds[1])/2.0;
-	center[1] = (bounds[2] + bounds[3])/2.0;
-	center[2] = (bounds[4] + bounds[5])/2.0;
     
     vtkStructuredGrid* grid = vtkStructuredGrid::New();
     grid->SetDimensions(dims + 6, dims + 6, dims + 6);
@@ -146,7 +136,7 @@ vtkDataSet* createGridForSphereLikeObject(vtkPolyData* input, int& insideCount, 
                 double y = bounds[2] + (j-3)*(bounds[3]-bounds[2])/dims;
                 double z = bounds[4] + (k-3)*(bounds[5]-bounds[4])/dims;
                 
-                gridPoints->InsertNextPoint(x + center[0], y + center[1], z + center[2]);
+                gridPoints->InsertNextPoint(x, y, z);
             }
         }
     }
@@ -183,10 +173,6 @@ vtkDataSet* createGridForHumanBrainTopology(vtkPolyData* gmsurf, vtkPolyData* wm
 	cout << bounds[4] << "," << bounds[5] << endl;
 	
 	double maxbound = max(bounds[1]-bounds[0], max(bounds[3]-bounds[2], bounds[5]-bounds[4]));
-    double center[3] = { 0, };
-    center[0] = (bounds[1]+bounds[0])/2.0;
-    center[1] = (bounds[3]+bounds[2])/2.0;
-    center[2] = (bounds[5]+bounds[4])/2.0;
 	
 	double gridSpacing = maxbound / dims;
 	
@@ -210,7 +196,7 @@ vtkDataSet* createGridForHumanBrainTopology(vtkPolyData* gmsurf, vtkPolyData* wm
 	for (int k = 0; k < zdim+6; k++) {
 		for (int j = 0; j < ydim+6; j++) {
 			for (int i = 0; i < xdim+6; i++) {
-				gridPoints->SetPoint(u, x + center[0], y + center[1], z + center[2]);
+				gridPoints->SetPoint(u, x, y, z);
 				x += gridSpacing;
 				u++;
 			}
@@ -1083,55 +1069,13 @@ void runStreamTracer(Options& opts, StringVector& args) {
 }
 
 
-/// @brief Create a sphere enclosing a given object
-void runEnclosingSphere(Options& opts, StringVector& args) {
-    string inputObj = args[0];
-    string outputObj = args[1];
-
-    vtkIO vio;
-    vtkDataSet* dataSet = vio.readDataFile(inputObj);
-    double* bbox = dataSet->GetBounds();
-
-    double radius = sqrt((bbox[1]-bbox[0])*(bbox[1]-bbox[0]) + (bbox[3]-bbox[2])*(bbox[3]-bbox[2]) + (bbox[5]-bbox[4])*(bbox[5]-bbox[4]))/2.0;
-
-    double center[3] = {0,};
-    center[0] = (bbox[1]+bbox[0])/2.0;
-    center[1] = (bbox[3]+bbox[2])/2.0;
-    center[2] = (bbox[5]+bbox[4])/2.0;
-
-    cout << "Radius: " << radius << endl;
-
-    vtkSphereSource* sphereSource = vtkSphereSource::New();
-    sphereSource->SetRadius(radius);
-    sphereSource->SetPhiResolution(16);
-    sphereSource->SetThetaResolution(16);
-    sphereSource->Update();
-
-    vtkPolyData* outputSphere = sphereSource->GetOutput();
-
-    vtkTransform* txf = vtkTransform::New();
-    txf->Translate(center);
-
-    vtkTransformPolyDataFilter* filter = vtkTransformPolyDataFilter::New();
-    filter->SetTransform(txf);
-    filter->SetInput(outputSphere);
-    filter->Update();
-
-
-
-    vio.writeFile(outputObj, filter->GetOutput());
-
-
-}
-
-
 void processVolumeOptions(Options& opts) {
     opts.addOption("-markBorderCells", "Mark border cells of an input dataset. The border cells have 1 in BorderCells data", "-markBorderCells input-data output-data", SO_NONE);
     opts.addOption("-markBorderPoints", "Mark border points of an input dataset. The border points will be marked as 2 and its exterior neighbors will be marked as 3.", "-markBorderPoints input-data output-data", SO_NONE);
     
     opts.addOption("-extractBorderline", "Extract the borderlines between different labels", "-extractBorderline obj.vtp", SO_NONE);
 	
-    opts.addOption("-fillGrid", "Fill the inside of a polydata with a uniform grid (refer -humanBrain option)", "-fillGrid input.vtp output.vtp", SO_NONE);
+    opts.addOption("-fillGrid", "Fill the inside of a polydata with a uniform grid (refer -twosided option)", "-fillGrid input.vtp output.vtp", SO_NONE);
 
 	opts.addOption("-extractStructuredGrid", "Extract structured grid from a polydata ", "-extractStructuredGrid input.vtp output.vts", SO_NONE);
 	
@@ -1149,8 +1093,6 @@ void processVolumeOptions(Options& opts) {
 	opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-lines output-points", SO_NONE);
 
     opts.addOption("-measureThickness", "Measure the thickness of the solution domain via RK45 integration", "-measureThickness input-polydata output-polydata", SO_NONE);
-
-    opts.addOption("-enclosingSphere", "Create a sphere that encloses a given object", "-enclosingSphere input-vtk output-sphere-vtk", SO_NONE);
 
 }
 
@@ -1211,10 +1153,5 @@ void processVolumeCommands(Options& opts, StringVector& args) {
 		runMeasureThickness(opts, args);
 	} else if (opts.GetBool("-extractStructuredGrid")) {
 		runExtractStructuredGrid(opts, args);
-	} else if (opts.GetBool("-enclosingSphere")) {
-        if (args.size() >= 2) {
-            cout << "creating an enclosing sphere..." << endl;
-            runEnclosingSphere(opts, args);
-        }
-    }
+	}
 }

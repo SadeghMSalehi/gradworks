@@ -72,18 +72,30 @@ IF(${USE_VTK})
     )
     TARGET_LINK_LIBRARIES(kreg ${ITK_LIBRARIES} ${VTK_LIBRARIES})
     
+	INCLUDE_DIRECTORIES(/tools/nlopt/include /tools/Ipopt/include/coin)
+	LINK_DIRECTORIES(/tools/nlopt/lib /tools/Ipopt/lib)
+
+	ADD_EXECUTABLE(koptim
+		koptim.cpp koptim.h)
+	TARGET_LINK_LIBRARIES(koptim nlopt ipopt)
+
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "/Works/Codes/bin")
     ADD_EXECUTABLE(kmesh
         kmesh.h kmesh.cpp
         vGraph.h vGraph.cpp
         vtkUtils.h vtkUtils.cpp
         kstreamtracer.h kstreamtracer.cpp
+        ktest1.h ktest1.cpp
+		kgeometry.h kgeometry.cpp
         kgeodesic.h kgeodesic.cpp
+		kdatastructure.h kdatastructure.cpp
+        kvolume.h kvolume.cpp
         kimage.h kimage.cpp
         piOptions.h piOptions.cpp
         vtkio.h vtkio.cpp
 		csv_parser.h csv_parser.cpp
     )
-    TARGET_LINK_LIBRARIES(kmesh ${ITK_LIBRARIES} ${VTK_LIBRARIES})
+    TARGET_LINK_LIBRARIES(kmesh ${ITK_LIBRARIES} ${VTK_LIBRARIES} nlopt)
 	#ADD_CUSTOM_COMMAND(TARGET kmesh POST_BUILD COMMAND kmesh -h > ${CMAKE_CURRENT_SOURCE_DIR}/kmesh.md)
 
 	ADD_EXECUTABLE(ksurftool
