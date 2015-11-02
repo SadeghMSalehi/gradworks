@@ -79,6 +79,10 @@ IF(${USE_VTK})
 		koptim.cpp koptim.h)
 	TARGET_LINK_LIBRARIES(koptim nlopt ipopt)
 
+<<<<<<< HEAD
+=======
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "/Works/Codes/bin")
+>>>>>>> origin/master
     ADD_EXECUTABLE(kmesh
         kmesh.h kmesh.cpp
         vGraph.h vGraph.cpp

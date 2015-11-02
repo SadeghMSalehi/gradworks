@@ -1,0 +1,11 @@
+PROJECT(kfem)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
+
+FIND_PACKAGE(deal.II 8.3 QUIET HINTS $ENV{DEAL_II_DIR})
+DEAL_II_INITIALIZE_CACHED_VARIABLES()
+
+LINK_DIRECTORIES(/usr/local/lib/x86_64 /usr/local/lib)
+ADD_EXECUTABLE(kfem kfem.cpp kfem.h laplaceEx.cpp laplaceEx.h)
+DEAL_II_SETUP_TARGET(kfem)
+
+

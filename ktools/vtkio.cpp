@@ -9,9 +9,11 @@
 #include "vtkio.h"
 #include <exception>
 
+#include <vtkNew.h>
 #include <vtkDataSet.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
+#include <vtkImageData.h>
 #include <vtkFieldData.h>
 #include <vtkStructuredGrid.h>
 #include <vtkUnstructuredGrid.h>
@@ -25,6 +27,8 @@
 #include <vtkXMLStructuredGridWriter.h>
 #include <vtkMNIObjectReader.h>
 #include <vtkMNIObjectWriter.h>
+#include <vtkMetaImageReader.h>
+#include <vtkMetaImageWriter.h>
 #include <vtkMath.h>
 #include <vtkPointData.h>
 
@@ -160,9 +164,17 @@ void vtkIO::writeFile(std::string file, vtkDataSet *mesh) {
         vtkXMLStructuredGridWriter* w = vtkXMLStructuredGridWriter::New();
         w->SetInput(mesh);
         w->SetFileName(file.c_str());
+		w->SetCompressorTypeToNone();
         w->Write();
         w->Delete();
-    }
+	} else if (endswith(file, ".mhd")) {
+		vtkMetaImageWriter* w = vtkMetaImageWriter::New();
+
+		w->SetInput(vtkImageData::SafeDownCast(mesh));
+		w->SetFileName(file.c_str());
+		w->Write();
+		w->Delete();
+	}
 	cout << "Write " << file << " done ..." << endl;
 }
 
@@ -222,6 +234,13 @@ vtkDataSet* vtkIO::readDataFile(std::string file) {
 		r->SetFileName(file.c_str());
 		r->Update();
 		return r->GetOutput();
+	} else if (endswith(file, ".mhd")) {
+		vtkNew<vtkMetaImageReader> r;
+		r->SetFileName(file.c_str());
+		r->Update();
+		vtkDataSet* ds = r->GetOutput();
+		ds->Register(NULL);
+		return ds;
 	}
 	cout << "Unknown file format: " << file << endl;
 	return NULL;

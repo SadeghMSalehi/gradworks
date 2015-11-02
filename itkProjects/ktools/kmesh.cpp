@@ -499,9 +499,22 @@ void runAppendData(Options& opts, StringVector& args) {
 	vtkAppendPolyData* appender = vtkAppendPolyData::New();
 	vtkIO io;
 	
+	bool regionValue = opts.GetBool("-order", true);
+	
 	// read all files
 	for (unsigned int i = 0; i < args.size(); i++) {
+		cout << "appending " << args[i] << "..." << endl;
 		vtkPolyData* data = io.readFile(args[i]);
+		if (regionValue) {
+			vtkNew<vtkDoubleArray> arr;
+			arr->SetNumberOfComponents(1);
+			arr->SetNumberOfValues(data->GetNumberOfPoints());
+			arr->SetName("Order");
+			for (size_t j = 0; j < data->GetNumberOfPoints(); j++) {
+				arr->SetValue(j, (i+1));
+			}
+			data->GetPointData()->AddArray(arr.GetPointer());
+		}
 		appender->AddInput(data);
 	}
 	
