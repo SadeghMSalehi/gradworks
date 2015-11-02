@@ -115,7 +115,11 @@ void runExtractBorderline(Options& opts, StringVector& args) {
     cout << "Length of Borderline: " << edgeSet.size() << endl;
 }
 
+<<<<<<< HEAD
+vtkDataSet* createGridForSphereLikeObject(vtkPolyData* input, int& insideCount, int dims = 100, bool insideOutOn = true) {
+=======
 vtkDataSet* createGridForSphereLikeObject(vtkPolyData* input, int& insideCount, int dims = 100, bool insideOutOn = false) {
+>>>>>>> origin/master
     // x1-x2, y1-y2, z1-z2
     double* bounds = input->GetBounds();
     
@@ -164,6 +168,8 @@ vtkDataSet* createGridForSphereLikeObject(vtkPolyData* input, int& insideCount, 
 }
 
 
+<<<<<<< HEAD
+=======
 vtkDataSet* createGridForHumanBrainTopology(vtkPolyData* gmsurf, vtkPolyData* wmsurf, const int dims, size_t &insideCountOut) {
 	// x1-x2, y1-y2, z1-z2
 	double* bounds = gmsurf->GetBounds();
@@ -251,10 +257,106 @@ vtkDataSet* createGridForHumanBrainTopology(vtkPolyData* gmsurf, vtkPolyData* wm
 }
 
 
+>>>>>>> origin/master
 // create a structured grid with the size of input
 // convert the grid to polydata
 // create the intersection between the grid and the polydata
 void runFillGrid(Options& opts, StringVector& args) {
+<<<<<<< HEAD
+    if (opts.GetBool("-twosided")) {
+        string inputFileOut = args[0];
+        string inputFileIn = args[1];
+        string outputFile = args[2];
+        
+        vtkIO vio;
+        vtkPolyData* inputOut = vio.readFile(inputFileOut);
+        vtkPolyData* inputIn = vio.readFile(inputFileIn);
+        
+        // x1-x2, y1-y2, z1-z2
+        double* bounds = inputOut->GetBounds();
+        
+        cout << bounds[0] << "," << bounds[1] << endl;
+        cout << bounds[2] << "," << bounds[3] << endl;
+        cout << bounds[4] << "," << bounds[5] << endl;
+        
+        int dims = opts.GetStringAsInt("-dims", 100);
+        
+        double maxbound = max(bounds[1]-bounds[0], max(bounds[3]-bounds[2], bounds[5]-bounds[4]));
+        
+        double gridSpacing = maxbound / dims;
+        
+        cout << "Grid Dimension: " << dims << "; Grid Spacing: " << gridSpacing << endl;
+        
+        
+        size_t xdim = (bounds[1]-bounds[0])/gridSpacing;
+        size_t ydim = (bounds[3]-bounds[2])/gridSpacing;
+        size_t zdim = (bounds[5]-bounds[4])/gridSpacing;
+        
+        vtkStructuredGrid* grid = vtkStructuredGrid::New();
+        grid->SetDimensions(xdim + 2, ydim + 2, zdim + 2);
+        
+        vtkPoints* gridPoints = vtkPoints::New();
+        gridPoints->SetNumberOfPoints((xdim+2)*(ydim+2)*(zdim+2));
+        //    gridPoints->SetNumberOfPoints(101*101*101);
+        
+        
+        size_t u = 0;
+        double x =bounds[0], y = bounds[2], z = bounds[4];
+        for (int k = 0; k < zdim+2; k++) {
+            for (int j = 0; j < ydim+2; j++) {
+                for (int i = 0; i < xdim+2; i++) {
+                    gridPoints->SetPoint(u, x, y, z);
+                    x += gridSpacing;
+                    u++;
+                }
+                y += gridSpacing;
+                x = bounds[0];
+            }
+            z += gridSpacing;
+            y = bounds[2];
+        }
+        
+        grid->SetPoints(gridPoints);
+        cout << "Grid construction done..." << endl;
+        
+        vtkSelectEnclosedPoints* encloserOut = vtkSelectEnclosedPoints::New();
+        encloserOut->SetInput(grid);
+        encloserOut->SetSurface(inputOut);
+        encloserOut->CheckSurfaceOn();
+        encloserOut->SetTolerance(0);
+        cout << "Outside surface processing ..." << endl;
+        encloserOut->Update();
+        
+        vtkDataArray* outLabel = encloserOut->GetOutput()->GetPointData()->GetArray("SelectedPoints");
+        
+        vtkSelectEnclosedPoints* encloserIn = vtkSelectEnclosedPoints::New();
+        encloserIn->SetInput(grid);
+        encloserIn->SetSurface(inputIn);
+        encloserIn->CheckSurfaceOn();
+        encloserIn->InsideOutOn();
+        encloserIn->SetTolerance(0);
+        cout << "Inside surface processing ..." << endl;
+        encloserIn->Update();
+        
+        vtkDataArray* inLabel = encloserIn->GetOutput()->GetPointData()->GetArray("SelectedPoints");
+        
+        vtkIntArray* inOutLabel = vtkIntArray::New();
+        inOutLabel->SetNumberOfComponents(1);
+        inOutLabel->SetNumberOfValues(inLabel->GetNumberOfTuples());
+        
+        size_t insideCount = 0;
+        cout << "Computing the intersection ..." << endl;
+        for (size_t j = 0; j < inOutLabel->GetNumberOfTuples(); j++) {
+            inOutLabel->SetValue(j, (outLabel->GetTuple1(j) == 1 && inLabel->GetTuple1(j) == 1) ? 1 : 0);
+            insideCount++;
+        }
+        
+        inOutLabel->SetName("InteriorPoints");
+        grid->GetPointData()->SetScalars(inOutLabel);
+        
+        vio.writeFile(outputFile, grid);
+        cout << "Inside Voxels: " << insideCount << endl;
+=======
     if (opts.GetBool("-humanBrain")) {
         string inputFileOut = args[0];
         string inputFileIn = args[1];
@@ -269,6 +371,7 @@ void runFillGrid(Options& opts, StringVector& args) {
 		
         vio.writeFile(outputFile, grid);
         cout << "Inside Voxels: " << insideCountOut << endl;
+>>>>>>> origin/master
     } else {
         string inputFile = args[0];
         string outputFile = args[1];
@@ -276,7 +379,11 @@ void runFillGrid(Options& opts, StringVector& args) {
         vtkIO vio;
         vtkPolyData* input = vio.readFile(inputFile);
         int insideCount = 0;
+<<<<<<< HEAD
+        vtkDataSet* output = createGridForSphereLikeObject(input, insideCount, 100, true);
+=======
         vtkDataSet* output = createGridForSphereLikeObject(input, insideCount, 100, false);
+>>>>>>> origin/master
         vio.writeFile(outputFile, output);
         cout << "Inside Voxels: " << insideCount << endl;
     }
@@ -558,9 +665,12 @@ void computeLaplacePDE(vtkDataSet* data, const double low, const double high, co
 		}
 		
 		void computeExteriorNormals(vtkPolyData* boundarySurface, const double radius = .1) {
+<<<<<<< HEAD
+=======
 			if (boundarySurface == NULL) {
 				return;
 			}
+>>>>>>> origin/master
 			vtkNew<vtkPolyDataNormals> normalsFilter;
 			normalsFilter->SetInput(boundarySurface);
 			normalsFilter->ComputeCellNormalsOn();
@@ -1012,8 +1122,11 @@ void runMeasureThickness(Options& opts, StringVector& args) {
     vtkIO vio;
     string inputFile = args[0];
     string outputStreamFile = args[1];
+<<<<<<< HEAD
+=======
 	string scalarName = opts.GetString("-scalarName", "meanLabels");
 	string outputName = opts.GetString("-o", "");
+>>>>>>> origin/master
     
     vtkPolyData* input = vio.readFile(inputFile);
 //    vtkPolyData* inputSeedPoints = vio.readFile(inputSeedFile);
@@ -1032,6 +1145,16 @@ void runMeasureThickness(Options& opts, StringVector& args) {
     cout << "Grid created..." << endl;
     selectBoundaryPoints(inOutGrid, "SelectedPoints");
     cout << "Boundary identified..." << endl;
+<<<<<<< HEAD
+    vtkDataSet* boundaryCondGrid = sampleSurfaceScalarsForGrid(inOutGrid, input, "meanLabels");
+    cout << "Boundary condition assigned..." << endl;
+    computeLaplacePDE(boundaryCondGrid, 0, 10000, 5000, 0.065, input);
+    cout << "Laplace PDE computation done..." << endl;
+    
+    vtkPolyData* outputStream = performStreamTracer(opts, boundaryCondGrid, input);
+    cout << "RK4 integration done..." << endl;
+    vio.writeFile(outputStreamFile, outputStream);
+=======
     vtkDataSet* boundaryCondGrid = sampleSurfaceScalarsForGrid(inOutGrid, input, scalarName);
     cout << "Boundary condition assigned..." << endl;
     vio.writeFile("BoundaryCondGrid.vts", boundaryCondGrid);
@@ -1044,6 +1167,7 @@ void runMeasureThickness(Options& opts, StringVector& args) {
 	if (outputName != "") {
 		vio.writeFile(outputName, input);
 	}
+>>>>>>> origin/master
     
 }
 
@@ -1080,14 +1204,22 @@ void processVolumeOptions(Options& opts) {
 	opts.addOption("-extractStructuredGrid", "Extract structured grid from a polydata ", "-extractStructuredGrid input.vtp output.vts", SO_NONE);
 	
     opts.addOption("-dims", "x-y-z dimensions", "-dims 100", SO_REQ_SEP);
+<<<<<<< HEAD
+    opts.addOption("-twosided", "An option to generate the filled uniform grid", "-fillGrid CSF_GM_surface.vtk GM_WM_surface.vtk output.vts -twosided", SO_NONE);
+=======
 	
     opts.addOption("-humanBrain", "Option to generate the filled uniform grid for a human brain", "-fillGrid CSF_GM_surface.vtk GM_WM_surface.vtk output.vts -humanBrain", SO_NONE);
+>>>>>>> origin/master
 	
     //
     opts.addOption("-sampleSurfaceScalarsForGrid", "Sample scalar values from a poly data at each grid point by finding a cell that intersects an edge of the grid", SO_NONE);
 
 	// thickness measurement
+<<<<<<< HEAD
+	opts.addOption("-computeLaplacePDE", "Compute the Laplace PDE over the given domain", "-computeLaplacePDE input-data output-data ", SO_NONE);
+=======
 	opts.addOption("-computeLaplacePDE", "Compute the Laplace PDE over the given domain", "-computeLaplacePDE input-data input-surface output-data ", SO_NONE);
+>>>>>>> origin/master
 
 	// RK45 stream tracer
 	opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-lines output-points", SO_NONE);
@@ -1129,6 +1261,16 @@ void processVolumeCommands(Options& opts, StringVector& args) {
         
         vio.writeFile(outputFile, outDS);
     } else if (opts.GetBool("-computeLaplacePDE")) {
+<<<<<<< HEAD
+		input1File = args[0];
+		string input2File = args[1];
+		outputFile = args[2];
+		
+		vtkDataSet* data = vio.readDataFile(input1File);
+		vtkPolyData* surfaceData = vio.readFile(input2File);
+		computeLaplacePDE(data, 0, 10000, 5000, 0.065, surfaceData);
+		vio.writeFile(outputFile, data);
+=======
 		if (args.size() == 2) {
 			input1File = args[0];
 			outputFile = args[1];
@@ -1146,6 +1288,7 @@ void processVolumeCommands(Options& opts, StringVector& args) {
 			computeLaplacePDE(data, 0, 10000, 5000, 0.065, surfaceData);
 			vio.writeFile(outputFile, data);
 		}
+>>>>>>> origin/master
 	} else if (opts.GetBool("-traceStream")) {
 		// -traceStream 312.laplaceSol.vtp 312.sliceContour.vtk 312.thicknessSol.vtp 312.streams.vtp
 		runStreamTracer(opts, args);
