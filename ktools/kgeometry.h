@@ -181,8 +181,11 @@ public:
 	};
 	typedef std::map<vtkIdType, Edge> EdgeMap;
     typedef std::vector<EdgeMap> EdgeList;
+	typedef std::vector<vtkIdType> Neighbors;
+	typedef std::vector<std::vector<vtkIdType> > NeighborList;
 	
     size_t extractEdges(vtkDataSet* ds, EdgeList& edges);
+	size_t extractNeighbors(vtkDataSet* ds, NeighborList& nbrs);
     
     double tangentVector(const double u[3], const double v[3], const double n[3], double tv[3], vtkTransform* txf = NULL);
 	
@@ -198,6 +201,8 @@ public:
 	bool computeContourNormals(vtkDataSet* ds, vtkDoubleArray* normals);
 	
 	vtkPolyData* computeSurfaceNormals(vtkPolyData* pd);
+	
+	void print();
 };
 
 

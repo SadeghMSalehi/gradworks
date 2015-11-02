@@ -81,7 +81,8 @@ namespace pi {
         OptionReal GetReal(std::string name, OptionReal def);
         OptionReal GetStringAsReal(std::string name, OptionReal def);
         std::string GetString(std::string name, std::string def = "");
-
+		bool HasString(std::string name);
+		
         StringVector& GetStringVector(std::string name);
         std::string GetStringVectorValue(std::string name, int i, std::string def = "");
         StringVector GetSplitString(std::string name, std::string tok, std::string def = "");

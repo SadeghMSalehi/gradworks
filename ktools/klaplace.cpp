@@ -28,6 +28,7 @@
 #include <vtkCellLocator.h>
 #include <vtkPointLocator.h>
 #include <vtkModifiedBSPTree.h>
+#include <vtkImageToStructuredGrid.h>
 
 #include "kgeometry.h"
 #include "kstreamtracer.h"
@@ -40,6 +41,39 @@ using namespace pi;
 static vtkIO vio;
 
 
+
+void processGeometryOptions(Options& opts) {
+	opts.addOption("-connectivity", "Print edge connectivity",  SO_NONE);
+	opts.addOption("-img2vts", "Convert an image to vtkStructuredGrid", SO_NONE);
+}
+
+
+void processGeometryCommands(Options& opts, StringVector& args) {
+	if (opts.GetBool("-connectivity")) {
+		Geometry geom;
+		Geometry::NeighborList nbrs;
+
+		vtkDataSet* ds = vio.readDataFile(args[0]);
+		geom.extractNeighbors(ds, nbrs);
+		
+		const size_t nPoints = nbrs.size();
+		for (size_t j = 0; j < nPoints; j++) {
+			cout << j << "]: ";
+			Geometry::Neighbors::const_iterator iter = nbrs[j].cbegin();
+			for (size_t k = 0; iter != nbrs[j].cend(); k++, iter++) {
+				cout << *iter << " ";
+			}
+			cout << endl;
+		}
+		return;
+	} else if (opts.GetBool("-img2vts")) {
+		vtkDataSet* img = vio.readDataFile(args[0]);
+		vtkNew<vtkImageToStructuredGrid> filt;
+		filt->SetInput(img);
+		filt->Update();
+		vio.writeFile(args[1], filt->GetOutput());
+	}
+}
 
 //void processVTKUtils(pi::Options opts, pi::StringVector args) {
 //    vtkIO vio;
@@ -84,6 +118,7 @@ int main(int argc, char* argv[]) {
     Options opts;
     opts.addOption("-h", "print help message", SO_NONE);
 
+	processGeometryOptions(opts);
     processVolumeOptions(opts);
 
     StringVector args = opts.ParseOptions(argc, argv, NULL);
@@ -95,6 +130,7 @@ int main(int argc, char* argv[]) {
     }
 
     processVolumeCommands(opts, args);
+	processGeometryCommands(opts, args);
 
     return 0;
 }

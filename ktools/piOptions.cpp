@@ -154,6 +154,10 @@ namespace pi {
         return def;
     }
 
+	bool Options::HasString(std::string name) {
+		return _stringMap.find(name) != _stringMap.end();
+	}
+	
     std::string Options::GetString(std::string name, std::string def) {
         if (_stringMap.find(name) == _stringMap.end()) {
             return def;
