@@ -33,6 +33,7 @@
 #include "kgeometry.h"
 #include "kstreamtracer.h"
 #include "kvolume.h"
+#include "kvtkutils.h"
 
 using namespace std;
 using namespace pi;
@@ -120,6 +121,7 @@ int main(int argc, char* argv[]) {
 
 	processGeometryOptions(opts);
     processVolumeOptions(opts);
+	processUtilityOptions(opts);
 
     StringVector args = opts.ParseOptions(argc, argv, NULL);
 
@@ -131,6 +133,7 @@ int main(int argc, char* argv[]) {
 
     processVolumeCommands(opts, args);
 	processGeometryCommands(opts, args);
+	processUtilityCommands(opts, args);
 
     return 0;
 }

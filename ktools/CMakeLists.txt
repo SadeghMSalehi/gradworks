@@ -9,5 +9,5 @@ INCLUDE(${VTK_USE_FILE})
 INCLUDE_DIRECTORIES(/opt/local/include/vxl/core /opt/local/include/vxl/vcl)
 LINK_DIRECTORIES(/opt/local/lib/vxl)
 
-ADD_EXECUTABLE(klaplace klaplace.cpp klaplace.h kgeometry.cpp kgeometry.h kstreamtracer.cpp kstreamtracer.h kvolume.cpp kvolume.h vtkio.cpp vtkio.h piOptions.h piOptions.cpp SimpleOpt.h)
+ADD_EXECUTABLE(klaplace klaplace.cpp klaplace.h kgeometry.cpp kgeometry.h kstreamtracer.cpp kstreamtracer.h kvolume.cpp kvolume.h kvtkutils.cpp kvtkutils.h vtkio.cpp vtkio.h piOptions.h piOptions.cpp csv_parser.cpp csv_parser.h SimpleOpt.h)
 TARGET_LINK_LIBRARIES(klaplace ${VTK_LIBRARIES} vnl)

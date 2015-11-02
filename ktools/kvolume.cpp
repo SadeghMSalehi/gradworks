@@ -988,30 +988,29 @@ vtkPolyData* performStreamTracer(Options& opts, vtkDataSet* inputData, vtkPolyDa
 	tracer->SetComputeVorticity(false);
 	tracer->SetIntegratorTypeToRungeKutta45();
 	
-	
-	bool isBothDirection = true;
-	if (opts.GetString("-traceDirection") == "both") {
+
+	string traceDirection = opts.GetString("-traceDirection", "forward");
+	if (traceDirection == "both") {
 		tracer->SetIntegrationDirectionToBoth();
-		isBothDirection = true;
-	} else if (opts.GetString("-traceDirection") == "backward") {
+	} else if (traceDirection == "backward") {
 		tracer->SetIntegrationDirectionToBackward();
 		cout << "Backward Integration" << endl;
-	} else if (!isBothDirection){
+	} else if (traceDirection == "forward") {
 		tracer->SetIntegrationDirectionToForward();
 		cout << "Forward Integration" << endl;
 	}
+	cout << "Integration Direction: " << tracer->GetIntegrationDirection() << endl;
 
-	if (isBothDirection) {
-		cout << "Forward/Backward Integration" << endl;
-	}
 	tracer->SetInterpolatorTypeToCellLocator();
 	tracer->SetMaximumPropagation(500);
-	tracer->SetInitialIntegrationStep(.5);
+	tracer->SetInitialIntegrationStep(1);
 	tracer->Update();
-	
+
 	
 	vtkPolyData* streamLines = tracer->GetOutput();
-	//	streamLines->Print(cout);
+	streamLines->Print(cout);
+	
+	vio.writeFile("streamlines.vtp", streamLines);
 	
 	// remove useless pointdata information
 	streamLines->GetPointData()->Reset();
@@ -1088,6 +1087,7 @@ vtkPolyData* performStreamTracer(Options& opts, vtkDataSet* inputData, vtkPolyDa
 		vtkCleanPolyData* cleaner = vtkCleanPolyData::New();
 		cleaner->SetInput(outputStreamLines);
 		cleaner->Update();
+		
 		return cleaner->GetOutput();
 	} else {
 		cout << "Can't find SeedId" << endl;
@@ -1449,6 +1449,8 @@ void processVolumeOptions(Options& opts) {
 	
 	// RK45 stream tracer
 	opts.addOption("-traceStream", "Trace a stream line from a given point set", "-traceStream input-vtu-field input-vtk output-lines output-points", SO_NONE);
+	
+	opts.addOption("-traceDirection", "Choose the direction of stream tracing (both, forward, backward)", "-traceStream ... -traceDirection (both|forward|backward)", SO_REQ_SEP);
 	
 	opts.addOption("-measureThickness", "Measure the thickness of the solution domain via RK45 integration", "-measureThickness input-polydata output-polydata", SO_NONE);
 	
